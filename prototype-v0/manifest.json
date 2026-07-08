@@ -1,0 +1,15 @@
+{
+  "name": "BTP Life — Le simulateur de carrière BTP",
+  "short_name": "BTP Life",
+  "description": "Choisis ton métier. Apprends. Travaille. Évolue. Construis ta carrière dans le BTP.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4EEE2",
+  "theme_color": "#26262B",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

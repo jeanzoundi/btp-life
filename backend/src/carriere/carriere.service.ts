@@ -1,0 +1,379 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/carriere.dto';
+import { BesoinsService } from './besoins.service';
+
+@Injectable()
+export class CarriereService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly besoins: BesoinsService,
+  ) {}
+
+  async me(userId: string) {
+    // Le déclin des besoins est calculé à chaque consultation (approche "paresseuse", sans tâche planifiée).
+    const carriere = await this.besoins.actualiser(userId);
+    const complet = await this.prisma.userCarriere.findUnique({
+      where: { userId },
+      include: { profilActuel: true, metierCible: true, referentielPays: true },
+    });
+    if (!complet) throw new NotFoundException('Carrière introuvable');
+    const avatar = await this.prisma.avatar.findUnique({ where: { userId } });
+    const parcours = await this.prisma.parcours.findFirst({
+      where: { userId },
+      orderBy: { genereLe: 'desc' },
+    });
+    return { ...complet, energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social, avatar, parcours };
+  }
+
+  async upsertAvatar(userId: string, dto: UpdateAvatarDto) {
+    const { config, ...champs } = dto;
+    const data = { ...champs, ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}) };
+    return this.prisma.avatar.upsert({
+      where: { userId },
+      create: { userId, ...data },
+      update: data,
+    });
+  }
+
+  async setProfilActuel(userId: string, dto: SetProfilActuelDto) {
+    const profil = await this.prisma.profil.findUnique({ where: { id: dto.profilId } });
+    if (!profil) throw new NotFoundException('Profil introuvable');
+    return this.prisma.userCarriere.update({
+      where: { userId },
+      data: { profilActuelId: profil.id, niveau: Math.max(1, profil.niveauDepart) },
+    });
+  }
+
+  async setMetierCible(userId: string, dto: SetMetierCibleDto) {
+    const metier = await this.prisma.metierCible.findUnique({ where: { id: dto.metierCibleId } });
+    if (!metier) throw new NotFoundException('Métier cible introuvable');
+    return this.prisma.userCarriere.update({
+      where: { userId },
+      data: { metierCibleId: metier.id },
+    });
+  }
+
+  async genererParcours(userId: string) {
+    const carriere = await this.prisma.userCarriere.findUnique({
+      where: { userId },
+      include: { profilActuel: true, metierCible: true },
+    });
+    if (!carriere?.profilActuel || !carriere?.metierCible) {
+      throw new BadRequestException("Profil actuel et métier cible requis avant de générer le parcours");
+    }
+
+    const profilsFamille = await this.prisma.profil.findMany({
+      where: { famille: carriere.metierCible.famille },
+      orderBy: { ordre: 'asc' },
+    });
+
+    const etapes = profilsFamille
+      .filter((p) => p.ordre >= carriere.profilActuel!.ordre)
+      .map((p, index) => ({
+        profilId: p.id,
+        slug: p.slug,
+        nom: p.nom,
+        ordre: p.ordre,
+        complete: index === 0,
+      }));
+
+    return this.prisma.parcours.create({
+      data: {
+        userId,
+        etapes,
+        etapeCourante: 0,
+      },
+    });
+  }
+
+  /** Évalue les conditions d'une règle de promotion et retourne la liste des conditions non remplies. */
+  private async evaluerConditions(
+    userId: string,
+    carriere: { niveau: number; reputation: number },
+    conditions: Record<string, unknown>,
+  ): Promise<string[]> {
+    const manquants: string[] = [];
+
+    if (typeof conditions.reputationMin === 'number' && carriere.reputation < conditions.reputationMin) {
+      manquants.push(`Réputation ${conditions.reputationMin} requise (actuelle : ${carriere.reputation})`);
+    }
+    if (typeof conditions.niveauMin === 'number' && carriere.niveau < conditions.niveauMin) {
+      manquants.push(`Niveau ${conditions.niveauMin} requis (actuel : ${carriere.niveau})`);
+    }
+    if (Array.isArray(conditions.competences)) {
+      for (const req of conditions.competences as Array<{ slug: string; niveau: number }>) {
+        const competence = await this.prisma.competence.findUnique({ where: { slug: req.slug } });
+        if (!competence) continue;
+        const userCompetence = await this.prisma.userCompetence.findUnique({
+          where: { userId_competenceId: { userId, competenceId: competence.id } },
+        });
+        if (!userCompetence || userCompetence.niveauActuel < req.niveau) {
+          manquants.push(`${competence.nom} niveau ${req.niveau} (actuel : ${userCompetence?.niveauActuel ?? 0})`);
+        }
+      }
+    }
+    if (typeof conditions.chantiersReussis === 'number') {
+      const count = await this.prisma.userChantier.count({
+        where: { userId, statut: 'termine', noteFinale: { in: ['A', 'B'] } },
+      });
+      if (count < conditions.chantiersReussis) {
+        manquants.push(`${conditions.chantiersReussis} chantiers réussis requis (actuel : ${count})`);
+      }
+    }
+    return manquants;
+  }
+
+  /** Résumé lisible des conditions d'une règle, pour affichage même quand le poste est verrouillé. */
+  private resumeConditions(conditions: Record<string, unknown>): string[] {
+    const lignes: string[] = [];
+    if (typeof conditions.niveauMin === 'number') lignes.push(`Niveau ${conditions.niveauMin}`);
+    if (typeof conditions.reputationMin === 'number') lignes.push(`Réputation ${conditions.reputationMin}`);
+    if (typeof conditions.chantiersReussis === 'number') lignes.push(`${conditions.chantiersReussis} chantier(s) réussi(s)`);
+    if (Array.isArray(conditions.competences)) {
+      for (const req of conditions.competences as Array<{ slug: string; niveau: number }>) {
+        lignes.push(`${req.slug.replace(/-/g, ' ')} niv. ${req.niveau}`);
+      }
+    }
+    if (conditions.examenMissionId) lignes.push("Examen de passage à réussir");
+    return lignes;
+  }
+
+  async prochaineEtape(userId: string) {
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
+    if (!carriere?.profilActuelId) return { regle: null, manquants: [] };
+
+    const regle = await this.prisma.reglePromotion.findFirst({
+      where: { profilSourceId: carriere.profilActuelId },
+      include: { profilCible: true },
+    });
+    if (!regle) return { regle: null, manquants: [] };
+
+    const manquants = await this.evaluerConditions(userId, carriere, (regle.conditions as Record<string, unknown>) ?? {});
+    return { regle, manquants, eligible: manquants.length === 0 };
+  }
+
+  /**
+   * Arbre de carrière complet de la famille du profil actuel : chaque poste avec son statut
+   * (atteint / actuel / prochain / verrouille) et les conditions de la transition qui y mène.
+   * Les postes non encore accessibles sont "grisés" côté frontend.
+   */
+  async arbreCarriere(userId: string) {
+    const carriere = await this.prisma.userCarriere.findUnique({
+      where: { userId },
+      include: { profilActuel: true },
+    });
+    if (!carriere?.profilActuel) return { famille: null, postes: [] };
+
+    const famille = carriere.profilActuel.famille;
+    const profils = await this.prisma.profil.findMany({ where: { famille }, orderBy: { ordre: 'asc' } });
+    const ordreActuel = carriere.profilActuel.ordre;
+
+    // Toutes les règles de la famille, indexées par profil cible.
+    const regles = await this.prisma.reglePromotion.findMany({
+      where: { profilCibleId: { in: profils.map((p) => p.id) } },
+    });
+    const regleVersProfil = new Map(regles.map((r) => [r.profilCibleId, r]));
+
+    const postes: Array<{
+      profilId: string;
+      slug: string;
+      nom: string;
+      description: string | null;
+      ordre: number;
+      statut: 'atteint' | 'actuel' | 'prochain' | 'verrouille';
+      estSommet: boolean;
+      conditions: string[];
+      manquants: string[];
+      eligible: boolean;
+    }> = [];
+    for (let i = 0; i < profils.length; i++) {
+      const p = profils[i];
+      const regle = regleVersProfil.get(p.id);
+      const conditions = (regle?.conditions as Record<string, unknown>) ?? {};
+
+      let statut: 'atteint' | 'actuel' | 'prochain' | 'verrouille';
+      if (p.ordre < ordreActuel) statut = 'atteint';
+      else if (p.ordre === ordreActuel) statut = 'actuel';
+      else if (p.ordre === ordreActuel + 1) statut = 'prochain';
+      else statut = 'verrouille';
+
+      // Les manquants ne sont calculés que pour la prochaine étape (les suivantes sont encore hors de portée).
+      const manquants = statut === 'prochain' && regle ? await this.evaluerConditions(userId, carriere, conditions) : [];
+
+      postes.push({
+        profilId: p.id,
+        slug: p.slug,
+        nom: p.nom,
+        description: p.description,
+        ordre: p.ordre,
+        statut,
+        estSommet: i === profils.length - 1,
+        conditions: regle ? this.resumeConditions(conditions) : [],
+        manquants,
+        eligible: statut === 'prochain' ? manquants.length === 0 : false,
+      });
+    }
+
+    return {
+      famille,
+      profilActuel: carriere.profilActuel.nom,
+      postes,
+    };
+  }
+
+  /** Série de jours consécutifs avec au moins une mission terminée. */
+  async streak(userId: string) {
+    const missions = await this.prisma.userMission.findMany({
+      where: { userId, termineeLe: { not: null } },
+      select: { termineeLe: true },
+    });
+    const jours = new Set(missions.map((m) => m.termineeLe!.toISOString().slice(0, 10)));
+    const unJour = 24 * 60 * 60 * 1000;
+    const cle = (d: Date) => d.toISOString().slice(0, 10);
+
+    const aujourdhui = new Date();
+    const aJoueAujourdhui = jours.has(cle(aujourdhui));
+    // La série court jusqu'à aujourd'hui, ou jusqu'à hier si on n'a pas encore joué aujourd'hui.
+    let curseur = aJoueAujourdhui ? aujourdhui : new Date(aujourdhui.getTime() - unJour);
+    let serie = 0;
+    while (jours.has(cle(curseur))) {
+      serie += 1;
+      curseur = new Date(curseur.getTime() - unJour);
+    }
+    return { jours: serie, aJoueAujourdhui };
+  }
+
+  /** Top 20 par XP + rang du joueur courant. */
+  async classement(userId: string) {
+    const top = await this.prisma.userCarriere.findMany({
+      where: { user: { role: 'USER', banni: false } },
+      orderBy: [{ xp: 'desc' }, { updatedAt: 'asc' }],
+      take: 20,
+      select: {
+        userId: true,
+        niveau: true,
+        xp: true,
+        reputation: true,
+        profilActuel: { select: { nom: true } },
+        user: { select: { pseudo: true, nom: true, avatar: { select: { nomPersonnage: true, config: true } } } },
+      },
+    });
+    const mienne = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { xp: true } });
+    const devant = await this.prisma.userCarriere.count({
+      where: { user: { role: 'USER', banni: false }, xp: { gt: mienne?.xp ?? 0 } },
+    });
+    return {
+      top: top.map((c, i) => ({
+        rang: i + 1,
+        estMoi: c.userId === userId,
+        nom: c.user.avatar?.nomPersonnage ?? c.user.pseudo ?? c.user.nom,
+        avatarConfig: c.user.avatar?.config ?? null,
+        profil: c.profilActuel?.nom ?? null,
+        niveau: c.niveau,
+        xp: c.xp,
+        reputation: c.reputation,
+      })),
+      monRang: devant + 1,
+    };
+  }
+
+  /**
+   * Les autres joueurs réellement actifs récemment — pour peupler le monde virtuel
+   * de vraies personnes plutôt que de PNJ scriptés (jeu interconnecté).
+   *
+   * Pensé pour tenir avec plusieurs milliers de comptes : on ne trie/limite jamais sur toute
+   * la table. On prend d'abord un bassin borné (200) des plus récemment actifs — requête bon
+   * marché quelle que soit la taille totale de la base — puis on tire un échantillon aléatoire
+   * dedans, pour que ce ne soit pas toujours les 6 mêmes power users qui monopolisent le monde.
+   */
+  async joueursActifs(userId: string, limite = 24) {
+    const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // actifs dans les 30 derniers jours
+    const bassin = await this.prisma.userCarriere.findMany({
+      where: {
+        userId: { not: userId },
+        updatedAt: { gte: depuis },
+        user: { role: 'USER', banni: false },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+      select: {
+        userId: true,
+        niveau: true,
+        reputation: true,
+        profilActuel: { select: { nom: true } },
+        user: { select: { pseudo: true, nom: true, avatar: { select: { nomPersonnage: true, config: true } } } },
+      },
+    });
+
+    // Échantillon aléatoire (Fisher-Yates partiel) dans le bassin — rotation équitable.
+    const echantillon = [...bassin];
+    for (let i = echantillon.length - 1; i > 0 && i >= echantillon.length - limite; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [echantillon[i], echantillon[j]] = [echantillon[j], echantillon[i]];
+    }
+    const joueurs = echantillon.slice(-limite);
+
+    return joueurs.map((j) => ({
+      userId: j.userId,
+      nom: j.user.avatar?.nomPersonnage ?? j.user.pseudo ?? j.user.nom,
+      avatarConfig: j.user.avatar?.config ?? null,
+      profil: j.profilActuel?.nom ?? null,
+      niveau: j.niveau,
+      reputation: j.reputation,
+    }));
+  }
+
+  /** Fiche publique d'un joueur (données non sensibles uniquement) — consultable en cliquant sur lui dans le monde. */
+  async profilPublic(userId: string, cibleId: string) {
+    if (userId === cibleId) throw new BadRequestException("C'est toi !");
+    const carriere = await this.prisma.userCarriere.findUnique({
+      where: { userId: cibleId },
+      select: {
+        niveau: true,
+        xp: true,
+        reputation: true,
+        profilActuel: { select: { nom: true } },
+        metierCible: { select: { nom: true } },
+        traits: true,
+        user: {
+          select: {
+            pseudo: true,
+            nom: true,
+            role: true,
+            banni: true,
+            avatar: { select: { nomPersonnage: true, config: true } },
+            _count: { select: { userBadges: true, userCertificats: true } },
+          },
+        },
+      },
+    });
+    if (!carriere || carriere.user.role !== 'USER' || carriere.user.banni) {
+      throw new NotFoundException('Joueur introuvable');
+    }
+    return {
+      nom: carriere.user.avatar?.nomPersonnage ?? carriere.user.pseudo ?? carriere.user.nom,
+      avatarConfig: carriere.user.avatar?.config ?? null,
+      niveau: carriere.niveau,
+      xp: carriere.xp,
+      reputation: carriere.reputation,
+      profil: carriere.profilActuel?.nom ?? null,
+      metierCible: carriere.metierCible?.nom ?? null,
+      traits: (carriere.traits as string[] | null) ?? [],
+      nbBadges: carriere.user._count.userBadges,
+      nbCertificats: carriere.user._count.userCertificats,
+    };
+  }
+
+  /** Choix des traits de personnalité (2 à 3), fait une seule fois à l'onboarding — modifiable ensuite depuis le profil. */
+  async setTraits(userId: string, traits: string[]) {
+    if (!Array.isArray(traits) || traits.length < 1 || traits.length > 3) {
+      throw new BadRequestException('Choisis entre 1 et 3 traits');
+    }
+    return this.prisma.userCarriere.update({
+      where: { userId },
+      data: { traits: traits as unknown as Prisma.InputJsonValue },
+    });
+  }
+}

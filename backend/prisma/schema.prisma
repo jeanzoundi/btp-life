@@ -1,0 +1,1036 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+  ECOLE
+  ENTREPRISE
+}
+
+enum AdminSubRole {
+  SUPER_ADMIN
+  EDITEUR
+  RESPONSABLE_PEDAGOGIQUE
+  GESTIONNAIRE_PAYS
+  SUPPORT
+  GESTIONNAIRE_B2B
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+  SCHOOL
+  COMPANY
+}
+
+enum ProfilFamille {
+  CHANTIER
+  BE
+  BIM
+  TOPO
+  GEOTECH
+  METRE
+  QUALITE
+  ENTREPRENEUR
+}
+
+enum CarriereEvenementType {
+  PROMOTION
+  EMBAUCHE
+  STAGE
+  DIPLOME
+  CREATION_ENTREPRISE
+  CHANTIER_LIVRE
+}
+
+enum MissionType {
+  QUIZ
+  CHRONO
+  ANALYSE_IMAGE
+  LECTURE_PLAN
+  CALCUL
+  METRE
+  DEVIS
+  RAPPORT
+  DECISION
+  GESTION_HUMAINE
+  SIMULATION_LOGICIEL
+  CONTROLE_QUALITE
+  CHANTIER_COMPLET
+  EXAMEN
+}
+
+enum MissionStatut {
+  BROUILLON
+  RELECTURE
+  PUBLIE
+  ARCHIVE
+}
+
+enum QuestionType {
+  QCM
+  NUMERIQUE
+  ZONE_IMAGE
+  ORDONNANCEMENT
+  CHOIX_CONSEQUENCE
+  TEXTE
+}
+
+enum UserMissionStatut {
+  DISPONIBLE
+  EN_COURS
+  REUSSIE
+  ECHOUEE
+}
+
+enum ChantierType {
+  DALLE
+  CLOTURE
+  CHAMBRE
+  MAISON
+  VILLA
+  R_PLUS_1
+  ECOLE
+  CENTRE_SANTE
+  ROUTE
+  CANIVEAU
+  DALOT
+  INDUSTRIEL
+  URBAIN
+}
+
+enum ChantierStatut {
+  BROUILLON
+  DISPONIBLE
+  EN_COURS
+  TERMINE
+  ARCHIVE
+}
+
+enum RessourceType {
+  MATERIAU
+  OUVRIER
+  FOURNISSEUR
+  MATERIEL
+}
+
+enum LieuSlug {
+  ECOLE
+  CENTRE_FORMATION
+  BUREAU_ETUDES
+  CHANTIER
+  ENTREPRISE
+  FOURNISSEUR
+  MAIRIE
+  BANQUE
+  LABORATOIRE
+  BUREAU_CONTROLE
+  DEPOT
+  CLIENT
+}
+
+enum PnjRole {
+  PROFESSEUR
+  MAITRE_STAGE
+  SUPERVISEUR
+  CHEF_CHANTIER
+  CHEF_ENTREPRISE
+  CONDUCTEUR
+  INGENIEUR
+  CLIENT
+  FOURNISSEUR
+  OUVRIER
+  CONTROLEUR
+  HSE
+  RECRUTEUR
+  BANQUIER
+  CONCURRENT
+  ARCHITECTE
+  GEOTECHNICIEN
+  TOPOGRAPHE
+}
+
+enum EvenementType {
+  DEFI_JOUR
+  DEFI_SEMAINE
+  IMPREVU
+  OPPORTUNITE
+}
+
+enum CandidatureStatut {
+  ENVOYEE
+  TEST
+  ACCEPTEE
+  REFUSEE
+}
+
+enum DemandePromotionStatut {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+}
+
+enum NormeCategorie {
+  CONSTRUCTION
+  BETON
+  ACIER
+  GEOTECHNIQUE
+  ELECTRICITE
+  PLOMBERIE
+  VRD
+  ACCESSIBILITE
+  INCENDIE
+  HSE
+  RECEPTION
+}
+
+enum PaysConfigCle {
+  APPELLATIONS_METIERS
+  DOCUMENTS_TYPES
+  REGLES_HSE
+  TYPES_CONTRATS
+  TYPES_MARCHES
+  NIVEAUX_QUALIFICATION
+  PROCEDURES_RECEPTION
+  ACTEURS_INSTITUTIONNELS
+  COEFFICIENTS
+}
+
+enum MediaType {
+  IMAGE
+  PLAN
+  DOCUMENT
+  DONNEE
+}
+
+enum AbonnementStatut {
+  ACTIF
+  EXPIRE
+  ANNULE
+  IMPAYE
+}
+
+enum AbonnementProvider {
+  STRIPE
+  CINETPAY
+  PAYDUNYA
+  WAVE
+  MANUEL
+}
+
+enum CompteB2bType {
+  ECOLE
+  ENTREPRISE
+}
+
+enum NotificationType {
+  DEFI
+  MESSAGE_PNJ
+  CANDIDATURE
+  RAPPEL_SERIE
+  BADGE
+  PROMOTION
+  SYSTEME
+}
+
+enum Rarete {
+  BRONZE
+  ARGENT
+  OR
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.1 IDENTITE ET CARRIERE
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  nom           String
+  pseudo        String?
+  paysId        String?
+  pays          Pays?         @relation(fields: [paysId], references: [id])
+  ville         String?
+  niveauEtude   String?
+  domaineBtp    String?
+  role          Role          @default(USER)
+  adminSubRole  AdminSubRole?
+  plan          Plan          @default(FREE)
+  emailVerified Boolean       @default(false)
+  banni         Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  avatar                Avatar?
+  carriere              UserCarriere?
+  carriereHistorique    CarriereHistorique[]
+  parcours              Parcours[]
+  userCompetences       UserCompetence[]
+  userLogiciels         UserLogiciel[]
+  userMissions          UserMission[]
+  userChantiers         UserChantier[]
+  userMessages          UserMessage[]
+  userBadges            UserBadge[]
+  userCertificats       UserCertificat[]
+  cvVirtuel             CvVirtuel?
+  candidatures          Candidature[]
+  demandesPromotion     DemandePromotion[]
+  entreprisesVirtuelles EntrepriseVirtuelle[]
+  abonnements           Abonnement[]
+  b2bMembre             B2bMembre?
+  b2bCompteAdmin        CompteB2b[]           @relation("CompteB2bAdmin")
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  missionsCreated       Mission[]             @relation("MissionCreatedBy")
+}
+
+model Avatar {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomPersonnage    String
+  style            String?
+  tenue            String?
+  equipement       String?
+  metierRepresente String?
+  config           Json?
+}
+
+model Profil {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  nom          String
+  description  String?
+  famille      ProfilFamille
+  niveauDepart Int           @default(1)
+  ordre        Int           @default(0)
+
+  userCarrieres      UserCarriere[]
+  regleSource        ReglePromotion[]     @relation("RegleSource")
+  regleCible         ReglePromotion[]     @relation("RegleCible")
+  offresRecherchees  OffreEmploi[]
+  CarriereHistorique CarriereHistorique[]
+}
+
+model MetierCible {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  nom         String
+  description String?
+  famille     ProfilFamille
+
+  userCarrieres UserCarriere[]
+}
+
+model UserCarriere {
+  id                       String       @id @default(cuid())
+  userId                   String       @unique
+  user                     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profilActuelId           String?
+  profilActuel             Profil?      @relation(fields: [profilActuelId], references: [id])
+  metierCibleId            String?
+  metierCible              MetierCible? @relation(fields: [metierCibleId], references: [id])
+  niveau                   Int          @default(1)
+  xp                       Int          @default(0)
+  reputation               Int          @default(50)
+  argentVirtuel            Int          @default(0)
+  ancienneteVirtuelleJours Int          @default(0)
+  referentielPaysId        String?
+  referentielPays          Pays?        @relation(fields: [referentielPaysId], references: [id])
+  // Besoins façon "jeu de simulation de vie" — se dégradent avec le temps réel, se restaurent par des actions.
+  energie                  Int          @default(100)
+  moral                    Int          @default(80)
+  faim                     Int          @default(100)
+  social                   Int          @default(80)
+  derniereMajBesoins       DateTime     @default(now())
+  // Traits de personnalité choisis à la création (2-3 slugs), donnent de petits bonus thématiques.
+  traits                   Json?
+  updatedAt                DateTime     @updatedAt
+}
+
+model CarriereHistorique {
+  id            String                @id @default(cuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          CarriereEvenementType
+  profilId      String?
+  profil        Profil?               @relation(fields: [profilId], references: [id])
+  dateVirtuelle DateTime              @default(now())
+  details       Json?
+
+  @@index([userId])
+}
+
+model Parcours {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  etapes        Json
+  etapeCourante Int      @default(0)
+  genereLe      DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.2 COMPETENCES ET APPRENTISSAGE
+// ─────────────────────────────────────────────────────────────
+
+model Competence {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  nom         String
+  domaine     String
+  description String?
+  icone       String?
+
+  niveaux            CompetenceNiveau[]
+  userCompetences    UserCompetence[]
+  cours              Cours[]
+  exercicesLogiciels ExerciceLogiciel[]
+}
+
+model CompetenceNiveau {
+  id           String     @id @default(cuid())
+  competenceId String
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+  niveau       Int
+  criteres     String?
+  xpRequis     Int        @default(0)
+
+  @@unique([competenceId, niveau])
+}
+
+model UserCompetence {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competenceId String
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+  niveauActuel Int        @default(0)
+  xp           Int        @default(0)
+  valideeLe    DateTime?
+  source       String?
+
+  @@unique([userId, competenceId])
+}
+
+model ModuleAcademie {
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  titre          String
+  domaine        String
+  ordre          Int     @default(0)
+  illustrationId String?
+  illustration   Media?  @relation(fields: [illustrationId], references: [id])
+  publie         Boolean @default(false)
+
+  cours Cours[]
+}
+
+model Cours {
+  id                String         @id @default(cuid())
+  moduleId          String
+  module            ModuleAcademie @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  titre             String
+  contenu           Json
+  quizMissionId     String?
+  quizMission       Mission?       @relation("CoursQuiz", fields: [quizMissionId], references: [id])
+  missionPratiqueId String?
+  missionPratique   Mission?       @relation("CoursMissionPratique", fields: [missionPratiqueId], references: [id])
+  competenceId      String?
+  competence        Competence?    @relation(fields: [competenceId], references: [id])
+  dureeMin          Int?
+}
+
+model Logiciel {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  nom       String
+  categorie String?
+
+  exercices     ExerciceLogiciel[]
+  userLogiciels UserLogiciel[]
+}
+
+model ExerciceLogiciel {
+  id             String      @id @default(cuid())
+  logicielId     String
+  logiciel       Logiciel    @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  titre          String
+  typeSimulation String
+  config         Json?
+  niveau         Int         @default(1)
+  competenceId   String?
+  competence     Competence? @relation(fields: [competenceId], references: [id])
+}
+
+model UserLogiciel {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logicielId     String
+  logiciel       Logiciel  @relation(fields: [logicielId], references: [id], onDelete: Cascade)
+  niveauMaitrise Int       @default(0)
+  valideLe       DateTime?
+
+  @@unique([userId, logicielId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.3 MISSIONS ET EVALUATION
+// ─────────────────────────────────────────────────────────────
+
+model Mission {
+  id                String        @id @default(cuid())
+  slug              String        @unique
+  titre             String
+  description       String?
+  type              MissionType
+  profils           Json?
+  niveauRequis      Int           @default(1)
+  competences       Json?
+  chantierId        String?
+  chantier          Chantier?     @relation(fields: [chantierId], references: [id])
+  dureeLimiteSec    Int?
+  scoreMax          Int           @default(100)
+  conditionReussite Int           @default(60)
+  badgeId           String?
+  badge             Badge?        @relation(fields: [badgeId], references: [id])
+  statut            MissionStatut @default(BROUILLON)
+  version           Int           @default(1)
+  createdById       String?
+  createdBy         User?         @relation("MissionCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  contenus         MissionContenu[]
+  variantesPays    MissionVariantePays[]
+  userMissions     UserMission[]
+  coursQuizDe      Cours[]               @relation("CoursQuiz")
+  coursPratiqueDe  Cours[]               @relation("CoursMissionPratique")
+  chantierPhases   ChantierPhase[]       @relation("PhaseMissions")
+  offresTestEntree OffreEmploi[]         @relation("OffreTestEntree")
+
+  @@index([statut, niveauRequis])
+}
+
+model MissionContenu {
+  id                    String       @id @default(cuid())
+  missionId             String
+  mission               Mission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  ordre                 Int
+  typeQuestion          QuestionType
+  enonce                String
+  medias                Json?
+  options               Json?
+  bonnesReponses        Json?
+  tolerance             Float?
+  correctionPedagogique String?
+  consequences          Json?
+
+  @@index([missionId])
+}
+
+model MissionVariantePays {
+  id         String  @id @default(cuid())
+  missionId  String
+  mission    Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  paysId     String
+  pays       Pays    @relation(fields: [paysId], references: [id])
+  surcharges Json
+
+  @@unique([missionId, paysId])
+}
+
+model UserMission {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId       String
+  mission         Mission           @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  statut          UserMissionStatut @default(DISPONIBLE)
+  score           Int?
+  tempsUtiliseSec Int?
+  reponses        Json?
+  erreurs         Json?
+  tentatives      Int               @default(0)
+  meilleurScore   Int?
+  termineeLe      DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@unique([userId, missionId])
+  @@index([userId, statut])
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.4 CHANTIERS VIRTUELS (BTP SIMULATOR)
+// ─────────────────────────────────────────────────────────────
+
+model Chantier {
+  id                  String         @id @default(cuid())
+  slug                String         @unique
+  nom                 String
+  typeProjet          ChantierType
+  paysId              String?
+  pays                Pays?          @relation(fields: [paysId], references: [id])
+  clientPnjId         String?
+  clientPnj           Pnj?           @relation(fields: [clientPnjId], references: [id])
+  localisationFictive String?
+  budget              Int
+  devise              String         @default("XOF")
+  delaiJours          Int
+  description         String?
+  statut              ChantierStatut @default(BROUILLON)
+
+  phases        ChantierPhase[]
+  ressources    ChantierRessource[]
+  missions      Mission[]
+  userChantiers UserChantier[]
+}
+
+model ChantierPhase {
+  id         String    @id @default(cuid())
+  chantierId String
+  chantier   Chantier  @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+  ordre      Int
+  nom        String
+  missions   Mission[] @relation("PhaseMissions")
+  documents  Json?
+  // Besoins de la phase : { joursEstimes, equipeMin, materiaux: { [nom]: quantiteTotale } }
+  besoins    Json?
+}
+
+model ChantierRessource {
+  id           String        @id @default(cuid())
+  chantierId   String
+  chantier     Chantier      @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+  type         RessourceType
+  ref          Json
+  quantite     Float
+  coutUnitaire Float
+}
+
+model Imprevu {
+  id           String  @id @default(cuid())
+  titre        String
+  description  String?
+  declencheur  Json
+  options      Json
+  consequences Json
+  paysId       String?
+  pays         Pays?   @relation(fields: [paysId], references: [id])
+}
+
+model UserChantier {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chantierId    String
+  chantier      Chantier  @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+  statut        String    @default("en_cours")
+  phaseCourante Int       @default(0)
+  budgetRestant Int
+  joursRestants Int
+  qualite       Int       @default(100)
+  securite      Int       @default(100)
+  moralEquipe   Int       @default(100)
+  avancementPct Int       @default(0)
+  evenementsLog Json?
+  // Stock de matériaux : { [nom]: quantite } — alimenté par les commandes.
+  stock         Json?
+  // Avancement par phase (0-100) : { [index]: pct }
+  avancementPhases Json?
+  noteFinale    String?
+  termineLe     DateTime?
+  createdAt     DateTime  @default(now())
+
+  ouvriers OuvrierVirtuel[]
+
+  @@index([userId])
+}
+
+model OuvrierVirtuel {
+  id                String       @id @default(cuid())
+  userChantierId    String
+  userChantier      UserChantier @relation(fields: [userChantierId], references: [id], onDelete: Cascade)
+  nom               String
+  poste             String
+  competence        Int          @default(50)
+  fatigue           Int          @default(0)
+  motivation        Int          @default(80)
+  rendement         Int          @default(80)
+  salaireJournalier Int          @default(15000)
+  statut            String       @default("actif") // actif | repos
+  historique        Json?
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.5 MONDE VIRTUEL ET PNJ
+// ─────────────────────────────────────────────────────────────
+
+model Lieu {
+  id             String   @id @default(cuid())
+  slug           LieuSlug @unique
+  nom            String
+  description    String?
+  illustrationId String?
+  illustration   Media?   @relation(fields: [illustrationId], references: [id])
+  actions        Json?
+}
+
+model Pnj {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  nom          String
+  role         PnjRole
+  avatarId     String?
+  personnalite Json?
+
+  messages        PnjMessage[]
+  userMessages    UserMessage[]
+  chantiersClient Chantier[]
+}
+
+model PnjMessage {
+  id               String @id @default(cuid())
+  pnjId            String
+  pnj              Pnj    @relation(fields: [pnjId], references: [id], onDelete: Cascade)
+  declencheur      Json
+  contenu          String
+  actionsProposees Json?
+}
+
+model UserMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pnjId     String
+  pnj       Pnj      @relation(fields: [pnjId], references: [id])
+  contenu   String
+  actions   Json?
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, lu])
+}
+
+model Evenement {
+  id      String        @id @default(cuid())
+  type    EvenementType
+  config  Json
+  actifDu DateTime?
+  actifAu DateTime?
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.6 RECOMPENSES, CV, EMPLOI
+// ─────────────────────────────────────────────────────────────
+
+model Badge {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  nom         String
+  description String?
+  iconeId     String?
+  icone       Media?  @relation(fields: [iconeId], references: [id])
+  conditions  Json
+  rarete      Rarete  @default(BRONZE)
+
+  userBadges UserBadge[]
+  missions   Mission[]
+}
+
+model UserBadge {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId         String
+  badge           Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  obtenuLe        DateTime @default(now())
+  missionSourceId String?
+
+  @@unique([userId, badgeId])
+}
+
+model Certificat {
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  nom           String
+  conditions    Json
+  templatePdfId String?
+  templatePdf   Media?  @relation(fields: [templatePdfId], references: [id])
+  premiumRequis Boolean @default(false)
+
+  userCertificats UserCertificat[]
+}
+
+model UserCertificat {
+  id              String     @id @default(cuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  certificatId    String
+  certificat      Certificat @relation(fields: [certificatId], references: [id], onDelete: Cascade)
+  numeroUnique    String     @unique
+  delivreLe       DateTime   @default(now())
+  urlVerification String?
+}
+
+model CvVirtuel {
+  id      String   @id @default(cuid())
+  userId  String   @unique
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contenu Json
+  majLe   DateTime @updatedAt
+}
+
+model OffreEmploi {
+  id                  String   @id @default(cuid())
+  titre               String
+  paysId              String?
+  pays                Pays?    @relation(fields: [paysId], references: [id])
+  description         String?
+  profilRechercheId   String?
+  profilRecherche     Profil?  @relation(fields: [profilRechercheId], references: [id])
+  competencesRequises Json?
+  logicielsRequis     Json?
+  niveauMin           Int      @default(1)
+  chantiersRequis     Int      @default(0)
+  reputationMin       Int      @default(0)
+  testEntreeMissionId String?
+  testEntreeMission   Mission? @relation("OffreTestEntree", fields: [testEntreeMissionId], references: [id])
+  entrepriseFictive   String?
+  statut              String   @default("publiee")
+  publieeLe           DateTime @default(now())
+
+  candidatures Candidature[]
+}
+
+model Candidature {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offreId   String
+  offre     OffreEmploi       @relation(fields: [offreId], references: [id], onDelete: Cascade)
+  statut    CandidatureStatut @default(ENVOYEE)
+  scoreTest Int?
+  feedback  Json?
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+}
+
+model ReglePromotion {
+  id              String  @id @default(cuid())
+  profilSourceId  String
+  profilSource    Profil  @relation("RegleSource", fields: [profilSourceId], references: [id])
+  profilCibleId   String
+  profilCible     Profil  @relation("RegleCible", fields: [profilCibleId], references: [id])
+  conditions      Json
+  examenMissionId String?
+
+  demandes DemandePromotion[]
+}
+
+model DemandePromotion {
+  id         String                 @id @default(cuid())
+  userId     String
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regleId    String
+  regle      ReglePromotion         @relation(fields: [regleId], references: [id])
+  statut     DemandePromotionStatut @default(EN_ATTENTE)
+  evaluation Json?
+  decideeLe  DateTime?
+  createdAt  DateTime               @default(now())
+}
+
+model EntrepriseVirtuelle {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nom                  String
+  capitalVirtuel       Int      @default(0)
+  employes             Json?
+  chantiersEnCours     Json?
+  reputationEntreprise Int      @default(50)
+  creeeLe              DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.7 REFERENTIEL PAYS
+// ─────────────────────────────────────────────────────────────
+
+model Pays {
+  id             String  @id @default(cuid())
+  codeIso        String  @unique
+  nom            String
+  langue         String  @default("fr")
+  monnaie        String
+  symboleMonnaie String
+  systemeUnites  String  @default("metrique")
+  actif          Boolean @default(true)
+  ordre          Int     @default(0)
+
+  users              User[]
+  userCarrieres      UserCarriere[]
+  referentielsNormes ReferentielNorme[]
+  paysConfigs        PaysConfig[]
+  bibliothequesPrix  BibliothequePrix[]
+  materiaux          MateriauPays[]
+  missionsVariantes  MissionVariantePays[]
+  chantiers          Chantier[]
+  imprevus           Imprevu[]
+  offresEmploi       OffreEmploi[]
+  medias             Media[]
+}
+
+model ReferentielNorme {
+  id                String         @id @default(cuid())
+  paysId            String
+  pays              Pays           @relation(fields: [paysId], references: [id], onDelete: Cascade)
+  categorie         NormeCategorie
+  nomNorme          String
+  resumePedagogique String?
+  details           Json?
+}
+
+model PaysConfig {
+  id     String        @id @default(cuid())
+  paysId String
+  pays   Pays          @relation(fields: [paysId], references: [id], onDelete: Cascade)
+  cle    PaysConfigCle
+  valeur Json
+
+  @@unique([paysId, cle])
+}
+
+model BibliothequePrix {
+  id            String   @id @default(cuid())
+  paysId        String
+  pays          Pays     @relation(fields: [paysId], references: [id], onDelete: Cascade)
+  categorie     String
+  designation   String
+  unite         String
+  prixIndicatif Float
+  devise        String
+  majLe         DateTime @updatedAt
+}
+
+model MateriauPays {
+  id            String  @id @default(cuid())
+  paysId        String
+  pays          Pays    @relation(fields: [paysId], references: [id], onDelete: Cascade)
+  materiau      String
+  disponibilite String?
+  prixIndicatif Float?
+  notes         String?
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5.8 CONTENUS, MONETISATION, TECHNIQUE
+// ─────────────────────────────────────────────────────────────
+
+model Media {
+  id           String    @id @default(cuid())
+  type         MediaType
+  categorie    String?
+  titre        String
+  fichierUrl   String
+  thumbnailUrl String?
+  tags         Json?
+  paysId       String?
+  pays         Pays?     @relation(fields: [paysId], references: [id])
+  licence      String?
+
+  modulesAcademie ModuleAcademie[]
+  lieux           Lieu[]
+  badges          Badge[]
+  certificats     Certificat[]
+}
+
+model Abonnement {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        Plan
+  statut      AbonnementStatut   @default(ACTIF)
+  provider    AbonnementProvider
+  providerRef String?
+  debut       DateTime           @default(now())
+  fin         DateTime?
+  montant     Int
+  devise      String             @default("XOF")
+}
+
+model CompteB2b {
+  id                String        @id @default(cuid())
+  type              CompteB2bType
+  nom               String
+  adminUserId       String
+  adminUser         User          @relation("CompteB2bAdmin", fields: [adminUserId], references: [id])
+  licencesTotal     Int           @default(0)
+  licencesUtilisees Int           @default(0)
+  config            Json?
+
+  membres B2bMembre[]
+}
+
+model B2bMembre {
+  id          String    @id @default(cuid())
+  compteB2bId String
+  compteB2b   CompteB2b @relation(fields: [compteB2bId], references: [id], onDelete: Cascade)
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupe      String?
+  role        String?
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  titre       String
+  contenu     String?
+  lien        String?
+  lue         Boolean          @default(false)
+  pushEnvoyee Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, lue])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entite    String
+  entiteId  String?
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  @@index([entite, entiteId])
+}
+
+model PageCms {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  titre   String
+  contenu Json
+  publie  Boolean  @default(false)
+  majLe   DateTime @updatedAt
+}

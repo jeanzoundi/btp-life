@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+html, body {
+  /* Garde-fou : un enfant légèrement trop large (tableau, SVG) ne doit jamais
+     forcer un défilement horizontal de toute la page sur mobile. */
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  background-color: #f5f0e6;
+  color: #2b2b2e;
+}
+
+/* Grain béton subtil en fond du site public */
+.texture-beton {
+  background-image: radial-gradient(circle at 1px 1px, rgba(43, 43, 46, 0.06) 1px, transparent 0);
+  background-size: 18px 18px;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes grue-balance {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes etage-monte {
+  from { opacity: 0; transform: translateY(14px) scaleY(0.6); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes pulse-cta {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(193, 80, 46, 0.45); }
+  55% { box-shadow: 0 0 0 14px rgba(193, 80, 46, 0); }
+}
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.anim-fade-up { animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-float { animation: float 5s ease-in-out infinite; }
+.anim-grue { animation: grue-balance 6s ease-in-out infinite; transform-origin: bottom center; }
+.anim-etage { animation: etage-monte 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: bottom center; }
+.anim-pulse-cta { animation: pulse-cta 2.4s ease-out infinite; }
+
+.delai-1 { animation-delay: 0.1s; }
+.delai-2 { animation-delay: 0.25s; }
+.delai-3 { animation-delay: 0.4s; }
+.delai-4 { animation-delay: 0.55s; }
+.delai-5 { animation-delay: 0.7s; }
+.delai-6 { animation-delay: 0.85s; }
+
+/* Révélation au scroll (pilotée par le composant Reveal) */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* Cartes vivantes */
+.carte-vivante {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.carte-vivante:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 32px -12px rgba(43, 43, 46, 0.18);
+  border-color: #c1502e;
+}
+
+/* Bandeau défilant des métiers */
+.marquee-piste { display: flex; width: max-content; animation: marquee 30s linear infinite; }
+.marquee-piste:hover { animation-play-state: paused; }
+
+/* Fond animé du CTA final */
+.fond-anime {
+  background: linear-gradient(120deg, #2b2b2e, #4a342a, #2b2b2e, #a85f4c);
+  background-size: 300% 300%;
+  animation: gradient-shift 12s ease infinite;
+}
+
+/* ── Application (intérieur) ────────────────────────────── */
+
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e8dcc8 25%, #f4ecdd 50%, #e8dcc8 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 10px;
+}
+
+/* Anneau de score animé (résultat de mission) */
+.anneau-score { transform: rotate(-90deg); }
+.anneau-score circle { transition: stroke-dashoffset 1.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Confettis poussière dorée (célébrations) */
+@keyframes confetti-chute {
+  0% { transform: translateY(-8vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(660deg); opacity: 0.4; }
+}
+.confetti {
+  position: fixed;
+  top: 0;
+  width: 9px;
+  height: 13px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 60;
+  animation: confetti-chute linear forwards;
+}
+
+/* Étages de la jauge XP "immeuble en élévation" */
+@keyframes etage-allume {
+  from { opacity: 0.15; }
+  to { opacity: 1; }
+}
+.etage-plein { animation: etage-allume 0.5s ease both; }
+
+/* Feedback de sélection dans les missions */
+@keyframes selection-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.selection-pop { animation: selection-pop 0.25s ease; }
+
+/* Barre de progression de mission */
+.barre-progression { transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ── Quartier isométrique façon jeu de simulation ───────── */
+
+/* Plumbob : le losange au-dessus du personnage — rebond + faux effet de rotation */
+@keyframes plumbob-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes plumbob-spin {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.25); }
+}
+.plumbob-bob { animation: plumbob-bob 1.6s ease-in-out infinite; }
+.plumbob-spin { animation: plumbob-spin 1.6s linear infinite; transform-origin: center; }
+
+/* Nuages qui dérivent lentement */
+@keyframes nuage-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(46px); }
+}
+.nuage-drift { animation: nuage-drift 18s ease-in-out infinite; }
+.nuage-drift-lent { animation: nuage-drift 26s ease-in-out infinite reverse; }
+
+/* Bâtiment cliquable : soulèvement au survol/tap */
+.batiment-iso { cursor: pointer; transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease; }
+.batiment-iso:hover, .batiment-iso:active { transform: translateY(-7px); filter: brightness(1.06) drop-shadow(0 10px 8px rgba(43, 43, 46, 0.25)); }
+
+/* Rebond de marche de l'avatar (plus rapide et net que le flottement idle) */
+@keyframes avatar-marche {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-5px) rotate(1.5deg); }
+}
+.avatar-marche { animation: avatar-marche 0.3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche { animation: none; }
+  .batiment-iso { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-float, .anim-grue, .anim-etage, .anim-pulse-cta, .marquee-piste, .fond-anime,
+  .skeleton, .confetti, .etage-plein, .selection-pop { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .anneau-score circle { transition: none; }
+}

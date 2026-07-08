@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BTP Life — Le simulateur de carrière BTP</title>
+<meta name="description" content="Choisis ton métier. Apprends. Travaille. Évolue. Construis ta carrière dans le BTP.">
+<meta name="theme-color" content="#26262B">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%2326262B'/><path d='M14 50h36M18 50V34h10v16M32 50V22h10v28M18 34l10-6M32 22l10-8' stroke='%23BC4B27' stroke-width='3.5' fill='none' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..900&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --terre:#BC4B27; --terre-f:#9A3B1D; --cuivre:#B87333; --olive:#6B7A3F; --olive-c:#8A9A55;
+  --graphite:#26262B; --graphite-2:#33333A; --ivoire:#F4EEE2; --pierre:#E9DFCC; --sable:#D9B382;
+  --brun:#3F2E24; --mineral:#8A8680; --blanc:#FFFDF8; --rouge:#A63B2A; --ok:#5C7A34;
+  --r:14px; --sh:0 2px 10px rgba(38,38,43,.08), 0 10px 30px rgba(38,38,43,.07);
+  --display:'Archivo',system-ui,sans-serif; --body:'Public Sans',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--ivoire);color:var(--graphite);line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.12;letter-spacing:-.01em}
+a{color:inherit}
+button{font-family:inherit;cursor:pointer}
+img,svg{display:block}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+/* cotation divider — signature technique */
+.cote{display:flex;align-items:center;gap:10px;color:var(--mineral);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin:0 0 14px}
+.cote::before,.cote::after{content:"";flex:1;border-top:1px dashed var(--mineral);opacity:.55}
+.cote::before{max-width:34px;flex:0 0 34px}
+.cote i{font-style:normal;color:var(--terre)}
+/* boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:10px;padding:13px 22px;font-weight:700;font-size:15px;transition:transform .12s,box-shadow .12s;text-decoration:none}
+.btn:active{transform:translateY(1px)}
+.btn-p{background:var(--terre);color:var(--blanc);box-shadow:0 4px 14px rgba(188,75,39,.35)}
+.btn-p:hover{background:var(--terre-f)}
+.btn-o{background:transparent;color:var(--ivoire);border:1.5px solid rgba(244,238,226,.4)}
+.btn-o:hover{border-color:var(--ivoire)}
+.btn-g{background:var(--pierre);color:var(--graphite)}
+.btn-g:hover{background:var(--sable)}
+.btn-olive{background:var(--olive);color:var(--blanc)}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:8px}
+/* header */
+header.site{position:sticky;top:0;z-index:50;background:rgba(38,38,43,.94);backdrop-filter:blur(8px);color:var(--ivoire)}
+header.site .wrap{display:flex;align-items:center;gap:18px;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:.01em;text-decoration:none}
+.logo b{color:var(--terre)}
+nav.main{margin-left:auto;display:flex;gap:6px;align-items:center}
+nav.main a{padding:8px 12px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;opacity:.85}
+nav.main a:hover{background:var(--graphite-2);opacity:1}
+/* hero */
+.hero{background:var(--graphite);color:var(--ivoire);position:relative;overflow:hidden}
+.hero .grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(244,238,226,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(244,238,226,.05) 1px,transparent 1px);background-size:44px 44px;pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.15fr .85fr;gap:40px;padding:84px 20px 90px;align-items:center}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--cuivre);margin-bottom:16px}
+.hero h1{font-size:clamp(34px,5.2vw,58px);font-weight:850;font-stretch:112%}
+.hero h1 em{font-style:normal;color:var(--terre);position:relative}
+.hero p.sub{margin:20px 0 30px;font-size:17px;opacity:.85;max-width:52ch}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap}
+.hero-visual{filter:drop-shadow(0 20px 40px rgba(0,0,0,.35))}
+/* sections publiques */
+section.pub{padding:72px 0}
+section.pub.alt{background:var(--pierre)}
+section.pub h2{font-size:clamp(26px,3.4vw,38px);margin-bottom:14px;font-weight:800}
+.lead{font-size:17px;max-width:64ch;color:#4a463f}
+.cards{display:grid;gap:16px;margin-top:34px}
+.cards.c4{grid-template-columns:repeat(4,1fr)}
+.cards.c3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--blanc);border:1px solid rgba(63,46,36,.1);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
+.card .num{font-family:var(--mono);color:var(--terre);font-size:12px;letter-spacing:.12em}
+.card h3{font-size:17px;margin:8px 0 6px}
+.card p{font-size:14px;color:#5b564d}
+.metier{display:flex;flex-direction:column;gap:8px}
+.metier .ic{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-size:22px;background:var(--pierre)}
+.metier button{margin-top:auto;align-self:start}
+.fam{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--olive)}
+.cta-final{background:var(--graphite);color:var(--ivoire);text-align:center;padding:80px 20px}
+.cta-final h2{font-size:clamp(26px,4vw,42px);margin-bottom:10px}
+footer.site{background:var(--brun);color:#e8ddce;padding:36px 0;font-size:13px}
+footer.site .wrap{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between}
+.avert{max-width:70ch;opacity:.8;font-size:12px;line-height:1.6}
+/* ============ APP ============ */
+.app-shell{min-height:100dvh;display:flex;flex-direction:column}
+.app-main{flex:1;padding:22px 0 92px}
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--graphite);display:flex;justify-content:space-around;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:60}
+.tabbar a{flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(244,238,226,.65);font-size:10.5px;font-weight:600;text-decoration:none;padding:6px 2px;border-radius:10px}
+.tabbar a.on{color:var(--terre)}
+.tabbar a span.i{font-size:19px}
+/* dashboard */
+.dash-head{background:var(--graphite);color:var(--ivoire);border-radius:var(--r);padding:22px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center}
+.avatar-chip{width:64px;height:64px;border-radius:14px;display:grid;place-items:center;font-size:32px;border:2px solid var(--cuivre)}
+.dash-head h2{font-size:20px}
+.dash-head .role{font-family:var(--mono);font-size:12px;color:var(--cuivre);letter-spacing:.08em;text-transform:uppercase}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.stat{background:var(--blanc);border-radius:12px;padding:14px;border:1px solid rgba(63,46,36,.1)}
+.stat b{font-family:var(--mono);font-size:20px;display:block}
+.stat span{font-size:11.5px;color:var(--mineral);text-transform:uppercase;letter-spacing:.08em}
+.panel{background:var(--blanc);border:1px solid rgba(63,46,36,.1);border-radius:var(--r);padding:20px;margin-bottom:16px;box-shadow:var(--sh)}
+.panel h3{font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(138,134,128,.35)}
+.row:last-child{border-bottom:none}
+.pill{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:99px;background:var(--pierre);white-space:nowrap}
+.pill.ok{background:#e2ead1;color:var(--ok)}
+.pill.ko{background:#f2ddd6;color:var(--rouge)}
+.pill.terre{background:var(--terre);color:#fff}
+.bar{height:9px;background:var(--pierre);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--terre),var(--cuivre));border-radius:99px;transition:width .5s}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.muted{color:var(--mineral);font-size:13px}
+/* immeuble XP — signature */
+.building{display:flex;align-items:flex-end;gap:14px}
+.building svg{flex:0 0 auto}
+/* missions */
+.miss-card{display:flex;gap:14px;align-items:flex-start}
+.miss-card .tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--olive)}
+.chrono-ring{font-family:var(--mono);font-weight:600;color:var(--terre);border:2px solid var(--terre);border-radius:99px;padding:6px 14px;font-size:15px}
+.q-opt{display:block;width:100%;text-align:left;background:var(--blanc);border:1.5px solid rgba(63,46,36,.18);border-radius:11px;padding:14px;margin-bottom:10px;font-size:15px;transition:.12s}
+.q-opt:hover{border-color:var(--terre)}
+.q-opt.sel{border-color:var(--terre);background:#faf0ea}
+.q-opt.good{border-color:var(--ok);background:#eef3e3}
+.q-opt.bad{border-color:var(--rouge);background:#f8e7e2}
+input.num,input.txt,select.sel,textarea{width:100%;padding:12px;border:1.5px solid rgba(63,46,36,.22);border-radius:10px;font-family:var(--body);font-size:15px;background:var(--blanc)}
+input.num{font-family:var(--mono)}
+label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+.correction{background:var(--pierre);border-left:4px solid var(--cuivre);border-radius:0 10px 10px 0;padding:14px;font-size:14px;margin-top:10px}
+.score-big{font-family:var(--mono);font-size:56px;font-weight:600;color:var(--terre);line-height:1}
+.badge-tile{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:14px 8px;border-radius:12px;background:var(--blanc);border:1px solid rgba(63,46,36,.1)}
+.badge-tile .em{font-size:30px;width:56px;height:56px;display:grid;place-items:center;border-radius:99px;background:var(--pierre)}
+.badge-tile.locked{opacity:.38;filter:grayscale(1)}
+.badge-tile b{font-size:12px}
+.grid-badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+/* onboarding */
+.onb{max-width:640px;margin:0 auto}
+.steps{display:flex;gap:6px;margin:18px 0 26px}
+.steps i{flex:1;height:6px;border-radius:99px;background:var(--pierre)}
+.steps i.on{background:var(--terre)}
+.choice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.choice{border:1.5px solid rgba(63,46,36,.18);background:var(--blanc);border-radius:12px;padding:14px 10px;text-align:center;font-size:13.5px;font-weight:600}
+.choice.sel{border-color:var(--terre);background:#faf0ea;box-shadow:0 0 0 1px var(--terre)}
+.choice .em{font-size:26px;display:block;margin-bottom:6px}
+/* celebration */
+.celebrate{position:fixed;inset:0;background:rgba(38,38,43,.55);display:grid;place-items:center;z-index:100;padding:20px}
+.celebrate .box{background:var(--ivoire);border-radius:18px;max-width:440px;width:100%;padding:32px;text-align:center;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+.confetti{font-size:44px;animation:bounce .8s ease infinite alternate}
+@keyframes bounce{to{transform:translateY(-8px)}}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--graphite);color:var(--ivoire);padding:12px 20px;border-radius:99px;font-size:14px;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.3);animation:pop .3s}
+.hidden{display:none!important}
+.cv-doc{background:var(--blanc);border:1px solid rgba(63,46,36,.15);border-radius:var(--r);padding:28px;font-size:14px}
+.cv-doc h2{border-bottom:3px solid var(--terre);padding-bottom:8px;margin-bottom:4px}
+.cv-sec{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--terre);margin:20px 0 8px}
+.tagchip{display:inline-block;background:var(--pierre);border-radius:99px;padding:4px 12px;font-size:12.5px;margin:0 6px 6px 0;font-weight:600}
+.warn-band{background:#efe6d2;border:1px dashed var(--cuivre);border-radius:10px;padding:10px 14px;font-size:12px;color:#6a5136;margin:14px 0}
+@media(max-width:880px){
+  .hero .wrap{grid-template-columns:1fr;padding:56px 20px 64px}
+  .hero-visual{max-width:420px;margin:0 auto}
+  .cards.c4,.cards.c3{grid-template-columns:repeat(2,1fr)}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+  nav.main a.hidemob{display:none}
+  .dash-head{grid-template-columns:auto 1fr}
+}
+@media(max-width:520px){.cards.c4,.cards.c3{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="overlay"></div>
+<script>
+/* ================= BTP LIFE — DONNÉES ================= */
+const PAYS = {
+  CI:{nom:"Côte d'Ivoire",devise:"FCFA",prix:{ciment:5500,sable:15000,gravier:20000,fer12:6000,agglo15:350,mo_j:5000},unSac:"sac 50 kg",norme:"Référentiel pédagogique CI"},
+  FR:{nom:"France",devise:"€",prix:{ciment:9,sable:45,gravier:55,fer12:11,agglo15:1.4,mo_j:180},unSac:"sac 35 kg",norme:"Référentiel pédagogique FR (Eurocodes)"}
+};
+const PROFILS = [
+  {id:"etudiant",nom:"Étudiant BTP",em:"🎓",fam:"Formation",niv:1,desc:"Tu découvres le BTP : bases, sécurité, matériaux, lecture de plans."},
+  {id:"stagiaire",nom:"Stagiaire",em:"📋",fam:"Chantier",niv:2,desc:"Tu observes, rédiges des rapports journaliers et assistes l'équipe."},
+  {id:"ouvrier",nom:"Ouvrier",em:"🧱",fam:"Chantier",niv:2,desc:"Tu exécutes : maçonnerie, ferraillage, coffrage, dans les règles de sécurité."},
+  {id:"technicien",nom:"Technicien junior",em:"🛠️",fam:"Chantier",niv:3,desc:"Tu maîtrises les plans, le métré de base et les outils bureautiques BTP."},
+  {id:"chef_equipe",nom:"Chef d'équipe",em:"👷",fam:"Chantier",niv:4,desc:"Tu diriges 3 à 8 ouvriers : consignes, sécurité, rendement."},
+  {id:"chef_chantier",nom:"Chef chantier",em:"🏗️",fam:"Chantier",niv:5,desc:"Tu pilotes un chantier complet : qualité, sécurité, avancement."},
+  {id:"conducteur",nom:"Conducteur de travaux",em:"📐",fam:"Chantier",niv:7,desc:"Tu gères plusieurs chantiers : budget, planning, fournisseurs, client."},
+  {id:"dessinateur",nom:"Dessinateur",em:"✏️",fam:"Bureau d'études",niv:3,desc:"Tu produis et corriges les plans AutoCAD du bureau d'études."},
+  {id:"bim",nom:"BIM modeleur",em:"🧊",fam:"Bureau d'études",niv:5,desc:"Tu construis la maquette numérique Revit du projet."},
+  {id:"topographe",nom:"Topographe",em:"🗺️",fam:"Topographie",niv:4,desc:"Tu implantes les ouvrages et lèves le terrain."},
+  {id:"geotechnicien",nom:"Géotechnicien",em:"🪨",fam:"Géotechnique",niv:5,desc:"Tu analyses les sols et recommandes les fondations."},
+  {id:"metreur",nom:"Métreur",em:"🧮",fam:"Métré / Devis",niv:4,desc:"Tu quantifies les ouvrages et chiffres les devis."},
+  {id:"controleur",nom:"Contrôleur qualité",em:"🔍",fam:"Qualité / HSE",niv:5,desc:"Tu contrôles la conformité et rédiges les non-conformités."},
+  {id:"hse",nom:"Responsable HSE",em:"🦺",fam:"Qualité / HSE",niv:5,desc:"Tu fais respecter la sécurité, jusqu'à arrêter une tâche dangereuse."},
+  {id:"entrepreneur",nom:"Entrepreneur BTP",em:"💼",fam:"Entrepreneuriat",niv:6,desc:"Tu cherches des marchés, recrutes et développes ton entreprise."},
+  {id:"ingenieur",nom:"Ingénieur structure",em:"🏛️",fam:"Bureau d'études",niv:7,desc:"Tu valides les solutions techniques et les notes de calcul."}
+];
+const METIERS = ["Chef chantier","Conducteur de travaux","Ingénieur structure","Ingénieur géotechnique","Topographe","Dessinateur AutoCAD","BIM modeleur","Métreur","Responsable HSE","Entrepreneur BTP","Chef de projet"];
+const COMP = {
+  bases:{nom:"Bases BTP",em:"🏠"}, securite:{nom:"Sécurité",em:"🦺"}, materiaux:{nom:"Matériaux",em:"🧱"},
+  plans:{nom:"Lecture de plans",em:"📐"}, beton:{nom:"Béton & ferraillage",em:"🪣"}, metre:{nom:"Métré & devis",em:"🧮"},
+  excel:{nom:"Excel BTP",em:"📊"}, word:{nom:"Word / Rapports",em:"📝"}, gestion:{nom:"Gestion humaine",em:"🤝"},
+  decision:{nom:"Décision chantier",em:"⚖️"}, geotech:{nom:"Géotechnique",em:"🪨"}, topo:{nom:"Topographie",em:"🗺️"},
+  qualite:{nom:"Contrôle qualité",em:"🔍"}
+};
+const PARCOURS_TYPES = {
+  "Conducteur de travaux":["etudiant","stagiaire","technicien","chef_equipe","chef_chantier","conducteur"],
+  "Chef chantier":["etudiant","stagiaire","technicien","chef_equipe","chef_chantier"],
+  default:["etudiant","stagiaire","technicien","chef_equipe","chef_chantier","conducteur"]
+};
+const BADGES = [
+  {id:"secu1",nom:"Sécurité N1",em:"🦺",cond:s=>(s.comp.securite||0)>=1},
+  {id:"rapport",nom:"Rapport journalier",em:"📝",cond:s=>s.done["m-rapport"]},
+  {id:"excel",nom:"Excel BTP",em:"📊",cond:s=>s.done["m-excel-volume"]},
+  {id:"plans",nom:"Lecture de plans",em:"📐",cond:s=>(s.comp.plans||0)>=1},
+  {id:"beton1",nom:"Béton N1",em:"🪣",cond:s=>s.done["m-dosage"]},
+  {id:"ferraillage",nom:"Ferraillage",em:"🔩",cond:s=>s.done["m-ferraillage"]},
+  {id:"stagiaire_ok",nom:"Stagiaire validé",em:"🎖️",cond:s=>s.profil!=="etudiant"&&s.profil!=="stagiaire"},
+  {id:"gestion",nom:"Gestion humaine",em:"🤝",cond:s=>(s.comp.gestion||0)>=1},
+  {id:"geo1",nom:"Géotechnique init.",em:"🪨",cond:s=>(s.comp.geotech||0)>=1},
+  {id:"topo1",nom:"Topographie init.",em:"🗺️",cond:s=>(s.comp.topo||0)>=1},
+  {id:"qualite1",nom:"Contrôle qualité",em:"🔍",cond:s=>(s.comp.qualite||0)>=1},
+  {id:"serie3",nom:"Série de 3",em:"🔥",cond:s=>s.streak>=3},
+  {id:"perseverant",nom:"Persévérant",em:"💪",cond:s=>s.retryWin},
+  {id:"chantier1",nom:"Premier chantier",em:"🏗️",cond:s=>Object.values(s.chantiers||{}).some(c=>c.fini)}
+];
+const COURS = [
+  {id:"c1",titre:"Introduction au BTP",em:"🏠",comp:"bases",texte:"Le BTP regroupe le Bâtiment (logements, écoles, bureaux) et les Travaux Publics (routes, ponts, réseaux). Un projet suit toujours la même chaîne : besoin du client → études → exécution → réception → maintenance. Chaque métier intervient à une étape précise.",quiz:{q:"Que signifie BTP ?",opts:["Bâtiment et Travaux Publics","Béton et Techniques de Pose","Bureau Technique de Projet"],ok:0}},
+  {id:"c2",titre:"Les acteurs d'un projet",em:"👥",comp:"bases",texte:"Le maître d'ouvrage (client) définit le besoin et paie. Le maître d'œuvre (architecte / bureau d'études) conçoit et suit les travaux. L'entreprise exécute. Le bureau de contrôle vérifie la conformité. Le laboratoire teste les matériaux et les sols.",quiz:{q:"Qui paie le projet ?",opts:["Le maître d'œuvre","Le maître d'ouvrage","L'entreprise"],ok:1}},
+  {id:"c3",titre:"Sécurité chantier & EPI",em:"🦺",comp:"securite",texte:"Les EPI (Équipements de Protection Individuelle) sont obligatoires : casque, chaussures de sécurité, gilet haute visibilité, gants, et selon les tâches : lunettes, harnais, masque. La règle d'or : on n'entre jamais sur un chantier sans EPI, et un danger grave justifie l'arrêt immédiat de la tâche.",quiz:{q:"Un ouvrier travaille en hauteur sans harnais. Que fais-tu ?",opts:["Je le laisse finir, c'est rapide","J'arrête la tâche immédiatement","Je préviens à la pause"],ok:1}},
+  {id:"c4",titre:"Le béton : dosage et mise en œuvre",em:"🪣",comp:"beton",texte:"Un béton courant est dosé à 350 kg de ciment par m³ (dosage 350). Composition type pour 1 m³ : 350 kg de ciment, ~800 kg de sable, ~1050 kg de gravier, ~175 L d'eau. Trop d'eau = béton faible. Le contrôle avant coulage vérifie : coffrage, ferraillage, propreté, calage des aciers.",quiz:{q:"Un dosage 350 signifie :",opts:["350 L d'eau par m³","350 kg de ciment par m³","350 kg de sable par m³"],ok:1}},
+  {id:"c5",titre:"Fondations et sols",em:"🪨",comp:"geotech",texte:"La fondation transmet les charges du bâtiment au sol. Sol résistant et peu profond → semelles superficielles. Sol faible → fondations profondes (pieux). C'est l'étude géotechnique (essais de sol) qui décide : on ne choisit jamais une fondation sans connaître le sol.",quiz:{q:"Qui décide du type de fondation ?",opts:["Le maçon le plus expérimenté","L'étude géotechnique","Le client"],ok:1}},
+  {id:"c6",titre:"Lire un plan",em:"📐",comp:"plans",texte:"Un plan se lit avec son échelle (ex. 1/50 : 1 cm sur le plan = 50 cm réels), son cartouche (titre, indice, date), et sa légende. Les cotes sont en centimètres sur les plans d'architecture, souvent en mètres sur les plans de masse. Toujours vérifier l'indice de révision : un plan périmé coûte cher.",quiz:{q:"Sur un plan au 1/50, un mur de 4 cm mesure en réalité :",opts:["2 m","4 m","50 cm"],ok:0}},
+  {id:"c7",titre:"Métré et devis",em:"🧮",comp:"metre",texte:"Le métré quantifie les ouvrages (m³ de béton, m² de mur, ml de fouille). Le devis applique des prix unitaires aux quantités. Méthode : décomposer l'ouvrage → calculer chaque quantité → appliquer les prix du pays → ajouter la main-d'œuvre. Un bon métré évite les pertes et les ruptures de stock.",quiz:{q:"Le métré sert d'abord à :",opts:["Décorer le dossier","Quantifier les ouvrages","Payer les ouvriers"],ok:1}},
+  {id:"c8",titre:"Gérer une équipe",em:"🤝",comp:"gestion",texte:"Un bon chef donne des consignes claires, vérifie la compréhension, protège la sécurité et reste juste. Face à un conflit : écouter les deux parties, séparer si nécessaire, décider, expliquer. La fatigue et la démotivation se voient dans le rendement — mieux vaut prévenir que sanctionner.",quiz:{q:"Deux ouvriers se disputent violemment. Première action :",opts:["Sanctionner les deux","Les séparer et écouter chacun","Ignorer, ça passera"],ok:1}}
+];
+/* ---------- MISSIONS (moteur data-driven, extensible en admin) ---------- */
+/* types: quiz | chrono (quiz minuté) | calc (saisie numérique) | decision | devis */
+const MISSIONS = [
+ {id:"m-intro",cat:"Introduction BTP",titre:"Bienvenue sur le chantier",type:"quiz",niv:1,xp:40,argent:2000,comp:"bases",
+  desc:"Ton mentor te fait visiter ton premier chantier. Montre que tu connais les bases.",
+  qs:[
+   {q:"Dans quel ordre se déroule un projet BTP ?",opts:["Exécution → Études → Réception","Études → Exécution → Réception","Réception → Études → Exécution"],ok:1,corr:"On étudie avant de construire, et on réceptionne à la fin. Construire sans études, c'est courir vers les malfaçons."},
+   {q:"Le maître d'œuvre est celui qui :",opts:["Paie le projet","Conçoit et suit les travaux","Vend les matériaux"],ok:1,corr:"Le maître d'œuvre (architecte, bureau d'études) conçoit et contrôle. Le maître d'ouvrage paie."},
+   {q:"Le document qui décrit les travaux à réaliser s'appelle :",opts:["Le descriptif / CCTP","La facture","Le bon de livraison"],ok:0,corr:"Le descriptif (ou CCTP) détaille les ouvrages, matériaux et exigences du projet."}
+  ]},
+ {id:"m-epi",cat:"Sécurité",titre:"Les EPI, sans exception",type:"quiz",niv:1,xp:50,argent:2500,comp:"securite",
+  desc:"Le responsable HSE t'attend à l'entrée du chantier. Contrôle EPI.",
+  qs:[
+   {q:"EPI minimum pour entrer sur un chantier de gros œuvre :",opts:["Casque + chaussures de sécurité + gilet","Casque seulement","Gilet et sandales solides"],ok:0,corr:"Le trio de base : casque, chaussures de sécurité, gilet haute visibilité. Le reste dépend des tâches."},
+   {q:"Un visiteur important refuse le casque « pour 5 minutes ». Tu :",opts:["Acceptes, c'est le client","Refuses l'accès sans casque","Le laisses entrer en le surveillant"],ok:1,corr:"Personne n'est au-dessus de la règle. Un chef qui cède sur la sécurité perd toute autorité HSE."},
+   {q:"Le harnais est obligatoire pour un travail en hauteur à partir d'un risque de chute :",opts:["Uniquement au-delà de 10 m","Dès qu'il y a risque de chute grave","Jamais si on est prudent"],ok:1,corr:"C'est le risque qui commande, pas seulement la hauteur. Une chute de 3 m peut être mortelle."}
+  ]},
+ {id:"m-danger",cat:"Sécurité",titre:"Repère les dangers (chrono)",type:"chrono",tps:180,niv:1,xp:60,argent:3000,comp:"securite",
+  desc:"Inspection surprise : 3 minutes pour identifier les situations dangereuses.",
+  qs:[
+   {q:"Une tranchée de 2 m de profondeur, non blindée, avec des ouvriers dedans :",opts:["Normal si le sol semble dur","Danger grave : risque d'ensevelissement","Acceptable pour moins d'une heure"],ok:1,corr:"L'ensevelissement tue en quelques minutes. Tranchée > 1,30 m = blindage ou talutage obligatoire."},
+   {q:"Une rallonge électrique passe dans une flaque d'eau :",opts:["Danger : électrisation, à corriger immédiatement","Sans risque si la prise est loin","On verra après la pause"],ok:0,corr:"Eau + électricité = risque mortel. On coupe, on déplace, on protège le câble."},
+   {q:"Des ouvriers travaillent sous une charge suspendue à la grue :",opts:["Autorisé s'ils portent un casque","Interdit : on ne passe jamais sous une charge","Toléré si la grue est récente"],ok:1,corr:"Le casque ne protège pas d'une charge de 500 kg. Zone sous charge = zone interdite."},
+   {q:"L'échafaudage n'a pas de garde-corps au 2e niveau :",opts:["Utilisable par les plus agiles","Interdit d'utilisation tant qu'il n'est pas complété","Acceptable côté mur"],ok:1,corr:"Un échafaudage incomplet est un échafaudage interdit. Le garde-corps n'est pas une option."}
+  ]},
+ {id:"m-dosage",cat:"Béton",titre:"Dosage béton 350",type:"calc",niv:1,xp:70,argent:4000,comp:"beton",
+  desc:"Tu dois couler une dalle de 4 m × 5 m × 0,12 m en béton dosé à 350 kg/m³.",
+  etapes:[
+   {q:"Volume de béton nécessaire (m³) — 4 × 5 × 0,12 :",rep:2.4,tol:0.05,unite:"m³",corr:"V = longueur × largeur × épaisseur = 4 × 5 × 0,12 = 2,4 m³."},
+   {q:"Masse de ciment pour ce volume (kg) — dosage 350 :",rep:840,tol:10,unite:"kg",corr:"350 kg/m³ × 2,4 m³ = 840 kg de ciment."},
+   {q:"Nombre de sacs de 50 kg à commander (arrondi supérieur) :",rep:17,tol:0,unite:"sacs",corr:"840 ÷ 50 = 16,8 → on commande 17 sacs. On n'arrondit jamais vers le bas en approvisionnement."}
+  ]},
+ {id:"m-coulage",cat:"Béton",titre:"Contrôle avant coulage (7 min)",type:"chrono",tps:420,niv:2,xp:90,argent:5000,comp:"qualite",
+  desc:"La toupie arrive dans 7 minutes. Vérifie tout avant d'autoriser le coulage.",
+  qs:[
+   {q:"Les aciers touchent le fond du coffrage. Tu :",opts:["Coules quand même, le béton les enrobera","Fais poser des cales d'enrobage avant de couler","Ajoutes de l'eau pour que ça glisse"],ok:1,corr:"Sans enrobage, les aciers rouillent et la dalle se dégrade. Les cales garantissent 2,5 à 3 cm d'enrobage."},
+   {q:"Le coffrage contient des gravats et de la poussière :",opts:["Nettoyage obligatoire avant coulage","Le béton absorbera tout","On souffle un coup et c'est bon"],ok:0,corr:"Les déchets créent des zones de faiblesse. Coffrage propre et humidifié = règle de base."},
+   {q:"Le chauffeur propose d'ajouter de l'eau car le béton est « un peu ferme » :",opts:["OK, ce sera plus facile à tirer","Refus : l'eau ajoutée détruit la résistance","On ajoute juste 50 litres"],ok:1,corr:"Chaque litre d'eau en trop fait chuter la résistance. On ajuste avec un adjuvant, jamais avec de l'eau sauvage."},
+   {q:"Il manque les réservations pour la plomberie :",opts:["On percera après, au marteau-piqueur","On pose les réservations avant de couler","La plomberie passera en apparent"],ok:1,corr:"Percer une dalle coûte cher et peut couper des aciers. Les réservations se posent AVANT le coulage."}
+  ]},
+ {id:"m-ferraillage",cat:"Béton",titre:"Réception du ferraillage",type:"quiz",niv:2,xp:80,argent:4500,comp:"beton",
+  desc:"Le ferrailleur annonce que la semelle est prête. À toi de vérifier.",
+  qs:[
+   {q:"Le plan indique HA12 esp. 15 cm, tu mesures 25 cm entre aciers :",opts:["Non-conformité : à reprendre avant coulage","Acceptable, c'est presque pareil","On compensera avec plus de béton"],ok:0,corr:"L'espacement des aciers vient du calcul de structure. 25 cm au lieu de 15, c'est ~40 % d'acier en moins."},
+   {q:"HA12 signifie :",opts:["Acier haute adhérence de 12 mm de diamètre","Hauteur 12 cm","12 barres par mètre"],ok:0,corr:"HA = haute adhérence (barres nervurées), 12 = diamètre en millimètres."},
+   {q:"Les attaches de ligature sont absentes sur la moitié des croisements :",opts:["Sans importance, le béton fige tout","À compléter : le ferraillage doit rester en place au coulage","On liera après coulage"],ok:1,corr:"Sans ligatures, les aciers bougent pendant le coulage et le ferraillage réel ne correspond plus au calcul."}
+  ]},
+ {id:"m-plan",cat:"Lecture de plans",titre:"Lecture de plan (8 min)",type:"chrono",tps:480,niv:2,xp:80,argent:4500,comp:"plans",
+  desc:"Le chef te tend le plan de la villa. 8 minutes pour répondre au client.",
+  qs:[
+   {q:"Échelle 1/50 : une chambre mesure 8 cm × 6 cm sur le plan. Dimensions réelles :",opts:["4 m × 3 m","8 m × 6 m","2 m × 1,5 m"],ok:0,corr:"1/50 → ×50 : 8 cm × 50 = 400 cm = 4 m ; 6 cm × 50 = 3 m."},
+   {q:"Sur le plan, un mur est coté « 15 ». En architecture, cela signifie :",opts:["15 cm d'épaisseur","15 m de long","15 mm"],ok:0,corr:"Les cotes des plans d'architecture sont en centimètres : mur de 15 cm (agglo de 15)."},
+   {q:"Le cartouche indique « Indice C — 12/05 ». Sur chantier tu as un plan « Indice B ». Tu :",opts:["Travailles avec l'indice B, il est plus lisible","Récupères l'indice C : seul le dernier indice fait foi","Compares et choisis le plus logique"],ok:1,corr:"Un indice périmé peut contenir des cotes modifiées. On construit toujours sur le dernier indice diffusé."},
+   {q:"Le symbole d'une porte sur un plan est :",opts:["Un quart de cercle avec un trait","Un triangle plein","Une croix"],ok:0,corr:"L'arc de cercle représente le débattement de la porte, le trait représente le vantail."}
+  ]},
+ {id:"m-rapport",cat:"Logiciels",titre:"Rapport journalier (Word simulé)",type:"quiz",niv:2,xp:70,argent:4000,comp:"word",
+  desc:"18h00. Rédige le rapport de la journée de coulage pour le conducteur de travaux.",
+  qs:[
+   {q:"Que doit contenir en priorité un rapport journalier ?",opts:["Effectifs, travaux réalisés, matériaux reçus, incidents, météo","Uniquement les problèmes","Les opinions personnelles sur l'équipe"],ok:0,corr:"Le rapport est la mémoire du chantier : qui, quoi, combien, incidents, météo. Factuel et complet."},
+   {q:"Un incident mineur (chute sans blessure) s'est produit. Tu :",opts:["Le notes précisément dans le rapport","L'omets pour ne pas inquiéter","Le signales oralement seulement"],ok:0,corr:"Tout incident se trace : c'est une protection juridique et un signal de prévention."},
+   {q:"Le meilleur style pour un rapport :",opts:["Phrases courtes, factuelles, datées","Long récit détaillé de la journée","Style SMS pour aller vite"],ok:0,corr:"Un rapport se lit en 2 minutes : faits, chiffres, heures. La précision fait le professionnalisme."}
+  ]},
+ {id:"m-excel-volume",cat:"Logiciels",titre:"Excel BTP : volumes en série",type:"calc",niv:2,xp:80,argent:4500,comp:"excel",
+  desc:"Tableau Excel simulé : calcule les volumes de 3 ouvrages, comme avec des formules.",
+  etapes:[
+   {q:"Semelle filante : 12 m × 0,5 m × 0,3 m = ? (m³)",rep:1.8,tol:0.05,unite:"m³",corr:"=12*0,5*0,3 → 1,8 m³. En Excel : =A2*B2*C2."},
+   {q:"Poteau 0,2 × 0,2 × 3 m, quantité 8 = ? (m³ total)",rep:0.96,tol:0.02,unite:"m³",corr:"0,2×0,2×3 = 0,12 m³ ×8 = 0,96 m³."},
+   {q:"Dalle 6 × 4 × 0,12 m = ? (m³)",rep:2.88,tol:0.05,unite:"m³",corr:"=6*4*0,12 → 2,88 m³. Total projet : SOMME() des trois lignes."}
+  ]},
+ {id:"m-devis",cat:"Métré / Devis",titre:"Devis d'un muret ({DEVISE})",type:"devis",niv:3,xp:110,argent:7000,comp:"metre",
+  desc:"Le client veut un muret en agglos de 15 : 10 m de long, 1 m de haut. Chiffre les fournitures principales avec les prix de ton pays.",
+  etapes:[
+   {q:"Surface du muret (m²) :",rep:10,tol:0.2,unite:"m²",corr:"10 m × 1 m = 10 m²."},
+   {q:"Nombre d'agglos (10 agglos/m², +5 % de casse, arrondi sup.) :",rep:105,tol:1,unite:"agglos",corr:"10 m² × 10 = 100 + 5 % = 105 agglos."},
+   {q:"Coût des agglos ({DEVISE}) — 105 × prix unitaire ({PAGGLO} {DEVISE}) :",repDyn:s=>Math.round(105*PAYS[s.pays].prix.agglo15),tol:0.02,rel:true,unite:"",corr:"105 × prix agglo du référentiel {PAYS}. Les prix changent selon le pays : c'est la variante pays de la mission."}
+  ]},
+ {id:"m-casque",cat:"Gestion humaine",titre:"L'ouvrier qui refuse son casque",type:"decision",niv:3,xp:90,argent:5000,comp:"gestion",
+  desc:"Kouassi, ton meilleur maçon, refuse son casque : « il fait trop chaud, je travaille mieux sans ».",
+  qs:[
+   {q:"Ta première réaction :",opts:[
+     {t:"Le menacer de renvoi immédiat",eff:"Le ton monte, l'équipe se braque. Autorité ≠ brutalité.",pts:20},
+     {t:"Lui parler à part : rappeler la règle, écouter, proposer une solution (casque ventilé, pauses)",eff:"Il remet son casque. L'équipe voit un chef ferme ET juste.",pts:100},
+     {t:"Fermer les yeux, c'est ton meilleur élément",eff:"Demain, trois ouvriers seront sans casque. La règle est morte.",pts:0}
+    ],corr:"Fermeté sur la règle, souplesse sur la manière. La sécurité ne se négocie pas, mais elle s'explique."},
+   {q:"Il remet son casque mais recommence le lendemain :",opts:[
+     {t:"Avertissement formel écrit, tracé dans le rapport",eff:"Le cadre est posé, la trace existe. Progression disciplinaire correcte.",pts:100},
+     {t:"Renvoi immédiat du chantier",eff:"Disproportionné en 2e étape ; tu perds un bon maçon et l'équipe te craint sans te respecter.",pts:40},
+     {t:"Nouvelle discussion amicale sans trace",eff:"Sans trace ni gradation, la 3e fois arrivera.",pts:30}
+    ],corr:"La discipline suit une gradation : rappel → avertissement écrit → sanction. Chaque étape se trace."}
+  ]},
+ {id:"m-dispute",cat:"Gestion humaine",titre:"Conflit entre deux ouvriers (5 min)",type:"decision",tps:300,niv:3,xp:90,argent:5000,comp:"gestion",
+  desc:"Deux ouvriers en viennent presque aux mains près de la bétonnière. L'équipe s'arrête pour regarder.",
+  qs:[
+   {q:"Action immédiate :",opts:[
+     {t:"Les séparer physiquement et les éloigner de la zone de danger",eff:"La situation est sécurisée. Bien joué : d'abord la sécurité.",pts:100},
+     {t:"Crier plus fort qu'eux devant tout le monde",eff:"L'humiliation publique transforme un conflit en rancune durable.",pts:20},
+     {t:"Laisser l'équipe gérer entre eux",eff:"Le chef qui n'arbitre pas n'est plus le chef.",pts:0}
+    ],corr:"Sécuriser, séparer, puis traiter. Jamais d'arbitrage à chaud devant le groupe."},
+   {q:"Après séparation :",opts:[
+     {t:"Écouter chacun séparément, puis décider et expliquer la décision aux deux",eff:"Les deux se sentent entendus, la décision est acceptée. Le chantier repart.",pts:100},
+     {t:"Sanctionner les deux sans écouter",eff:"Rapide mais injuste : celui qui a été provoqué devient ton ennemi.",pts:30},
+     {t:"Les renvoyer tous les deux",eff:"Tu perds deux bras et le planning du coulage de demain.",pts:10}
+    ],corr:"Écouter séparément évite le concours de mauvaise foi. Décider vite, expliquer toujours."}
+  ]},
+ {id:"m-retard",cat:"Décisionnel",titre:"La toupie a 2 heures de retard",type:"decision",niv:3,xp:100,argent:6000,comp:"decision",
+  desc:"Coulage prévu à 8h. La centrale annonce la toupie pour 10h. L'équipe de 6 ouvriers attend, le client passe à 11h.",
+  qs:[
+   {q:"Que fais-tu de l'équipe pendant 2 heures ?",opts:[
+     {t:"Réaffecter : préparation du prochain coffrage, nettoyage, rangement du dépôt",eff:"Zéro heure perdue, le chantier avance quand même. Réflexe de vrai chef.",pts:100},
+     {t:"Tout le monde attend près du coffrage",eff:"12 heures-homme payées à ne rien faire. Le budget pleure.",pts:20},
+     {t:"Renvoyer l'équipe à la maison",eff:"Quand la toupie arrive à 10h, tu n'as plus personne pour couler.",pts:0}
+    ],corr:"Un retard fournisseur se transforme en tâches secondaires. Un chantier a toujours du travail en attente."},
+   {q:"Le client arrive et voit que rien n'est coulé :",opts:[
+     {t:"Expliquer factuellement le retard fournisseur et le plan de rattrapage",eff:"Le client apprécie la transparence et le plan. Confiance +.",pts:100},
+     {t:"Accuser l'équipe devant lui",eff:"Tu gagnes 5 minutes de tranquillité et tu perds ton équipe.",pts:0},
+     {t:"Promettre que tout sera fini ce soir, quoi qu'il arrive",eff:"Promesse intenable = crédibilité brûlée à la prochaine visite.",pts:30}
+    ],corr:"Face au client : des faits, un plan, pas de coupables ni de promesses magiques."}
+  ]},
+ {id:"m-geotech",cat:"Géotechnique",titre:"Lire le rapport de sol",type:"quiz",niv:3,xp:90,argent:5500,comp:"geotech",
+  desc:"Le laboratoire livre son rapport géotechnique pour la future école.",
+  qs:[
+   {q:"Le rapport indique un sol argileux gonflant. Risque principal :",opts:["Mouvements du sol selon l'humidité → fissures","Aucun, l'argile est imperméable","Le sol sera trop dur à creuser"],ok:0,corr:"Les argiles gonflent avec l'eau et se rétractent en saison sèche : les fondations doivent en tenir compte (ancrage, rigidité)."},
+   {q:"Le bon sol porteur est à 4 m de profondeur. Solution probable :",opts:["Semelles superficielles classiques","Fondations profondes ou puits jusqu'au bon sol","Construire plus léger et espérer"],ok:1,corr:"On descend les charges jusqu'au sol porteur : puits, pieux, ou radier étudié selon le cas."},
+   {q:"L'essai qui mesure la portance du sol en place :",opts:["L'essai pénétrométrique / pressiométrique","Le slump test","L'essai d'affaissement du béton"],ok:0,corr:"Pénétromètre et pressiomètre caractérisent le sol. Le slump test, lui, concerne le béton frais."}
+  ]},
+ {id:"m-topo",cat:"Topographie",titre:"Implantation de la villa",type:"calc",niv:3,xp:90,argent:5500,comp:"topo",
+  desc:"Tu assistes le topographe pour implanter la villa sur le terrain.",
+  etapes:[
+   {q:"Vérification d'équerre par le 3-4-5 : si un côté fait 3 m et l'autre 4 m, la diagonale d'un angle droit fait :",rep:5,tol:0,unite:"m",corr:"Triangle 3-4-5 : 3² + 4² = 5². C'est la méthode de chantier pour tracer un angle droit parfait."},
+   {q:"Le terrain descend de 45 cm sur 15 m. Pente en % :",rep:3,tol:0.1,unite:"%",corr:"Pente = dénivelé ÷ distance × 100 = 0,45 ÷ 15 × 100 = 3 %."},
+   {q:"Niveau fini de la dalle : +0,30 m au-dessus du terrain naturel pris à 100,00. Cote de la dalle :",rep:100.3,tol:0.01,unite:"m",corr:"100,00 + 0,30 = 100,30. Les cotes de niveau se cumulent depuis la référence."}
+  ]},
+ {id:"m-nc",cat:"Contrôle qualité",titre:"Fiche de non-conformité",type:"quiz",niv:4,xp:100,argent:6000,comp:"qualite",
+  desc:"Tu découvres un poteau coulé avec 4 cm de désaxement par rapport au plan.",
+  qs:[
+   {q:"Première action :",opts:["Ouvrir une fiche de non-conformité et prévenir le bureau d'études","Casser le poteau immédiatement","Ne rien dire, 4 cm c'est invisible"],ok:0,corr:"On trace, on alerte, et c'est l'ingénieur qui décide du traitement (acceptation, renforcement, démolition)."},
+   {q:"Qui décide si le poteau peut être conservé ?",opts:["Le maçon qui l'a coulé","L'ingénieur structure / bureau d'études","Le client, c'est lui qui paie"],ok:1,corr:"Seul le responsable du calcul peut juger l'impact structurel d'un désaxement."},
+   {q:"Une fiche de non-conformité contient :",opts:["Description, localisation, photo, cause, traitement proposé, décision","Le nom du coupable en gros","Une simple croix sur le plan"],ok:0,corr:"La fiche NC est factuelle et orientée traitement, jamais orientée punition."}
+  ]},
+ {id:"m-reception",cat:"Réception",titre:"PV de réception et réserves",type:"quiz",niv:4,xp:100,argent:6000,comp:"qualite",
+  desc:"Fin de chantier : le client visite pour la réception des travaux.",
+  qs:[
+   {q:"Le client remarque une porte qui frotte et une peinture tachée. Ces défauts deviennent :",opts:["Des réserves consignées au PV de réception","Un motif d'annulation du chantier","Des détails à oublier"],ok:0,corr:"Les défauts mineurs sont notés en réserves : l'entreprise doit les lever dans un délai convenu."},
+   {q:"La réception marque juridiquement :",opts:["Le transfert de l'ouvrage au client et le point de départ des garanties","La fin de toute responsabilité de l'entreprise","Le début des travaux"],ok:0,corr:"À la réception, l'ouvrage passe au client et les garanties (parfait achèvement, décennale selon pays) démarrent."},
+   {q:"Une réserve est levée quand :",opts:["Le défaut est corrigé et vérifié","30 jours sont passés","Le client s'est habitué au défaut"],ok:0,corr:"Correction + vérification contradictoire = levée de réserve, tracée par écrit."}
+  ]},
+ {id:"m-verif-devis",cat:"Métré / Devis",titre:"Vérifier un devis suspect (10 min)",type:"chrono",tps:600,niv:4,xp:110,argent:7000,comp:"metre",
+  desc:"Un sous-traitant propose un devis pour une dalle de 30 m². Trouve les erreurs.",
+  qs:[
+   {q:"Le devis compte 6 m³ de béton pour une dalle de 30 m² en épaisseur 12 cm. Le bon volume est :",opts:["3,6 m³ — le devis surcompte de 65 %","6 m³, c'est correct","1,2 m³"],ok:0,corr:"30 × 0,12 = 3,6 m³. Le devis gonfle le poste béton : à renégocier ligne par ligne."},
+   {q:"La ligne « divers et imprévus : 25 % » est :",opts:["Anormalement élevée : 5 à 10 % est l'usage","Normale","Trop faible"],ok:0,corr:"Au-delà de ~10 %, la ligne « divers » cache souvent un manque de métré sérieux."},
+   {q:"Le devis ne précise ni dosage du béton ni nuance d'acier. Tu :",opts:["Exiges les spécifications techniques avant signature","Signes, on verra à l'exécution","Supposes que ce sera du bon matériau"],ok:0,corr:"Un devis sans spécifications permet toutes les économies cachées. Pas de specs, pas de signature."}
+  ]},
+ {id:"m-exam-stage",cat:"Examen",titre:"EXAMEN — Fin de stage",type:"chrono",tps:600,niv:2,xp:150,argent:10000,comp:"bases",exam:true,
+  desc:"Ton maître de stage évalue tout ce que tu as appris. Seuil de réussite : 70/100.",
+  qs:[
+   {q:"Le rapport journalier se rédige :",opts:["Chaque jour, factuel, avec effectifs et incidents","Une fois par semaine","Seulement quand il y a un problème"],ok:0,corr:"Quotidien et factuel : c'est la mémoire officielle du chantier."},
+   {q:"Avant un coulage, l'enrobage des aciers est garanti par :",opts:["Des cales","De l'eau ajoutée","Une prière"],ok:0,corr:"Les cales d'enrobage maintiennent la distance acier-coffrage."},
+   {q:"Sur un plan au 1/100, 5 cm représentent :",opts:["5 m","50 m","0,5 m"],ok:0,corr:"1/100 → ×100 : 5 cm × 100 = 500 cm = 5 m."},
+   {q:"Un danger grave et imminent justifie :",opts:["L'arrêt immédiat de la tâche","Un mail en fin de semaine","De travailler plus vite pour finir avant l'accident"],ok:0,corr:"Danger grave = arrêt immédiat. C'est un droit et un devoir."},
+   {q:"Le dosage 350 concerne :",opts:["Le ciment en kg par m³ de béton","L'eau en litres","Le sable en brouettes"],ok:0,corr:"350 kg de ciment par m³ : le standard du béton de structure courant."}
+  ]},
+ {id:"m-exam-conducteur",cat:"Examen",titre:"EXAMEN — Conducteur de travaux",type:"chrono",tps:600,niv:5,xp:250,argent:20000,comp:"decision",exam:true,
+  desc:"Le jury évalue ta capacité à gérer budget, planning, équipes et client. Seuil : 75/100.",
+  qs:[
+   {q:"Ton chantier a 10 jours de retard et le client menace de pénalités. Priorité :",opts:["Replanifier avec chemin critique + renfort ciblé + informer le client avec un plan daté","Faire travailler tout le monde le dimanche sans analyse","Cacher le retard en modifiant le planning affiché"],ok:0,corr:"On rattrape sur le chemin critique, pas partout. Et le client s'informe avec un plan, pas avec des surprises."},
+   {q:"Le budget main-d'œuvre dérape de 15 % à mi-chantier. Tu :",opts:["Analyses les rendements poste par poste pour trouver la fuite","Réduis les salaires de tous","Attends la fin pour faire les comptes"],ok:0,corr:"Le dérapage a toujours une cause localisée : rendement, sureffectif, reprise de malfaçons. On mesure avant d'agir."},
+   {q:"Deux chantiers réclament la même grue mobile le même jour :",opts:["Arbitrer selon le chemin critique de chaque chantier et négocier un décalage","Premier arrivé, premier servi","Louer une 2e grue sans regarder le budget"],ok:0,corr:"L'arbitrage multi-chantiers se fait sur l'impact planning réel, pas sur le volume des réclamations."},
+   {q:"En réunion de chantier, l'architecte et le bureau de contrôle se contredisent :",opts:["Faire acter les deux positions au compte-rendu et demander une réponse écrite","Choisir la solution la moins chère","Trancher toi-même sur un sujet structurel"],ok:0,corr:"Le compte-rendu protège tout le monde. Les sujets techniques se tranchent par écrit par les responsables habilités."},
+   {q:"Un fournisseur stratégique augmente ses prix de 20 % en cours de marché :",opts:["Vérifier le contrat, chercher une 2e source, négocier avec des volumes","Payer sans discuter","Arrêter le chantier"],ok:0,corr:"Contrat d'abord, concurrence ensuite, négociation toujours."}
+  ]}
+];
+/* chantiers virtuels : séquences de missions + note */
+const CHANTIERS = [
+ {id:"ch-dalle",nom:"Dalle de terrasse — Famille Koné",type:"Petite dalle",budget:{CI:"450 000 FCFA",FR:"3 200 €"},delai:"5 jours",niv:1,
+  desc:"Une dalle de 20 m² pour la terrasse d'une maison. Ton premier vrai chantier : du calcul au coulage.",
+  phases:[{nom:"Préparation & sécurité",m:"m-epi"},{nom:"Dosage & approvisionnement",m:"m-dosage"},{nom:"Contrôle avant coulage",m:"m-coulage"}]},
+ {id:"ch-muret",nom:"Clôture — École Sainte-Marie",type:"Clôture",budget:{CI:"1 200 000 FCFA",FR:"8 500 €"},delai:"10 jours",niv:3,
+  desc:"Un muret de clôture pour une école. Le client veut un devis précis et un chantier sans incident.",
+  phases:[{nom:"Métré & devis",m:"m-devis"},{nom:"Implantation",m:"m-topo"},{nom:"Gestion d'équipe",m:"m-casque"}]},
+ {id:"ch-chambre",nom:"Chambre simple — M. Diabaté",type:"Chambre",budget:{CI:"2 800 000 FCFA",FR:"18 000 €"},delai:"21 jours",niv:4,
+  desc:"Construction complète d'une chambre : plans, ferraillage, imprévus et réception.",
+  phases:[{nom:"Lecture des plans",m:"m-plan"},{nom:"Réception ferraillage",m:"m-ferraillage"},{nom:"Imprévu : retard toupie",m:"m-retard"},{nom:"Réception des travaux",m:"m-reception"}]}
+];
+const OFFRES = [
+ {id:"o-stage",titre:"Stage chantier — SOGEBAT Construction",profilCible:"stagiaire",req:{niveau:1,rep:0,comp:{bases:1,securite:1}},test:"m-intro",
+  desc:"Stage de découverte sur un chantier de logements. Rapport journalier exigé."},
+ {id:"o-technicien",titre:"Assistant technicien — Bureau AXIS BTP",profilCible:"technicien",req:{niveau:3,rep:20,comp:{plans:1,excel:1,word:1}},test:"m-exam-stage",
+  desc:"Appui au conducteur : métrés simples, plans, rapports. Examen d'entrée."},
+ {id:"o-chef-equipe",titre:"Chef d'équipe — Chantier Riviera 4",profilCible:"chef_equipe",req:{niveau:4,rep:35,comp:{gestion:1,securite:2,beton:1}},test:"m-dispute",
+  desc:"Encadrement de 6 maçons sur un immeuble R+1. Leadership et sécurité exigés."},
+ {id:"o-chef-chantier",titre:"Chef chantier junior — GROUPE BÂTIR",profilCible:"chef_chantier",req:{niveau:5,rep:50,comp:{decision:1,qualite:1,metre:1},chantiers:1},test:"m-verif-devis",
+  desc:"Pilotage complet d'un chantier de villa. Un chantier réussi minimum au CV."},
+ {id:"o-conducteur",titre:"Conducteur de travaux — INTERCONSTRUCT",profilCible:"conducteur",req:{niveau:7,rep:65,comp:{decision:2,metre:2,gestion:2},chantiers:2},test:"m-exam-conducteur",
+  desc:"Gestion multi-chantiers : budget, planning, fournisseurs, relation client."}
+];
+const PROMOS = [
+ {de:"etudiant",vers:"stagiaire",cond:{comp:{bases:1,securite:1},missions:2},exam:"m-intro"},
+ {de:"stagiaire",vers:"technicien",cond:{comp:{plans:1,excel:1,word:1,securite:1},missions:5},exam:"m-exam-stage"},
+ {de:"technicien",vers:"chef_equipe",cond:{comp:{gestion:1,beton:1},missions:8,rep:30},exam:"m-dispute"},
+ {de:"chef_equipe",vers:"chef_chantier",cond:{comp:{decision:1,qualite:1},missions:11,rep:45,chantiers:1},exam:"m-verif-devis"},
+ {de:"chef_chantier",vers:"conducteur",cond:{comp:{decision:2,metre:2},missions:14,rep:60,chantiers:2},exam:"m-exam-conducteur"}
+];
+/* ================= MOTEUR ================= */
+let MEM = null; // fallback mémoire si stockage indisponible (aperçu)
+function load(){ try{ const r=localStorage.getItem("btplife"); return r?JSON.parse(r):MEM; }catch(e){ return MEM; } }
+function save(s){ MEM=s; try{ localStorage.setItem("btplife",JSON.stringify(s)); }catch(e){} }
+function S(){ return load(); }
+function newState(u){ return {user:u,pays:u.pays,profil:u.profil,metier:u.metier,avatar:u.avatar,
+  niveau:PROFILS.find(p=>p.id===u.profil)?.niv||1,xp:0,rep:10,argent:15000,comp:{},done:{},badges:[],
+  chantiers:{},streak:0,retryWin:false,historique:[{t:"Début de carrière : "+profNom(u.profil),d:Date.now()}]}; }
+function profNom(id){ return PROFILS.find(p=>p.id===id)?.nom||id; }
+function xpNext(s){ return 100+ s.niveau*60; }
+function gainXP(s,x){ s.xp+=x; while(s.xp>=xpNext(s)){ s.xp-=xpNext(s); s.niveau++; toast("🏙️ Niveau "+s.niveau+" — un étage de plus !"); } }
+function fmt(n){ return n.toLocaleString("fr-FR"); }
+function devise(s){ return PAYS[s.pays].devise; }
+function checkBadges(s){
+  const news=[];
+  BADGES.forEach(b=>{ if(!s.badges.includes(b.id) && b.cond(s)){ s.badges.push(b.id); news.push(b);} });
+  return news;
+}
+function condPromoOK(s,p){
+  const missOK=Object.keys(s.done).length>=(p.cond.missions||0);
+  const repOK=s.rep>=(p.cond.rep||0);
+  const chOK=Object.values(s.chantiers).filter(c=>c.fini).length>=(p.cond.chantiers||0);
+  const compKO=Object.entries(p.cond.comp||{}).filter(([k,v])=>(s.comp[k]||0)<v);
+  return {ok:missOK&&repOK&&chOK&&compKO.length===0,missOK,repOK,chOK,compKO};
+}
+function missAccessible(s,m){ return s.niveau>=m.niv; }
+/* -------- rendu -------- */
+const root=document.getElementById("root"), overlay=document.getElementById("overlay");
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function celebrate(html,cb){ overlay.innerHTML=`<div class="celebrate"><div class="box">${html}
+  <button class="btn btn-p" style="margin-top:18px" id="cel-ok">Continuer</button></div></div>`;
+  document.getElementById("cel-ok").onclick=()=>{overlay.innerHTML=""; if(cb)cb();}; }
+function go(h){ location.hash=h; }
+window.addEventListener("hashchange",render);
+/* -------- composants -------- */
+const AVERT=`<div class="warn-band">⚠️ <b>BTP Life est un simulateur pédagogique.</b> Les contenus techniques et normatifs servent à l'apprentissage et ne remplacent pas les normes officielles, les bureaux d'études, les ingénieurs habilités, les laboratoires agréés ni les obligations réglementaires du pays concerné.</div>`;
+function logoSVG(sz=34){ return `<svg width="${sz}" height="${sz}" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#26262B"/><path d="M14 50h36M18 50V34h10v16M32 50V22h10v28M18 34l10-6M32 22l10-8" stroke="#BC4B27" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg>`; }
+function buildingSVG(niv,xpPct){
+  const floors=Math.min(niv,8); let f="";
+  for(let i=0;i<floors;i++){ f+=`<rect x="18" y="${118-i*13}" width="44" height="11" rx="2" fill="${i===floors-1?'#BC4B27':'#B87333'}" opacity="${0.65+i*0.045}"/>`; }
+  return `<svg width="90" height="140" viewBox="0 0 80 140">
+   <line x1="4" y1="132" x2="76" y2="132" stroke="#8A8680" stroke-width="2"/>
+   <rect x="14" y="120" width="52" height="10" fill="#3F2E24"/>
+   ${f}
+   <rect x="18" y="${118-floors*13}" width="44" height="${11*xpPct}" rx="2" fill="#BC4B27" opacity=".35"/>
+   <text x="40" y="139" font-family="monospace" font-size="8" fill="#8A8680" text-anchor="middle">FONDATIONS</text></svg>`;
+}
+function tabbar(cur){
+  const t=[["dash","🏠","Accueil"],["missions","🎯","Missions"],["chantiers","🏗️","Chantiers"],["academie","📚","Académie"],["cv","👤","Carrière"]];
+  return `<nav class="tabbar">${t.map(([id,em,n])=>`<a href="#/${id}" class="${cur===id?'on':''}"><span class="i">${em}</span>${n}</a>`).join("")}</nav>`;
+}
+function appShell(cur,inner){
+  const s=S();
+  return `<div class="app-shell">
+  <header class="site"><div class="wrap">
+    <a class="logo" href="#/dash">${logoSVG(28)} BTP<b>Life</b></a>
+    <nav class="main">
+      <span class="pill terre">${PAYS[s.pays].nom}</span>
+      <a href="#/offres" class="hidemob">Offres</a><a href="#/recompenses" class="hidemob">Badges</a>
+      <a href="#/admin" class="hidemob">Admin</a>
+      <a href="#/logout" title="Déconnexion">⏻</a>
+    </nav></div></header>
+  <main class="app-main"><div class="wrap">${inner}</div></main>${tabbar(cur)}</div>`;
+}
+/* ================= VUES ================= */
+function vLanding(){
+  root.innerHTML=`
+  <header class="site"><div class="wrap">
+    <a class="logo" href="#/">${logoSVG(28)} BTP<b>Life</b></a>
+    <nav class="main"><a href="#metiers">Métiers</a><a href="#concept" class="hidemob">Concept</a>
+    <a href="#/auth" class="btn btn-p btn-sm">Se connecter</a></nav></div></header>
+  <section class="hero"><div class="grid-bg"></div><div class="wrap">
+    <div>
+      <div class="eyebrow">Simulateur de carrière &amp; de vie professionnelle BTP</div>
+      <h1>Construis ta carrière dans le BTP <em>en jouant</em></h1>
+      <p class="sub">Apprends les métiers du BTP, réalise des chantiers virtuels, utilise les logiciels professionnels, passe des tests chronométrés et évolue comme dans une vraie carrière.</p>
+      <div class="ctas">
+        <a href="#/auth" class="btn btn-p">Commencer l'aventure</a>
+        <a href="#/auth" class="btn btn-o">Se connecter</a>
+        <a href="#metiers" class="btn btn-o">Découvrir les métiers</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <svg viewBox="0 0 340 300" width="100%">
+        <line x1="10" y1="270" x2="330" y2="270" stroke="#B87333" stroke-width="2"/>
+        <rect x="40" y="150" width="70" height="120" fill="#33333A" stroke="#B87333"/>
+        <rect x="130" y="90" width="80" height="180" fill="#3F2E24" stroke="#BC4B27" stroke-width="2"/>
+        <rect x="145" y="110" width="18" height="18" fill="#D9B382"/><rect x="177" y="110" width="18" height="18" fill="#D9B382"/>
+        <rect x="145" y="150" width="18" height="18" fill="#D9B382"/><rect x="177" y="150" width="18" height="18" fill="#D9B382"/>
+        <rect x="145" y="190" width="18" height="18" fill="#F4EEE2"/><rect x="177" y="190" width="18" height="18" fill="#F4EEE2"/>
+        <rect x="230" y="200" width="60" height="70" fill="#33333A" stroke="#6B7A3F"/>
+        <line x1="255" y1="30" x2="255" y2="90" stroke="#BC4B27" stroke-width="4"/>
+        <line x1="150" y1="40" x2="320" y2="40" stroke="#BC4B27" stroke-width="4"/>
+        <line x1="300" y1="40" x2="300" y2="80" stroke="#B87333" stroke-width="2" stroke-dasharray="4 4"/>
+        <rect x="292" y="80" width="16" height="14" fill="#B87333"/>
+        <g font-family="monospace" font-size="9" fill="#8A8680">
+          <text x="128" y="285">← 12,40 m →</text>
+          <line x1="130" y1="277" x2="210" y2="277" stroke="#8A8680" stroke-dasharray="3 3"/>
+          <text x="20" y="140">NIV +9,00</text>
+        </g>
+        <circle cx="90" cy="255" r="8" fill="#BC4B27"/><rect x="84" y="262" width="12" height="10" fill="#F4EEE2"/>
+      </svg>
+    </div>
+  </div></section>
+  <section class="pub" id="concept"><div class="wrap">
+    <div class="cote"><i>§01</i> Le concept</div>
+    <h2>Un RPG professionnel, pas un simple quiz</h2>
+    <p class="lead">BTP Life permet aux étudiants, stagiaires, ouvriers, techniciens, ingénieurs, dessinateurs, topographes, géotechniciens, contrôleurs qualité et entrepreneurs d'apprendre le BTP à travers des missions, des chantiers, des logiciels simulés, des tests et une progression de carrière réaliste — du besoin du client jusqu'à la réception des travaux.</p>
+    <div class="cards c4">
+      ${[["1","Crée ton compte","Ton avatar, ton pays, ton référentiel de normes."],["2","Choisis ton profil","Étudiant, ouvrier, technicien, ingénieur… commence à ton niveau."],["3","Commence tes missions","Quiz, tests chronométrés, calculs, décisions, chantiers."],["4","Évolue dans ta carrière","Compétences, réputation, offres d'emploi, promotions."]].map(([n,t,d])=>`<div class="card"><div class="num">ÉTAPE ${n}</div><h3>${t}</h3><p>${d}</p></div>`).join("")}
+    </div>
+  </div></section>
+  <section class="pub alt" id="metiers"><div class="wrap">
+    <div class="cote"><i>§02</i> Profils disponibles</div>
+    <h2>Choisis ton métier. Apprends. Travaille. Évolue.</h2>
+    <div class="cards c4">
+      ${PROFILS.map(p=>`<div class="card metier"><div class="ic">${p.em}</div><span class="fam">${p.fam}</span><h3>${p.nom}</h3><p>${p.desc}</p><a href="#/auth" class="btn btn-g btn-sm">Voir le parcours</a></div>`).join("")}
+    </div>
+  </div></section>
+  <section class="pub"><div class="wrap">
+    <div class="cote"><i>§03</i> Apprendre en s'amusant</div>
+    <h2>Motivant, bienveillant, réaliste</h2>
+    <div class="cards c3">
+      ${[["🎯","Missions interactives","Calculs, lecture de plans, décisions à conséquences, gestion d'équipe."],["⏱️","Tests chronométrés","Contrôle avant coulage en 7 min, lecture de plan en 8 min…"],["🏅","Badges & niveaux","Chaque réussite se voit. Chaque erreur devient une leçon sans risque réel."],["🤝","Mentor virtuel","Encouragements, corrections pédagogiques, plan d'action après chaque test."],["🏗️","Chantiers virtuels","De la petite dalle à la villa : phases, imprévus, réception."],["📱","PWA mobile","Installe BTP Life sur ton téléphone et continue tes missions partout, même en mobilité."]].map(([e,t,d])=>`<div class="card"><div class="ic" style="width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-size:22px;background:var(--pierre)">${e}</div><h3 style="margin-top:8px">${t}</h3><p>${d}</p></div>`).join("")}
+    </div>
+  </div></section>
+  <section class="cta-final">
+    <h2>Prêt à commencer ta carrière BTP virtuelle ?</h2>
+    <p style="opacity:.8;margin-bottom:22px">Gratuit pour commencer. Ton CV virtuel se construit dès la première mission.</p>
+    <a href="#/auth" class="btn btn-p">Créer mon compte gratuitement</a>
+  </section>
+  <footer class="site"><div class="wrap">
+    <div><b>BTP Life</b> — Le simulateur de carrière BTP<br>CGU · Confidentialité · Mentions légales · Contact</div>
+    <p class="avert">BTP Life est un simulateur pédagogique. Les contenus techniques, normatifs, financiers et professionnels servent à l'apprentissage et ne remplacent pas les normes officielles, les bureaux d'études, les ingénieurs habilités, les laboratoires agréés, les autorités compétentes ou les obligations réglementaires du pays concerné.</p>
+  </div></footer>`;
+}
+function vAuth(){
+  root.innerHTML=`<header class="site"><div class="wrap"><a class="logo" href="#/">${logoSVG(28)} BTP<b>Life</b></a></div></header>
+  <main class="wrap onb" style="padding:40px 20px">
+    <div class="cote"><i>Inscription</i> Nouveau compte</div>
+    <h2>Crée ton compte</h2>
+    <label class="f">Prénom ou pseudo</label><input class="txt" id="f-nom" placeholder="Ex. Aya, Moussa…">
+    <label class="f">Email</label><input class="txt" id="f-email" type="email" placeholder="toi@exemple.com">
+    <label class="f">Mot de passe</label><input class="txt" id="f-mdp" type="password" placeholder="••••••••">
+    <label class="f">Pays / référentiel de normes</label>
+    <select class="sel" id="f-pays">${Object.entries(PAYS).map(([k,v])=>`<option value="${k}">${v.nom} — ${v.norme}</option>`).join("")}</select>
+    ${AVERT}
+    <button class="btn btn-p" style="width:100%;margin-top:8px" onclick="doSignup()">Commencer l'aventure →</button>
+    <p class="muted" style="margin-top:14px;text-align:center">Déjà un compte sur cet appareil ? <a href="#/dash">Reprendre ma carrière</a></p>
+  </main>`;
+}
+window.doSignup=function(){
+  const nom=document.getElementById("f-nom").value.trim()||"Joueur";
+  const pays=document.getElementById("f-pays").value;
+  sessionStorage_set({nom,pays});
+  go("/onboarding/1");
+};
+let ONB={};
+function sessionStorage_set(o){ ONB={...ONB,...o}; }
+function vOnboarding(step){
+  step=+step;
+  const bar=`<div class="steps">${[1,2,3,4].map(i=>`<i class="${i<=step?'on':''}"></i>`).join("")}</div>`;
+  let inner="";
+  if(step===1){
+    const ems=["👷","👷🏾","🧑🏾‍🔧","👩🏾‍🔧","🧑‍💼","👩🏾‍💼"];
+    inner=`<h2>Étape 1 — Ton avatar</h2><p class="muted">Choisis ton personnage de carrière.</p>
+    <div class="choice-grid" style="margin-top:16px">${ems.map(e=>`<button class="choice av" data-v="${e}"><span class="em">${e}</span>Personnage</button>`).join("")}</div>
+    <label class="f">Nom du personnage</label><input class="txt" id="av-nom" value="${ONB.nom||''}">
+    <button class="btn btn-p" style="margin-top:18px" onclick="onbNext(1)">Continuer →</button>`;
+  } else if(step===2){
+    inner=`<h2>Étape 2 — Ton profil actuel</h2><p class="muted">Commence à ton vrai niveau : la progression sera réaliste.</p>
+    <div class="choice-grid" style="margin-top:16px">${PROFILS.filter(p=>p.niv<=5).map(p=>`<button class="choice pr" data-v="${p.id}"><span class="em">${p.em}</span>${p.nom}</button>`).join("")}</div>
+    <button class="btn btn-p" style="margin-top:18px" onclick="onbNext(2)">Continuer →</button>`;
+  } else if(step===3){
+    inner=`<h2>Étape 3 — Ton métier cible</h2><p class="muted">Ton objectif de carrière. Tu pourras en changer.</p>
+    <div class="choice-grid" style="margin-top:16px">${METIERS.map(m=>`<button class="choice mt" data-v="${m}">${m}</button>`).join("")}</div>
+    <button class="btn btn-p" style="margin-top:18px" onclick="onbNext(3)">Continuer →</button>`;
+  } else {
+    const path=PARCOURS_TYPES[ONB.metier]||PARCOURS_TYPES.default;
+    const start=Math.max(0,path.indexOf(ONB.profilId));
+    inner=`<h2>Étape 4 — Ton parcours généré</h2>
+    <p class="muted">De <b>${profNom(ONB.profilId)}</b> vers <b>${ONB.metier}</b>. À chaque étape, tu garderas la liberté de choisir : formation, emploi, stage, spécialisation, entreprise.</p>
+    <div class="panel" style="margin-top:16px">${path.map((p,i)=>`<div class="row"><span>${i<start?"✅":i===start?"📍":"🔒"} ${profNom(p)}</span><span class="pill ${i===start?'terre':''}">${i<start?"acquis":i===start?"tu es ici":"étape "+(i-start)}</span></div>`).join("")}</div>
+    <button class="btn btn-p" style="width:100%" onclick="onbFinish()">Entrer dans BTP Life 🏗️</button>`;
+  }
+  root.innerHTML=`<header class="site"><div class="wrap"><a class="logo" href="#/">${logoSVG(28)} BTP<b>Life</b></a></div></header>
+  <main class="wrap onb" style="padding:34px 20px">${bar}${inner}</main>`;
+  root.querySelectorAll(".choice").forEach(c=>c.onclick=()=>{
+    c.parentElement.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel")); c.classList.add("sel");
+    if(c.classList.contains("av"))ONB.avatar=c.dataset.v;
+    if(c.classList.contains("pr"))ONB.profilId=c.dataset.v;
+    if(c.classList.contains("mt"))ONB.metier=c.dataset.v;
+  });
+}
+window.onbNext=function(st){
+  if(st===1){ ONB.avatar=ONB.avatar||"👷"; ONB.avNom=document.getElementById("av-nom").value.trim()||ONB.nom; }
+  if(st===2 && !ONB.profilId){ toast("Choisis un profil"); return; }
+  if(st===3 && !ONB.metier){ toast("Choisis un métier cible"); return; }
+  go("/onboarding/"+(st+1));
+};
+window.onbFinish=function(){
+  const st=newState({nom:ONB.avNom||ONB.nom,pays:ONB.pays||"CI",profil:ONB.profilId||"etudiant",metier:ONB.metier||"Chef chantier",avatar:ONB.avatar||"👷"});
+  save(st);
+  celebrate(`<div class="confetti">🏗️</div><h2>Bienvenue, ${st.user.nom} !</h2><p class="muted" style="margin-top:8px">Ton mentor : « Ta carrière commence aujourd'hui. Première mission : la visite du chantier. Montre-moi ce que tu sais ! »</p>`,()=>go("/dash"));
+};
+/* ---------- DASHBOARD ---------- */
+function vDash(){
+  const s=S(); if(!s){go("/auth");return;}
+  const promo=PROMOS.find(p=>p.de===s.profil);
+  const pc=promo?condPromoOK(s,promo):null;
+  const dispo=MISSIONS.filter(m=>missAccessible(s,m)&&!s.done[m.id]).slice(0,3);
+  const chEnCours=Object.entries(s.chantiers).filter(([,c])=>!c.fini);
+  root.innerHTML=appShell("dash",`
+  <div class="dash-head">
+    <div class="avatar-chip" style="background:var(--graphite-2)">${s.avatar}</div>
+    <div><h2>${s.user.nom}</h2><div class="role">${profNom(s.profil)} → objectif : ${s.metier}</div></div>
+    <div class="building">${buildingSVG(s.niveau,s.xp/xpNext(s))}</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>${s.niveau}</b><span>Niveau</span></div>
+    <div class="stat"><b>${s.rep}</b><span>Réputation</span></div>
+    <div class="stat"><b>${fmt(s.argent)}</b><span>${devise(s)}</span></div>
+    <div class="stat"><b>${Object.keys(s.done).length}</b><span>Missions</span></div>
+  </div>
+  <div class="panel"><h3>📈 Progression vers le niveau ${s.niveau+1}</h3>
+    <div class="bar"><i style="width:${Math.round(100*s.xp/xpNext(s))}%"></i></div>
+    <p class="muted" style="margin-top:8px">${s.xp} / ${xpNext(s)} XP — chaque niveau ajoute un étage à ton immeuble.</p></div>
+  ${promo?`<div class="panel"><h3>🎯 Prochaine étape : ${profNom(promo.vers)}</h3>
+    ${pc.ok?`<p style="margin-bottom:10px">Toutes les conditions sont réunies ! Passe l'examen pour être promu.</p>
+      <button class="btn btn-p" onclick="go('/promotions')">Demander ma promotion</button>`
+    :`<div class="row"><span>Missions réussies</span><span class="pill ${pc.missOK?'ok':'ko'}">${Object.keys(s.done).length} / ${promo.cond.missions||0}</span></div>
+      <div class="row"><span>Réputation</span><span class="pill ${pc.repOK?'ok':'ko'}">${s.rep} / ${promo.cond.rep||0}</span></div>
+      ${(promo.cond.chantiers?`<div class="row"><span>Chantiers réussis</span><span class="pill ${pc.chOK?'ok':'ko'}">${Object.values(s.chantiers).filter(c=>c.fini).length} / ${promo.cond.chantiers}</span></div>`:"")}
+      ${Object.entries(promo.cond.comp||{}).map(([k,v])=>`<div class="row"><span>${COMP[k].em} ${COMP[k].nom} N${v}</span><span class="pill ${(s.comp[k]||0)>=v?'ok':'ko'}">N${s.comp[k]||0}</span></div>`).join("")}`}
+  </div>`:""}
+  <div class="grid2">
+    <div class="panel"><h3>🎯 Missions du jour</h3>
+      ${dispo.length?dispo.map(m=>`<div class="row"><div><b>${m.titre}</b><div class="muted">${m.cat} · +${m.xp} XP${m.tps?' · ⏱️ '+(m.tps/60)+' min':''}</div></div>
+        <button class="btn btn-p btn-sm" onclick="go('/mission/${m.id}')">Jouer</button></div>`).join("")
+      :`<p class="muted">Toutes les missions de ton niveau sont réussies. Améliore tes scores ou vise une promotion !</p>`}
+      <a href="#/missions" class="btn btn-g btn-sm" style="margin-top:10px">Toutes les missions</a></div>
+    <div class="panel"><h3>🏗️ Chantier en cours</h3>
+      ${chEnCours.length?chEnCours.map(([id,c])=>{const ch=CHANTIERS.find(x=>x.id===id);
+        return `<div class="row"><div><b>${ch.nom}</b><div class="muted">Phase ${c.phase+1}/${ch.phases.length}</div></div>
+        <button class="btn btn-olive btn-sm" onclick="go('/chantier/${id}')">Continuer</button></div>`;}).join("")
+      :`<p class="muted">Aucun chantier en cours.</p><a href="#/chantiers" class="btn btn-g btn-sm" style="margin-top:10px">Voir les chantiers</a>`}</div>
+  </div>
+  <div class="panel"><h3>💬 Message du mentor</h3>
+    <p>« ${mentorMsg(s)} »</p></div>
+  ${AVERT}`);
+}
+function mentorMsg(s){
+  if(Object.keys(s.done).length===0) return "Bienvenue "+s.user.nom+" ! Commence par la mission « Bienvenue sur le chantier ». Ici, chaque erreur est une leçon sans risque réel.";
+  if(s.rep<20) return "Concentre-toi sur la qualité de tes réponses : ta réputation ouvre les portes des offres d'emploi.";
+  const promo=PROMOS.find(p=>p.de===s.profil);
+  if(promo&&condPromoOK(s,promo).ok) return "Tu es prêt pour la promotion vers "+profNom(promo.vers)+" ! Va dans Carrière → Promotions.";
+  return "Belle progression ! Pense aux chantiers virtuels : ils comptent pour les promotions et enrichissent ton CV.";
+}
+/* ---------- MISSIONS LISTE ---------- */
+function vMissions(){
+  const s=S(); if(!s){go("/auth");return;}
+  const cats=[...new Set(MISSIONS.map(m=>m.cat))];
+  root.innerHTML=appShell("missions",`
+  <div class="cote"><i>§Missions</i> ${MISSIONS.length} missions · 14 types prévus</div>
+  <h2 style="margin-bottom:16px">Missions</h2>
+  ${cats.map(cat=>`<div class="panel"><h3>${cat}</h3>
+    ${MISSIONS.filter(m=>m.cat===cat).map(m=>{
+      const done=s.done[m.id], acc=missAccessible(s,m);
+      return `<div class="row"><div><b>${m.titre.replace("{DEVISE}",devise(s))}</b>
+        <div class="muted">${m.type==="chrono"?"⏱️ "+(m.tps/60)+" min · ":""}${m.type==="calc"||m.type==="devis"?"🧮 calcul · ":""}${m.exam?"🎓 examen · ":""}+${m.xp} XP · +${fmt(m.argent)} ${devise(s)} · ${COMP[m.comp].em} ${COMP[m.comp].nom}</div></div>
+        ${!acc?`<span class="pill ko">🔒 niveau ${m.niv}</span>`
+         :done?`<span class="pill ok">✅ ${done}/100</span> <button class="btn btn-g btn-sm" onclick="go('/mission/${m.id}')">Améliorer</button>`
+         :`<button class="btn btn-p btn-sm" onclick="go('/mission/${m.id}')">Jouer</button>`}</div>`;
+    }).join("")}</div>`).join("")}`);
+}
+/* ---------- LECTEUR DE MISSION ---------- */
+let PLAY=null;
+function vMission(id){
+  const s=S(); if(!s){go("/auth");return;}
+  const m=MISSIONS.find(x=>x.id===id); if(!m){go("/missions");return;}
+  if(!missAccessible(s,m)){toast("🔒 Niveau "+m.niv+" requis");go("/missions");return;}
+  PLAY={m,i:0,pts:0,max:0,answers:[],start:Date.now(),retry:!!s.done[id]};
+  root.innerHTML=appShell("missions",`
+  <div class="panel"><div class="cote"><i>${m.cat}</i> ${m.type.toUpperCase()}${m.exam?" · EXAMEN":""}</div>
+  <h2>${m.titre.replace("{DEVISE}",devise(s))}</h2>
+  <p class="muted" style="margin:8px 0 14px">${m.desc}</p>
+  ${m.tps?`<div style="display:flex;justify-content:space-between;align-items:center"><span class="muted">Temps limité</span><span class="chrono-ring" id="chrono">${fmtT(m.tps)}</span></div>`:""}
+  <div id="q-zone" style="margin-top:14px"></div></div>`);
+  if(m.tps){ PLAY.left=m.tps; PLAY.timer=setInterval(()=>{ PLAY.left--; const el=document.getElementById("chrono");
+    if(el)el.textContent=fmtT(PLAY.left); if(PLAY.left<=0){clearInterval(PLAY.timer); finishMission(true);} },1000); }
+  renderQ();
+}
+function fmtT(t){ return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
+function renderQ(){
+  const {m,i}=PLAY, s=S(), zone=document.getElementById("q-zone");
+  const list=m.qs||m.etapes;
+  if(i>=list.length){ finishMission(false); return; }
+  const q=list[i];
+  const head=`<div class="cote"><i>Q${i+1}/${list.length}</i></div>`;
+  if(m.type==="calc"||m.type==="devis"){
+    zone.innerHTML=`${head}<h3>${q.q.replace("{DEVISE}",devise(s)).replace("{PAGGLO}",fmt(PAYS[s.pays].prix.agglo15))}</h3>
+    <div style="display:flex;gap:10px;margin-top:12px"><input class="num" id="calc-in" type="number" step="any" placeholder="Ta réponse"><span style="align-self:center;font-family:var(--mono)">${q.unite}</span></div>
+    <button class="btn btn-p" style="margin-top:14px" onclick="answerCalc()">Valider</button><div id="fb"></div>`;
+    document.getElementById("calc-in").focus();
+  } else if(m.type==="decision"){
+    zone.innerHTML=`${head}<h3>${q.q}</h3><div style="margin-top:12px">${q.opts.map((o,j)=>`<button class="q-opt" onclick="answerDecision(${j})">${o.t}</button>`).join("")}</div><div id="fb"></div>`;
+  } else {
+    zone.innerHTML=`${head}<h3>${q.q}</h3><div style="margin-top:12px">${q.opts.map((o,j)=>`<button class="q-opt" onclick="answerQuiz(${j})">${o}</button>`).join("")}</div><div id="fb"></div>`;
+  }
+}
+window.answerQuiz=function(j){
+  const {m,i}=PLAY,q=(m.qs)[i]; PLAY.max+=100;
+  const ok=j===q.ok; if(ok)PLAY.pts+=100;
+  document.querySelectorAll(".q-opt").forEach((b,k)=>{b.disabled=true; if(k===q.ok)b.classList.add("good"); else if(k===j)b.classList.add("bad");});
+  document.getElementById("fb").innerHTML=`<div class="correction"><b>${ok?"✅ Bonne réponse !":"❌ Pas encore."}</b> ${q.corr}</div>
+  <button class="btn btn-p" style="margin-top:12px" onclick="nextQ()">Question suivante →</button>`;
+};
+window.answerDecision=function(j){
+  const {m,i}=PLAY,q=(m.qs)[i],o=q.opts[j]; PLAY.max+=100; PLAY.pts+=o.pts;
+  document.querySelectorAll(".q-opt").forEach((b,k)=>{b.disabled=true; if(q.opts[k].pts>=100)b.classList.add("good"); else if(k===j&&o.pts<100)b.classList.add(o.pts>=50?"sel":"bad");});
+  document.getElementById("fb").innerHTML=`<div class="correction"><b>Conséquence :</b> ${o.eff}<br><b>À retenir :</b> ${q.corr}</div>
+  <button class="btn btn-p" style="margin-top:12px" onclick="nextQ()">Suite →</button>`;
+};
+window.answerCalc=function(){
+  const s=S(),{m,i}=PLAY,q=(m.etapes)[i]; const v=parseFloat(document.getElementById("calc-in").value.replace(",","."));
+  if(isNaN(v)){toast("Entre un nombre");return;}
+  PLAY.max+=100;
+  const target=q.repDyn?q.repDyn(s):q.rep;
+  const tol=q.rel?target*q.tol:q.tol;
+  const ok=Math.abs(v-target)<=tol;
+  if(ok)PLAY.pts+=100;
+  document.getElementById("fb").innerHTML=`<div class="correction"><b>${ok?"✅ Exact !":"❌ Réponse attendue : "+fmt(target)+" "+q.unite+"."}</b> ${q.corr.replace("{PAYS}",PAYS[s.pays].nom)}</div>
+  <button class="btn btn-p" style="margin-top:12px" onclick="nextQ()">Suite →</button>`;
+  document.getElementById("calc-in").disabled=true;
+};
+window.nextQ=function(){ PLAY.i++; renderQ(); };
+function finishMission(timeout){
+  if(PLAY.timer)clearInterval(PLAY.timer);
+  const s=S(),{m}=PLAY;
+  let score=PLAY.max?Math.round(100*PLAY.pts/PLAY.max):0;
+  if(timeout)score=Math.min(score,Math.round(100*PLAY.pts/((m.qs||m.etapes).length*100)));
+  const seuil=m.exam?(m.id==="m-exam-conducteur"?75:70):50;
+  const reussi=score>=seuil;
+  const tUsed=Math.round((Date.now()-PLAY.start)/1000);
+  let badgeNews=[];
+  if(reussi){
+    const prev=s.done[m.id]||0;
+    if(score>prev){
+      s.done[m.id]=score;
+      gainXP(s,m.xp); s.argent+=m.argent; s.rep=Math.min(100,s.rep+Math.round(score/20));
+      s.comp[m.comp]=Math.max(s.comp[m.comp]||0,score>=90?2:1);
+      s.streak++; if(PLAY.retry)s.retryWin=true;
+      s.historique.push({t:"Mission réussie : "+m.titre+" ("+score+"/100)",d:Date.now()});
+      badgeNews=checkBadges(s);
+      // avancement chantier
+      Object.entries(s.chantiers).forEach(([cid,c])=>{ const ch=CHANTIERS.find(x=>x.id===cid);
+        if(!c.fini&&ch.phases[c.phase]&&ch.phases[c.phase].m===m.id){ c.phase++; c.scores.push(score);
+          if(c.phase>=ch.phases.length){ c.fini=true; const avg=Math.round(c.scores.reduce((a,b)=>a+b,0)/c.scores.length);
+            c.note=avg>=85?"A":avg>=70?"B":avg>=55?"C":"D"; s.rep=Math.min(100,s.rep+8);
+            s.historique.push({t:"Chantier livré : "+ch.nom+" (note "+c.note+")",d:Date.now()}); }}});
+    }
+  } else { s.streak=0; s.rep=Math.max(0,s.rep-1); }
+  save(s);
+  const msg=reussi?(score>=90?"Excellent travail, tu viens de gagner en réputation !":"Bravo ! Mission réussie."):
+    "Pas encore, mais tu es sur la bonne voie. Revois la correction et réessaie — ici, tu apprends sans risque réel.";
+  root.innerHTML=appShell("missions",`
+  <div class="panel" style="text-align:center;padding:34px">
+    <div class="confetti">${reussi?(score>=90?"🏆":"🎉"):"📘"}</div>
+    <div class="score-big" style="color:${reussi?'var(--terre)':'var(--mineral)'}">${score}<span style="font-size:22px">/100</span></div>
+    <h2 style="margin:10px 0 4px">${reussi?"Mission réussie":"Mission à retravailler"}</h2>
+    <p class="muted">${m.titre.replace("{DEVISE}",devise(s))} · ⏱️ ${fmtT(tUsed)}${timeout?" · temps écoulé":""}</p>
+    <p style="margin:14px auto;max-width:46ch">${msg}</p>
+    ${reussi?`<p class="muted">+${m.xp} XP · +${fmt(m.argent)} ${devise(s)} · ${COMP[m.comp].em} ${COMP[m.comp].nom} validé</p>`:""}
+    ${badgeNews.map(b=>`<div class="pill terre" style="margin:4px">🏅 Nouveau badge : ${b.nom}</div>`).join("")}
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+      <button class="btn btn-p" onclick="go('/missions')">Mission suivante</button>
+      <button class="btn btn-g" onclick="go('/mission/${m.id}')">${reussi?"Améliorer mon score":"Réessayer"}</button>
+      <button class="btn btn-g" onclick="go('/dash')">Tableau de bord</button>
+    </div></div>`);
+  PLAY=null;
+}
+/* ---------- CHANTIERS ---------- */
+function vChantiers(){
+  const s=S(); if(!s){go("/auth");return;}
+  root.innerHTML=appShell("chantiers",`
+  <div class="cote"><i>BTP Simulator</i> Chantiers virtuels</div>
+  <h2 style="margin-bottom:16px">Chantiers</h2>
+  ${CHANTIERS.map(ch=>{
+    const c=s.chantiers[ch.id], acc=s.niveau>=ch.niv;
+    return `<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><h3>🏗️ ${ch.nom}</h3><p class="muted">${ch.type} · Budget ${ch.budget[s.pays]} · Délai ${ch.delai} · ${PAYS[s.pays].norme}</p>
+      <p style="margin-top:6px;font-size:14px">${ch.desc}</p></div>
+      <div style="text-align:right">${!acc?`<span class="pill ko">🔒 niveau ${ch.niv}</span>`
+        :c?(c.fini?`<span class="pill ok">Livré — note ${c.note}</span>`
+          :`<button class="btn btn-olive" onclick="go('/chantier/${ch.id}')">Continuer (${c.phase}/${ch.phases.length})</button>`)
+        :`<button class="btn btn-p" onclick="startChantier('${ch.id}')">Démarrer</button>`}</div></div>
+      ${c?`<div class="bar" style="margin-top:12px"><i style="width:${Math.round(100*c.phase/ch.phases.length)}%"></i></div>`:""}
+    </div>`;}).join("")}`);
+}
+window.startChantier=function(id){ const s=S(); s.chantiers[id]={phase:0,scores:[],fini:false};
+  s.historique.push({t:"Chantier démarré : "+CHANTIERS.find(c=>c.id===id).nom,d:Date.now()}); save(s); go("/chantier/"+id); };
+function vChantier(id){
+  const s=S(); if(!s){go("/auth");return;}
+  const ch=CHANTIERS.find(x=>x.id===id), c=s.chantiers[id];
+  if(!ch||!c){go("/chantiers");return;}
+  root.innerHTML=appShell("chantiers",`
+  <div class="panel"><div class="cote"><i>Chantier</i> ${ch.type}</div><h2>${ch.nom}</h2>
+  <p class="muted" style="margin:6px 0 14px">Client fictif · Budget ${ch.budget[s.pays]} · Délai ${ch.delai}</p>
+  ${ch.phases.map((ph,i)=>{const m=MISSIONS.find(x=>x.id===ph.m);
+    return `<div class="row"><span>${i<c.phase?"✅":i===c.phase?"📍":"🔒"} <b>Phase ${i+1}</b> — ${ph.nom}</span>
+    ${i===c.phase&&!c.fini?`<button class="btn btn-p btn-sm" onclick="go('/mission/${ph.m}')">${m.titre.replace("{DEVISE}",devise(s))} →</button>`
+     :i<c.phase?`<span class="pill ok">${c.scores[i]}/100</span>`:`<span class="pill">à venir</span>`}</div>`;}).join("")}
+  ${c.fini?`<div class="correction" style="margin-top:14px"><b>🏆 Chantier livré — note ${c.note}.</b> Le client est ${c.note==="A"?"enthousiaste":c.note==="B"?"satisfait":"mitigé"}. Réputation +8, chantier ajouté à ton CV.</div>`:""}
+  </div>`);
+}
+/* ---------- ACADÉMIE ---------- */
+function vAcademie(){
+  const s=S(); if(!s){go("/auth");return;}
+  root.innerHTML=appShell("academie",`
+  <div class="cote"><i>Académie BTP</i> ${COURS.length} modules</div>
+  <h2 style="margin-bottom:16px">Académie</h2>
+  ${COURS.map(c=>`<div class="panel"><h3>${c.em} ${c.titre} <span class="pill" style="margin-left:auto">${COMP[c.comp].nom}</span></h3>
+    <p style="font-size:14.5px">${c.texte}</p>
+    <div class="correction" style="margin-top:12px;background:var(--blanc);border-left-color:var(--olive)">
+      <b>Quiz éclair :</b> ${c.quiz.q}<br>
+      <div style="margin-top:8px" id="qz-${c.id}">${c.quiz.opts.map((o,j)=>`<button class="q-opt" style="margin-bottom:6px" onclick="quizCours('${c.id}',${j})">${o}</button>`).join("")}</div>
+    </div></div>`).join("")}
+  <div class="panel"><h3>💻 Académie logiciels</h3>
+    <p class="muted">Les logiciels du métier sont simulés dans les missions :</p>
+    <div style="margin-top:10px">${[["📝 Word","Rapport journalier","m-rapport"],["📊 Excel BTP","Volumes en série","m-excel-volume"],["📐 Lecture de plan PDF","Plan de la villa","m-plan"],["🧮 Devis","Muret de clôture","m-devis"]].map(([l,t,mid])=>`<div class="row"><span><b>${l}</b> — ${t}</span><button class="btn btn-g btn-sm" onclick="go('/mission/${mid}')">S'exercer</button></div>`).join("")}
+    <p class="muted" style="margin-top:10px">À venir : AutoCAD, Revit, MS Project, Covadis, Robot…</p></div>`);
+}
+window.quizCours=function(cid,j){
+  const c=COURS.find(x=>x.id===cid), s=S();
+  const zone=document.getElementById("qz-"+cid);
+  zone.querySelectorAll(".q-opt").forEach((b,k)=>{b.disabled=true;if(k===c.quiz.ok)b.classList.add("good");else if(k===j)b.classList.add("bad");});
+  if(j===c.quiz.ok){ if(!s.comp[c.comp]){s.comp[c.comp]=1; gainXP(s,20); const nb=checkBadges(s); save(s);
+    toast("✅ "+COMP[c.comp].nom+" N1 validé (+20 XP)"); nb.forEach(b=>toast("🏅 Badge : "+b.nom)); }
+    else { gainXP(s,10); save(s); toast("✅ Bonne réponse (+10 XP)"); } }
+  else toast("❌ Relis le cours et réessaie une autre fois.");
+};
+/* ---------- CV / CARRIÈRE ---------- */
+function vCV(){
+  const s=S(); if(!s){go("/auth");return;}
+  const chFinis=Object.entries(s.chantiers).filter(([,c])=>c.fini);
+  root.innerHTML=appShell("cv",`
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <a class="btn btn-g btn-sm" href="#/recompenses">🏅 Badges</a>
+    <a class="btn btn-g btn-sm" href="#/offres">💼 Offres d'emploi</a>
+    <a class="btn btn-g btn-sm" href="#/promotions">📈 Promotions</a>
+    <button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Exporter</button></div>
+  <div class="cv-doc">
+    <div style="display:flex;gap:16px;align-items:center"><div class="avatar-chip" style="background:var(--pierre)">${s.avatar}</div>
+    <div><h2>${s.user.nom}</h2><p class="muted">${profNom(s.profil)} · Objectif : ${s.metier} · ${PAYS[s.pays].nom} — ${PAYS[s.pays].norme}</p></div></div>
+    <div class="cv-sec">Indicateurs</div>
+    <span class="tagchip">Niveau ${s.niveau}</span><span class="tagchip">Réputation ${s.rep}/100</span>
+    <span class="tagchip">${Object.keys(s.done).length} missions réussies</span><span class="tagchip">${chFinis.length} chantier(s) livré(s)</span>
+    <div class="cv-sec">Compétences validées</div>
+    ${Object.keys(s.comp).length?Object.entries(s.comp).map(([k,v])=>`<span class="tagchip">${COMP[k].em} ${COMP[k].nom} — N${v}</span>`).join(""):"<p class='muted'>Aucune pour l'instant — joue tes premières missions !</p>"}
+    <div class="cv-sec">Chantiers réalisés</div>
+    ${chFinis.length?chFinis.map(([id,c])=>{const ch=CHANTIERS.find(x=>x.id===id);return `<div class="row"><span>🏗️ ${ch.nom}</span><span class="pill ok">Note ${c.note}</span></div>`;}).join(""):"<p class='muted'>Aucun chantier livré.</p>"}
+    <div class="cv-sec">Badges</div>
+    ${s.badges.length?s.badges.map(id=>{const b=BADGES.find(x=>x.id===id);return `<span class="tagchip">${b.em} ${b.nom}</span>`;}).join(""):"<p class='muted'>Aucun badge.</p>"}
+    <div class="cv-sec">Historique de carrière</div>
+    ${s.historique.slice(-8).reverse().map(h=>`<div class="row"><span>${h.t}</span><span class="muted">${new Date(h.d).toLocaleDateString("fr-FR")}</span></div>`).join("")}
+    <p class="muted" style="margin-top:16px;font-size:11px">CV virtuel généré automatiquement par BTP Life — document pédagogique, ne constitue pas une habilitation officielle.</p>
+  </div>`);
+}
+/* ---------- BADGES ---------- */
+function vBadges(){
+  const s=S(); if(!s){go("/auth");return;}
+  root.innerHTML=appShell("cv",`
+  <div class="cote"><i>Récompenses</i> ${s.badges.length}/${BADGES.length} badges</div>
+  <h2 style="margin-bottom:16px">Badges & certificats</h2>
+  <div class="grid-badges">${BADGES.map(b=>`<div class="badge-tile ${s.badges.includes(b.id)?'':'locked'}"><div class="em">${b.em}</div><b>${b.nom}</b></div>`).join("")}</div>
+  <div class="panel" style="margin-top:16px"><h3>📜 Certificats</h3>
+  ${[["Certificat Sécurité chantier",["secu1"]],["Certificat Rapport journalier",["rapport"]],["Certificat Excel BTP",["excel"]],["Certificat Lecture de plans",["plans"]]].map(([nom,need])=>{
+    const ok=need.every(n=>s.badges.includes(n));
+    return `<div class="row"><span>📜 ${nom}</span>${ok?`<span class="pill ok">Obtenu · n° BTL-${Math.abs(hash(nom+s.user.nom))%99999}</span>`:`<span class="pill">badge requis : ${BADGES.find(b=>b.id===need[0]).nom}</span>`}</div>`;
+  }).join("")}
+  <p class="muted" style="margin-top:8px">Chaque certificat porte la mention : « certificat pédagogique — ne constitue pas une habilitation officielle ».</p></div>`);
+}
+function hash(s){let h=0;for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i);h|=0;}return h;}
+/* ---------- OFFRES ---------- */
+function vOffres(){
+  const s=S(); if(!s){go("/auth");return;}
+  root.innerHTML=appShell("cv",`
+  <div class="cote"><i>Emploi virtuel</i> ${OFFRES.length} offres — ${PAYS[s.pays].nom}</div>
+  <h2 style="margin-bottom:16px">Offres d'emploi</h2>
+  ${OFFRES.map(o=>{
+    const chN=Object.values(s.chantiers).filter(c=>c.fini).length;
+    const checks=[["Niveau "+o.req.niveau,s.niveau>=o.req.niveau],["Réputation "+o.req.rep,s.rep>=o.req.rep],
+      ...(o.req.chantiers?[["Chantiers réussis : "+o.req.chantiers,chN>=o.req.chantiers]]:[]),
+      ...Object.entries(o.req.comp).map(([k,v])=>[COMP[k].nom+" N"+v,(s.comp[k]||0)>=v])];
+    const ok=checks.every(c=>c[1]);
+    const dejaLa=s.profil===o.profilCible;
+    return `<div class="panel"><h3>💼 ${o.titre}</h3><p class="muted" style="margin-bottom:10px">${o.desc}</p>
+    ${checks.map(([t,v])=>`<div class="row"><span>${t}</span><span class="pill ${v?'ok':'ko'}">${v?'✔':'✘'}</span></div>`).join("")}
+    <div style="margin-top:12px">${dejaLa?`<span class="pill ok">Poste actuel</span>`
+      :ok?`<button class="btn btn-p" onclick="postuler('${o.id}')">Postuler (test d'entrée : ${MISSIONS.find(m=>m.id===o.test).titre})</button>`
+      :`<span class="pill ko">Candidature refusée d'avance : complète les conditions ci-dessus. Chaque ✘ est ton plan d'action.</span>`}</div></div>`;
+  }).join("")}`);
+}
+window.postuler=function(oid){
+  const s=S(); const o=OFFRES.find(x=>x.id===oid);
+  s.pendingOffre=oid; save(s);
+  celebrate(`<div class="confetti">📨</div><h2>Candidature envoyée !</h2><p class="muted" style="margin-top:8px">Le recruteur a lu ton CV virtuel : « Profil intéressant. Passe le test d'entrée et le poste est à toi. » Réussis <b>${MISSIONS.find(m=>m.id===o.test).titre}</b> avec 70+ pour être embauché.</p>`,
+   ()=>go("/mission/"+o.test));
+};
+/* ---------- PROMOTIONS ---------- */
+function vPromos(){
+  const s=S(); if(!s){go("/auth");return;}
+  const p=PROMOS.find(x=>x.de===s.profil);
+  root.innerHTML=appShell("cv",`
+  <div class="cote"><i>Carrière</i> Progression réaliste</div>
+  <h2 style="margin-bottom:16px">Promotions</h2>
+  ${p?(()=>{const pc=condPromoOK(s,p);
+    return `<div class="panel"><h3>📈 ${profNom(p.de)} → ${profNom(p.vers)}</h3>
+    <div class="row"><span>Missions réussies ≥ ${p.cond.missions}</span><span class="pill ${pc.missOK?'ok':'ko'}">${Object.keys(s.done).length}</span></div>
+    <div class="row"><span>Réputation ≥ ${p.cond.rep||0}</span><span class="pill ${pc.repOK?'ok':'ko'}">${s.rep}</span></div>
+    ${p.cond.chantiers?`<div class="row"><span>Chantiers réussis ≥ ${p.cond.chantiers}</span><span class="pill ${pc.chOK?'ok':'ko'}">${Object.values(s.chantiers).filter(c=>c.fini).length}</span></div>`:""}
+    ${Object.entries(p.cond.comp||{}).map(([k,v])=>`<div class="row"><span>${COMP[k].em} ${COMP[k].nom} ≥ N${v}</span><span class="pill ${(s.comp[k]||0)>=v?'ok':'ko'}">N${s.comp[k]||0}</span></div>`).join("")}
+    <div style="margin-top:14px">${pc.ok?`<button class="btn btn-p" onclick="demanderPromo()">Demander ma promotion (examen : ${MISSIONS.find(m=>m.id===p.exam).titre})</button>`
+      :`<p class="muted">Complète les conditions manquantes, puis reviens demander ta promotion. Ton supérieur fictif suit tes progrès.</p>`}</div></div>`;})()
+   :`<div class="panel"><p>🏆 Tu as atteint le sommet de ce parcours : <b>${profNom(s.profil)}</b>. Prochaine aventure : l'entrepreneuriat (à venir) ou un nouveau parcours de spécialisation.</p></div>`}`);
+}
+window.demanderPromo=function(){
+  const s=S(); const p=PROMOS.find(x=>x.de===s.profil);
+  s.pendingPromo=p.vers; save(s);
+  celebrate(`<div class="confetti">🤝</div><h2>Entretien accordé</h2><p class="muted" style="margin-top:8px">Ton supérieur : « Ton dossier est solide, ${s.user.nom}. Il reste l'examen. Réussis-le à 70+ et le poste de <b>${profNom(p.vers)}</b> est à toi. »</p>`,
+   ()=>go("/mission/"+p.exam));
+};
+/* embauche/promo après examen réussi */
+function checkPending(){
+  const s=S(); if(!s)return;
+  if(s.pendingPromo){ const p=PROMOS.find(x=>x.vers===s.pendingPromo&&x.de===s.profil);
+    if(p&&s.done[p.exam]>=70){ const old=s.profil; s.profil=p.vers; s.pendingPromo=null; s.rep=Math.min(100,s.rep+10);
+      s.historique.push({t:"PROMOTION : "+profNom(old)+" → "+profNom(p.vers),d:Date.now()}); checkBadges(s); save(s);
+      celebrate(`<div class="confetti">🏆</div><h2>Promotion !</h2><p style="margin-top:8px">Félicitations, tu es maintenant <b>${profNom(p.vers)}</b>. Ton CV est à jour et de nouvelles missions se débloquent.</p>`);}}
+  if(s.pendingOffre){ const o=OFFRES.find(x=>x.id===s.pendingOffre);
+    if(o&&s.done[o.test]>=70){ const old=s.profil; s.profil=o.profilCible; s.pendingOffre=null; s.rep=Math.min(100,s.rep+10);
+      s.historique.push({t:"EMBAUCHE : "+o.titre,d:Date.now()}); checkBadges(s); save(s);
+      celebrate(`<div class="confetti">🎉</div><h2>Embauché !</h2><p style="margin-top:8px">« Bienvenue dans l'équipe ! » Tu occupes maintenant le poste : <b>${profNom(o.profilCible)}</b>.</p>`);}}
+}
+/* ---------- ADMIN (démonstration du moteur administrable) ---------- */
+function vAdmin(){
+  const s=S(); if(!s){go("/auth");return;}
+  root.innerHTML=appShell("dash",`
+  <div class="cote"><i>Back-office</i> Démonstration — moteur de missions administrable</div>
+  <h2 style="margin-bottom:14px">Espace administrateur</h2>
+  <div class="panel"><h3>📊 Statistiques</h3>
+    <div class="row"><span>Missions publiées</span><span class="pill">${MISSIONS.length}</span></div>
+    <div class="row"><span>Chantiers</span><span class="pill">${CHANTIERS.length}</span></div>
+    <div class="row"><span>Offres actives</span><span class="pill">${OFFRES.length}</span></div>
+    <div class="row"><span>Référentiels pays</span><span class="pill">${Object.keys(PAYS).length} — ${Object.values(PAYS).map(p=>p.nom).join(", ")}</span></div></div>
+  <div class="panel"><h3>➕ Ajouter une mission quiz (sans coder)</h3>
+    <p class="muted">Colle un JSON de mission — le moteur la publie instantanément (session en cours).</p>
+    <textarea id="adm-json" rows="8" style="font-family:var(--mono);font-size:12px;margin-top:10px">{
+ "id":"m-perso-1","cat":"Introduction BTP","titre":"Ma mission test","type":"quiz","niv":1,"xp":30,"argent":1500,"comp":"bases",
+ "desc":"Mission créée depuis l'admin.",
+ "qs":[{"q":"2 + 2 sacs de ciment = ?","opts":["3","4","5"],"ok":1,"corr":"4 sacs, évidemment. Le moteur est data-driven : n'importe quelle mission se crée ainsi."}]
+}</textarea>
+    <button class="btn btn-p" style="margin-top:10px" onclick="adminAdd()">Publier la mission</button></div>
+  <div class="panel"><h3>🌍 Référentiel pays (lecture)</h3>
+    ${Object.entries(PAYS).map(([k,p])=>`<div class="row"><span><b>${p.nom}</b> — ${p.norme}</span><span class="pill">ciment : ${fmt(p.prix.ciment)} ${p.devise}/${p.unSac}</span></div>`).join("")}
+    <p class="muted" style="margin-top:8px">En production : CRUD complet des pays, normes, unités, monnaies, bibliothèques de prix, documents types et règles HSE.</p></div>`);
+}
+window.adminAdd=function(){
+  try{ const m=JSON.parse(document.getElementById("adm-json").value);
+    if(!m.id||!m.titre||!m.qs)throw 0;
+    if(MISSIONS.find(x=>x.id===m.id))throw "dup";
+    MISSIONS.push(m); toast("✅ Mission publiée : "+m.titre); }
+  catch(e){ toast(e==="dup"?"❌ Cet id de mission existe déjà":"❌ JSON invalide"); }
+};
+/* ---------- ROUTER ---------- */
+function render(){
+  const h=location.hash.replace("#","")||"/";
+  const [_,page,arg]=h.split("/");
+  overlay.innerHTML="";
+  if(h==="/"){ vLanding(); return; }
+  if(page==="auth"){ vAuth(); return; }
+  if(page==="onboarding"){ vOnboarding(arg||1); return; }
+  if(page==="logout"){ if(confirm("Effacer la carrière sur cet appareil ?")){try{localStorage.removeItem("btplife");}catch(e){} MEM=null;} go("/"); return; }
+  if(!S()){ go("/auth"); return; }
+  checkPending();
+  ({dash:vDash,missions:()=>arg?vMission(arg):vMissions(),mission:()=>vMission(arg),
+    chantiers:vChantiers,chantier:()=>vChantier(arg),academie:vAcademie,cv:vCV,
+    recompenses:vBadges,offres:vOffres,promotions:vPromos,admin:vAdmin}[page]||vDash)();
+  window.scrollTo(0,0);
+}
+render();
+/* PWA */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
