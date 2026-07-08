@@ -28,6 +28,11 @@ export class ChantiersController {
     return this.chantiersService.mine(user.userId);
   }
 
+  @Get('disponibles')
+  disponibles(@CurrentUser() user: RequestUser) {
+    return this.chantiersService.disponibles(user.userId);
+  }
+
   @Get('mine/:id')
   detailMine(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.chantiersService.detailMine(user.userId, id);

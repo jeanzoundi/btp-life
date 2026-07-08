@@ -3164,7 +3164,7 @@ async function main() {
 
   type PhaseGestion = { nom: string; joursEstimes: number; equipeMin: number; materiaux: Record<string, number>; missions: string[] };
   const chantiersGestion: Array<{
-    slug: string; nom: string; typeProjet: 'DALLE' | 'CLOTURE' | 'CHAMBRE'; budget: number; delaiJours: number;
+    slug: string; nom: string; typeProjet: 'DALLE' | 'CLOTURE' | 'CHAMBRE' | 'R_PLUS_1' | 'ROUTE'; budget: number; delaiJours: number;
     description: string; localisation: string; materiaux: Array<keyof typeof MATERIAUX>; phases: PhaseGestion[];
   }> = [
     {
@@ -3199,6 +3199,31 @@ async function main() {
         { nom: 'Élévation des murs', joursEstimes: 6, equipeMin: 3, materiaux: { 'Agglos 15': 900, Ciment: 25, Sable: 5 }, missions: [] },
         { nom: 'Toiture et chaînage', joursEstimes: 4, equipeMin: 2.5, materiaux: { Ciment: 15, 'Fer HA': 18, 'Planches coffrage': 25 }, missions: [] },
         { nom: 'Enduits et finitions', joursEstimes: 3, equipeMin: 2, materiaux: { Ciment: 20, Sable: 4 }, missions: [] },
+      ],
+    },
+    // ── Grands chantiers (zone industrielle du monde virtuel, niveau 5 requis) ──
+    {
+      slug: 'villa-r1-marcory', nom: 'Villa R+1 — Marcory', typeProjet: 'R_PLUS_1', budget: 9500000, delaiJours: 35,
+      description: "Un vrai projet d'envergure : rez-de-chaussée, dalle intermédiaire et étage. Plus de phases, plus de matériaux à gérer, plus de responsabilités.",
+      localisation: 'Marcory, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'agglos', 'planches'],
+      phases: [
+        { nom: 'Fondations renforcées', joursEstimes: 5, equipeMin: 3, materiaux: { Ciment: 55, Sable: 7, Gravier: 12, 'Fer HA': 45 }, missions: [] },
+        { nom: 'Rez-de-chaussée', joursEstimes: 8, equipeMin: 3.5, materiaux: { 'Agglos 15': 1400, Ciment: 45, Sable: 9, 'Fer HA': 20 }, missions: [] },
+        { nom: 'Dalle intermédiaire', joursEstimes: 6, equipeMin: 3.5, materiaux: { Ciment: 60, Sable: 8, Gravier: 14, 'Fer HA': 55, 'Planches coffrage': 30 }, missions: [] },
+        { nom: 'Étage', joursEstimes: 8, equipeMin: 3.5, materiaux: { 'Agglos 15': 1100, Ciment: 40, Sable: 8, 'Fer HA': 18 }, missions: [] },
+        { nom: 'Toiture et finitions', joursEstimes: 8, equipeMin: 3, materiaux: { Ciment: 25, 'Fer HA': 20, 'Planches coffrage': 20 }, missions: [] },
+      ],
+    },
+    {
+      slug: 'route-abobo', nom: 'Voirie — Abobo', typeProjet: 'ROUTE', budget: 7200000, delaiJours: 25,
+      description: "Un chantier de voirie : terrassement, fondation de chaussée, revêtement. Rien à voir avec le bâtiment — un vrai changement de rythme.",
+      localisation: 'Abobo, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer'],
+      phases: [
+        { nom: 'Terrassement', joursEstimes: 6, equipeMin: 3, materiaux: { Gravier: 40, Sable: 10 }, missions: [] },
+        { nom: 'Fondation de chaussée', joursEstimes: 8, equipeMin: 3.5, materiaux: { Gravier: 60, Ciment: 30, 'Fer HA': 10 }, missions: [] },
+        { nom: 'Revêtement et finitions', joursEstimes: 6, equipeMin: 3, materiaux: { Ciment: 35, Sable: 12, Gravier: 20 }, missions: [] },
       ],
     },
   ];

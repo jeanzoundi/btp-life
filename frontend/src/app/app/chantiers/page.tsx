@@ -16,6 +16,8 @@ interface Chantier {
   devise: string;
   delaiJours: number;
   statut: string;
+  niveauRequis: number;
+  verrouille: boolean;
 }
 interface UserChantier {
   id: string;
@@ -33,8 +35,8 @@ export default function ChantiersPage() {
   const [demarrageId, setDemarrageId] = useState<string | null>(null);
 
   const { data: catalogue } = useQuery({
-    queryKey: ['catalog', 'chantiers'],
-    queryFn: () => api.get<{ items: Chantier[] }>('/catalog/chantiers?pageSize=50'),
+    queryKey: ['chantiers', 'disponibles'],
+    queryFn: () => api.get<Chantier[]>('/chantiers/disponibles'),
   });
   const { data: miens } = useQuery({
     queryKey: ['chantiers', 'mine'],
@@ -42,7 +44,7 @@ export default function ChantiersPage() {
   });
 
   const enCoursOuTermines = new Set((miens ?? []).map((uc) => uc.chantier.id));
-  const disponibles = (catalogue?.items ?? []).filter((c) => c.statut === 'DISPONIBLE' && !enCoursOuTermines.has(c.id));
+  const disponibles = (catalogue ?? []).filter((c) => !enCoursOuTermines.has(c.id));
 
   async function demarrer(chantierId: string) {
     setDemarrageId(chantierId);
@@ -92,19 +94,30 @@ export default function ChantiersPage() {
         <h2 className="font-display text-lg font-bold text-graphite">Chantiers disponibles</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {disponibles.map((c) => (
-            <div key={c.id} className="rounded-2xl border border-pierre bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-olive">{c.typeProjet}</p>
-              <p className="mt-1 font-display font-bold text-graphite">{c.nom}</p>
-              <p className="mt-1 line-clamp-2 text-sm text-graphite/60">{c.description}</p>
+            <div
+              key={c.id}
+              className={`rounded-2xl border p-4 ${c.verrouille ? 'border-pierre/60 bg-pierre/10' : 'border-pierre bg-white'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-olive">{c.typeProjet}</p>
+                {c.verrouille && (
+                  <span className="rounded-full bg-graphite/80 px-2 py-0.5 text-[10px] font-bold text-ivoire">
+                    🔒 Niveau {c.niveauRequis}
+                  </span>
+                )}
+              </div>
+              <p className={`mt-1 font-display font-bold ${c.verrouille ? 'text-graphite/50' : 'text-graphite'}`}>{c.nom}</p>
+              <p className={`mt-1 line-clamp-2 text-sm ${c.verrouille ? 'text-graphite/40' : 'text-graphite/60'}`}>{c.description}</p>
               <p className="mt-2 font-mono text-xs text-graphite/50">
                 Budget {c.budget.toLocaleString('fr-FR')} {c.devise} · {c.delaiJours} jours
               </p>
               <button
                 onClick={() => demarrer(c.id)}
-                disabled={demarrageId === c.id}
-                className="mt-3 w-full rounded-full bg-terracotta py-2 text-sm font-semibold text-ivoire hover:bg-argile disabled:opacity-60"
+                disabled={demarrageId === c.id || c.verrouille}
+                title={c.verrouille ? `Se débloque au niveau ${c.niveauRequis}` : undefined}
+                className="mt-3 w-full rounded-full bg-terracotta py-2 text-sm font-semibold text-ivoire hover:bg-argile disabled:opacity-40"
               >
-                {demarrageId === c.id ? 'Ouverture…' : 'Démarrer ce chantier'}
+                {c.verrouille ? `🔒 Débloqué au niveau ${c.niveauRequis}` : demarrageId === c.id ? 'Ouverture…' : 'Démarrer ce chantier'}
               </button>
             </div>
           ))}

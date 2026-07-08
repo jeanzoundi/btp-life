@@ -18,6 +18,17 @@ const NOMS = ['Kouassi', 'Fatou', 'Ibrahim', 'Aya', 'Moussa', 'Adjoua', 'Salif',
 
 const TAILLE_EQUIPE_MAX = 8;
 
+// Les "grands chantiers" (zone industrielle du monde virtuel) demandent un niveau minimum —
+// une vraie progression : petits chantiers d'abord, projets ambitieux une fois expérimenté.
+export const NIVEAU_MIN_CHANTIER: Record<string, number> = {
+  'villa-r1-marcory': 5,
+  'route-abobo': 5,
+};
+
+export function niveauRequisPour(slug: string): number {
+  return NIVEAU_MIN_CHANTIER[slug] ?? 1;
+}
+
 interface Besoins {
   joursEstimes: number;
   equipeMin: number;
@@ -70,9 +81,30 @@ export class ChantiersService {
     return { ...userChantier, postesDisponibles: POSTES, tailleEquipeMax: TAILLE_EQUIPE_MAX };
   }
 
+  /** Chantiers disponibles, annotés du niveau requis et de l'éligibilité du joueur (zone industrielle). */
+  async disponibles(userId: string) {
+    const [chantiers, carriere] = await Promise.all([
+      this.prisma.chantier.findMany({ where: { statut: 'DISPONIBLE' } }),
+      this.prisma.userCarriere.findUnique({ where: { userId } }),
+    ]);
+    const niveauJoueur = carriere?.niveau ?? 1;
+    return chantiers.map((c) => {
+      const niveauRequis = niveauRequisPour(c.slug);
+      return { ...c, niveauRequis, verrouille: niveauJoueur < niveauRequis };
+    });
+  }
+
   async demarrer(userId: string, chantierId: string) {
     const chantier = await this.prisma.chantier.findUnique({ where: { id: chantierId } });
     if (!chantier) throw new NotFoundException('Chantier introuvable');
+
+    const niveauRequis = niveauRequisPour(chantier.slug);
+    if (niveauRequis > 1) {
+      const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
+      if ((carriere?.niveau ?? 1) < niveauRequis) {
+        throw new BadRequestException(`Niveau ${niveauRequis} requis pour ce chantier`);
+      }
+    }
 
     const dejaEnCours = await this.prisma.userChantier.findFirst({
       where: { userId, chantierId, statut: 'en_cours' },

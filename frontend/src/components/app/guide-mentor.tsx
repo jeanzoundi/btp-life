@@ -21,7 +21,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app/chantiers': {
     titre: 'BTP Simulator',
     texte:
-      "Ici tu gères un vrai chantier : budget, stock de matériaux, équipe d'ouvriers, avancement des travaux. Commande ce qu'il faut, embauche au bon poste, et lance des journées de travail jusqu'à la livraison. Je serai là pour te conseiller à chaque étape.",
+      "Ici tu gères un vrai chantier : budget, stock de matériaux, équipe d'ouvriers, avancement des travaux. Commande ce qu'il faut, embauche au bon poste, et lance des journées de travail jusqu'à la livraison. À partir du niveau 5, des grands chantiers s'ouvrent (villa R+1, voirie) — bien plus ambitieux. Je serai là pour te conseiller à chaque étape.",
   },
   '/app/academie': {
     titre: "L'Académie BTP",
