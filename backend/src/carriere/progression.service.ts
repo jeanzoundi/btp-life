@@ -7,10 +7,17 @@ export interface ProgressionDelta {
   argentVirtuel?: number;
 }
 
-// Courbe de niveau : niveau N nécessite N*(N-1)/2 * 100 XP cumulés (croissance douce).
+// Courbe de niveau : niveau N nécessite round(100 * (N-1)^2.5) XP cumulés. Volontairement
+// raide au-delà des tout premiers niveaux — le niveau 2 reste une victoire rapide (100 XP,
+// ~1 mission), mais atteindre un poste senior (niveau 12-18 selon la filière, voir les règles
+// de promotion) représente désormais un vrai temps de jeu, pas une après-midi.
+export function xpRequisPourNiveau(niveau: number): number {
+  return Math.round(100 * Math.pow(niveau - 1, 2.5));
+}
+
 export function xpToNiveau(xpTotal: number): number {
   let niveau = 1;
-  while (xpTotal >= (niveau * (niveau + 1) * 100) / 2) {
+  while (xpTotal >= xpRequisPourNiveau(niveau + 1)) {
     niveau += 1;
   }
   return niveau;

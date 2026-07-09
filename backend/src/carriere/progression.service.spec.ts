@@ -8,12 +8,12 @@ describe('xpToNiveau', () => {
     expect(xpToNiveau(99)).toBe(1);
   });
 
-  it('passe au niveau exact au seuil (niveau N nécessite N*(N-1)/2 * 100 XP)', () => {
-    // Seuil niveau 2 = 2*1/2*100 = 100
+  it('passe au niveau exact au seuil (courbe raide : niveau N nécessite round(100*(N-1)^2.5) XP)', () => {
+    // Seuil niveau 2 = round(100*1^2.5) = 100 — reste une victoire rapide
     expect(xpToNiveau(100)).toBe(2);
-    // Seuil niveau 3 = 3*2/2*100 = 300
-    expect(xpToNiveau(299)).toBe(2);
-    expect(xpToNiveau(300)).toBe(3);
+    // Seuil niveau 3 = round(100*2^2.5) = 566 — la courbe se raidit déjà nettement
+    expect(xpToNiveau(565)).toBe(2);
+    expect(xpToNiveau(566)).toBe(3);
   });
 
   it('ne redescend jamais et gère de gros montants d’XP sans boucler indéfiniment', () => {
