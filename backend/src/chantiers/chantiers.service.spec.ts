@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ChantiersService, niveauRequisPour } from './chantiers.service';
+import { ChantiersService, conditionsChantierPour, chantierEstAccessible } from './chantiers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { BesoinsService } from '../carriere/besoins.service';
@@ -65,22 +65,43 @@ async function service(prisma: ReturnType<typeof fakePrisma>) {
   return { svc: module.get(ChantiersService), prisma, progression, pnj };
 }
 
-describe('niveauRequisPour', () => {
-  it('renvoie 1 (aucune restriction) pour un chantier non listé', () => {
-    expect(niveauRequisPour('dalle-riviera')).toBe(1);
+describe('conditionsChantierPour / chantierEstAccessible', () => {
+  it('renvoie niveau 1 sans restriction pour un chantier non listé', () => {
+    expect(conditionsChantierPour('dalle-riviera')).toEqual({ niveauMin: 1 });
   });
 
-  it('renvoie le niveau minimum pour les grands chantiers de la zone industrielle', () => {
-    expect(niveauRequisPour('villa-r1-marcory')).toBe(5);
-    expect(niveauRequisPour('route-abobo')).toBe(5);
+  it('varie le niveau minimum selon l’ambition du projet (pas toujours 5)', () => {
+    expect(conditionsChantierPour('amenagement-koumassi').niveauMin).toBe(4);
+    expect(conditionsChantierPour('villa-r1-marcory').niveauMin).toBe(5);
+    expect(conditionsChantierPour('route-abobo').niveauMin).toBe(5);
+    expect(conditionsChantierPour('pont-bassam').niveauMin).toBe(8);
+  });
+
+  it('un chantier normal reste accessible à n’importe quel niveau', () => {
+    expect(chantierEstAccessible('dalle-riviera', 1, null)).toBe(true);
+  });
+
+  it('le pont s’ouvre au niveau requis, SANS poste particulier', () => {
+    expect(chantierEstAccessible('pont-bassam', 8, null)).toBe(true);
+    expect(chantierEstAccessible('pont-bassam', 3, null)).toBe(false);
+  });
+
+  it('le pont s’ouvre aussi via un poste précis, MÊME sous le niveau requis (condition OU)', () => {
+    expect(chantierEstAccessible('pont-bassam', 3, 'chef-chantier')).toBe(true);
+    expect(chantierEstAccessible('pont-bassam', 3, 'conducteur-travaux')).toBe(true);
+    expect(chantierEstAccessible('pont-bassam', 3, 'ingenieur-structure')).toBe(true);
+  });
+
+  it('un poste non listé ne débloque rien tout seul', () => {
+    expect(chantierEstAccessible('pont-bassam', 3, 'stagiaire-chantier')).toBe(false);
   });
 });
 
-describe('ChantiersService.demarrer — verrouillage par niveau', () => {
+describe('ChantiersService.demarrer — verrouillage par niveau et par poste', () => {
   it('refuse de démarrer un grand chantier si le joueur n’a pas le niveau requis', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'villa-r1-marcory', budget: 9_500_000, delaiJours: 35 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: null }) },
     });
     const { svc } = await service(prisma);
     await expect(svc.demarrer('u1', 'c1')).rejects.toThrow(BadRequestException);
@@ -89,7 +110,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau', () => {
   it('autorise le démarrage une fois le niveau requis atteint', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'villa-r1-marcory', budget: 9_500_000, delaiJours: 35 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
@@ -100,10 +121,32 @@ describe('ChantiersService.demarrer — verrouillage par niveau', () => {
     expect(resultat).toEqual({ id: 'uc-nouveau' });
   });
 
+  it('refuse le pont à bas niveau sans poste éligible', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 12_000_000, delaiJours: 40 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'stagiaire-chantier' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.demarrer('u1', 'c1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('autorise le pont à bas niveau si le joueur occupe un poste éligible (chef de chantier)', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 12_000_000, delaiJours: 40 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'chef-chantier' } }) },
+      userChantier: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'uc-pont' }),
+      },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.demarrer('u1', 'c1')).resolves.toEqual({ id: 'uc-pont' });
+  });
+
   it('ne bloque jamais un chantier ordinaire, quel que soit le niveau', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'dalle-riviera', budget: 3_500_000, delaiJours: 15 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, profilActuel: null }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
@@ -111,6 +154,37 @@ describe('ChantiersService.demarrer — verrouillage par niveau', () => {
     });
     const { svc } = await service(prisma);
     await expect(svc.demarrer('u1', 'c1')).resolves.toEqual({ id: 'uc-nouveau' });
+  });
+});
+
+describe('ChantiersService.disponibles — annotation par joueur', () => {
+  it('signale un chantier accessible via poste comme non verrouillé, même sous le niveau requis', async () => {
+    const prisma = fakePrisma({
+      chantier: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'c1', slug: 'pont-bassam', nom: 'Pont — Bassam' },
+        ]),
+      },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'ingenieur-structure' } }) },
+    });
+    const { svc } = await service(prisma);
+    const [resultat] = await svc.disponibles('u1');
+    expect(resultat.verrouille).toBe(false);
+    expect(resultat.niveauRequis).toBe(8);
+  });
+
+  it('verrouille le même chantier pour un joueur sans le niveau ni le poste', async () => {
+    const prisma = fakePrisma({
+      chantier: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'c1', slug: 'pont-bassam', nom: 'Pont — Bassam' },
+        ]),
+      },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'stagiaire-chantier' } }) },
+    });
+    const { svc } = await service(prisma);
+    const [resultat] = await svc.disponibles('u1');
+    expect(resultat.verrouille).toBe(true);
   });
 });
 

@@ -18,7 +18,24 @@ interface Chantier {
   statut: string;
   niveauRequis: number;
   verrouille: boolean;
+  posteAlternatif?: string[];
 }
+
+const LABEL_TYPE: Record<string, string> = {
+  DALLE: 'Dalle',
+  CLOTURE: 'Clôture',
+  CHAMBRE: 'Chambre',
+  MAISON: 'Maison',
+  VILLA: 'Villa',
+  R_PLUS_1: 'R+1',
+  ECOLE: 'École',
+  CENTRE_SANTE: 'Centre de santé',
+  ROUTE: 'Route',
+  CANIVEAU: 'Caniveau',
+  DALOT: 'Pont',
+  INDUSTRIEL: 'Industriel',
+  URBAIN: 'Aménagement urbain',
+};
 interface UserChantier {
   id: string;
   statut: string;
@@ -71,7 +88,7 @@ export default function ChantiersPage() {
             {(miens ?? []).map((uc) => (
               <Link key={uc.id} href={`/app/chantiers/${uc.id}`} className="carte-vivante rounded-2xl border border-pierre bg-white p-4">
                 <div className="flex items-start justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-olive">{uc.chantier.typeProjet}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-olive">{LABEL_TYPE[uc.chantier.typeProjet] ?? uc.chantier.typeProjet}</p>
                   {uc.noteFinale && <span className="rounded-full bg-cuivre/10 px-2 py-0.5 text-xs font-bold text-cuivre">Note {uc.noteFinale}</span>}
                 </div>
                 <div className="mt-2 flex justify-center">
@@ -99,7 +116,7 @@ export default function ChantiersPage() {
               className={`rounded-2xl border p-4 ${c.verrouille ? 'border-pierre/60 bg-pierre/10' : 'border-pierre bg-white'}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-olive">{c.typeProjet}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-olive">{LABEL_TYPE[c.typeProjet] ?? c.typeProjet}</p>
                 {c.verrouille && (
                   <span className="rounded-full bg-graphite/80 px-2 py-0.5 text-[10px] font-bold text-ivoire">
                     🔒 Niveau {c.niveauRequis}
@@ -111,6 +128,9 @@ export default function ChantiersPage() {
               <p className="mt-2 font-mono text-xs text-graphite/50">
                 Budget {c.budget.toLocaleString('fr-FR')} {c.devise} · {c.delaiJours} jours
               </p>
+              {c.verrouille && !!c.posteAlternatif?.length && (
+                <p className="mt-1 text-[11px] text-graphite/40">Ou accessible directement à un poste avancé de la filière.</p>
+              )}
               <button
                 onClick={() => demarrer(c.id)}
                 disabled={demarrageId === c.id || c.verrouille}

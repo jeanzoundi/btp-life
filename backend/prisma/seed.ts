@@ -3164,7 +3164,7 @@ async function main() {
 
   type PhaseGestion = { nom: string; joursEstimes: number; equipeMin: number; materiaux: Record<string, number>; missions: string[] };
   const chantiersGestion: Array<{
-    slug: string; nom: string; typeProjet: 'DALLE' | 'CLOTURE' | 'CHAMBRE' | 'R_PLUS_1' | 'ROUTE'; budget: number; delaiJours: number;
+    slug: string; nom: string; typeProjet: 'DALLE' | 'CLOTURE' | 'CHAMBRE' | 'R_PLUS_1' | 'ROUTE' | 'URBAIN' | 'DALOT'; budget: number; delaiJours: number;
     description: string; localisation: string; materiaux: Array<keyof typeof MATERIAUX>; phases: PhaseGestion[];
   }> = [
     {
@@ -3201,7 +3201,19 @@ async function main() {
         { nom: 'Enduits et finitions', joursEstimes: 3, equipeMin: 2, materiaux: { Ciment: 20, Sable: 4 }, missions: [] },
       ],
     },
-    // ── Grands chantiers (zone industrielle du monde virtuel, niveau 5 requis) ──
+    // ── Grands chantiers (zone industrielle du monde virtuel) — seuils variés selon l'ambition,
+    // et pour le pont un accès alternatif réservé à un poste précis (voir CONDITIONS_CHANTIER).
+    {
+      slug: 'amenagement-koumassi', nom: 'Aménagement — Voirie Koumassi', typeProjet: 'URBAIN', budget: 5800000, delaiJours: 22,
+      description: "Un aménagement urbain complet : caniveaux, trottoirs, espaces verts. Premier pas vers les grands projets, dès le niveau 4.",
+      localisation: 'Koumassi, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'agglos'],
+      phases: [
+        { nom: 'Caniveaux et drainage', joursEstimes: 7, equipeMin: 3, materiaux: { Ciment: 35, Sable: 6, Gravier: 10, 'Fer HA': 15 }, missions: [] },
+        { nom: 'Trottoirs et bordures', joursEstimes: 8, equipeMin: 3, materiaux: { 'Agglos 15': 500, Ciment: 30, Sable: 6 }, missions: [] },
+        { nom: 'Espaces verts et finitions', joursEstimes: 7, equipeMin: 2.5, materiaux: { Ciment: 15, Sable: 4 }, missions: [] },
+      ],
+    },
     {
       slug: 'villa-r1-marcory', nom: 'Villa R+1 — Marcory', typeProjet: 'R_PLUS_1', budget: 9500000, delaiJours: 35,
       description: "Un vrai projet d'envergure : rez-de-chaussée, dalle intermédiaire et étage. Plus de phases, plus de matériaux à gérer, plus de responsabilités.",
@@ -3224,6 +3236,18 @@ async function main() {
         { nom: 'Terrassement', joursEstimes: 6, equipeMin: 3, materiaux: { Gravier: 40, Sable: 10 }, missions: [] },
         { nom: 'Fondation de chaussée', joursEstimes: 8, equipeMin: 3.5, materiaux: { Gravier: 60, Ciment: 30, 'Fer HA': 10 }, missions: [] },
         { nom: 'Revêtement et finitions', joursEstimes: 6, equipeMin: 3, materiaux: { Ciment: 35, Sable: 12, Gravier: 20 }, missions: [] },
+      ],
+    },
+    {
+      slug: 'pont-bassam', nom: 'Pont — Franchissement Bassam', typeProjet: 'DALOT', budget: 14000000, delaiJours: 45,
+      description: "Le chantier le plus exigeant : un vrai franchissement, piles et tablier. Réservé au niveau 8, ou accessible plus tôt aux chefs de chantier, conducteurs de travaux et ingénieurs structure confirmés.",
+      localisation: 'Grand-Bassam',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'planches'],
+      phases: [
+        { nom: 'Fondations et piles', joursEstimes: 12, equipeMin: 4, materiaux: { Ciment: 90, Sable: 14, Gravier: 22, 'Fer HA': 80 }, missions: [] },
+        { nom: 'Coffrage du tablier', joursEstimes: 10, equipeMin: 4, materiaux: { 'Planches coffrage': 60, 'Fer HA': 40 }, missions: [] },
+        { nom: 'Coulage du tablier', joursEstimes: 13, equipeMin: 4.5, materiaux: { Ciment: 100, Sable: 16, Gravier: 26, 'Fer HA': 50 }, missions: [] },
+        { nom: 'Garde-corps et finitions', joursEstimes: 10, equipeMin: 3, materiaux: { Ciment: 20, 'Fer HA': 15 }, missions: [] },
       ],
     },
   ];
