@@ -179,8 +179,16 @@ body {
 }
 .avatar-marche { animation: avatar-marche 0.3s ease-in-out infinite; }
 
+/* Léger balancement latéral idle des autres joueurs, pour qu'ils ne semblent pas "posés" —
+   combiné (pas remplacé) avec .anim-float sur un enfant, qui gère déjà le mouvement vertical. */
+@keyframes sway {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+.anim-sway { animation: sway 4.2s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche { animation: none; }
+  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway { animation: none; }
   .batiment-iso { transition: none; }
 }
 

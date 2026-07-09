@@ -64,11 +64,17 @@ export function AutresJoueurs({ joueurs }: { joueurs: JoueurActif[] }) {
             style={{ left: `${spot.xPct}%`, top: `${spot.yPct}%` }}
             aria-label={`Voir le profil de ${j.nom}`}
           >
-            <span className="anim-float block">
-              <AvatarBtp config={j.avatarConfig} taille={46} className="!rounded-full shadow-md ring-2 ring-cuivre/50" />
-            </span>
-            <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-graphite shadow">
-              {j.nom} · Niv.{j.niveau}
+            {/* Léger balancement latéral (désynchronisé par joueur) pour ne pas les figer sur place */}
+            <span
+              className="anim-sway flex flex-col items-center"
+              style={{ animationDelay: `${(i % 5) * 0.35}s`, animationDirection: i % 2 ? 'reverse' : 'normal' }}
+            >
+              <span className="anim-float block">
+                <AvatarBtp config={j.avatarConfig} taille={46} className="!rounded-full shadow-md ring-2 ring-cuivre/50" />
+              </span>
+              <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-graphite shadow">
+                {j.nom} · Niv.{j.niveau}
+              </span>
             </span>
           </button>
         );

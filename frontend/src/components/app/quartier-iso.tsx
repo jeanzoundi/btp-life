@@ -254,6 +254,14 @@ const AMBIANCE: Record<PhaseJour, { ciel: string; overlay: string; opaciteOverla
 type ModeAmbiance = 'auto' | 'jour' | 'nuit';
 const CLE_MODE_AMBIANCE = 'btplife_mode_ambiance';
 
+/** Petite bulle qui apparaît pendant la marche vers un lieu qui comble un besoin précis. */
+const ICONES_ACTION: Record<string, string> = {
+  '/app/lieu/maquis': '🍲',
+  '/app/lieu/cafe': '☕',
+  '/app/lieu/residence': '😴',
+  '/app/lieu/banque': '💰',
+};
+
 const SCENE_W = 1500;
 const SCENE_H = 1050;
 const ZOOM_MIN = 1;
@@ -317,6 +325,8 @@ export function QuartierIso({
   const router = useRouter();
   const [pos, setPos] = useState({ xPct: 27.6, yPct: 33.1 });
   const [enMarche, setEnMarche] = useState(false);
+  const [dureeMarche, setDureeMarche] = useState(620);
+  const [actionIcone, setActionIcone] = useState<string | null>(null);
   const [phase, setPhase] = useState<PhaseJour>('jour');
   const [mode, setMode] = useState<ModeAmbiance>('auto');
   const [avertissement, setAvertissement] = useState<string | null>(null);
@@ -409,11 +419,24 @@ export function QuartierIso({
     return () => clearTimeout(t);
   }, []);
 
-  function zoomer(delta: number) {
+  // Zoome en gardant le point visé (ancre, en pixels écran) immobile — sans ça, le décor
+  // dérive vers le coin haut-gauche à chaque zoom puisque le pan reste fixe pendant que
+  // l'échelle change. Par défaut l'ancre est le centre du cadre (boutons +/−) ; la molette
+  // vise plutôt le curseur.
+  function zoomer(delta: number, ancre?: { x: number; y: number }) {
     jouerSon('clic');
     setZoom((z) => {
       const nz = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 100) / 100));
-      setPan((p) => limiterPan(p.x, p.y, baseScale * nz));
+      const s1 = baseScale * z;
+      const s2 = baseScale * nz;
+      const cx = ancre?.x ?? taille.w / 2;
+      const cy = ancre?.y ?? taille.h / 2;
+      setPan((p) => {
+        if (!s1) return limiterPan(p.x, p.y, s2);
+        const sceneX = (cx - p.x) / s1;
+        const sceneY = (cy - p.y) / s1;
+        return limiterPan(cx - sceneX * s2, cy - sceneY * s2, s2);
+      });
       return nz;
     });
   }
@@ -459,7 +482,9 @@ export function QuartierIso({
   }
   function surMolette(e: ReactWheelEvent<HTMLDivElement>) {
     e.preventDefault();
-    zoomer(e.deltaY > 0 ? -0.15 : 0.15);
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const ancre = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : undefined;
+    zoomer(e.deltaY > 0 ? -0.15 : 0.15, ancre);
   }
 
   // Humeur du plumbob et bulle de pensée dérivées de l'état du personnage.
@@ -482,10 +507,18 @@ export function QuartierIso({
   function marcherVers(cible: { x: number; y: number } | undefined, href: string) {
     jouerSon('clic');
     if (cible) {
+      // Durée proportionnelle à la distance à parcourir (en unités de scène) : un petit
+      // déplacement reste rapide, une traversée du quartier prend visiblement plus longtemps —
+      // sans ça le perso donnait l'impression de "sauter" instantanément vers sa cible.
+      const actuel = { x: (pos.xPct / 100) * SCENE_W, y: (pos.yPct / 100) * SCENE_H };
+      const distance = Math.hypot(cible.x - actuel.x, cible.y - actuel.y);
+      const duree = Math.round(Math.min(1400, Math.max(400, 320 + distance * 0.55)));
+      setDureeMarche(duree);
+      setActionIcone(ICONES_ACTION[href] ?? null);
       setEnMarche(true);
       setPos({ xPct: (cible.x / SCENE_W) * 100, yPct: (cible.y / SCENE_H) * 100 });
       centrerSur(cible.x, cible.y, echelle);
-      setTimeout(() => router.push(href), 620);
+      setTimeout(() => router.push(href), duree);
     } else {
       router.push(href);
     }
@@ -710,6 +743,18 @@ export function QuartierIso({
               <rect x="-5.5" y="-9" width="11" height="12" rx="4" fill="#B87333" />
               <animateMotion dur="26s" repeatCount="indefinite" path="M 300,350 L 560,480 L 300,350" begin="6s" />
             </g>
+            <g>
+              <circle cx="0" cy="-14" r="6" fill="#C68642" />
+              <path d="M-6 -22 Q-6 -30 0 -30 Q6 -30 6 -22 L6 -20 L-6 -20 Z" fill="#6B7A3F" />
+              <rect x="-6" y="-9" width="12" height="13" rx="4" fill="#4A342A" />
+              <animateMotion dur="30s" repeatCount="indefinite" path="M 200,320 L 820,610 L 200,320" begin="3s" />
+            </g>
+            <g>
+              <circle cx="0" cy="-14" r="5.5" fill="#8D5524" />
+              <path d="M-5.5 -22 Q-5.5 -29 0 -29 Q5.5 -29 5.5 -22 L5.5 -20 L-5.5 -20 Z" fill="#B87333" />
+              <rect x="-5.5" y="-9" width="11" height="12" rx="4" fill="#DCE5DC" />
+              <animateMotion dur="38s" repeatCount="indefinite" path="M 680,230 L 120,500 L 680,230" begin="10s" />
+            </g>
           </g>
 
           {/* Voile d'ambiance jour/nuit — assombrit toute la scène en soirée */}
@@ -718,15 +763,23 @@ export function QuartierIso({
           )}
         </svg>
 
-        {/* Le joueur : marche jusqu'au bâtiment visé avant d'y entrer */}
+        {/* Le joueur : marche jusqu'au bâtiment visé avant d'y entrer — la durée de la marche
+            est proportionnelle à la distance (voir marcherVers), pas un pas fixe pour tout. */}
         <div
-          className="absolute flex -translate-x-1/2 flex-col items-center transition-[left,top] duration-[620ms] ease-in-out"
-          style={{ left: `${pos.xPct}%`, top: `${pos.yPct}%` }}
+          className="absolute flex -translate-x-1/2 flex-col items-center ease-in-out"
+          style={{ left: `${pos.xPct}%`, top: `${pos.yPct}%`, transitionProperty: 'left, top', transitionDuration: `${dureeMarche}ms` }}
         >
           {/* Bulle de pensée façon Sims quand un besoin est bas */}
           {pensee && !enMarche && (
             <div className="anim-fade-up relative mb-1 rounded-2xl bg-white px-2.5 py-1 text-sm shadow-md">
               <span title={pensee.label}>{pensee.icone}</span>
+              <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
+            </div>
+          )}
+          {/* Bulle d'action : ce que le perso va faire, visible pendant qu'il marche vers un lieu de vie */}
+          {enMarche && actionIcone && (
+            <div className="anim-fade-up relative mb-1 rounded-2xl bg-white px-2.5 py-1 text-sm shadow-md">
+              <span>{actionIcone}</span>
               <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
             </div>
           )}
