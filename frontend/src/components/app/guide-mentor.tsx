@@ -21,7 +21,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app/chantiers': {
     titre: 'BTP Simulator',
     texte:
-      "Ici tu gères un vrai chantier : budget, stock de matériaux, équipe d'ouvriers, avancement des travaux. Commande ce qu'il faut, embauche au bon poste, et lance des journées de travail jusqu'à la livraison. Des projets plus ambitieux s'ouvrent avec ta progression — aménagement urbain dès le niveau 4, villa R+1 et voirie au niveau 5, et le pont au niveau 8 (ou plus tôt si tu es déjà chef de chantier, conducteur de travaux ou ingénieur structure). Je serai là pour te conseiller à chaque étape.",
+      "Ici tu gères un vrai chantier : budget, stock de matériaux, équipe d'ouvriers, avancement des travaux. Commande ce qu'il faut, embauche au bon poste, et lance des journées de travail jusqu'à la livraison. Des projets plus ambitieux s'ouvrent avec ta progression — aménagement urbain dès le niveau 4, villa R+1 et voirie au niveau 5, le pont au niveau 8, puis assainissement (10), groupe scolaire (12), centre de santé (15), lotissement (18) et le complexe industriel portuaire au niveau 20, le chantier le plus exigeant du jeu (certains sont accessibles plus tôt à un poste avancé de la filière). Je serai là pour te conseiller à chaque étape.",
   },
   '/app/academie': {
     titre: "L'Académie BTP",

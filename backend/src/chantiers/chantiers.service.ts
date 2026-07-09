@@ -34,6 +34,17 @@ export const CONDITIONS_CHANTIER: Record<string, ConditionsChantier> = {
   'villa-r1-marcory': { niveauMin: 5 },
   'route-abobo': { niveauMin: 5 },
   'pont-bassam': { niveauMin: 8, postesAutorises: ['chef-chantier', 'conducteur-travaux', 'ingenieur-structure'] },
+  // Palier au-delà du plafond de promotion (niveau 9) : plus rien ne se débloque côté carrière,
+  // mais les chantiers continuent de grandir jusqu'au niveau 20 pour donner un vrai objectif
+  // à ceux qui rejouent des missions pour l'XP plutôt que pour une promotion.
+  'assainissement-yopougon': { niveauMin: 10 },
+  'groupe-scolaire-bouake': { niveauMin: 12 },
+  'centre-sante-sanpedro': { niveauMin: 15 },
+  'lotissement-anyama': { niveauMin: 18 },
+  'complexe-industriel-sanpedro': {
+    niveauMin: 20,
+    postesAutorises: ['conducteur-travaux', 'ingenieur-structure', 'gerant'],
+  },
 };
 
 export function conditionsChantierPour(slug: string): ConditionsChantier {

@@ -95,6 +95,20 @@ describe('conditionsChantierPour / chantierEstAccessible', () => {
   it('un poste non listé ne débloque rien tout seul', () => {
     expect(chantierEstAccessible('pont-bassam', 3, 'stagiaire-chantier')).toBe(false);
   });
+
+  it('les chantiers au-delà du plafond de promotion (niveau 9) montent jusqu’à 20', () => {
+    expect(conditionsChantierPour('assainissement-yopougon').niveauMin).toBe(10);
+    expect(conditionsChantierPour('groupe-scolaire-bouake').niveauMin).toBe(12);
+    expect(conditionsChantierPour('centre-sante-sanpedro').niveauMin).toBe(15);
+    expect(conditionsChantierPour('lotissement-anyama').niveauMin).toBe(18);
+    expect(conditionsChantierPour('complexe-industriel-sanpedro').niveauMin).toBe(20);
+  });
+
+  it('le complexe industriel s’ouvre aussi via un poste avancé (gérant), sous le niveau requis', () => {
+    expect(chantierEstAccessible('complexe-industriel-sanpedro', 10, 'gerant')).toBe(true);
+    expect(chantierEstAccessible('complexe-industriel-sanpedro', 10, 'stagiaire-chantier')).toBe(false);
+    expect(chantierEstAccessible('complexe-industriel-sanpedro', 20, null)).toBe(true);
+  });
 });
 
 describe('ChantiersService.demarrer — verrouillage par niveau et par poste', () => {
