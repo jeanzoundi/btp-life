@@ -82,6 +82,11 @@ export class CarriereController {
     return this.carriereService.genererParcours(user.userId);
   }
 
+  @Post('devenir-entrepreneur')
+  devenirEntrepreneur(@CurrentUser() user: RequestUser) {
+    return this.carriereService.devenirEntrepreneur(user.userId);
+  }
+
   @Post('besoins/:action')
   agirBesoin(@CurrentUser() user: RequestUser, @Param('action') action: ActionBesoin) {
     return this.besoinsService.agir(user.userId, action);

@@ -11,7 +11,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app': {
     titre: 'Ton tableau de bord',
     texte:
-      "Bienvenue ! Ici tu vois toujours où tu en es : ta mission recommandée du jour, ton chantier en cours et tes messages. C'est ton point de départ à chaque connexion.",
+      "Bienvenue ! Ici tu vois toujours où tu en es : ta mission recommandée du jour, ton chantier en cours et tes messages. Ton carrefour de carrière te montre aussi que rien n'est figé — à chaque étape, tu choisis de continuer ta formation, postuler à une offre, te spécialiser ou même créer ton entreprise. C'est ton point de départ à chaque connexion.",
   },
   '/app/missions': {
     titre: 'Les missions',

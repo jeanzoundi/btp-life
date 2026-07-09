@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, ApiError } from '@/lib/api';
+import { jouerSon } from '@/lib/sons';
 import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
 import { Plumbob } from '@/components/app/quartier-iso';
@@ -18,9 +20,13 @@ interface Mission {
   meilleurScore: number | null;
 }
 interface ProchaineEtape {
+  aUnProfil: boolean;
   regle: { profilCible?: { nom: string } } | null;
   manquants: string[];
   eligible?: boolean;
+  formation: { missionsDisponibles: number };
+  offres: { eligibles: number; total: number };
+  entreprise: { dejaEntrepreneur: boolean };
 }
 interface CarriereMe {
   niveau: number;
@@ -265,25 +271,52 @@ export default function DashboardPage() {
 
         <div className="space-y-4">
           <section className="carte-vivante rounded-2xl border border-pierre bg-white p-5">
-            <h2 className="font-display font-bold text-graphite">📈 Prochaine étape</h2>
-            {prochaineEtape?.regle ? (
-              <div className="mt-2">
-                <p className="text-sm text-graphite/70">
-                  → <span className="font-semibold text-terracotta">{prochaineEtape.regle.profilCible?.nom}</span>
-                </p>
-                {prochaineEtape.manquants.length ? (
-                  <ul className="mt-2 space-y-1.5">
-                    {prochaineEtape.manquants.slice(0, 3).map((m) => (
-                      <li key={m} className="flex items-start gap-1.5 text-xs text-graphite/70">
-                        <span className="mt-0.5 text-terracotta">○</span> {m}
-                      </li>
-                    ))}
-                  </ul>
+            <h2 className="font-display font-bold text-graphite">🧭 Ton carrefour de carrière</h2>
+            <p className="mt-0.5 text-xs text-graphite/50">Rien n&apos;est figé — quatre pistes restent ouvertes à chaque étape.</p>
+            {prochaineEtape?.aUnProfil ? (
+              <div className="mt-3 space-y-2.5">
+                {/* Piste 1 : continuer sa formation */}
+                <Link href="/app/missions" className="flex items-center justify-between gap-2 rounded-xl border border-pierre/70 px-3 py-2 transition-colors hover:border-terracotta">
+                  <span className="text-sm font-medium text-graphite">🎓 Continuer ta formation</span>
+                  <span className="whitespace-nowrap text-xs font-semibold text-olive">
+                    {prochaineEtape.formation.missionsDisponibles} mission{prochaineEtape.formation.missionsDisponibles !== 1 ? 's' : ''}
+                  </span>
+                </Link>
+
+                {/* Piste 2 : postuler à une offre */}
+                <Link href="/app/offres" className="flex items-center justify-between gap-2 rounded-xl border border-pierre/70 px-3 py-2 transition-colors hover:border-terracotta">
+                  <span className="text-sm font-medium text-graphite">💼 Postuler à une offre</span>
+                  <span className="whitespace-nowrap text-xs font-semibold text-olive">
+                    {prochaineEtape.offres.eligibles}/{prochaineEtape.offres.total} à ta portée
+                  </span>
+                </Link>
+
+                {/* Piste 3 : se spécialiser (promotion) */}
+                {prochaineEtape.regle ? (
+                  <div className="rounded-xl border border-pierre/70 px-3 py-2">
+                    <p className="text-sm font-medium text-graphite">
+                      📈 Te spécialiser → <span className="font-semibold text-terracotta">{prochaineEtape.regle.profilCible?.nom}</span>
+                    </p>
+                    {prochaineEtape.manquants.length ? (
+                      <ul className="mt-1.5 space-y-1">
+                        {prochaineEtape.manquants.slice(0, 2).map((m) => (
+                          <li key={m} className="flex items-start gap-1.5 text-xs text-graphite/60">
+                            <span className="mt-0.5 text-terracotta">○</span> {m}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <Link href="/app/promotions" className="mt-1.5 block rounded-full bg-olive py-1.5 text-center text-xs font-bold text-ivoire">
+                        Conditions réunies — demande ta promotion !
+                      </Link>
+                    )}
+                  </div>
                 ) : (
-                  <Link href="/app/promotions" className="mt-2 block rounded-full bg-olive py-2 text-center text-xs font-bold text-ivoire">
-                    Conditions réunies — demande ta promotion !
-                  </Link>
+                  <div className="rounded-xl border border-pierre/70 px-3 py-2 text-sm text-graphite/50">📈 Aucune spécialisation en attente</div>
                 )}
+
+                {/* Piste 4 : créer son entreprise */}
+                <CarteEntrepreneur dejaEntrepreneur={prochaineEtape.entreprise.dejaEntrepreneur} />
               </div>
             ) : (
               <p className="mt-2 text-sm text-graphite/60">
@@ -314,6 +347,51 @@ export default function DashboardPage() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Piste 4 du carrefour de carrière : créer son entreprise, accessible à tout moment (pas un cul-de-sac réservé au départ). */
+function CarteEntrepreneur({ dejaEntrepreneur }: { dejaEntrepreneur: boolean }) {
+  const queryClient = useQueryClient();
+  const [confirmation, setConfirmation] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const devenirEntrepreneur = useMutation({
+    mutationFn: () => api.post('/carriere/devenir-entrepreneur'),
+    onSuccess: () => {
+      jouerSon('niveau');
+      setConfirmation(false);
+      queryClient.invalidateQueries({ queryKey: ['carriere'] });
+    },
+    onError: (err) => {
+      jouerSon('echec');
+      setErreur(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
+      setConfirmation(false);
+      setTimeout(() => setErreur(null), 3500);
+    },
+  });
+
+  if (dejaEntrepreneur) {
+    return (
+      <div className="rounded-xl border border-pierre/70 px-3 py-2 text-sm text-graphite/70">
+        🚀 Tu diriges déjà ta propre entreprise
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-pierre/70 px-3 py-2">
+      <p className="text-sm font-medium text-graphite">🚀 Créer ton entreprise</p>
+      <p className="mt-0.5 text-xs text-graphite/50">Change de filière sans perdre ton niveau, ton XP ni ta réputation.</p>
+      {erreur && <p className="mt-1.5 text-xs font-semibold text-terracotta">{erreur}</p>}
+      <button
+        onClick={() => (confirmation ? devenirEntrepreneur.mutate() : setConfirmation(true))}
+        disabled={devenirEntrepreneur.isPending}
+        className={`mt-1.5 w-full rounded-full py-1.5 text-xs font-bold text-ivoire transition-colors disabled:opacity-50 ${confirmation ? 'bg-terracotta' : 'bg-graphite/80 hover:bg-graphite'}`}
+      >
+        {devenirEntrepreneur.isPending ? 'Reconversion…' : confirmation ? 'Confirmer la reconversion ?' : 'Créer mon entreprise'}
+      </button>
     </div>
   );
 }

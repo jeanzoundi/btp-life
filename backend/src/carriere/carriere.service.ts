@@ -144,18 +144,90 @@ export class CarriereService {
     return lignes;
   }
 
+  /**
+   * Le parcours reste entièrement flexible : à chaque étape, quatre pistes réelles restent
+   * ouvertes en parallèle — continuer sa formation, postuler à une offre, se spécialiser
+   * (promotion dans la filière actuelle) ou créer son entreprise. Rien n'est figé sur un seul
+   * rail : ce carrefour rassemble les quatre pour que le joueur choisisse, plutôt que de ne
+   * lui montrer que la prochaine promotion.
+   */
   async prochaineEtape(userId: string) {
-    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
-    if (!carriere?.profilActuelId) return { regle: null, manquants: [] };
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
 
-    const regle = await this.prisma.reglePromotion.findFirst({
-      where: { profilSourceId: carriere.profilActuelId },
-      include: { profilCible: true },
+    // Piste 1 : se spécialiser — la promotion suivante dans la filière actuelle (comportement historique).
+    let specialisation: { regle: unknown; manquants: string[]; eligible: boolean } | null = null;
+    if (carriere?.profilActuelId) {
+      const regle = await this.prisma.reglePromotion.findFirst({
+        where: { profilSourceId: carriere.profilActuelId },
+        include: { profilCible: true },
+      });
+      if (regle) {
+        const manquants = await this.evaluerConditions(userId, carriere, (regle.conditions as Record<string, unknown>) ?? {});
+        specialisation = { regle, manquants, eligible: manquants.length === 0 };
+      }
+    }
+    // Rétro-compatible avec l'ancienne forme de réponse (regle/manquants à la racine),
+    // toujours utilisée par le frontend en plus du nouveau bundle ci-dessous.
+    const compat = specialisation ?? { regle: null, manquants: [] as string[] };
+
+    // Piste 2 : continuer sa formation — missions accessibles pas encore réussies.
+    const missionsDisponibles = carriere
+      ? await this.prisma.mission.count({
+          where: {
+            statut: 'PUBLIE',
+            niveauRequis: { lte: carriere.niveau },
+            NOT: { userMissions: { some: { userId, statut: 'REUSSIE' } } },
+          },
+        })
+      : 0;
+
+    // Piste 3 : postuler à une offre — celles où le joueur remplit déjà niveau + réputation.
+    const offresOuvertes = await this.prisma.offreEmploi.findMany({ where: { statut: 'publiee' } });
+    const offresEligibles = carriere
+      ? offresOuvertes.filter((o) => o.niveauMin <= carriere.niveau && o.reputationMin <= carriere.reputation).length
+      : 0;
+
+    // Piste 4 : créer son entreprise — toujours ouverte, sauf si déjà dans la filière ENTREPRENEUR.
+    const entreprise = { dejaEntrepreneur: carriere?.profilActuel?.famille === 'ENTREPRENEUR' };
+
+    return {
+      ...compat,
+      aUnProfil: !!carriere?.profilActuelId,
+      specialisation,
+      formation: { missionsDisponibles },
+      offres: { eligibles: offresEligibles, total: offresOuvertes.length },
+      entreprise,
+    };
+  }
+
+  /**
+   * Reconversion vers l'entrepreneuriat : accessible à tout moment, quelle que soit la filière
+   * actuelle — contrairement à `setProfilActuel` (réservé à l'onboarding), niveau/xp/réputation
+   * sont préservés, ce n'est pas un reset mais un changement de cap.
+   */
+  async devenirEntrepreneur(userId: string) {
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
+    if (!carriere) throw new NotFoundException('Carrière introuvable');
+    if (carriere.profilActuel?.famille === 'ENTREPRENEUR') {
+      throw new BadRequestException('Tu es déjà dans la filière entrepreneuriale');
+    }
+    const profilEntree = await this.prisma.profil.findFirst({ where: { famille: 'ENTREPRENEUR', ordre: 1 } });
+    if (!profilEntree) throw new NotFoundException('Filière entrepreneuriale introuvable');
+
+    const maj = await this.prisma.userCarriere.update({
+      where: { userId },
+      data: { profilActuelId: profilEntree.id },
+      include: { profilActuel: true },
     });
-    if (!regle) return { regle: null, manquants: [] };
-
-    const manquants = await this.evaluerConditions(userId, carriere, (regle.conditions as Record<string, unknown>) ?? {});
-    return { regle, manquants, eligible: manquants.length === 0 };
+    await this.prisma.carriereHistorique.create({
+      data: {
+        userId,
+        type: 'CREATION_ENTREPRISE',
+        profilId: profilEntree.id,
+        details: { depuis: carriere.profilActuel?.slug ?? null },
+      },
+    });
+    return maj;
   }
 
   /**
