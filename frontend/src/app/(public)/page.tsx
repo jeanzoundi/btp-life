@@ -3,6 +3,7 @@ import { fetchCatalog } from '@/lib/api-server';
 import { Reveal } from '@/components/public/reveal';
 import { Compteur } from '@/components/public/compteur';
 import { ChantierAnime } from '@/components/public/chantier-anime';
+import { MondeTeaser } from '@/components/public/monde-teaser';
 
 interface Profil {
   id: string;
@@ -80,7 +81,7 @@ export default async function AccueilPage() {
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 text-center md:grid-cols-4">
           {(
             [
-              [29, '', 'profils métiers'],
+              [30, '', 'profils métiers'],
               [14, '', 'types de missions'],
               [12, '', "axes d'évaluation"],
               [100, ' %', 'gratuit au lancement'],
@@ -114,6 +115,39 @@ export default async function AccueilPage() {
               </div>
             </Reveal>
           ))}
+        </div>
+      </section>
+
+      {/* MONDE VIRTUEL — le vrai différenciateur : pas des menus, une ville vivante et partagée */}
+      <section className="border-y border-pierre bg-white px-4 py-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
+          <Reveal className="order-2 flex justify-center md:order-1">
+            <MondeTeaser />
+          </Reveal>
+          <Reveal className="order-1 md:order-2" delay={100}>
+            <p className="mb-3 inline-block rounded-full bg-olive/10 px-4 py-1 text-sm font-semibold text-olive">
+              Un vrai monde, pas juste des menus
+            </p>
+            <h2 className="font-display text-2xl font-bold text-graphite md:text-3xl">
+              Ta carrière se joue dans une ville isométrique, façon jeu de simulation de vie
+            </h2>
+            <p className="mt-4 text-graphite/70">
+              Centre-ville, campus, quartier résidentiel avec ta propre maison, zone industrielle qui se débloque
+              en montant de niveau — et tu n&apos;y es jamais seul. Les avatars que tu croises sont de vrais autres
+              joueurs, actifs récemment, que tu peux saluer et découvrir.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-graphite/70">
+              <li className="flex items-start gap-2">
+                <span>🌗</span> Cycle jour/nuit dynamique et ambiance qui change au fil des heures
+              </li>
+              <li className="flex items-start gap-2">
+                <span>😴</span> Besoins façon Sims — énergie, faim, moral, social — à combler entre deux missions
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🏗️</span> Des chantiers de plus en plus grands à mesure que tu montes en niveau, jusqu&apos;au niveau 20
+              </li>
+            </ul>
+          </Reveal>
         </div>
       </section>
 
