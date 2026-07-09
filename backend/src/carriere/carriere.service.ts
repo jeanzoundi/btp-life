@@ -3,17 +3,21 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/carriere.dto';
 import { BesoinsService } from './besoins.service';
+import { EpargneService } from './epargne.service';
 
 @Injectable()
 export class CarriereService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly besoins: BesoinsService,
+    private readonly epargne: EpargneService,
   ) {}
 
   async me(userId: string) {
-    // Le déclin des besoins est calculé à chaque consultation (approche "paresseuse", sans tâche planifiée).
+    // Le déclin des besoins et l'intérêt de l'épargne sont calculés à chaque consultation
+    // (approche "paresseuse", sans tâche planifiée).
     const carriere = await this.besoins.actualiser(userId);
+    await this.epargne.actualiser(userId);
     const complet = await this.prisma.userCarriere.findUnique({
       where: { userId },
       include: { profilActuel: true, metierCible: true, referentielPays: true },

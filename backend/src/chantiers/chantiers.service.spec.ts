@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ChantiersService, conditionsChantierPour, chantierEstAccessible } from './chantiers.service';
+import { ChantiersService, conditionsChantierPour, chantierEstAccessible, apportPersonnelRequis } from './chantiers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { BesoinsService } from '../carriere/besoins.service';
@@ -36,7 +36,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
       update: jest.fn(),
       create: jest.fn(),
     },
-    userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1 }) },
+    userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, argentVirtuel: 999_999 }) },
     chantier: { findUnique: jest.fn() },
     carriereHistorique: { create: jest.fn().mockResolvedValue({}) },
   };
@@ -124,15 +124,17 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('autorise le démarrage une fois le niveau requis atteint', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'villa-r1-marcory', budget: 9_500_000, delaiJours: 35 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null, argentVirtuel: 10_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
       },
     });
-    const { svc } = await service(prisma);
+    const { svc, progression } = await service(prisma);
     const resultat = await svc.demarrer('u1', 'c1');
     expect(resultat).toEqual({ id: 'uc-nouveau' });
+    // apportPersonnelRequis(5) = max(300, 5*500) = 2500, débité de l'argent personnel du joueur.
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -2500 });
   });
 
   it('refuse le pont à bas niveau sans poste éligible', async () => {
@@ -147,7 +149,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('autorise le pont à bas niveau si le joueur occupe un poste éligible (chef de chantier)', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 12_000_000, delaiJours: 40 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'chef-chantier' } }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'chef-chantier' }, argentVirtuel: 10_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-pont' }),
@@ -160,7 +162,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('ne bloque jamais un chantier ordinaire, quel que soit le niveau', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'dalle-riviera', budget: 3_500_000, delaiJours: 15 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, profilActuel: null }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, profilActuel: null, argentVirtuel: 1_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
@@ -168,6 +170,44 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
     });
     const { svc } = await service(prisma);
     await expect(svc.demarrer('u1', 'c1')).resolves.toEqual({ id: 'uc-nouveau' });
+  });
+});
+
+describe('apportPersonnelRequis', () => {
+  it('vaut un plancher de 300 F pour les chantiers sans seuil de niveau particulier', () => {
+    expect(apportPersonnelRequis(1)).toBe(500);
+  });
+
+  it('croît avec le niveau minimum requis', () => {
+    expect(apportPersonnelRequis(5)).toBe(2500);
+    expect(apportPersonnelRequis(8)).toBe(4000);
+    expect(apportPersonnelRequis(20)).toBe(10_000);
+  });
+});
+
+describe('ChantiersService.demarrer — apport personnel', () => {
+  it('refuse de démarrer si l’argent personnel est insuffisant, même niveau et poste requis atteints', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'villa-r1-marcory', budget: 9_500_000, delaiJours: 35 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null, argentVirtuel: 100 }) },
+    });
+    const { svc, progression } = await service(prisma);
+    await expect(svc.demarrer('u1', 'c1')).rejects.toThrow('Apport personnel insuffisant');
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+  });
+
+  it('débite l’apport personnel du joueur (pas le budget du chantier) au démarrage', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 14_000_000, delaiJours: 45 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 8, profilActuel: null, argentVirtuel: 4_000 }) },
+      userChantier: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'uc-pont' }),
+      },
+    });
+    const { svc, progression } = await service(prisma);
+    await svc.demarrer('u1', 'c1');
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -4000 });
   });
 });
 
@@ -185,6 +225,7 @@ describe('ChantiersService.disponibles — annotation par joueur', () => {
     const [resultat] = await svc.disponibles('u1');
     expect(resultat.verrouille).toBe(false);
     expect(resultat.niveauRequis).toBe(8);
+    expect(resultat.apportRequis).toBe(4000);
   });
 
   it('verrouille le même chantier pour un joueur sans le niveau ni le poste', async () => {

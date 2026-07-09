@@ -11,10 +11,12 @@ const HEURES_MAX_PRISES_EN_COMPTE = 72; // au-delà, on plafonne (éviter des é
 
 export type ActionBesoin = 'repos' | 'repas' | 'social';
 
-const EFFETS_ACTION: Record<ActionBesoin, { cible: 'energie' | 'faim' | 'social'; valeur: number; bonusMoral: number; message: string }> = {
-  repos: { cible: 'energie', valeur: 100, bonusMoral: 4, message: 'Tu te sens reposé(e) et prêt(e) à repartir.' },
-  repas: { cible: 'faim', valeur: 100, bonusMoral: 3, message: 'Un bon repas, ça remet les idées en place.' },
-  social: { cible: 'social', valeur: 100, bonusMoral: 6, message: 'Ça fait du bien de discuter un peu !' },
+// Manger et socialiser coûtent un peu d'argent réel (comme dans la vraie vie) — seul le repos
+// chez soi reste gratuit. Ça donne une vraie raison de dépenser l'argent gagné en missions/chantiers.
+const EFFETS_ACTION: Record<ActionBesoin, { cible: 'energie' | 'faim' | 'social'; valeur: number; bonusMoral: number; cout: number; message: string }> = {
+  repos: { cible: 'energie', valeur: 100, bonusMoral: 4, cout: 0, message: 'Tu te sens reposé(e) et prêt(e) à repartir.' },
+  repas: { cible: 'faim', valeur: 100, bonusMoral: 3, cout: 120, message: 'Un bon repas, ça remet les idées en place.' },
+  social: { cible: 'social', valeur: 100, bonusMoral: 6, cout: 90, message: 'Ça fait du bien de discuter un peu !' },
 };
 
 interface CarriereBesoins {
@@ -61,7 +63,12 @@ export class BesoinsService {
     const actualisee = await this.actualiser(userId);
     const valeurActuelle = actualisee[effet.cible];
     if (valeurActuelle >= 98) {
-      return { carriere: actualisee, message: "C'est déjà au maximum !", change: false };
+      return { carriere: actualisee, message: "C'est déjà au maximum !", change: false, coutPaye: 0 };
+    }
+    if (effet.cout > 0 && actualisee.argentVirtuel < effet.cout) {
+      throw new BadRequestException(
+        `Pas assez d'argent : ${effet.cout.toLocaleString('fr-FR')} F requis (solde ${actualisee.argentVirtuel.toLocaleString('fr-FR')} F)`,
+      );
     }
 
     const maj = await this.prisma.userCarriere.update({
@@ -69,9 +76,10 @@ export class BesoinsService {
       data: {
         [effet.cible]: effet.valeur,
         moral: Math.min(100, actualisee.moral + effet.bonusMoral),
+        ...(effet.cout > 0 ? { argentVirtuel: { decrement: effet.cout } } : {}),
       },
     });
-    return { carriere: maj, message: effet.message, change: true };
+    return { carriere: maj, message: effet.message, change: true, coutPaye: effet.cout };
   }
 
   /** Consommation d'énergie/faim par le jeu (missions, journées de chantier…) — sans dépasser 0. */

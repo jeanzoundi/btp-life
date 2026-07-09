@@ -2,9 +2,10 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
+import { EpargneService } from './epargne.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('carriere')
@@ -13,6 +14,7 @@ export class CarriereController {
     private readonly carriereService: CarriereService,
     private readonly besoinsService: BesoinsService,
     private readonly pnjService: PnjService,
+    private readonly epargneService: EpargneService,
   ) {}
 
   @Get('me')
@@ -83,5 +85,15 @@ export class CarriereController {
   @Post('besoins/:action')
   agirBesoin(@CurrentUser() user: RequestUser, @Param('action') action: ActionBesoin) {
     return this.besoinsService.agir(user.userId, action);
+  }
+
+  @Post('epargne/deposer')
+  deposerEpargne(@CurrentUser() user: RequestUser, @Body() dto: MontantDto) {
+    return this.epargneService.deposer(user.userId, dto.montant);
+  }
+
+  @Post('epargne/retirer')
+  retirerEpargne(@CurrentUser() user: RequestUser, @Body() dto: MontantDto) {
+    return this.epargneService.retirer(user.userId, dto.montant);
   }
 }

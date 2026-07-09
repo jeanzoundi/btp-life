@@ -347,6 +347,10 @@ model UserCarriere {
   xp                       Int          @default(0)
   reputation               Int          @default(50)
   argentVirtuel            Int          @default(0)
+  // Épargne à la Banque : capital mis de côté, qui rapporte un petit intérêt calculé
+  // paresseusement (à la lecture, comme les besoins) plutôt que par tâche planifiée.
+  epargne                  Int          @default(0)
+  epargneMajLe             DateTime     @default(now())
   ancienneteVirtuelleJours Int          @default(0)
   referentielPaysId        String?
   referentielPays          Pays?        @relation(fields: [referentielPaysId], references: [id])

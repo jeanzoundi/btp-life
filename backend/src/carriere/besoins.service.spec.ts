@@ -148,4 +148,49 @@ describe('BesoinsService.agir', () => {
     const resultat = await svc.agir('u1', 'repos');
     expect(resultat.carriere.moral).toBe(100);
   });
+
+  it('le repos reste gratuit même à solde nul', async () => {
+    const { svc } = await service({
+      userId: 'u1',
+      energie: 40,
+      faim: 100,
+      social: 100,
+      moral: 50,
+      argentVirtuel: 0,
+      derniereMajBesoins: new Date(),
+    });
+    const resultat = await svc.agir('u1', 'repos');
+    expect(resultat.change).toBe(true);
+    expect(resultat.coutPaye).toBe(0);
+  });
+
+  it('refuse le repas si le solde est insuffisant, sans toucher aux jauges', async () => {
+    const { svc, prisma } = await service({
+      userId: 'u1',
+      energie: 100,
+      faim: 20,
+      social: 100,
+      moral: 50,
+      argentVirtuel: 50,
+      derniereMajBesoins: new Date(),
+    });
+    await expect(svc.agir('u1', 'repas')).rejects.toThrow("Pas assez d'argent");
+    // Un seul appel update : celui d'actualiser(), aucune modification tentée pour l'action.
+    expect(prisma.userCarriere.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('débite le coût du repas quand le solde est suffisant', async () => {
+    const { svc } = await service({
+      userId: 'u1',
+      energie: 100,
+      faim: 20,
+      social: 100,
+      moral: 50,
+      argentVirtuel: 500,
+      derniereMajBesoins: new Date(),
+    });
+    const resultat = await svc.agir('u1', 'repas');
+    expect(resultat.change).toBe(true);
+    expect(resultat.coutPaye).toBe(120);
+  });
 });

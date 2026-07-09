@@ -57,6 +57,14 @@ export function chantierEstAccessible(slug: string, niveau: number, profilActuel
   return !!profilActuelSlug && (conditions.postesAutorises?.includes(profilActuelSlug) ?? false);
 }
 
+// Apport personnel exigé pour démarrer un chantier : proportionnel à son ambition (niveauMin),
+// pas à son budget (le budget du chantier est une caisse fictive à part, sans commune mesure
+// avec l'argent personnel du joueur — voir argentVirtuel). Investir cet apport relie enfin la
+// gestion de chantier à l'argent réellement gagné par le joueur, plutôt qu'un aller simple.
+export function apportPersonnelRequis(niveauMin: number): number {
+  return Math.max(300, niveauMin * 500);
+}
+
 interface Besoins {
   joursEstimes: number;
   equipeMin: number;
@@ -124,6 +132,7 @@ export class ChantiersService {
         niveauRequis: conditions.niveauMin,
         posteAlternatif: conditions.postesAutorises?.length ? conditions.postesAutorises : undefined,
         verrouille: !chantierEstAccessible(c.slug, niveauJoueur, profilSlug),
+        apportRequis: apportPersonnelRequis(conditions.niveauMin),
       };
     });
   }
@@ -133,18 +142,27 @@ export class ChantiersService {
     if (!chantier) throw new NotFoundException('Chantier introuvable');
 
     const conditions = conditionsChantierPour(chantier.slug);
-    if (conditions.niveauMin > 1 || conditions.postesAutorises?.length) {
-      const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
-      const accessible = chantierEstAccessible(chantier.slug, carriere?.niveau ?? 1, carriere?.profilActuel?.slug);
-      if (!accessible) {
-        throw new BadRequestException(`Niveau ${conditions.niveauMin} requis pour ce chantier`);
-      }
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
+    const accessible = chantierEstAccessible(chantier.slug, carriere?.niveau ?? 1, carriere?.profilActuel?.slug);
+    if (!accessible) {
+      throw new BadRequestException(`Niveau ${conditions.niveauMin} requis pour ce chantier`);
     }
 
     const dejaEnCours = await this.prisma.userChantier.findFirst({
       where: { userId, chantierId, statut: 'en_cours' },
     });
     if (dejaEnCours) return dejaEnCours;
+
+    // Démarrer exige un apport personnel (ta propre épargne, pas la caisse du chantier) —
+    // ça relie enfin l'argent gagné en missions/chantiers à la gestion de chantier elle-même.
+    const apport = apportPersonnelRequis(conditions.niveauMin);
+    const argentDisponible = carriere?.argentVirtuel ?? 0;
+    if (argentDisponible < apport) {
+      throw new BadRequestException(
+        `Apport personnel insuffisant : ${apport.toLocaleString('fr-FR')} F requis (solde ${argentDisponible.toLocaleString('fr-FR')} F)`,
+      );
+    }
+    await this.progression.appliquerDelta(userId, { argentVirtuel: -apport });
 
     // Équipe de départ : un maçon et un manœuvre — le joueur recrute le reste.
     return this.prisma.userChantier.create({
@@ -158,7 +176,11 @@ export class ChantiersService {
         stock: {},
         avancementPhases: {},
         evenementsLog: [
-          { jour: 0, type: 'info', texte: `Ouverture du chantier — budget ${chantier.budget.toLocaleString('fr-FR')} ${chantier.devise}, délai ${chantier.delaiJours} jours.` },
+          {
+            jour: 0,
+            type: 'info',
+            texte: `Ouverture du chantier — apport personnel investi : ${apport.toLocaleString('fr-FR')} F. Budget chantier ${chantier.budget.toLocaleString('fr-FR')} ${chantier.devise}, délai ${chantier.delaiJours} jours.`,
+          },
         ] as unknown as Prisma.InputJsonValue,
         ouvriers: {
           create: [
