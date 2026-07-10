@@ -3496,6 +3496,30 @@ async function main() {
     update: {},
   });
 
+  // Compte admin réel de Jean, pour ajouter des matières via le générateur de cours.
+  // Le mot de passe ne doit jamais être écrit en dur ici (git history) — passer
+  // JEAN_ADMIN_PASSWORD en variable d'environnement au moment du seed, une seule fois.
+  if (process.env.JEAN_ADMIN_PASSWORD) {
+    const jeanPasswordHash = await argon2.hash(process.env.JEAN_ADMIN_PASSWORD);
+    await prisma.user.upsert({
+      where: { email: 'jeanzoundi3@gmail.com' },
+      create: {
+        email: 'jeanzoundi3@gmail.com',
+        passwordHash: jeanPasswordHash,
+        nom: 'Jean Zoundi',
+        role: 'ADMIN',
+        adminSubRole: 'SUPER_ADMIN',
+        emailVerified: true,
+        paysId: civ.id,
+        carriere: { create: { referentielPaysId: civ.id } },
+        cvVirtuel: { create: { contenu: {} } },
+      },
+      update: { passwordHash: jeanPasswordHash },
+    });
+  } else {
+    console.log('  (JEAN_ADMIN_PASSWORD non défini — compte jeanzoundi3@gmail.com ignoré)');
+  }
+
   const demoPasswordHash = await argon2.hash('Demo1234!');
   const demo = await prisma.user.upsert({
     where: { email: 'demo@btplife.com' },

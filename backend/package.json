@@ -23,8 +23,16 @@
     "transform": {
       "^.+\\.ts$": "ts-jest"
     },
-    "moduleFileExtensions": ["js", "json", "ts"],
-    "collectCoverageFrom": ["**/*.service.ts", "**/mission-scoring.ts", "!**/*.module.ts"]
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "collectCoverageFrom": [
+      "**/*.service.ts",
+      "**/mission-scoring.ts",
+      "!**/*.module.ts"
+    ]
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -38,8 +46,11 @@
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "mammoth": "^1.12.0",
+    "multer": "^2.2.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-parse": "^2.4.5",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -49,6 +60,7 @@
     "@nestjs/testing": "^10.4.22",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.2",
     "@types/passport-jwt": "^4.0.1",
     "jest": "^30.4.2",

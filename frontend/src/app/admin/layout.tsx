@@ -11,6 +11,7 @@ const SECTIONS = [
   { href: '/admin/contenus/missions', label: 'Missions' },
   { href: '/admin/contenus/chantiers', label: 'Chantiers' },
   { href: '/admin/contenus/modules-academie', label: 'Académie' },
+  { href: '/admin/academie/generer', label: '📄 Générer un cours' },
   { href: '/admin/contenus/badges', label: 'Badges' },
   { href: '/admin/contenus/offres-emploi', label: 'Offres' },
   { href: '/admin/contenus/regles-promotion', label: 'Promotions' },

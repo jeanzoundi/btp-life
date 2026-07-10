@@ -14,10 +14,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, retry = true, jsonContentType = true): Promise<T> {
   const { accessToken } = useAuthStore.getState();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(jsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers as Record<string, string>),
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -26,7 +26,7 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 
   if (res.status === 401 && retry) {
     const refreshed = await tryRefresh();
-    if (refreshed) return request<T>(path, options, false);
+    if (refreshed) return request<T>(path, options, false, jsonContentType);
   }
 
   if (!res.ok) {
@@ -69,4 +69,8 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  // Envoi multipart — ne surtout pas fixer Content-Type nous-mêmes : le navigateur doit poser
+  // la frontière (boundary) du FormData lui-même, sinon la requête est illisible côté serveur.
+  upload: <T>(path: string, formData: FormData) =>
+    request<T>(path, { method: 'POST', body: formData }, true, false),
 };
