@@ -4,6 +4,7 @@
  */
 import { PrismaClient, ProfilFamille, QuestionType, Rarete } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -3497,27 +3498,34 @@ async function main() {
   });
 
   // Compte admin réel de Jean, pour ajouter des matières via le générateur de cours.
-  // Le mot de passe ne doit jamais être écrit en dur ici (git history) — passer
-  // JEAN_ADMIN_PASSWORD en variable d'environnement au moment du seed, une seule fois.
-  if (process.env.JEAN_ADMIN_PASSWORD) {
-    const jeanPasswordHash = await argon2.hash(process.env.JEAN_ADMIN_PASSWORD);
-    await prisma.user.upsert({
-      where: { email: 'jeanzoundi3@gmail.com' },
-      create: {
-        email: 'jeanzoundi3@gmail.com',
-        passwordHash: jeanPasswordHash,
-        nom: 'Jean Zoundi',
-        role: 'ADMIN',
-        adminSubRole: 'SUPER_ADMIN',
-        emailVerified: true,
-        paysId: civ.id,
-        carriere: { create: { referentielPaysId: civ.id } },
-        cvVirtuel: { create: { contenu: {} } },
-      },
-      update: { passwordHash: jeanPasswordHash },
-    });
-  } else {
-    console.log('  (JEAN_ADMIN_PASSWORD non défini — compte jeanzoundi3@gmail.com ignoré)');
+  // Le mot de passe n'est jamais écrit en dur dans le repo : si JEAN_ADMIN_PASSWORD n'est
+  // pas fourni, le script en génère un aléatoirement et l'affiche une seule fois ici.
+  {
+    const jeanUserExiste = await prisma.user.findUnique({ where: { email: 'jeanzoundi3@gmail.com' }, select: { id: true } });
+    const jeanPasswordClair = process.env.JEAN_ADMIN_PASSWORD ?? (jeanUserExiste ? null : randomBytes(9).toString('base64url'));
+    if (jeanPasswordClair) {
+      const jeanPasswordHash = await argon2.hash(jeanPasswordClair);
+      await prisma.user.upsert({
+        where: { email: 'jeanzoundi3@gmail.com' },
+        create: {
+          email: 'jeanzoundi3@gmail.com',
+          passwordHash: jeanPasswordHash,
+          nom: 'Jean Zoundi',
+          role: 'ADMIN',
+          adminSubRole: 'SUPER_ADMIN',
+          emailVerified: true,
+          paysId: civ.id,
+          carriere: { create: { referentielPaysId: civ.id } },
+          cvVirtuel: { create: { contenu: {} } },
+        },
+        update: { passwordHash: jeanPasswordHash },
+      });
+      if (!process.env.JEAN_ADMIN_PASSWORD) {
+        console.log(`  Admin Jean : jeanzoundi3@gmail.com / ${jeanPasswordClair} (généré — à changer après connexion)`);
+      }
+    } else {
+      console.log('  (compte jeanzoundi3@gmail.com déjà présent, mot de passe inchangé)');
+    }
   }
 
   const demoPasswordHash = await argon2.hash('Demo1234!');
