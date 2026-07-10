@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublierModuleDto } from './dto/academie-generateur.dto';
+
+// pdf-parse v1, volontairement — la v2 dépend d'un polyfill canvas/DOMMatrix
+// (@napi-rs/canvas) qui casse au chargement dans le runtime serverless Vercel
+// (ReferenceError: DOMMatrix is not defined), même si tout fonctionne en local.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Générateur de cours à partir d'un document uploadé — 100 % programmatique
@@ -192,13 +197,8 @@ export class AcademieGenerateurService {
   async extraireTexte(buffer: Buffer, mimetype: string, nomFichier: string): Promise<string> {
     const ext = nomFichier.split('.').pop()?.toLowerCase();
     if (mimetype === 'application/pdf' || ext === 'pdf') {
-      const parser = new PDFParse({ data: buffer });
-      try {
-        const resultat = await parser.getText();
-        return resultat.text;
-      } finally {
-        await parser.destroy();
-      }
+      const resultat = await pdfParse(buffer);
+      return resultat.text;
     }
     if (mimetype.includes('wordprocessingml') || ext === 'docx') {
       const resultat = await mammoth.extractRawText({ buffer });
