@@ -1,10 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '@/lib/api';
-import { jouerSon } from '@/lib/sons';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
 import { Plumbob } from '@/components/app/quartier-iso';
@@ -26,7 +24,7 @@ interface ProchaineEtape {
   eligible?: boolean;
   formation: { missionsDisponibles: number };
   offres: { eligibles: number; total: number };
-  entreprise: { dejaEntrepreneur: boolean };
+  entreprise: { dejaEntrepreneur: boolean; nomEntreprise: string | null };
 }
 interface CarriereMe {
   niveau: number;
@@ -316,7 +314,7 @@ export default function DashboardPage() {
                 )}
 
                 {/* Piste 4 : créer son entreprise */}
-                <CarteEntrepreneur dejaEntrepreneur={prochaineEtape.entreprise.dejaEntrepreneur} />
+                <CarteEntrepreneur dejaEntrepreneur={prochaineEtape.entreprise.dejaEntrepreneur} nomEntreprise={prochaineEtape.entreprise.nomEntreprise} />
               </div>
             ) : (
               <p className="mt-2 text-sm text-graphite/60">
@@ -352,46 +350,20 @@ export default function DashboardPage() {
 }
 
 /** Piste 4 du carrefour de carrière : créer son entreprise, accessible à tout moment (pas un cul-de-sac réservé au départ). */
-function CarteEntrepreneur({ dejaEntrepreneur }: { dejaEntrepreneur: boolean }) {
-  const queryClient = useQueryClient();
-  const [confirmation, setConfirmation] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-
-  const devenirEntrepreneur = useMutation({
-    mutationFn: () => api.post('/carriere/devenir-entrepreneur'),
-    onSuccess: () => {
-      jouerSon('niveau');
-      setConfirmation(false);
-      queryClient.invalidateQueries({ queryKey: ['carriere'] });
-    },
-    onError: (err) => {
-      jouerSon('echec');
-      setErreur(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
-      setConfirmation(false);
-      setTimeout(() => setErreur(null), 3500);
-    },
-  });
-
+function CarteEntrepreneur({ dejaEntrepreneur, nomEntreprise }: { dejaEntrepreneur: boolean; nomEntreprise: string | null }) {
   if (dejaEntrepreneur) {
     return (
-      <div className="rounded-xl border border-pierre/70 px-3 py-2 text-sm text-graphite/70">
-        🚀 Tu diriges déjà ta propre entreprise
-      </div>
+      <Link href="/app/entreprise" className="block rounded-xl border border-pierre/70 px-3 py-2 transition-colors hover:border-terracotta">
+        <p className="text-sm font-medium text-graphite">🏢 {nomEntreprise || 'Ton entreprise'}</p>
+        <p className="mt-0.5 text-xs text-graphite/50">Voir les marchés disponibles →</p>
+      </Link>
     );
   }
 
   return (
-    <div className="rounded-xl border border-pierre/70 px-3 py-2">
+    <Link href="/app/entreprise" className="block rounded-xl border border-pierre/70 px-3 py-2 transition-colors hover:border-terracotta">
       <p className="text-sm font-medium text-graphite">🚀 Créer ton entreprise</p>
       <p className="mt-0.5 text-xs text-graphite/50">Change de filière sans perdre ton niveau, ton XP ni ta réputation.</p>
-      {erreur && <p className="mt-1.5 text-xs font-semibold text-terracotta">{erreur}</p>}
-      <button
-        onClick={() => (confirmation ? devenirEntrepreneur.mutate() : setConfirmation(true))}
-        disabled={devenirEntrepreneur.isPending}
-        className={`mt-1.5 w-full rounded-full py-1.5 text-xs font-bold text-ivoire transition-colors disabled:opacity-50 ${confirmation ? 'bg-terracotta' : 'bg-graphite/80 hover:bg-graphite'}`}
-      >
-        {devenirEntrepreneur.isPending ? 'Reconversion…' : confirmation ? 'Confirmer la reconversion ?' : 'Créer mon entreprise'}
-      </button>
-    </div>
+    </Link>
   );
 }

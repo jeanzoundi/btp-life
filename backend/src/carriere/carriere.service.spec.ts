@@ -73,4 +73,58 @@ describe('CarriereService.devenirEntrepreneur', () => {
       }),
     });
   });
+
+  it('enregistre le nom d’entreprise choisi dès la création, quand il est fourni', async () => {
+    const prisma = fakePrisma({});
+    const { svc } = await service(prisma);
+    await svc.devenirEntrepreneur('u1', '  BTP Excellence  ');
+    const appelUpdate = prisma.userCarriere.update.mock.calls[0][0];
+    expect(appelUpdate.data.nomEntreprise).toBe('BTP Excellence');
+  });
+
+  it("n'écrit pas nomEntreprise si aucun nom n'est fourni", async () => {
+    const prisma = fakePrisma({});
+    const { svc } = await service(prisma);
+    await svc.devenirEntrepreneur('u1');
+    const appelUpdate = prisma.userCarriere.update.mock.calls[0][0];
+    expect(appelUpdate.data).not.toHaveProperty('nomEntreprise');
+  });
+});
+
+describe('CarriereService.renommerEntreprise', () => {
+  it('refuse un nom vide', async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.renommerEntreprise('u1', '   ')).rejects.toThrow(BadRequestException);
+  });
+
+  it('refuse un nom de plus de 60 caractères', async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.renommerEntreprise('u1', 'x'.repeat(61))).rejects.toThrow(BadRequestException);
+  });
+
+  it("refuse si le joueur n'est pas dans la filière ENTREPRENEUR", async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'CHANTIER', slug: 'chef-chantier' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.renommerEntreprise('u1', 'BTP Excellence')).rejects.toThrow('Réservé aux entrepreneurs');
+  });
+
+  it('met à jour le nom, sans le préfixe/suffixe d’espaces, pour un entrepreneur', async () => {
+    const prisma = fakePrisma({
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.renommerEntreprise('u1', '  Bâtisseurs du Sud  ');
+    expect(resultat).toEqual({ nomEntreprise: 'Bâtisseurs du Sud' });
+  });
 });

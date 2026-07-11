@@ -45,6 +45,7 @@ const SECTIONS_NAV = [
     titre: 'Carrière',
     liens: [
       { href: '/app/parcours', label: 'Mon parcours', icon: '🧭' },
+      { href: '/app/entreprise', label: 'Mon entreprise', icon: '🏢' },
       { href: '/app/cv', label: 'CV virtuel', icon: '📄' },
       { href: '/app/offres', label: 'Offres', icon: '💼' },
       { href: '/app/promotions', label: 'Promotions', icon: '📈' },

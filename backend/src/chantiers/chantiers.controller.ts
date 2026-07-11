@@ -18,6 +18,12 @@ class EmbaucherDto {
   poste: string;
 }
 
+class SoumettreOffreDto {
+  @IsInt()
+  @IsPositive()
+  prixPropose: number;
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('chantiers')
 export class ChantiersController {
@@ -41,6 +47,16 @@ export class ChantiersController {
   @Post(':id/demarrer')
   demarrer(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.chantiersService.demarrer(user.userId, id);
+  }
+
+  @Get('marches')
+  marchesDisponibles(@CurrentUser() user: RequestUser) {
+    return this.chantiersService.marchesDisponibles(user.userId);
+  }
+
+  @Post('marches/:id/soumettre-offre')
+  soumettreOffre(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: SoumettreOffreDto) {
+    return this.chantiersService.soumettreOffre(user.userId, id, dto.prixPropose);
   }
 
   @Post('mine/:id/commander')

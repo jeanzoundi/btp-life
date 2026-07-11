@@ -27,6 +27,8 @@ export interface ConditionsChantier {
   niveauMin: number;
   /** Slugs de profil qui débloquent le chantier indépendamment du niveau (OU, pas ET). */
   postesAutorises?: string[];
+  /** Réputation minimale — utilisé surtout pour les marchés (voir ChantierType.typeMarche). */
+  reputationMin?: number;
 }
 
 export const CONDITIONS_CHANTIER: Record<string, ConditionsChantier> = {
@@ -45,6 +47,12 @@ export const CONDITIONS_CHANTIER: Record<string, ConditionsChantier> = {
     niveauMin: 20,
     postesAutorises: ['conducteur-travaux', 'ingenieur-structure', 'gerant'],
   },
+  // Marchés à appel d'offres (filière ENTREPRENEUR uniquement, voir soumettreOffre) — les publics
+  // exigent plus de réputation, reflet du dossier de candidature d'un vrai marché public.
+  'marche-prive-extension-riviera': { niveauMin: 1, reputationMin: 20 },
+  'marche-prive-immeuble-marcory': { niveauMin: 3, reputationMin: 45 },
+  'marche-public-ecole-yopougon': { niveauMin: 5, reputationMin: 55 },
+  'marche-public-voirie-regionale': { niveauMin: 8, reputationMin: 70 },
 };
 
 export function conditionsChantierPour(slug: string): ConditionsChantier {
@@ -117,10 +125,14 @@ export class ChantiersService {
     return { ...userChantier, postesDisponibles: POSTES, tailleEquipeMax: TAILLE_EQUIPE_MAX };
   }
 
-  /** Chantiers disponibles, annotés du niveau requis et de l'éligibilité du joueur (zone industrielle). */
+  /**
+   * Chantiers disponibles, annotés du niveau requis et de l'éligibilité du joueur (zone
+   * industrielle). Les marchés (typeMarche non nul) n'y figurent pas — ils se remportent par
+   * appel d'offres (voir marchesDisponibles/soumettreOffre), pas par démarrage direct.
+   */
   async disponibles(userId: string) {
     const [chantiers, carriere] = await Promise.all([
-      this.prisma.chantier.findMany({ where: { statut: 'DISPONIBLE' } }),
+      this.prisma.chantier.findMany({ where: { statut: 'DISPONIBLE', typeMarche: null } }),
       this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } }),
     ]);
     const niveauJoueur = carriere?.niveau ?? 1;
@@ -140,6 +152,9 @@ export class ChantiersService {
   async demarrer(userId: string, chantierId: string) {
     const chantier = await this.prisma.chantier.findUnique({ where: { id: chantierId } });
     if (!chantier) throw new NotFoundException('Chantier introuvable');
+    if (chantier.typeMarche) {
+      throw new BadRequestException("Ce chantier est un marché — passe par l'appel d'offres (soumettreOffre), pas par un démarrage direct");
+    }
 
     const conditions = conditionsChantierPour(chantier.slug);
     const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
@@ -191,6 +206,121 @@ export class ChantiersService {
       },
       include: { ouvriers: true },
     });
+  }
+
+  /** Marchés à appel d'offres — réservés à la filière ENTREPRENEUR, annotés du statut d'éligibilité. */
+  async marchesDisponibles(userId: string) {
+    const [marches, carriere] = await Promise.all([
+      this.prisma.chantier.findMany({ where: { statut: 'DISPONIBLE', typeMarche: { not: null } } }),
+      this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } }),
+    ]);
+    const estEntrepreneur = carriere?.profilActuel?.famille === 'ENTREPRENEUR';
+    const niveauJoueur = carriere?.niveau ?? 1;
+    const reputationJoueur = carriere?.reputation ?? 0;
+
+    const dejaObtenus = new Set(
+      (await this.prisma.userChantier.findMany({ where: { userId, chantierId: { in: marches.map((m) => m.id) } }, select: { chantierId: true } })).map(
+        (uc) => uc.chantierId,
+      ),
+    );
+
+    return marches.map((m) => {
+      const conditions = conditionsChantierPour(m.slug);
+      const eligible = estEntrepreneur && niveauJoueur >= conditions.niveauMin && reputationJoueur >= (conditions.reputationMin ?? 0);
+      return {
+        ...m,
+        niveauRequis: conditions.niveauMin,
+        reputationRequise: conditions.reputationMin ?? 0,
+        verrouille: !eligible,
+        entrepreneurRequis: !estEntrepreneur,
+        dejaObtenu: dejaObtenus.has(m.id),
+        prixMin: Math.round(m.budget * 0.6),
+        prixMax: Math.round(m.budget * 1.15),
+      };
+    });
+  }
+
+  /**
+   * Appel d'offres : le joueur propose un prix, en concurrence avec quelques rivaux fictifs.
+   * Le score combine compétitivité du prix et réputation — un marché public pèse davantage la
+   * réputation (exigence de valeur technique, pas seulement le prix le plus bas), un marché privé
+   * pèse davantage le prix. En cas de victoire, le chantier démarre avec le PRIX PROPOSÉ comme
+   * budget réel : miser bas pour l'emporter devient un vrai risque de gestion, pas un bonus gratuit.
+   */
+  async soumettreOffre(userId: string, chantierId: string, prixPropose: number) {
+    const chantier = await this.prisma.chantier.findUnique({ where: { id: chantierId } });
+    if (!chantier || !chantier.typeMarche) throw new BadRequestException("Ce chantier n'est pas un marché à appel d'offres");
+
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
+    if (carriere?.profilActuel?.famille !== 'ENTREPRENEUR') {
+      throw new BadRequestException("Réservé aux entrepreneurs — crée ton entreprise avant de candidater à un marché");
+    }
+
+    const conditions = conditionsChantierPour(chantier.slug);
+    if (carriere.niveau < conditions.niveauMin || carriere.reputation < (conditions.reputationMin ?? 0)) {
+      throw new BadRequestException(
+        `Conditions non remplies : niveau ${conditions.niveauMin}, réputation ${conditions.reputationMin ?? 0} requis (actuels : niveau ${carriere.niveau}, réputation ${carriere.reputation})`,
+      );
+    }
+
+    const dejaEnCours = await this.prisma.userChantier.findFirst({ where: { userId, chantierId, statut: 'en_cours' } });
+    if (dejaEnCours) return { gagne: true, userChantier: dejaEnCours };
+
+    const prixMin = Math.round(chantier.budget * 0.6);
+    const prixMax = Math.round(chantier.budget * 1.15);
+    if (!Number.isFinite(prixPropose) || prixPropose < prixMin || prixPropose > prixMax) {
+      throw new BadRequestException(`Ton offre doit être comprise entre ${prixMin.toLocaleString('fr-FR')} et ${prixMax.toLocaleString('fr-FR')} F`);
+    }
+
+    const poidsPrix = chantier.typeMarche === 'PUBLIC' ? 0.45 : 0.7;
+    const poidsReputation = 1 - poidsPrix;
+    const competitivite = (prix: number) => Math.max(0, Math.min(1, (prixMax - prix) / (prixMax - prixMin)));
+    const scoreJoueur = competitivite(prixPropose) * poidsPrix + (carriere.reputation / 100) * poidsReputation;
+
+    const NB_CONCURRENTS = 3;
+    let meilleurScoreConcurrent = 0;
+    for (let i = 0; i < NB_CONCURRENTS; i++) {
+      const prixConcurrent = prixMin + Math.random() * (prixMax - prixMin);
+      const reputationConcurrente = 30 + Math.random() * 60;
+      const scoreConcurrent = competitivite(prixConcurrent) * poidsPrix + (reputationConcurrente / 100) * poidsReputation;
+      meilleurScoreConcurrent = Math.max(meilleurScoreConcurrent, scoreConcurrent);
+    }
+
+    if (scoreJoueur < meilleurScoreConcurrent) {
+      await this.progression.appliquerDelta(userId, { xp: 15 });
+      return {
+        gagne: false,
+        message: "Un concurrent a remporté ce marché — retente avec un prix plus compétitif ou davantage de réputation.",
+      };
+    }
+
+    const nouveau = await this.prisma.userChantier.create({
+      data: {
+        userId,
+        chantierId,
+        statut: 'en_cours',
+        phaseCourante: 0,
+        budgetRestant: prixPropose,
+        joursRestants: chantier.delaiJours,
+        stock: {},
+        avancementPhases: {},
+        evenementsLog: [
+          {
+            jour: 0,
+            type: 'info',
+            texte: `Appel d'offres remporté ! Budget contractuel (ton offre) : ${prixPropose.toLocaleString('fr-FR')} F, délai ${chantier.delaiJours} jours.`,
+          },
+        ] as unknown as Prisma.InputJsonValue,
+        ouvriers: {
+          create: [
+            { nom: NOMS[Math.floor(Math.random() * NOMS.length)], poste: 'Maçon', competence: 65, salaireJournalier: POSTES['Maçon'].salaire },
+            { nom: NOMS[Math.floor(Math.random() * NOMS.length)], poste: 'Manœuvre', competence: 40, salaireJournalier: POSTES['Manœuvre'].salaire },
+          ],
+        },
+      },
+      include: { ouvriers: true },
+    });
+    return { gagne: true, userChantier: nouveau };
   }
 
   /** Commande de matériaux : consomme le budget, alimente le stock (livraison immédiate en v1). */

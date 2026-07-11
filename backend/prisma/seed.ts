@@ -3167,6 +3167,8 @@ async function main() {
   const chantiersGestion: Array<{
     slug: string; nom: string; typeProjet: 'DALLE' | 'CLOTURE' | 'CHAMBRE' | 'R_PLUS_1' | 'ROUTE' | 'URBAIN' | 'DALOT' | 'CANIVEAU' | 'ECOLE' | 'CENTRE_SANTE' | 'MAISON' | 'INDUSTRIEL'; budget: number; delaiJours: number;
     description: string; localisation: string; materiaux: Array<keyof typeof MATERIAUX>; phases: PhaseGestion[];
+    /** Non défini = chantier classique. Défini = marché à appel d'offres (filière ENTREPRENEUR, voir soumettreOffre). */
+    typeMarche?: 'PRIVE' | 'PUBLIC';
   }> = [
     {
       slug: 'dalle-riviera', nom: 'Dalle — Villa Riviera', typeProjet: 'DALLE', budget: 3500000, delaiJours: 15,
@@ -3314,6 +3316,59 @@ async function main() {
         { nom: 'Finitions et mise en service', joursEstimes: 10, equipeMin: 4, materiaux: { Ciment: 30, Sable: 10 }, missions: [] },
       ],
     },
+    // ── Marchés à appel d'offres (filière ENTREPRENEUR uniquement) — remportés en soumettant
+    // un prix concurrentiel plutôt que débloqués par niveau seul (voir soumettreOffre).
+    {
+      slug: 'marche-prive-extension-riviera', nom: 'Extension de villa — Client particulier, Riviera', typeProjet: 'DALLE', budget: 4500000, delaiJours: 18,
+      typeMarche: 'PRIVE',
+      description: "Un particulier veut agrandir sa villa. Marché privé : le prix pèse lourd dans la sélection, mais un dossier léger suffit.",
+      localisation: 'Riviera, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'planches'],
+      phases: [
+        { nom: 'Fondations de l\'extension', joursEstimes: 5, equipeMin: 3, materiaux: { Ciment: 35, Sable: 5, Gravier: 8, 'Fer HA': 28 }, missions: [] },
+        { nom: 'Élévation et dalle', joursEstimes: 8, equipeMin: 3, materiaux: { Ciment: 40, Sable: 7, Gravier: 10, 'Fer HA': 22, 'Planches coffrage': 18 }, missions: [] },
+        { nom: 'Finitions', joursEstimes: 5, equipeMin: 2.5, materiaux: { Ciment: 15, Sable: 3 }, missions: [] },
+      ],
+    },
+    {
+      slug: 'marche-prive-immeuble-marcory', nom: 'Immeuble de bureaux — Promoteur privé, Marcory', typeProjet: 'R_PLUS_1', budget: 13000000, delaiJours: 32,
+      typeMarche: 'PRIVE',
+      description: "Un promoteur privé lance un petit immeuble de bureaux. Marché privé plus ambitieux : réputation utile, mais le prix reste déterminant.",
+      localisation: 'Marcory, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'agglos', 'planches'],
+      phases: [
+        { nom: 'Fondations', joursEstimes: 6, equipeMin: 3.5, materiaux: { Ciment: 60, Sable: 9, Gravier: 15, 'Fer HA': 50 }, missions: [] },
+        { nom: 'Structure et élévation', joursEstimes: 12, equipeMin: 4, materiaux: { 'Agglos 15': 1600, Ciment: 55, Sable: 11, 'Fer HA': 30, 'Planches coffrage': 25 }, missions: [] },
+        { nom: 'Second œuvre', joursEstimes: 9, equipeMin: 3.5, materiaux: { Ciment: 25, Sable: 6 }, missions: [] },
+        { nom: 'Finitions et livraison', joursEstimes: 5, equipeMin: 3, materiaux: { Ciment: 15, Sable: 4 }, missions: [] },
+      ],
+    },
+    {
+      slug: 'marche-public-ecole-yopougon', nom: 'Réhabilitation d\'école publique — Mairie de Yopougon', typeProjet: 'ECOLE', budget: 9500000, delaiJours: 28,
+      typeMarche: 'PUBLIC',
+      description: "Appel d'offres de la mairie pour réhabiliter une école. Marché public : la réputation (valeur technique du dossier) compte presque autant que le prix.",
+      localisation: 'Yopougon, Abidjan',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer', 'agglos'],
+      phases: [
+        { nom: 'Diagnostic et reprises de structure', joursEstimes: 6, equipeMin: 3.5, materiaux: { Ciment: 40, Sable: 6, Gravier: 10, 'Fer HA': 30 }, missions: [] },
+        { nom: 'Reprise des salles de classe', joursEstimes: 10, equipeMin: 4, materiaux: { 'Agglos 15': 900, Ciment: 35, Sable: 7 }, missions: [] },
+        { nom: 'Toiture et menuiseries', joursEstimes: 7, equipeMin: 3, materiaux: { Ciment: 15, 'Fer HA': 12 }, missions: [] },
+        { nom: 'Finitions et réception', joursEstimes: 5, equipeMin: 3, materiaux: { Ciment: 12, Sable: 3 }, missions: [] },
+      ],
+    },
+    {
+      slug: 'marche-public-voirie-regionale', nom: 'Voirie communale — Conseil régional', typeProjet: 'ROUTE', budget: 21000000, delaiJours: 42,
+      typeMarche: 'PUBLIC',
+      description: "Le plus gros marché du jeu : réfection de voirie pour le conseil régional. Exige une réputation solide — la concurrence est rude et le dossier technique pèse lourd.",
+      localisation: 'Zone régionale',
+      materiaux: ['ciment', 'sable', 'gravier', 'fer'],
+      phases: [
+        { nom: 'Terrassement', joursEstimes: 9, equipeMin: 4.5, materiaux: { Gravier: 60, Sable: 14 }, missions: [] },
+        { nom: 'Fondation de chaussée', joursEstimes: 12, equipeMin: 5, materiaux: { Gravier: 90, Ciment: 45, 'Fer HA': 15 }, missions: [] },
+        { nom: 'Revêtement', joursEstimes: 12, equipeMin: 4.5, materiaux: { Ciment: 55, Sable: 18, Gravier: 30 }, missions: [] },
+        { nom: 'Signalisation et finitions', joursEstimes: 9, equipeMin: 3.5, materiaux: { Ciment: 20, Sable: 6 }, missions: [] },
+      ],
+    },
   ];
 
   for (const c of chantiersGestion) {
@@ -3323,8 +3378,9 @@ async function main() {
         slug: c.slug, nom: c.nom, typeProjet: c.typeProjet, paysId: civ.id,
         clientPnjId: pnjs['client-madame-toure'].id, localisationFictive: c.localisation,
         budget: c.budget, devise: 'FCFA', delaiJours: c.delaiJours, description: c.description, statut: 'DISPONIBLE',
+        typeMarche: c.typeMarche,
       },
-      update: { nom: c.nom, budget: c.budget, delaiJours: c.delaiJours, description: c.description, statut: 'DISPONIBLE' },
+      update: { nom: c.nom, budget: c.budget, delaiJours: c.delaiJours, description: c.description, statut: 'DISPONIBLE', typeMarche: c.typeMarche },
     });
 
     // Phases recréées avec leurs besoins (jours, équipe, matériaux)

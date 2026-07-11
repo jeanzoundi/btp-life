@@ -294,3 +294,133 @@ describe('ChantiersService (livraison — notation finale)', () => {
     );
   });
 });
+
+describe('ChantiersService.soumettreOffre — appel d’offres des marchés', () => {
+  const marchePrive = { id: 'c1', slug: 'marche-prive-extension-riviera', typeMarche: 'PRIVE', budget: 4_500_000, delaiJours: 18 };
+  const marchePublic = { id: 'c2', slug: 'marche-public-ecole-yopougon', typeMarche: 'PUBLIC', budget: 9_500_000, delaiJours: 28 };
+  const entrepreneurEligible = { niveau: 10, reputation: 80, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('refuse une offre sur un chantier qui n’est pas un marché', async () => {
+    const prisma = fakePrisma({ chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', typeMarche: null }) } });
+    const { svc } = await service(prisma);
+    await expect(svc.soumettreOffre('u1', 'c1', 4_000_000)).rejects.toThrow("n'est pas un marché");
+  });
+
+  it('refuse si le joueur n’est pas dans la filière ENTREPRENEUR', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 80, profilActuel: { famille: 'CHANTIER', slug: 'chef-chantier' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.soumettreOffre('u1', 'c1', 4_000_000)).rejects.toThrow('Réservé aux entrepreneurs');
+  });
+
+  it('refuse si le niveau ou la réputation du marché ne sont pas atteints', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePublic) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 10, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.soumettreOffre('u2', 'c2', 8_000_000)).rejects.toThrow('Conditions non remplies');
+  });
+
+  it('refuse une offre hors de la fourchette [60%, 115%] du budget de référence', async () => {
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(entrepreneurEligible) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.soumettreOffre('u1', 'c1', 999)).rejects.toThrow('Ton offre doit être comprise entre');
+    await expect(svc.soumettreOffre('u1', 'c1', 999_999_999)).rejects.toThrow('Ton offre doit être comprise entre');
+  });
+
+  it('gagne face à des concurrents fictifs avec un prix très compétitif et une bonne réputation', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // concurrents "moyens" : prix médian, réputation ~60
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(entrepreneurEligible) },
+      userChantier: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'uc-marche', ...data })) },
+    });
+    const { svc } = await service(prisma);
+    const prixTresBas = Math.round(marchePrive.budget * 0.6); // le minimum autorisé : offre imbattable sur le prix
+    const resultat = await svc.soumettreOffre('u1', 'c1', prixTresBas);
+    expect(resultat.gagne).toBe(true);
+    expect(resultat.userChantier?.budgetRestant).toBe(prixTresBas);
+  });
+
+  it('perd face à des concurrents fictifs avec une offre chère et une réputation basse', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 21, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+    });
+    const { svc, progression } = await service(prisma);
+    const prixTresHaut = Math.round(marchePrive.budget * 1.15); // le maximum autorisé : offre la moins compétitive possible
+    const resultat = await svc.soumettreOffre('u1', 'c1', prixTresHaut);
+    expect(resultat.gagne).toBe(false);
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 15 });
+  });
+
+  it('pèse la réputation plus lourd sur un marché public qu’un marché privé', async () => {
+    // Même compétitivité de prix (médiocre, 20 %) et même réputation (90) sur les deux marchés :
+    // scoreConcurrent identique des deux côtés (0.53, avec Math.random figé à 0.5) ; seul le
+    // poids de la réputation diffère selon typeMarche, ce qui doit suffire à faire perdre le
+    // privé (poids réputation 0.3 → score 0.41) et gagner le public (poids 0.55 → score 0.585).
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const carriereTresReputee = { niveau: 10, reputation: 90, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
+    // Prix à 20 % de compétitivité : proche du plafond, donc peu compétitif sur le prix seul.
+    const prixPeuCompetitif = (chantier: { budget: number }) => {
+      const prixMin = Math.round(chantier.budget * 0.6);
+      const prixMax = Math.round(chantier.budget * 1.15);
+      return Math.round(prixMax - 0.2 * (prixMax - prixMin));
+    };
+
+    const prismaPrive = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(carriereTresReputee) },
+    });
+    const prismaPublic = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePublic) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(carriereTresReputee) },
+      userChantier: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'uc-marche', ...data })) },
+    });
+    const { svc: svcPrive } = await service(prismaPrive);
+    const { svc: svcPublic } = await service(prismaPublic);
+
+    const resultatPrive = await svcPrive.soumettreOffre('u1', 'c1', prixPeuCompetitif(marchePrive));
+    const resultatPublic = await svcPublic.soumettreOffre('u1', 'c2', prixPeuCompetitif(marchePublic));
+
+    expect(resultatPublic.gagne).toBe(true);
+    expect(resultatPrive.gagne).toBe(false);
+  });
+});
+
+describe('ChantiersService.marchesDisponibles', () => {
+  it('renvoie une liste vide de marchés accessibles pour un non-entrepreneur (tous verrouillés)', async () => {
+    const prisma = fakePrisma({
+      chantier: { findMany: jest.fn().mockResolvedValue([{ id: 'c1', slug: 'marche-prive-extension-riviera', budget: 4_500_000 }]) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 80, profilActuel: { famille: 'CHANTIER' } }) },
+      userChantier: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const { svc } = await service(prisma);
+    const [marche] = await svc.marchesDisponibles('u1');
+    expect(marche.verrouille).toBe(true);
+    expect(marche.entrepreneurRequis).toBe(true);
+  });
+
+  it('annote le marché comme accessible pour un entrepreneur qui remplit les conditions', async () => {
+    const prisma = fakePrisma({
+      chantier: { findMany: jest.fn().mockResolvedValue([{ id: 'c1', slug: 'marche-prive-extension-riviera', budget: 4_500_000 }]) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 80, profilActuel: { famille: 'ENTREPRENEUR' } }) },
+      userChantier: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    const { svc } = await service(prisma);
+    const [marche] = await svc.marchesDisponibles('u1');
+    expect(marche.verrouille).toBe(false);
+    expect(marche.entrepreneurRequis).toBe(false);
+    expect(marche.prixMin).toBe(Math.round(4_500_000 * 0.6));
+    expect(marche.prixMax).toBe(Math.round(4_500_000 * 1.15));
+  });
+});

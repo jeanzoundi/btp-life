@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsObject, IsOptional, IsPositive, IsString, Max } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsObject, IsOptional, IsPositive, IsString, Max, MaxLength } from 'class-validator';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -49,4 +49,17 @@ export class MontantDto {
   @IsPositive()
   @Max(10_000_000)
   montant: number;
+}
+
+export class DevenirEntrepreneurDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  nomEntreprise?: string;
+}
+
+export class NomEntrepriseDto {
+  @IsString()
+  @MaxLength(60)
+  nom: string;
 }

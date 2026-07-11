@@ -43,6 +43,11 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
     texte:
       "Voici le chemin que tu as choisi pour ta carrière, étape par étape. Ta position actuelle est mise en avant — chaque promotion te fait avancer sur cette ligne.",
   },
+  '/app/entreprise': {
+    titre: 'Mon entreprise',
+    texte:
+      "Une fois ton entreprise créée, tu peux candidater à des marchés — privés (le prix compte le plus) ou publics (ta réputation pèse presque autant que le prix). Propose ton prix : trop bas, tu gagnes plus facilement mais ton budget de chantier sera serré ; trop haut, un concurrent peut te passer devant.",
+  },
   '/app/cv': {
     titre: 'Ton CV virtuel',
     texte:

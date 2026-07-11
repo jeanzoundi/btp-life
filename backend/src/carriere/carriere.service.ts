@@ -188,7 +188,10 @@ export class CarriereService {
       : 0;
 
     // Piste 4 : créer son entreprise — toujours ouverte, sauf si déjà dans la filière ENTREPRENEUR.
-    const entreprise = { dejaEntrepreneur: carriere?.profilActuel?.famille === 'ENTREPRENEUR' };
+    const entreprise = {
+      dejaEntrepreneur: carriere?.profilActuel?.famille === 'ENTREPRENEUR',
+      nomEntreprise: carriere?.nomEntreprise ?? null,
+    };
 
     return {
       ...compat,
@@ -203,9 +206,10 @@ export class CarriereService {
   /**
    * Reconversion vers l'entrepreneuriat : accessible à tout moment, quelle que soit la filière
    * actuelle — contrairement à `setProfilActuel` (réservé à l'onboarding), niveau/xp/réputation
-   * sont préservés, ce n'est pas un reset mais un changement de cap.
+   * sont préservés, ce n'est pas un reset mais un changement de cap. Le nom d'entreprise est
+   * optionnel ici (le joueur peut le choisir tout de suite ou plus tard via renommerEntreprise).
    */
-  async devenirEntrepreneur(userId: string) {
+  async devenirEntrepreneur(userId: string, nomEntreprise?: string) {
     const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
     if (!carriere) throw new NotFoundException('Carrière introuvable');
     if (carriere.profilActuel?.famille === 'ENTREPRENEUR') {
@@ -214,9 +218,10 @@ export class CarriereService {
     const profilEntree = await this.prisma.profil.findFirst({ where: { famille: 'ENTREPRENEUR', ordre: 1 } });
     if (!profilEntree) throw new NotFoundException('Filière entrepreneuriale introuvable');
 
+    const nomPropre = nomEntreprise?.trim();
     const maj = await this.prisma.userCarriere.update({
       where: { userId },
-      data: { profilActuelId: profilEntree.id },
+      data: { profilActuelId: profilEntree.id, ...(nomPropre ? { nomEntreprise: nomPropre } : {}) },
       include: { profilActuel: true },
     });
     await this.prisma.carriereHistorique.create({
@@ -224,10 +229,23 @@ export class CarriereService {
         userId,
         type: 'CREATION_ENTREPRISE',
         profilId: profilEntree.id,
-        details: { depuis: carriere.profilActuel?.slug ?? null },
+        details: { depuis: carriere.profilActuel?.slug ?? null, nomEntreprise: nomPropre ?? null },
       },
     });
     return maj;
+  }
+
+  /** Renomme l'entreprise — réservé à la filière ENTREPRENEUR, modifiable à tout moment ensuite. */
+  async renommerEntreprise(userId: string, nom: string) {
+    const nomPropre = nom.trim();
+    if (!nomPropre) throw new BadRequestException('Le nom ne peut pas être vide');
+    if (nomPropre.length > 60) throw new BadRequestException('Le nom est trop long (60 caractères max)');
+
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, include: { profilActuel: true } });
+    if (carriere?.profilActuel?.famille !== 'ENTREPRENEUR') {
+      throw new BadRequestException("Réservé aux entrepreneurs — crée ton entreprise avant de la nommer");
+    }
+    return this.prisma.userCarriere.update({ where: { userId }, data: { nomEntreprise: nomPropre } });
   }
 
   /**

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
@@ -83,8 +83,13 @@ export class CarriereController {
   }
 
   @Post('devenir-entrepreneur')
-  devenirEntrepreneur(@CurrentUser() user: RequestUser) {
-    return this.carriereService.devenirEntrepreneur(user.userId);
+  devenirEntrepreneur(@CurrentUser() user: RequestUser, @Body() dto: DevenirEntrepreneurDto) {
+    return this.carriereService.devenirEntrepreneur(user.userId, dto.nomEntreprise);
+  }
+
+  @Patch('nom-entreprise')
+  renommerEntreprise(@CurrentUser() user: RequestUser, @Body() dto: NomEntrepriseDto) {
+    return this.carriereService.renommerEntreprise(user.userId, dto.nom);
   }
 
   @Post('besoins/:action')

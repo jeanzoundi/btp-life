@@ -111,6 +111,14 @@ enum ChantierType {
   URBAIN
 }
 
+// Marché à appel d'offres, réservé aux entrepreneurs (voir ChantiersService.soumettreOffre) —
+// orthogonal à ChantierType : un marché reste un projet d'école/route/etc., mais on y accède
+// en remportant un appel d'offres plutôt qu'en le débloquant directement par niveau.
+enum TypeMarche {
+  PRIVE
+  PUBLIC
+}
+
 enum ChantierStatut {
   BROUILLON
   DISPONIBLE
@@ -362,6 +370,9 @@ model UserCarriere {
   derniereMajBesoins       DateTime     @default(now())
   // Traits de personnalité choisis à la création (2-3 slugs), donnent de petits bonus thématiques.
   traits                   Json?
+  // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
+  // et pour candidater aux marchés (voir Chantier.typeMarche).
+  nomEntreprise            String?
   updatedAt                DateTime     @updatedAt
 }
 
@@ -599,6 +610,8 @@ model Chantier {
   delaiJours          Int
   description         String?
   statut              ChantierStatut @default(BROUILLON)
+  // Non nul = marché à appel d'offres (voir TypeMarche) ; nul = chantier classique débloqué par niveau.
+  typeMarche          TypeMarche?
 
   phases        ChantierPhase[]
   ressources    ChantierRessource[]
