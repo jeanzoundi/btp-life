@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthGuard } from '@/components/app/auth-guard';
 import { api } from '@/lib/api';
 import { AvatarBtp, AVATAR_DEFAUT, OPTIONS_AVATAR, type AvatarConfig } from '@/components/app/avatar-btp';
@@ -29,6 +29,7 @@ interface Parcours {
 
 function OnboardingContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [etape, setEtape] = useState(1);
   const [nomPersonnage, setNomPersonnage] = useState('');
   const [config, setConfig] = useState<AvatarConfig>(AVATAR_DEFAUT);
@@ -63,6 +64,7 @@ function OnboardingContent() {
         equipement: 'casque',
         config,
       });
+      queryClient.invalidateQueries({ queryKey: ['carriere'] });
       setEtape(2);
     } finally {
       setLoading(false);
@@ -77,6 +79,7 @@ function OnboardingContent() {
     setLoading(true);
     try {
       await api.patch('/carriere/traits', { traits: traitsChoisis });
+      queryClient.invalidateQueries({ queryKey: ['carriere'] });
       setEtape(3);
     } finally {
       setLoading(false);
@@ -87,6 +90,7 @@ function OnboardingContent() {
     setLoading(true);
     try {
       await api.patch('/carriere/profil-actuel', { profilId });
+      queryClient.invalidateQueries({ queryKey: ['carriere'] });
       setEtape(4);
     } finally {
       setLoading(false);
@@ -99,6 +103,7 @@ function OnboardingContent() {
       await api.patch('/carriere/metier-cible', { metierCibleId });
       const p = await api.post<Parcours>('/carriere/generer-parcours');
       setParcours(p);
+      queryClient.invalidateQueries({ queryKey: ['carriere'] });
       setEtape(5);
     } finally {
       setLoading(false);

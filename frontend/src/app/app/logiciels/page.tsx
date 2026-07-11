@@ -109,7 +109,7 @@ export default function LogicielsPage() {
               </div>
 
               <div className="mt-2.5 flex-1 space-y-1 sm:mt-3 sm:space-y-1.5">
-                {l.exercices
+                {(l.exercices ?? [])
                   .slice()
                   .sort((a, b) => a.niveau - b.niveau)
                   .map((e) => {

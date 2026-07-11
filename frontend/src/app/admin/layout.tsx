@@ -68,19 +68,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ← App
           </Link>
         </div>
-        <nav className="flex gap-1.5 overflow-x-auto px-4 pb-3">
-          {SECTIONS.map((s) => (
-            <Link
-              key={s.href}
-              href={s.href}
-              className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
-                pathname === s.href ? 'bg-terracotta text-ivoire' : 'bg-ivoire/10 text-ivoire/70'
-              }`}
-            >
-              {s.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Le fondu à droite indique qu'il y a d'autres sections à faire défiler — sans lui,
+            un item au-delà de la largeur visible (ex. "Générer un cours", 6e sur 12) passe
+            facilement inaperçu. */}
+        <div className="relative">
+          <nav className="flex gap-1.5 overflow-x-auto px-4 pb-3">
+            {SECTIONS.map((s) => (
+              <Link
+                key={s.href}
+                href={s.href}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  pathname === s.href ? 'bg-terracotta text-ivoire' : 'bg-ivoire/10 text-ivoire/70'
+                }`}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="pointer-events-none absolute bottom-3 right-0 top-0 w-8 bg-gradient-to-l from-graphite to-transparent" />
+        </div>
       </div>
 
       <main className="flex-1 overflow-x-hidden bg-ivoire p-4 md:p-6">{children}</main>
