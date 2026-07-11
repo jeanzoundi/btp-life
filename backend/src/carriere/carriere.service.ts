@@ -48,8 +48,11 @@ export class CarriereService {
   async setProfilActuel(userId: string, dto: SetProfilActuelDto) {
     const profil = await this.prisma.profil.findUnique({ where: { id: dto.profilId } });
     if (!profil) throw new NotFoundException('Profil introuvable');
-    const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { xp: true } });
-    const niveau = Math.max(1, profil.niveauDepart);
+    const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true, xp: true } });
+    // Ne jamais rétrograder : cette route est censée servir à l'onboarding (premier choix de
+    // profil), mais si elle est rappelée plus tard (onglet resté ouvert, retour arrière) sur un
+    // joueur qui a déjà progressé, niveauDepart du profil ne doit jamais faire reculer son niveau.
+    const niveau = Math.max(1, profil.niveauDepart, carriereActuelle?.niveau ?? 1);
     // On fixe aussi l'XP au minimum requis pour ce niveau — sinon le premier gain d'XP (une
     // simple mission) recalcule niveau = xpToNiveau(xp) à partir d'un xp resté proche de 0, et
     // écrase silencieusement le niveau de départ du profil choisi.

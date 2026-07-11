@@ -146,6 +146,24 @@ describe('CarriereService.setProfilActuel', () => {
     });
   });
 
+  it("ne rétrograde jamais un niveau déjà supérieur à celui du profil choisi (ré-entrée dans l'onboarding)", async () => {
+    const xpActuel = xpRequisPourNiveau(12) + 5000;
+    const prisma = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-etudiant-chantier', niveauDepart: 1 }) },
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ niveau: 12, xp: xpActuel }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.setProfilActuel('u1', { profilId: 'profil-etudiant-chantier' } as never);
+    expect(resultat).toEqual({
+      profilActuelId: 'profil-etudiant-chantier',
+      niveau: 12,
+      xp: xpActuel,
+    });
+  });
+
   it("échoue proprement si le profil n'existe pas", async () => {
     const prisma = fakePrisma({
       profil: { findUnique: jest.fn().mockResolvedValue(null) },
