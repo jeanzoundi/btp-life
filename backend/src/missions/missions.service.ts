@@ -122,7 +122,9 @@ export class MissionsService {
     const xpBase = resultat.reussie ? resultat.score * 2 : Math.round(resultat.score * 0.5);
     const xpGagne = Math.round(xpBase * facteurBesoins);
     const reputationDelta = resultat.reputationDelta + (resultat.reussie ? 2 : -1);
-    const argentDelta = resultat.budgetDelta + (resultat.reussie ? 50 : 10);
+    // Montants x10 par rapport à l'origine pour rester proportionnels aux budgets de chantier
+    // (en millions) — voir CONDITIONS_CHANTIER/apportPersonnelRequis dans chantiers.service.ts.
+    const argentDelta = resultat.budgetDelta + (resultat.reussie ? 500 : 100);
 
     const carriereAvant = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
     await this.progression.appliquerDelta(userId, {

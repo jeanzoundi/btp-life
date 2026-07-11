@@ -47,12 +47,15 @@ export const CONDITIONS_CHANTIER: Record<string, ConditionsChantier> = {
     niveauMin: 20,
     postesAutorises: ['conducteur-travaux', 'ingenieur-structure', 'gerant'],
   },
-  // Marchés à appel d'offres (filière ENTREPRENEUR uniquement, voir soumettreOffre) — les publics
-  // exigent plus de réputation, reflet du dossier de candidature d'un vrai marché public.
-  'marche-prive-extension-riviera': { niveauMin: 1, reputationMin: 20 },
-  'marche-prive-immeuble-marcory': { niveauMin: 3, reputationMin: 45 },
-  'marche-public-ecole-yopougon': { niveauMin: 5, reputationMin: 55 },
-  'marche-public-voirie-regionale': { niveauMin: 8, reputationMin: 70 },
+  // Marchés à appel d'offres (filière ENTREPRENEUR uniquement, voir soumettreOffre). Réputation
+  // sur l'échelle 0-1000 (voir UserCarriere.reputation) ; niveauMin part à 30 — le plancher pour
+  // devenir entrepreneur (voir CarriereService.devenirEntrepreneur) — sinon ces seuils seraient
+  // toujours trivialement remplis dès l'entrée dans la filière. Les publics exigent plus de
+  // réputation, reflet du dossier de candidature d'un vrai marché public.
+  'marche-prive-extension-riviera': { niveauMin: 30, reputationMin: 200 },
+  'marche-prive-immeuble-marcory': { niveauMin: 40, reputationMin: 450 },
+  'marche-public-ecole-yopougon': { niveauMin: 55, reputationMin: 550 },
+  'marche-public-voirie-regionale': { niveauMin: 75, reputationMin: 700 },
 };
 
 export function conditionsChantierPour(slug: string): ConditionsChantier {
@@ -70,7 +73,7 @@ export function chantierEstAccessible(slug: string, niveau: number, profilActuel
 // avec l'argent personnel du joueur — voir argentVirtuel). Investir cet apport relie enfin la
 // gestion de chantier à l'argent réellement gagné par le joueur, plutôt qu'un aller simple.
 export function apportPersonnelRequis(niveauMin: number): number {
-  return Math.max(300, niveauMin * 500);
+  return Math.max(3000, niveauMin * 5000);
 }
 
 interface Besoins {
@@ -275,14 +278,15 @@ export class ChantiersService {
     const poidsPrix = chantier.typeMarche === 'PUBLIC' ? 0.45 : 0.7;
     const poidsReputation = 1 - poidsPrix;
     const competitivite = (prix: number) => Math.max(0, Math.min(1, (prixMax - prix) / (prixMax - prixMin)));
-    const scoreJoueur = competitivite(prixPropose) * poidsPrix + (carriere.reputation / 100) * poidsReputation;
+    // Réputation sur l'échelle 0-1000 (voir UserCarriere.reputation) — pas 0-100.
+    const scoreJoueur = competitivite(prixPropose) * poidsPrix + (carriere.reputation / 1000) * poidsReputation;
 
     const NB_CONCURRENTS = 3;
     let meilleurScoreConcurrent = 0;
     for (let i = 0; i < NB_CONCURRENTS; i++) {
       const prixConcurrent = prixMin + Math.random() * (prixMax - prixMin);
-      const reputationConcurrente = 30 + Math.random() * 60;
-      const scoreConcurrent = competitivite(prixConcurrent) * poidsPrix + (reputationConcurrente / 100) * poidsReputation;
+      const reputationConcurrente = 300 + Math.random() * 600;
+      const scoreConcurrent = competitivite(prixConcurrent) * poidsPrix + (reputationConcurrente / 1000) * poidsReputation;
       meilleurScoreConcurrent = Math.max(meilleurScoreConcurrent, scoreConcurrent);
     }
 
@@ -650,7 +654,9 @@ export class ChantiersService {
     await this.progression.appliquerDelta(userId, {
       xp: note === 'A' ? 400 : note === 'B' ? 250 : note === 'C' ? 120 : 50,
       reputation: note === 'A' ? 10 : note === 'B' ? 5 : note === 'C' ? 0 : -5,
-      argentVirtuel: (note === 'A' ? 800 : note === 'B' ? 500 : note === 'C' ? 200 : 0) + Math.round(uc.budgetRestant / 1000),
+      // x10 sur le bonus fixe ET sur le ratio de conversion budget→argent personnel, pour
+      // garder la même proportion relative entre les deux qu'avant le rééquilibrage.
+      argentVirtuel: (note === 'A' ? 8000 : note === 'B' ? 5000 : note === 'C' ? 2000 : 0) + Math.round(uc.budgetRestant / 100),
     });
 
     await this.prisma.carriereHistorique.create({

@@ -7,8 +7,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 
 interface CarriereMe {
+  niveau: number;
   profilActuel?: { nom: string; famille: string } | null;
   nomEntreprise?: string | null;
+}
+interface ProchaineEtape {
+  entreprise: { dejaEntrepreneur: boolean; eligible: boolean; niveauRequis: number };
 }
 interface Marche {
   id: string;
@@ -48,6 +52,10 @@ export default function EntreprisePage() {
   const { data: carriere, isLoading: chargementCarriere } = useQuery({
     queryKey: ['carriere', 'me'],
     queryFn: () => api.get<CarriereMe>('/carriere/me'),
+  });
+  const { data: prochaineEtape } = useQuery({
+    queryKey: ['carriere', 'prochaine-etape'],
+    queryFn: () => api.get<ProchaineEtape>('/carriere/prochaine-etape'),
   });
   const estEntrepreneur = carriere?.profilActuel?.famille === 'ENTREPRENEUR';
 
@@ -95,13 +103,33 @@ export default function EntreprisePage() {
   if (chargementCarriere) return <p className="text-sm text-graphite/60">Chargement…</p>;
 
   if (!estEntrepreneur) {
+    const eligible = prochaineEtape?.entreprise.eligible ?? false;
+    const niveauRequis = prochaineEtape?.entreprise.niveauRequis ?? 30;
+
+    if (!eligible) {
+      return (
+        <div className="mx-auto max-w-lg space-y-4 text-center">
+          <p className="text-4xl">🔒</p>
+          <h1 className="font-display text-2xl font-bold text-graphite">Pas encore prêt(e) à te lancer</h1>
+          <p className="text-sm text-graphite/60">
+            Créer ton entreprise demande d&apos;avoir fait tes preuves : niveau {niveauRequis} minimum et avoir
+            progressé au-delà des tout premiers postes de ta filière actuelle.
+            {typeof carriere?.niveau === 'number' && <> Niveau actuel : {carriere.niveau}.</>}
+          </p>
+          <Link href="/app" className="block text-xs text-graphite/40 hover:underline">
+            ← Retour au tableau de bord
+          </Link>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-lg space-y-4 text-center">
         <p className="text-4xl">🏢</p>
         <h1 className="font-display text-2xl font-bold text-graphite">Tu n&apos;as pas encore d&apos;entreprise</h1>
         <p className="text-sm text-graphite/60">
           Crée ton entreprise pour candidater aux marchés privés et publics — une vraie filière indépendante,
-          accessible à tout moment sans perdre ton niveau ni ton XP.
+          sans perdre ton niveau ni ton XP.
         </p>
         <input
           value={nomEdite ?? ''}

@@ -74,7 +74,7 @@ export const LIEUX: Record<string, Lieu> = {
       "Le maquis du coin, institution ivoirienne : garba, attiéké-poisson, alloco. C'est là que toute l'équipe se retrouve à midi. Un bon repas et tu repars d'attaque pour l'après-midi.",
     ambiance: ['Ambiance conviviale, télé au fond', 'La patronne connaît ta commande', 'Odeur d’alloco et de poisson braisé'],
     actions: [
-      { type: 'besoin', besoin: 'repas', label: 'Manger un plat', icone: '🍛', description: 'Restaure complètement ta faim et remonte un peu ton moral.', cout: 120 },
+      { type: 'besoin', besoin: 'repas', label: 'Manger un plat', icone: '🍛', description: 'Restaure complètement ta faim et remonte un peu ton moral.', cout: 1200 },
     ],
   },
   cafe: {
@@ -87,7 +87,7 @@ export const LIEUX: Record<string, Lieu> = {
       "Le café où se croisent chefs de chantier, dessinateurs et topographes après le travail. On y échange des tuyaux, des contacts, des histoires de chantier. Le réseau se construit ici autant que sur les fondations.",
     ambiance: ['Un express serré et des débats animés', 'Le tableau des annonces d’emploi', 'Les anciens racontent leurs plus gros chantiers'],
     actions: [
-      { type: 'besoin', besoin: 'social', label: 'Discuter un moment', icone: '💬', description: 'Restaure complètement ton besoin social et remonte ton moral.', cout: 90 },
+      { type: 'besoin', besoin: 'social', label: 'Discuter un moment', icone: '💬', description: 'Restaure complètement ton besoin social et remonte ton moral.', cout: 900 },
       { type: 'lien', href: '/app/monde', label: 'Croiser d’autres joueurs', icone: '👥', description: 'Retrouve les vrais joueurs dans le quartier.' },
     ],
   },

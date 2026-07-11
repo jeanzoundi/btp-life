@@ -102,7 +102,7 @@ export class PromotionsService {
       await this.prisma.carriereHistorique.create({
         data: { userId, type: 'PROMOTION', profilId: regle.profilCibleId, details: { regleId } },
       });
-      await this.progression.appliquerDelta(userId, { xp: 100, reputation: 5, argentVirtuel: 200 });
+      await this.progression.appliquerDelta(userId, { xp: 100, reputation: 5, argentVirtuel: 2000 });
       await this.pnj.surPromotion(userId, regle.profilSource.nom, regle.profilCible.nom);
     }
 

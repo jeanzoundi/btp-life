@@ -729,9 +729,9 @@ async function main() {
           typeQuestion: 'CHOIX_CONSEQUENCE',
           enonce: 'La toupie à béton a 1h de retard, l\'équipe attend. Que fais-tu ?',
           options: [
-            { id: 'attendre', label: 'Faire attendre l\'équipe sans rien dire', points: 30, consequences: { reputation: -3, budget: -20000 } },
+            { id: 'attendre', label: 'Faire attendre l\'équipe sans rien dire', points: 30, consequences: { reputation: -3, budget: -200000 } },
             { id: 'reorganiser', label: 'Réorganiser l\'équipe sur une autre tâche en attendant', points: 100, consequences: { reputation: 3, budget: 0 } },
-            { id: 'annuler', label: 'Annuler le coulage du jour', points: 50, consequences: { reputation: -1, budget: -50000 } },
+            { id: 'annuler', label: 'Annuler le coulage du jour', points: 50, consequences: { reputation: -1, budget: -500000 } },
           ],
           bonnesReponses: 'reorganiser',
           correctionPedagogique: "Réorganiser l'équipe évite la perte de temps et de budget.",
@@ -3416,10 +3416,10 @@ async function main() {
   // sinon une offre d'embauche directe court-circuite la vraie progression de carrière.
   const offresData = [
     { titre: 'Stage chantier — Abidjan', profil: 'stagiaire-chantier', niveauMin: 1, reputationMin: 0, test: 'premier-jour-stage' },
-    { titre: 'Aide métreur', profil: 'aide-metreur', niveauMin: 1, reputationMin: 30, test: 'metre-mur-cloture' },
-    { titre: "Chef d'équipe — Riviera", profil: 'chef-equipe', niveauMin: 6, reputationMin: 40, test: 'retard-livraison-beton' },
-    { titre: 'Assistant conducteur de travaux', profil: 'chef-chantier', niveauMin: 12, reputationMin: 55, test: 'chantier-villa-cocody-etape1' },
-    { titre: 'Contrôleur qualité junior', profil: 'controleur-qualite', niveauMin: 6, reputationMin: 45, test: 'reception-ferraillage' },
+    { titre: 'Aide métreur', profil: 'aide-metreur', niveauMin: 1, reputationMin: 300, test: 'metre-mur-cloture' },
+    { titre: "Chef d'équipe — Riviera", profil: 'chef-equipe', niveauMin: 6, reputationMin: 400, test: 'retard-livraison-beton' },
+    { titre: 'Assistant conducteur de travaux', profil: 'chef-chantier', niveauMin: 12, reputationMin: 550, test: 'chantier-villa-cocody-etape1' },
+    { titre: 'Contrôleur qualité junior', profil: 'controleur-qualite', niveauMin: 6, reputationMin: 450, test: 'reception-ferraillage' },
   ];
   for (const o of offresData) {
     const slugSafe = o.titre.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -3458,41 +3458,41 @@ async function main() {
   const reglesData = [
     // ── CHANTIER ──
     { source: 'etudiant-chantier', cible: 'stagiaire-chantier', conditions: { niveauMin: 2, competences: [{ slug: 'securite-n1', niveau: 1 }, { slug: 'bases-btp', niveau: 1 }] } },
-    { source: 'stagiaire-chantier', cible: 'chef-equipe', conditions: { niveauMin: 7, reputationMin: 40, competences: [{ slug: 'lecture-plans', niveau: 1 }, { slug: 'gestion-humaine', niveau: 1 }] } },
-    { source: 'chef-equipe', cible: 'chef-chantier', conditions: { niveauMin: 13, reputationMin: 50, chantiersReussis: 1, competences: [{ slug: 'beton-ferraillage', niveau: 2 }, { slug: 'decision-chantier', niveau: 1 }] } },
-    { source: 'chef-chantier', cible: 'conducteur-travaux', conditions: { niveauMin: 18, reputationMin: 60, chantiersReussis: 2, competences: [{ slug: 'decision-chantier', niveau: 3 }], examenMissionId: missions['examen-conducteur-travaux'].id } },
+    { source: 'stagiaire-chantier', cible: 'chef-equipe', conditions: { niveauMin: 7, reputationMin: 400, competences: [{ slug: 'lecture-plans', niveau: 1 }, { slug: 'gestion-humaine', niveau: 1 }] } },
+    { source: 'chef-equipe', cible: 'chef-chantier', conditions: { niveauMin: 13, reputationMin: 500, chantiersReussis: 1, competences: [{ slug: 'beton-ferraillage', niveau: 2 }, { slug: 'decision-chantier', niveau: 1 }] } },
+    { source: 'chef-chantier', cible: 'conducteur-travaux', conditions: { niveauMin: 18, reputationMin: 600, chantiersReussis: 2, competences: [{ slug: 'decision-chantier', niveau: 3 }], examenMissionId: missions['examen-conducteur-travaux'].id } },
 
     // ── BUREAU D'ÉTUDES ──
     { source: 'etudiant-be', cible: 'dessinateur-junior', conditions: { niveauMin: 2, competences: [{ slug: 'autocad-lecture', niveau: 1 }, { slug: 'lecture-plans', niveau: 1 }] } },
-    { source: 'dessinateur-junior', cible: 'projeteur', conditions: { niveauMin: 7, reputationMin: 40, competences: [{ slug: 'autocad-lecture', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
-    { source: 'projeteur', cible: 'ingenieur-structure', conditions: { niveauMin: 14, reputationMin: 55, competences: [{ slug: 'beton-ferraillage', niveau: 3 }, { slug: 'lecture-plans', niveau: 3 }] } },
+    { source: 'dessinateur-junior', cible: 'projeteur', conditions: { niveauMin: 7, reputationMin: 400, competences: [{ slug: 'autocad-lecture', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
+    { source: 'projeteur', cible: 'ingenieur-structure', conditions: { niveauMin: 14, reputationMin: 550, competences: [{ slug: 'beton-ferraillage', niveau: 3 }, { slug: 'lecture-plans', niveau: 3 }] } },
 
     // ── BIM ──
     { source: 'etudiant-bim', cible: 'dessinateur-bim', conditions: { niveauMin: 2, competences: [{ slug: 'autocad-lecture', niveau: 1 }, { slug: 'revit-bim', niveau: 1 }] } },
-    { source: 'dessinateur-bim', cible: 'bim-modeleur', conditions: { niveauMin: 7, reputationMin: 40, competences: [{ slug: 'revit-bim', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
-    { source: 'bim-modeleur', cible: 'bim-coordinateur', conditions: { niveauMin: 14, reputationMin: 55, competences: [{ slug: 'revit-bim', niveau: 3 }, { slug: 'decision-chantier', niveau: 2 }] } },
+    { source: 'dessinateur-bim', cible: 'bim-modeleur', conditions: { niveauMin: 7, reputationMin: 400, competences: [{ slug: 'revit-bim', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
+    { source: 'bim-modeleur', cible: 'bim-coordinateur', conditions: { niveauMin: 14, reputationMin: 550, competences: [{ slug: 'revit-bim', niveau: 3 }, { slug: 'decision-chantier', niveau: 2 }] } },
 
     // ── MÉTRÉ / ÉCONOMIE ──
     { source: 'etudiant-metre', cible: 'aide-metreur', conditions: { niveauMin: 2, competences: [{ slug: 'metre-devis', niveau: 1 }, { slug: 'excel-btp', niveau: 1 }] } },
-    { source: 'aide-metreur', cible: 'metreur-junior', conditions: { niveauMin: 7, reputationMin: 40, competences: [{ slug: 'metre-devis', niveau: 2 }, { slug: 'excel-btp', niveau: 2 }] } },
-    { source: 'metreur-junior', cible: 'economiste', conditions: { niveauMin: 14, reputationMin: 55, competences: [{ slug: 'metre-devis', niveau: 3 }, { slug: 'excel-btp', niveau: 3 }] } },
+    { source: 'aide-metreur', cible: 'metreur-junior', conditions: { niveauMin: 7, reputationMin: 400, competences: [{ slug: 'metre-devis', niveau: 2 }, { slug: 'excel-btp', niveau: 2 }] } },
+    { source: 'metreur-junior', cible: 'economiste', conditions: { niveauMin: 14, reputationMin: 550, competences: [{ slug: 'metre-devis', niveau: 3 }, { slug: 'excel-btp', niveau: 3 }] } },
 
     // ── QUALITÉ / HSE ──
     { source: 'etudiant-qualite', cible: 'assistant-hse', conditions: { niveauMin: 2, competences: [{ slug: 'securite-n1', niveau: 1 }, { slug: 'controle-qualite', niveau: 1 }] } },
-    { source: 'assistant-hse', cible: 'controleur-qualite', conditions: { niveauMin: 7, reputationMin: 40, competences: [{ slug: 'controle-qualite', niveau: 2 }, { slug: 'securite-n1', niveau: 2 }] } },
-    { source: 'controleur-qualite', cible: 'responsable-hse', conditions: { niveauMin: 14, reputationMin: 55, competences: [{ slug: 'controle-qualite', niveau: 3 }, { slug: 'reception-travaux', niveau: 2 }] } },
+    { source: 'assistant-hse', cible: 'controleur-qualite', conditions: { niveauMin: 7, reputationMin: 400, competences: [{ slug: 'controle-qualite', niveau: 2 }, { slug: 'securite-n1', niveau: 2 }] } },
+    { source: 'controleur-qualite', cible: 'responsable-hse', conditions: { niveauMin: 14, reputationMin: 550, competences: [{ slug: 'controle-qualite', niveau: 3 }, { slug: 'reception-travaux', niveau: 2 }] } },
 
     // ── TOPOGRAPHIE ──
     { source: 'aide-topographe', cible: 'topographe-junior', conditions: { niveauMin: 4, competences: [{ slug: 'topographie', niveau: 1 }, { slug: 'lecture-plans', niveau: 1 }] } },
-    { source: 'topographe-junior', cible: 'topographe-confirme', conditions: { niveauMin: 12, reputationMin: 50, competences: [{ slug: 'topographie', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
+    { source: 'topographe-junior', cible: 'topographe-confirme', conditions: { niveauMin: 12, reputationMin: 500, competences: [{ slug: 'topographie', niveau: 2 }, { slug: 'lecture-plans', niveau: 2 }] } },
 
     // ── GÉOTECHNIQUE ──
     { source: 'stagiaire-geotech', cible: 'technicien-labo-sol', conditions: { niveauMin: 4, competences: [{ slug: 'geotechnique', niveau: 1 }] } },
-    { source: 'technicien-labo-sol', cible: 'ingenieur-geotechnique', conditions: { niveauMin: 12, reputationMin: 50, competences: [{ slug: 'geotechnique', niveau: 2 }, { slug: 'reception-travaux', niveau: 1 }] } },
+    { source: 'technicien-labo-sol', cible: 'ingenieur-geotechnique', conditions: { niveauMin: 12, reputationMin: 500, competences: [{ slug: 'geotechnique', niveau: 2 }, { slug: 'reception-travaux', niveau: 1 }] } },
 
     // ── ENTREPRENEUR ──
-    { source: 'ouvrier-qualifie', cible: 'entrepreneur-debutant', conditions: { niveauMin: 6, reputationMin: 45, chantiersReussis: 1, competences: [{ slug: 'maconnerie', niveau: 2 }, { slug: 'gestion-humaine', niveau: 1 }] } },
-    { source: 'entrepreneur-debutant', cible: 'gerant', conditions: { niveauMin: 15, reputationMin: 65, chantiersReussis: 2, competences: [{ slug: 'decision-chantier', niveau: 2 }, { slug: 'metre-devis', niveau: 2 }] } },
+    { source: 'ouvrier-qualifie', cible: 'entrepreneur-debutant', conditions: { niveauMin: 6, reputationMin: 450, chantiersReussis: 1, competences: [{ slug: 'maconnerie', niveau: 2 }, { slug: 'gestion-humaine', niveau: 1 }] } },
+    { source: 'entrepreneur-debutant', cible: 'gerant', conditions: { niveauMin: 15, reputationMin: 650, chantiersReussis: 2, competences: [{ slug: 'decision-chantier', niveau: 2 }, { slug: 'metre-devis', niveau: 2 }] } },
   ];
   for (const r of reglesData) {
     const existing = await prisma.reglePromotion.findFirst({
@@ -3603,8 +3603,8 @@ async function main() {
           metierCibleId: metiers['conducteur-travaux'].id,
           niveau: 2,
           xp: 250,
-          reputation: 55,
-          argentVirtuel: 15000,
+          reputation: 550,
+          argentVirtuel: 150000,
         },
       },
       avatar: {

@@ -55,7 +55,7 @@ export default function CvPage() {
             {c.profilActuel ?? 'Profil non défini'} → objectif : {c.metierCible ?? '—'}
           </p>
           <p className="mt-1 text-xs text-graphite/50">
-            Niveau {c.niveau ?? 1} · {c.xp ?? 0} XP · Réputation {c.reputation ?? 50}/100 · Référentiel : {c.identite?.referentiel ?? 'Générique'}
+            Niveau {c.niveau ?? 1} · {c.xp ?? 0} XP · Réputation {c.reputation ?? 500}/1000 · Référentiel : {c.identite?.referentiel ?? 'Générique'}
           </p>
         </div>
 

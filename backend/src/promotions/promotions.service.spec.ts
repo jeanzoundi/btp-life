@@ -127,7 +127,7 @@ describe('PromotionsService.demander', () => {
     expect(demande.statut).toBe('ACCEPTEE');
     expect(prisma.userCarriere.update).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { profilActuelId: 'profil-cible' } });
     expect(prisma.carriereHistorique.create).toHaveBeenCalled();
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 100, reputation: 5, argentVirtuel: 200 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 100, reputation: 5, argentVirtuel: 2000 });
     expect(pnj.surPromotion).toHaveBeenCalledWith('u1', 'Stagiaire', "Chef d'équipe");
   });
 

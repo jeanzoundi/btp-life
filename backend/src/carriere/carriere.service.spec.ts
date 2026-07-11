@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CarriereService } from './carriere.service';
+import { CarriereService, SEUIL_ENTREPRENEUR } from './carriere.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
@@ -8,7 +8,9 @@ import { EpargneService } from './epargne.service';
 function fakePrisma(overrides: Record<string, object> = {}) {
   const defaut: Record<string, object> = {
     userCarriere: {
-      findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'CHANTIER', slug: 'stagiaire-chantier' }, niveau: 5, xp: 1000, reputation: 50 }),
+      // niveau 35 + ordre 3 : satisfait par défaut SEUIL_ENTREPRENEUR (niveau 30, ordre 3), pour
+      // que les tests qui ne portent pas spécifiquement sur ce seuil n'aient pas à le répéter.
+      findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'CHANTIER', slug: 'chef-equipe', ordre: 3 }, niveau: 35, xp: 1000, reputation: 500 }),
       update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve({ profilActuelId: (data as { profilActuelId: string }).profilActuelId })),
     },
     profil: { findFirst: jest.fn().mockResolvedValue({ id: 'profil-ouvrier-qualifie', slug: 'ouvrier-qualifie' }) },
@@ -40,6 +42,22 @@ describe('CarriereService.devenirEntrepreneur', () => {
   it('refuse si le joueur est déjà dans la filière ENTREPRENEUR', async () => {
     const prisma = fakePrisma({
       userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' }, niveau: 10 }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.devenirEntrepreneur('u1')).rejects.toThrow(BadRequestException);
+  });
+
+  it(`refuse si le niveau est sous ${SEUIL_ENTREPRENEUR.niveauMin}, même avec un poste suffisamment avancé`, async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'CHANTIER', slug: 'chef-equipe', ordre: 3 }, niveau: 29 }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.devenirEntrepreneur('u1')).rejects.toThrow(`niveau ${SEUIL_ENTREPRENEUR.niveauMin}`);
+  });
+
+  it(`refuse si le poste n'a pas dépassé ordre ${SEUIL_ENTREPRENEUR.ordreMin}, même avec le niveau requis`, async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ profilActuel: { famille: 'CHANTIER', slug: 'etudiant-chantier', ordre: 1 }, niveau: 50 }) },
     });
     const { svc } = await service(prisma);
     await expect(svc.devenirEntrepreneur('u1')).rejects.toThrow(BadRequestException);

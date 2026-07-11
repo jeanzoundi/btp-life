@@ -15,8 +15,8 @@ export type ActionBesoin = 'repos' | 'repas' | 'social';
 // chez soi reste gratuit. Ça donne une vraie raison de dépenser l'argent gagné en missions/chantiers.
 const EFFETS_ACTION: Record<ActionBesoin, { cible: 'energie' | 'faim' | 'social'; valeur: number; bonusMoral: number; cout: number; message: string }> = {
   repos: { cible: 'energie', valeur: 100, bonusMoral: 4, cout: 0, message: 'Tu te sens reposé(e) et prêt(e) à repartir.' },
-  repas: { cible: 'faim', valeur: 100, bonusMoral: 3, cout: 120, message: 'Un bon repas, ça remet les idées en place.' },
-  social: { cible: 'social', valeur: 100, bonusMoral: 6, cout: 90, message: 'Ça fait du bien de discuter un peu !' },
+  repas: { cible: 'faim', valeur: 100, bonusMoral: 3, cout: 1200, message: 'Un bon repas, ça remet les idées en place.' },
+  social: { cible: 'social', valeur: 100, bonusMoral: 6, cout: 900, message: 'Ça fait du bien de discuter un peu !' },
 };
 
 interface CarriereBesoins {

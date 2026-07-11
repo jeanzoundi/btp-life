@@ -11,7 +11,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app': {
     titre: 'Ton tableau de bord',
     texte:
-      "Bienvenue ! Ici tu vois toujours où tu en es : ta mission recommandée du jour, ton chantier en cours et tes messages. Ton carrefour de carrière te montre aussi que rien n'est figé — à chaque étape, tu choisis de continuer ta formation, postuler à une offre, te spécialiser ou même créer ton entreprise. C'est ton point de départ à chaque connexion.",
+      "Bienvenue ! Ici tu vois toujours où tu en es : ta mission recommandée du jour, ton chantier en cours et tes messages. Ton carrefour de carrière te montre aussi que rien n'est figé — à chaque étape, tu choisis de continuer ta formation, postuler à une offre, te spécialiser ou même créer ton entreprise une fois que tu as fait tes preuves. C'est ton point de départ à chaque connexion.",
   },
   '/app/missions': {
     titre: 'Les missions',
@@ -46,7 +46,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app/entreprise': {
     titre: 'Mon entreprise',
     texte:
-      "Une fois ton entreprise créée, tu peux candidater à des marchés — privés (le prix compte le plus) ou publics (ta réputation pèse presque autant que le prix). Propose ton prix : trop bas, tu gagnes plus facilement mais ton budget de chantier sera serré ; trop haut, un concurrent peut te passer devant.",
+      "Se lancer demande d'avoir fait ses preuves : niveau 30 minimum et avoir progressé au-delà des tout premiers postes de ta filière. Une fois ton entreprise créée, tu peux candidater à des marchés — privés (le prix compte le plus) ou publics (ta réputation pèse presque autant que le prix). Propose ton prix : trop bas, tu gagnes plus facilement mais ton budget de chantier sera serré ; trop haut, un concurrent peut te passer devant.",
   },
   '/app/cv': {
     titre: 'Ton CV virtuel',

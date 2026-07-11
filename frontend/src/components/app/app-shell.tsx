@@ -197,7 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
               <span className="rounded-full bg-olive/10 px-2.5 py-1.5 text-xs font-semibold text-olive sm:px-3">
-                🏅 {carriere?.reputation ?? 50}
+                🏅 {carriere?.reputation ?? 500}
               </span>
               <span className="hidden rounded-full bg-cuivre/10 px-3 py-1.5 font-mono text-xs font-semibold text-cuivre sm:block">
                 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR', { notation: 'compact' })} F
@@ -283,7 +283,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
                 <span className="font-display font-bold text-graphite">Niv. {carriere?.niveau ?? 1}</span>
-                <span className="rounded-full bg-olive/10 px-2 py-0.5 font-semibold text-olive">🏅 {carriere?.reputation ?? 50}</span>
+                <span className="rounded-full bg-olive/10 px-2 py-0.5 font-semibold text-olive">🏅 {carriere?.reputation ?? 500}</span>
                 <span className="rounded-full bg-cuivre/10 px-2 py-0.5 font-mono font-semibold text-cuivre">
                   {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} F
                 </span>

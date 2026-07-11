@@ -7,12 +7,15 @@ export interface ProgressionDelta {
   argentVirtuel?: number;
 }
 
-// Courbe de niveau : niveau N nécessite round(100 * (N-1)^2.5) XP cumulés. Volontairement
-// raide au-delà des tout premiers niveaux — le niveau 2 reste une victoire rapide (100 XP,
-// ~1 mission), mais atteindre un poste senior (niveau 12-18 selon la filière, voir les règles
-// de promotion) représente désormais un vrai temps de jeu, pas une après-midi.
+// Courbe de niveau : niveau N nécessite round(100 * (N-1)^2.2) XP cumulés, calibrée pour une
+// progression qui va désormais jusqu'au niveau 100 (au lieu d'un plafond de contenu à 20-30
+// auparavant). Le niveau 2 reste une victoire rapide (100 XP, ~1 mission) ; les paliers de
+// carrière existants (niveau 12-18 selon la filière) restent à peu près à la même difficulté
+// qu'avant (la courbe ne change presque pas sur cette plage) ; au-delà, elle s'étire pour que
+// le niveau 30 (seuil pour devenir entrepreneur, voir CarriereService.devenirEntrepreneur)
+// représente plusieurs mois de jeu régulier, et le niveau 100 plusieurs années.
 export function xpRequisPourNiveau(niveau: number): number {
-  return Math.round(100 * Math.pow(niveau - 1, 2.5));
+  return Math.round(100 * Math.pow(niveau - 1, 2.2));
 }
 
 export function xpToNiveau(xpTotal: number): number {
@@ -32,7 +35,8 @@ export class ProgressionService {
     if (!carriere) return null;
 
     const nouvelleXp = Math.max(0, carriere.xp + (delta.xp ?? 0));
-    const nouvelleReputation = Math.min(100, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
+    // Échelle 0-1000 — voir le commentaire sur UserCarriere.reputation dans schema.prisma.
+    const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
     const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
     const nouveauNiveau = xpToNiveau(nouvelleXp);
 

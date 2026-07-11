@@ -40,7 +40,7 @@ export class CvService {
       metierCible: carriere?.metierCible?.nom ?? null,
       niveau: carriere?.niveau ?? 1,
       xp: carriere?.xp ?? 0,
-      reputation: carriere?.reputation ?? 50,
+      reputation: carriere?.reputation ?? 500,
       competences: competences.map((c) => ({ nom: c.competence.nom, niveau: c.niveauActuel })),
       logiciels: logiciels.map((l) => ({ nom: l.logiciel.nom, niveau: l.niveauMaitrise })),
       experiences: chantiers.map((c) => ({

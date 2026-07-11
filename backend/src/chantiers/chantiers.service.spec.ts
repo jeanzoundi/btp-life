@@ -124,7 +124,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('autorise le démarrage une fois le niveau requis atteint', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'villa-r1-marcory', budget: 9_500_000, delaiJours: 35 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null, argentVirtuel: 10_000 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 5, profilActuel: null, argentVirtuel: 30_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
@@ -133,8 +133,8 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
     const { svc, progression } = await service(prisma);
     const resultat = await svc.demarrer('u1', 'c1');
     expect(resultat).toEqual({ id: 'uc-nouveau' });
-    // apportPersonnelRequis(5) = max(300, 5*500) = 2500, débité de l'argent personnel du joueur.
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -2500 });
+    // apportPersonnelRequis(5) = max(3000, 5*5000) = 25000, débité de l'argent personnel du joueur.
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -25000 });
   });
 
   it('refuse le pont à bas niveau sans poste éligible', async () => {
@@ -149,7 +149,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('autorise le pont à bas niveau si le joueur occupe un poste éligible (chef de chantier)', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 12_000_000, delaiJours: 40 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'chef-chantier' }, argentVirtuel: 10_000 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 3, profilActuel: { slug: 'chef-chantier' }, argentVirtuel: 50_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-pont' }),
@@ -162,7 +162,7 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
   it('ne bloque jamais un chantier ordinaire, quel que soit le niveau', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'dalle-riviera', budget: 3_500_000, delaiJours: 15 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, profilActuel: null, argentVirtuel: 1_000 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, profilActuel: null, argentVirtuel: 6_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-nouveau' }),
@@ -174,14 +174,14 @@ describe('ChantiersService.demarrer — verrouillage par niveau et par poste', (
 });
 
 describe('apportPersonnelRequis', () => {
-  it('vaut un plancher de 300 F pour les chantiers sans seuil de niveau particulier', () => {
-    expect(apportPersonnelRequis(1)).toBe(500);
+  it('vaut un plancher de 3000 F pour les chantiers sans seuil de niveau particulier', () => {
+    expect(apportPersonnelRequis(1)).toBe(5000);
   });
 
   it('croît avec le niveau minimum requis', () => {
-    expect(apportPersonnelRequis(5)).toBe(2500);
-    expect(apportPersonnelRequis(8)).toBe(4000);
-    expect(apportPersonnelRequis(20)).toBe(10_000);
+    expect(apportPersonnelRequis(5)).toBe(25_000);
+    expect(apportPersonnelRequis(8)).toBe(40_000);
+    expect(apportPersonnelRequis(20)).toBe(100_000);
   });
 });
 
@@ -199,7 +199,7 @@ describe('ChantiersService.demarrer — apport personnel', () => {
   it('débite l’apport personnel du joueur (pas le budget du chantier) au démarrage', async () => {
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue({ id: 'c1', slug: 'pont-bassam', budget: 14_000_000, delaiJours: 45 }) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 8, profilActuel: null, argentVirtuel: 4_000 }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 8, profilActuel: null, argentVirtuel: 40_000 }) },
       userChantier: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'uc-pont' }),
@@ -207,7 +207,7 @@ describe('ChantiersService.demarrer — apport personnel', () => {
     });
     const { svc, progression } = await service(prisma);
     await svc.demarrer('u1', 'c1');
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -4000 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { argentVirtuel: -40000 });
   });
 });
 
@@ -225,7 +225,7 @@ describe('ChantiersService.disponibles — annotation par joueur', () => {
     const [resultat] = await svc.disponibles('u1');
     expect(resultat.verrouille).toBe(false);
     expect(resultat.niveauRequis).toBe(8);
-    expect(resultat.apportRequis).toBe(4000);
+    expect(resultat.apportRequis).toBe(40_000);
   });
 
   it('verrouille le même chantier pour un joueur sans le niveau ni le poste', async () => {
@@ -298,7 +298,9 @@ describe('ChantiersService (livraison — notation finale)', () => {
 describe('ChantiersService.soumettreOffre — appel d’offres des marchés', () => {
   const marchePrive = { id: 'c1', slug: 'marche-prive-extension-riviera', typeMarche: 'PRIVE', budget: 4_500_000, delaiJours: 18 };
   const marchePublic = { id: 'c2', slug: 'marche-public-ecole-yopougon', typeMarche: 'PUBLIC', budget: 9_500_000, delaiJours: 28 };
-  const entrepreneurEligible = { niveau: 10, reputation: 80, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
+  // Niveau/réputation confortablement au-dessus de tous les seuils de marché (jusqu'à 75/700
+  // pour la voirie régionale) — réputation sur l'échelle 0-1000.
+  const entrepreneurEligible = { niveau: 80, reputation: 900, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
 
   afterEach(() => jest.restoreAllMocks());
 
@@ -354,7 +356,9 @@ describe('ChantiersService.soumettreOffre — appel d’offres des marchés', ()
     jest.spyOn(Math, 'random').mockReturnValue(0.5);
     const prisma = fakePrisma({
       chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 21, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+      // Niveau tout juste au seuil (30, passe la porte), réputation basse mais suffisante pour
+      // être éligible (>=200) — insuffisante pour gagner l'enchère une fois en concurrence.
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 30, reputation: 210, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
     });
     const { svc, progression } = await service(prisma);
     const prixTresHaut = Math.round(marchePrive.budget * 1.15); // le maximum autorisé : offre la moins compétitive possible
@@ -369,7 +373,8 @@ describe('ChantiersService.soumettreOffre — appel d’offres des marchés', ()
     // poids de la réputation diffère selon typeMarche, ce qui doit suffire à faire perdre le
     // privé (poids réputation 0.3 → score 0.41) et gagner le public (poids 0.55 → score 0.585).
     jest.spyOn(Math, 'random').mockReturnValue(0.5);
-    const carriereTresReputee = { niveau: 10, reputation: 90, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
+    // Niveau 60 : passe le seuil du marché public (55) en plus du privé (30). Réputation 900/1000.
+    const carriereTresReputee = { niveau: 60, reputation: 900, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } };
     // Prix à 20 % de compétitivité : proche du plafond, donc peu compétitif sur le prix seul.
     const prixPeuCompetitif = (chantier: { budget: number }) => {
       const prixMin = Math.round(chantier.budget * 0.6);
@@ -413,7 +418,7 @@ describe('ChantiersService.marchesDisponibles', () => {
   it('annote le marché comme accessible pour un entrepreneur qui remplit les conditions', async () => {
     const prisma = fakePrisma({
       chantier: { findMany: jest.fn().mockResolvedValue([{ id: 'c1', slug: 'marche-prive-extension-riviera', budget: 4_500_000 }]) },
-      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 80, profilActuel: { famille: 'ENTREPRENEUR' } }) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 30, reputation: 250, profilActuel: { famille: 'ENTREPRENEUR' } }) },
       userChantier: { findMany: jest.fn().mockResolvedValue([]) },
     });
     const { svc } = await service(prisma);

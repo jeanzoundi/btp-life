@@ -186,11 +186,11 @@ describe('BesoinsService.agir', () => {
       faim: 20,
       social: 100,
       moral: 50,
-      argentVirtuel: 500,
+      argentVirtuel: 5000,
       derniereMajBesoins: new Date(),
     });
     const resultat = await svc.agir('u1', 'repas');
     expect(resultat.change).toBe(true);
-    expect(resultat.coutPaye).toBe(120);
+    expect(resultat.coutPaye).toBe(1200);
   });
 });

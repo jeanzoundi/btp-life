@@ -353,7 +353,10 @@ model UserCarriere {
   metierCible              MetierCible? @relation(fields: [metierCibleId], references: [id])
   niveau                   Int          @default(1)
   xp                       Int          @default(0)
-  reputation               Int          @default(50)
+  // Échelle 0-1000 (pas 0-100) — plus de granularité sur une progression qui va jusqu'au
+  // niveau 100 ; les gains par action restent volontairement petits (voir missions/chantiers),
+  // donc atteindre un seuil élevé prend un vrai temps de jeu, pas quelques missions.
+  reputation               Int          @default(500)
   argentVirtuel            Int          @default(0)
   // Épargne à la Banque : capital mis de côté, qui rapporte un petit intérêt calculé
   // paresseusement (à la lecture, comme les besoins) plutôt que par tâche planifiée.

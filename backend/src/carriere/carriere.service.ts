@@ -5,6 +5,9 @@ import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/ca
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
 
+/** Seuil pour se reconvertir en entrepreneur — voir CarriereService.devenirEntrepreneur. */
+export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
+
 @Injectable()
 export class CarriereService {
   constructor(
@@ -187,10 +190,13 @@ export class CarriereService {
       ? offresOuvertes.filter((o) => o.niveauMin <= carriere.niveau && o.reputationMin <= carriere.reputation).length
       : 0;
 
-    // Piste 4 : créer son entreprise — toujours ouverte, sauf si déjà dans la filière ENTREPRENEUR.
+    // Piste 4 : créer son entreprise — réservée à ceux qui ont fait leurs preuves (voir
+    // SEUIL_ENTREPRENEUR), pas accessible dès le premier jour.
     const entreprise = {
       dejaEntrepreneur: carriere?.profilActuel?.famille === 'ENTREPRENEUR',
       nomEntreprise: carriere?.nomEntreprise ?? null,
+      eligible: !!carriere && carriere.niveau >= SEUIL_ENTREPRENEUR.niveauMin && (carriere.profilActuel?.ordre ?? 0) >= SEUIL_ENTREPRENEUR.ordreMin,
+      niveauRequis: SEUIL_ENTREPRENEUR.niveauMin,
     };
 
     return {
@@ -214,6 +220,14 @@ export class CarriereService {
     if (!carriere) throw new NotFoundException('Carrière introuvable');
     if (carriere.profilActuel?.famille === 'ENTREPRENEUR') {
       throw new BadRequestException('Tu es déjà dans la filière entrepreneuriale');
+    }
+    // Se lancer exige d'avoir fait ses preuves : niveau 30 minimum ET avoir dépassé le tout
+    // premier poste de sa filière actuelle (ordre >= 3) — sinon un joueur tout juste sorti de
+    // l'onboarding pourrait devenir "chef d'entreprise" en un clic.
+    if (carriere.niveau < SEUIL_ENTREPRENEUR.niveauMin || (carriere.profilActuel?.ordre ?? 0) < SEUIL_ENTREPRENEUR.ordreMin) {
+      throw new BadRequestException(
+        `Il faut au moins le niveau ${SEUIL_ENTREPRENEUR.niveauMin} et avoir progressé dans ta filière actuelle pour te lancer (niveau actuel : ${carriere.niveau})`,
+      );
     }
     const profilEntree = await this.prisma.profil.findFirst({ where: { famille: 'ENTREPRENEUR', ordre: 1 } });
     if (!profilEntree) throw new NotFoundException('Filière entrepreneuriale introuvable');

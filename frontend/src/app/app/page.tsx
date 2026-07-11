@@ -24,7 +24,7 @@ interface ProchaineEtape {
   eligible?: boolean;
   formation: { missionsDisponibles: number };
   offres: { eligibles: number; total: number };
-  entreprise: { dejaEntrepreneur: boolean; nomEntreprise: string | null };
+  entreprise: { dejaEntrepreneur: boolean; nomEntreprise: string | null; eligible: boolean; niveauRequis: number };
 }
 interface CarriereMe {
   niveau: number;
@@ -124,7 +124,7 @@ export default function DashboardPage() {
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">⚡ {carriere?.xp ?? 0} XP</span>
-                <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">🏅 Réputation {carriere?.reputation ?? 50}/100</span>
+                <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">🏅 Réputation {carriere?.reputation ?? 500}/1000</span>
                 <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-mono font-semibold">
                   💰 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} FCFA
                 </span>
@@ -314,7 +314,12 @@ export default function DashboardPage() {
                 )}
 
                 {/* Piste 4 : créer son entreprise */}
-                <CarteEntrepreneur dejaEntrepreneur={prochaineEtape.entreprise.dejaEntrepreneur} nomEntreprise={prochaineEtape.entreprise.nomEntreprise} />
+                <CarteEntrepreneur
+                  dejaEntrepreneur={prochaineEtape.entreprise.dejaEntrepreneur}
+                  nomEntreprise={prochaineEtape.entreprise.nomEntreprise}
+                  eligible={prochaineEtape.entreprise.eligible}
+                  niveauRequis={prochaineEtape.entreprise.niveauRequis}
+                />
               </div>
             ) : (
               <p className="mt-2 text-sm text-graphite/60">
@@ -349,14 +354,33 @@ export default function DashboardPage() {
   );
 }
 
-/** Piste 4 du carrefour de carrière : créer son entreprise, accessible à tout moment (pas un cul-de-sac réservé au départ). */
-function CarteEntrepreneur({ dejaEntrepreneur, nomEntreprise }: { dejaEntrepreneur: boolean; nomEntreprise: string | null }) {
+/** Piste 4 du carrefour de carrière : créer son entreprise — réservée à ceux qui ont fait leurs preuves. */
+function CarteEntrepreneur({
+  dejaEntrepreneur,
+  nomEntreprise,
+  eligible,
+  niveauRequis,
+}: {
+  dejaEntrepreneur: boolean;
+  nomEntreprise: string | null;
+  eligible: boolean;
+  niveauRequis: number;
+}) {
   if (dejaEntrepreneur) {
     return (
       <Link href="/app/entreprise" className="block rounded-xl border border-pierre/70 px-3 py-2 transition-colors hover:border-terracotta">
         <p className="text-sm font-medium text-graphite">🏢 {nomEntreprise || 'Ton entreprise'}</p>
         <p className="mt-0.5 text-xs text-graphite/50">Voir les marchés disponibles →</p>
       </Link>
+    );
+  }
+
+  if (!eligible) {
+    return (
+      <div className="rounded-xl border border-pierre/70 px-3 py-2 opacity-60">
+        <p className="text-sm font-medium text-graphite">🔒 Créer ton entreprise</p>
+        <p className="mt-0.5 text-xs text-graphite/50">Demande d&apos;avoir fait tes preuves — niveau {niveauRequis} minimum.</p>
+      </div>
     );
   }
 

@@ -199,7 +199,7 @@ export default function ProfilPage() {
               <span className="flex items-center gap-2 rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">
                 <JaugeImmeuble progressionPct={pctNiveau} /> Niveau {carriere?.niveau ?? 1} · {pctNiveau}%
               </span>
-              <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">🏅 {carriere?.reputation ?? 50}/100</span>
+              <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">🏅 {carriere?.reputation ?? 500}/1000</span>
               <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-mono font-semibold">
                 💰 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} F
               </span>
@@ -535,7 +535,7 @@ export default function ProfilPage() {
               {(
                 [
                   ['⚡ XP total', carriere?.xp ?? 0],
-                  ['🏅 Réputation', `${carriere?.reputation ?? 50}/100`],
+                  ['🏅 Réputation', `${carriere?.reputation ?? 500}/1000`],
                   ['💰 Argent virtuel', `${(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} F`],
                   ['📅 Ancienneté', `${carriere?.ancienneteVirtuelleJours ?? 0} j`],
                 ] as const
