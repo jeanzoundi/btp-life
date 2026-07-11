@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/carriere.dto';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
+import { xpRequisPourNiveau } from './progression.service';
 
 /** Seuil pour se reconvertir en entrepreneur — voir CarriereService.devenirEntrepreneur. */
 export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
@@ -47,9 +48,19 @@ export class CarriereService {
   async setProfilActuel(userId: string, dto: SetProfilActuelDto) {
     const profil = await this.prisma.profil.findUnique({ where: { id: dto.profilId } });
     if (!profil) throw new NotFoundException('Profil introuvable');
+    const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { xp: true } });
+    const niveau = Math.max(1, profil.niveauDepart);
+    // On fixe aussi l'XP au minimum requis pour ce niveau — sinon le premier gain d'XP (une
+    // simple mission) recalcule niveau = xpToNiveau(xp) à partir d'un xp resté proche de 0, et
+    // écrase silencieusement le niveau de départ du profil choisi.
+    const xpMinimum = xpRequisPourNiveau(niveau);
     return this.prisma.userCarriere.update({
       where: { userId },
-      data: { profilActuelId: profil.id, niveau: Math.max(1, profil.niveauDepart) },
+      data: {
+        profilActuelId: profil.id,
+        niveau,
+        xp: Math.max(carriereActuelle?.xp ?? 0, xpMinimum),
+      },
     });
   }
 

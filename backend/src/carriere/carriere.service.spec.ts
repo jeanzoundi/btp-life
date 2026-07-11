@@ -4,6 +4,7 @@ import { CarriereService, SEUIL_ENTREPRENEUR } from './carriere.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
+import { xpRequisPourNiveau } from './progression.service';
 
 function fakePrisma(overrides: Record<string, object> = {}) {
   const defaut: Record<string, object> = {
@@ -106,6 +107,51 @@ describe('CarriereService.devenirEntrepreneur', () => {
     await svc.devenirEntrepreneur('u1');
     const appelUpdate = prisma.userCarriere.update.mock.calls[0][0];
     expect(appelUpdate.data).not.toHaveProperty('nomEntreprise');
+  });
+});
+
+describe('CarriereService.setProfilActuel', () => {
+  it("relève l'xp au minimum requis pour le niveau de départ du profil, quand l'xp actuel est plus bas", async () => {
+    const prisma = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-chef-equipe', niveauDepart: 6 }) },
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ xp: 0 }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.setProfilActuel('u1', { profilId: 'profil-chef-equipe' } as never);
+    expect(resultat).toEqual({
+      profilActuelId: 'profil-chef-equipe',
+      niveau: 6,
+      xp: xpRequisPourNiveau(6),
+    });
+  });
+
+  it("conserve l'xp déjà acquis s'il dépasse le minimum requis pour le niveau de départ du profil", async () => {
+    const xpDejaAcquis = xpRequisPourNiveau(6) + 5000;
+    const prisma = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-chef-equipe', niveauDepart: 6 }) },
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ xp: xpDejaAcquis }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.setProfilActuel('u1', { profilId: 'profil-chef-equipe' } as never);
+    expect(resultat).toEqual({
+      profilActuelId: 'profil-chef-equipe',
+      niveau: 6,
+      xp: xpDejaAcquis,
+    });
+  });
+
+  it("échoue proprement si le profil n'existe pas", async () => {
+    const prisma = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue(null) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.setProfilActuel('u1', { profilId: 'inconnu' } as never)).rejects.toThrow(NotFoundException);
   });
 });
 
