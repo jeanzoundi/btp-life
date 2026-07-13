@@ -11,3 +11,4 @@ dist/
 .vercel/
 coverage/
 *.tsbuildinfo
+.embedded-pg-data/
