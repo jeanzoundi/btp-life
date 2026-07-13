@@ -39,8 +39,9 @@ export default function ConnexionPage() {
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-graphite">Email</label>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium text-graphite">Email</label>
           <input
+            id="email"
             type="email"
             required
             value={email}
@@ -49,8 +50,9 @@ export default function ConnexionPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-graphite">Mot de passe</label>
+          <label htmlFor="password" className="mb-1 block text-sm font-medium text-graphite">Mot de passe</label>
           <input
+            id="password"
             type="password"
             required
             value={password}
