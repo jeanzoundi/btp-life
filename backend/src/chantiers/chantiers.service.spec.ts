@@ -33,19 +33,54 @@ function fakePrisma(overrides: Record<string, object> = {}) {
     userChantier: {
       findUniqueOrThrow: jest.fn(),
       findFirst: jest.fn().mockResolvedValue(null),
-      update: jest.fn(),
+      update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve(data)),
       create: jest.fn(),
     },
     userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, argentVirtuel: 999_999 }) },
     chantier: { findUnique: jest.fn() },
+    chantierRessource: { findFirst: jest.fn() },
+    ouvrierVirtuel: {
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+    },
     carriereHistorique: { create: jest.fn().mockResolvedValue({}) },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fusion: any = {};
-  for (const cle of Object.keys(defaut)) {
+  for (const cle of new Set([...Object.keys(defaut), ...Object.keys(overrides)])) {
     fusion[cle] = { ...defaut[cle], ...(overrides[cle] ?? {}) };
   }
   return fusion;
+}
+
+// Fixture pour `journee()` : un chantier en cours avec une équipe active et une phase en cours.
+function ucJournee(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'uc1',
+    userId: 'u1',
+    chantierId: 'chantier1',
+    statut: 'en_cours',
+    phaseCourante: 0,
+    joursRestants: 5,
+    budgetRestant: 1_000_000,
+    stock: { Ciment: 100, Sable: 20 },
+    avancementPhases: {},
+    moralEquipe: 80,
+    securite: 80,
+    qualite: 80,
+    evenementsLog: [],
+    ouvriers: [
+      { id: 'o1', nom: 'Kouassi', poste: 'Maçon', statut: 'actif', fatigue: 20, motivation: 80, competence: 65, rendement: 80, salaireJournalier: 15000 },
+    ],
+    chantier: {
+      nom: 'Villa Test', budget: 3_500_000, devise: 'FCFA', clientPnjId: null,
+      phases: [
+        { nom: 'Phase unique', besoins: { joursEstimes: 5, equipeMin: 1, materiaux: { Ciment: 50 } } },
+      ],
+    },
+    ...overrides,
+  };
 }
 
 async function service(prisma: ReturnType<typeof fakePrisma>) {
@@ -427,5 +462,217 @@ describe('ChantiersService.marchesDisponibles', () => {
     expect(marche.entrepreneurRequis).toBe(false);
     expect(marche.prixMin).toBe(Math.round(4_500_000 * 0.6));
     expect(marche.prixMax).toBe(Math.round(4_500_000 * 1.15));
+  });
+});
+
+// Fixture pour les méthodes RH/commande, qui ne consultent jamais chantier.phases
+// (l'inclusion `{ phases: true }` de chantierEnCours n'est activée que pour journee()).
+function ucRh(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'uc1',
+    userId: 'u1',
+    chantierId: 'chantier1',
+    statut: 'en_cours',
+    budgetRestant: 1_000_000,
+    stock: {},
+    moralEquipe: 80,
+    evenementsLog: [],
+    ouvriers: [],
+    chantier: { nom: 'Villa Test', budget: 3_500_000 },
+    ...overrides,
+  };
+}
+
+describe('ChantiersService.journee — cœur du simulateur', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("refuse la journée si aucun ouvrier n'est actif", async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucJournee({ ouvriers: [{ id: 'o1', nom: 'Kouassi', poste: 'Maçon', statut: 'repos', fatigue: 20, motivation: 80, competence: 65, rendement: 80, salaireJournalier: 15000 }] })) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.journee('u1', 'uc1')).rejects.toThrow('Aucun ouvrier actif');
+  });
+
+  it('refuse la journée si le budget restant ne couvre pas les salaires', async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucJournee({ budgetRestant: 100 })) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.journee('u1', 'uc1')).rejects.toThrow('Budget insuffisant pour payer la journée');
+  });
+
+  it('fait progresser la phase, paie les salaires et améliore légèrement le moral un jour calme', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // au-delà de tous les seuils d'imprévu (0,26 max) : aucun événement aléatoire
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucJournee()) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    // `journee()` retourne `detailMine()` (relecture fraîche), pas directement l'update : on
+    // vérifie donc ce qui a été écrit dans l'update plutôt que la valeur de retour.
+    await svc.journee('u1', 'uc1');
+
+    const appel = p.userChantier.update.mock.calls[0][0];
+    expect(appel.data.avancementPct).toBe(15); // (100/5 jours estimés) * facteur d'équipe ≈ 15 %, stock suffisant
+    expect(appel.data.joursRestants).toBe(4);
+    expect(appel.data.moralEquipe).toBe(81); // +1, jour calme sans rupture ni imprévu
+    expect(appel.data.budgetRestant).toEqual({ decrement: 15000 }); // salaire du seul ouvrier actif
+    expect(appel.data.evenementsLog.at(-1).type).toBe('travail');
+  });
+
+  it('ralentit la progression et pénalise moral/qualité en cas de rupture de stock', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucJournee({ stock: { Ciment: 0, Sable: 20 } })) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.journee('u1', 'uc1');
+
+    const appel = p.userChantier.update.mock.calls[0][0];
+    expect(appel.data.moralEquipe).toBe(76); // -4 pour rupture
+    expect(appel.data.qualite).toBe(78); // -2 pour rupture
+    expect(appel.data.avancementPct).toBeLessThan(15); // progression divisée par 4 (×0,25) faute de matériaux
+  });
+
+  it('livre automatiquement le chantier quand la dernière phase atteint 100 %', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const prisma = fakePrisma({
+      userChantier: {
+        findFirst: jest.fn().mockResolvedValue(ucJournee({ avancementPhases: { '0': 90 } })), // +~15 % suffit à dépasser 100 %
+        findUniqueOrThrow: jest.fn().mockResolvedValue(ucAvec({})),
+      },
+    });
+    const { svc, pnj } = await service(prisma);
+    const resultat = await svc.journee('u1', 'uc1') as { noteFinale: string };
+
+    expect(resultat.noteFinale).toBeDefined(); // délégué à `livrer()`, pas au retour habituel de detailMine
+    expect(pnj.surChantierLivre).toHaveBeenCalled();
+  });
+
+  it('signale un dépassement de délai quand les jours restants tombent à 0 sans que le chantier soit fini', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const prisma = fakePrisma({
+      // joursEstimes élevé : la phase reste loin d'être terminée après cette seule journée.
+      userChantier: {
+        findFirst: jest.fn().mockResolvedValue(ucJournee({
+          joursRestants: 1,
+          chantier: { nom: 'Villa Test', budget: 3_500_000, devise: 'FCFA', clientPnjId: null, phases: [{ nom: 'Longue phase', besoins: { joursEstimes: 100, equipeMin: 1, materiaux: {} } }] },
+        })),
+      },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.journee('u1', 'uc1');
+
+    expect(p.userChantier.update).toHaveBeenCalledTimes(2);
+    const deuxiemeAppel = p.userChantier.update.mock.calls[1][0];
+    expect(deuxiemeAppel.data.evenementsLog.at(-1).type).toBe('delai');
+  });
+});
+
+describe('ChantiersService.commander', () => {
+  it('refuse une quantité invalide', async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()) } });
+    const { svc } = await service(prisma);
+    await expect(svc.commander('u1', 'uc1', 'r1', 0)).rejects.toThrow('Quantité invalide');
+  });
+
+  it('refuse si le chantier est introuvable ou déjà terminé', async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(null) } });
+    const { svc } = await service(prisma);
+    await expect(svc.commander('u1', 'uc1', 'r1', 5)).rejects.toThrow('Chantier introuvable');
+  });
+
+  it('refuse si le budget restant ne couvre pas le coût de la commande', async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ budgetRestant: 1000 })) },
+      chantierRessource: { findFirst: jest.fn().mockResolvedValue({ id: 'r1', coutUnitaire: 5000, ref: { nom: 'Ciment', unite: 'sac' } }) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.commander('u1', 'uc1', 'r1', 1)).rejects.toThrow('Budget insuffisant');
+  });
+
+  it('décrémente le budget et ajoute la quantité commandée au stock', async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()) },
+      chantierRessource: { findFirst: jest.fn().mockResolvedValue({ id: 'r1', coutUnitaire: 5000, ref: { nom: 'Ciment', unite: 'sac' } }) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.commander('u1', 'uc1', 'r1', 10);
+    const appel = p.userChantier.update.mock.calls[0][0];
+    expect(appel.data.budgetRestant).toEqual({ decrement: 50000 });
+    expect(appel.data.stock.Ciment).toBe(10);
+  });
+});
+
+describe('ChantiersService.embaucher', () => {
+  it('refuse un poste inconnu', async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()) } });
+    const { svc } = await service(prisma);
+    await expect(svc.embaucher('u1', 'uc1', 'Grutier')).rejects.toThrow('Poste inconnu');
+  });
+
+  it("refuse si l'équipe est déjà au maximum (8 ouvriers)", async () => {
+    const huitOuvriers = Array.from({ length: 8 }, (_, i) => ({ id: `o${i}`, nom: `Ouvrier${i}`, poste: 'Manœuvre' }));
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ ouvriers: huitOuvriers })) } });
+    const { svc } = await service(prisma);
+    await expect(svc.embaucher('u1', 'uc1', 'Maçon')).rejects.toThrow('Équipe complète');
+  });
+
+  it('embauche un nouvel ouvrier au poste demandé, avec le salaire du référentiel', async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()) } });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.embaucher('u1', 'uc1', 'Maçon');
+    expect(p.ouvrierVirtuel.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ userChantierId: 'uc1', poste: 'Maçon', salaireJournalier: 15000 }) }),
+    );
+  });
+});
+
+describe('ChantiersService.licencier', () => {
+  it("refuse si l'ouvrier n'appartient pas à ce chantier", async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ ouvriers: [{ id: 'o1', nom: 'Kouassi', poste: 'Maçon' }] })) },
+    });
+    const { svc } = await service(prisma);
+    await expect(svc.licencier('u1', 'uc1', 'o-inconnu')).rejects.toThrow('Ouvrier introuvable');
+  });
+
+  it("supprime l'ouvrier et pénalise le moral de l'équipe restante", async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ moralEquipe: 80, ouvriers: [{ id: 'o1', nom: 'Kouassi', poste: 'Maçon' }] })) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.licencier('u1', 'uc1', 'o1');
+    expect(p.ouvrierVirtuel.delete).toHaveBeenCalledWith({ where: { id: 'o1' } });
+    const appel = p.userChantier.update.mock.calls[0][0];
+    expect(appel.data.moralEquipe).toBe(75);
+  });
+});
+
+describe('ChantiersService.basculerRepos', () => {
+  it("refuse si l'ouvrier n'appartient pas à ce chantier", async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ ouvriers: [] })) } });
+    const { svc } = await service(prisma);
+    await expect(svc.basculerRepos('u1', 'uc1', 'o1')).rejects.toThrow('Ouvrier introuvable');
+  });
+
+  it('bascule un ouvrier actif vers le repos', async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh({ ouvriers: [{ id: 'o1', nom: 'Kouassi', poste: 'Maçon', statut: 'actif' }] })) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await svc.basculerRepos('u1', 'uc1', 'o1');
+    expect(p.ouvrierVirtuel.update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { statut: 'repos' } });
+  });
+});
+
+describe('ChantiersService.abandonner', () => {
+  it("clôture le chantier avec la note D, une pénalité de réputation et sans bonus d'argent", async () => {
+    const prisma = fakePrisma({ userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()) } });
+    const { svc, progression, pnj } = await service(prisma);
+    const resultat = await svc.abandonner('u1', 'uc1') as { noteFinale: string };
+    expect(resultat.noteFinale).toBe('D');
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 20, reputation: -5, argentVirtuel: 0 });
+    expect(pnj.surChantierLivre).toHaveBeenCalledWith('u1', 'Villa Test', 'D', undefined);
   });
 });
