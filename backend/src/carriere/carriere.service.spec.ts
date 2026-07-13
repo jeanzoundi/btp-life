@@ -25,9 +25,12 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   return fusion;
 }
 
-async function service(prisma: ReturnType<typeof fakePrisma>) {
-  const besoins = {};
-  const epargne = {};
+async function service(
+  prisma: ReturnType<typeof fakePrisma>,
+  overrides: { besoins?: Record<string, unknown>; epargne?: Record<string, unknown> } = {},
+) {
+  const besoins = overrides.besoins ?? {};
+  const epargne = overrides.epargne ?? {};
   const module = await Test.createTestingModule({
     providers: [
       CarriereService,
@@ -420,5 +423,143 @@ describe('CarriereService.setTraits', () => {
     const { svc } = await service(prisma);
     const resultat = await svc.setTraits('u1', ['sociable', 'rigoureux']);
     expect(resultat).toEqual({ traits: ['sociable', 'rigoureux'] });
+  });
+});
+
+describe('CarriereService.me', () => {
+  it("agrège la carrière, les besoins fraîchement actualisés, l'avatar et le dernier parcours", async () => {
+    const prisma = fakePrisma({
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ userId: 'u1', niveau: 5, xp: 500 }) },
+      avatar: { findUnique: jest.fn().mockResolvedValue({ nomPersonnage: 'Test' }) },
+      parcours: { findFirst: jest.fn().mockResolvedValue({ id: 'p1' }) },
+    });
+    const besoins = { actualiser: jest.fn().mockResolvedValue({ energie: 90, moral: 85, faim: 70, social: 60 }) };
+    const epargne = { actualiser: jest.fn().mockResolvedValue({}) };
+    const { svc } = await service(prisma, { besoins, epargne });
+    const resultat = await svc.me('u1');
+    expect(resultat.energie).toBe(90);
+    expect(resultat.avatar).toEqual({ nomPersonnage: 'Test' });
+    expect(resultat.parcours).toEqual({ id: 'p1' });
+  });
+
+  it("échoue proprement si la carrière n'existe pas", async () => {
+    const prisma = fakePrisma({ userCarriere: { findUnique: jest.fn().mockResolvedValue(null) } });
+    const besoins = { actualiser: jest.fn().mockResolvedValue({}) };
+    const epargne = { actualiser: jest.fn().mockResolvedValue({}) };
+    const { svc } = await service(prisma, { besoins, epargne });
+    await expect(svc.me('u1')).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('CarriereService.upsertAvatar', () => {
+  it("crée ou met à jour la configuration d'avatar du joueur", async () => {
+    const prisma = fakePrisma({
+      avatar: { upsert: jest.fn().mockImplementation(({ create }: { create: object }) => Promise.resolve(create)) },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.upsertAvatar('u1', { nomPersonnage: 'Kouassi', config: { peau: 'clair' } } as never);
+    expect(resultat).toEqual({ userId: 'u1', nomPersonnage: 'Kouassi', config: { peau: 'clair' } });
+  });
+});
+
+describe('CarriereService.streak', () => {
+  it("compte les jours consécutifs jusqu'à aujourd'hui quand une mission a déjà été terminée aujourd'hui", async () => {
+    const aujourdhui = new Date();
+    const hier = new Date(aujourdhui.getTime() - 86_400_000);
+    const avantHier = new Date(aujourdhui.getTime() - 2 * 86_400_000);
+    const prisma = fakePrisma({
+      userMission: { findMany: jest.fn().mockResolvedValue([{ termineeLe: aujourdhui }, { termineeLe: hier }, { termineeLe: avantHier }]) },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.streak('u1');
+    expect(resultat.aJoueAujourdhui).toBe(true);
+    expect(resultat.jours).toBe(3);
+  });
+
+  it("s'arrête à hier sans casser la série si aucune mission n'a encore été terminée aujourd'hui", async () => {
+    const aujourdhui = new Date();
+    const hier = new Date(aujourdhui.getTime() - 86_400_000);
+    const prisma = fakePrisma({ userMission: { findMany: jest.fn().mockResolvedValue([{ termineeLe: hier }]) } });
+    const { svc } = await service(prisma);
+    const resultat = await svc.streak('u1');
+    expect(resultat.aJoueAujourdhui).toBe(false);
+    expect(resultat.jours).toBe(1);
+  });
+});
+
+describe('CarriereService.classement', () => {
+  it('renvoie le top et le rang du joueur courant (nombre de joueurs devant + 1)', async () => {
+    const prisma = fakePrisma({
+      userCarriere: {
+        findMany: jest.fn().mockResolvedValue([
+          { userId: 'u2', niveau: 10, xp: 5000, reputation: 300, profilActuel: { nom: 'Chef' }, user: { pseudo: 'Top1', nom: 'Top1', avatar: null } },
+        ]),
+        findUnique: jest.fn().mockResolvedValue({ xp: 1000 }),
+        count: jest.fn().mockResolvedValue(4),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.classement('u1');
+    expect(resultat.monRang).toBe(5);
+    expect(resultat.top[0]).toEqual(expect.objectContaining({ rang: 1, nom: 'Top1', estMoi: false }));
+  });
+});
+
+describe('CarriereService.joueursActifs', () => {
+  it('exclut le joueur courant et ne renvoie que des joueurs actifs récemment', async () => {
+    const prisma = fakePrisma({
+      userCarriere: {
+        findMany: jest.fn().mockResolvedValue([
+          { userId: 'u2', niveau: 8, reputation: 200, profilActuel: { nom: 'Maçon' }, user: { pseudo: 'Joueur2', nom: 'Joueur2', avatar: null } },
+        ]),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.joueursActifs('u1');
+    expect(resultat).toHaveLength(1);
+    expect(resultat[0]).toEqual(expect.objectContaining({ userId: 'u2', nom: 'Joueur2' }));
+  });
+});
+
+describe('CarriereService.profilPublic', () => {
+  it('refuse de consulter son propre profil via cette route', async () => {
+    const prisma = fakePrisma();
+    const { svc } = await service(prisma);
+    await expect(svc.profilPublic('u1', 'u1')).rejects.toThrow(BadRequestException);
+  });
+
+  it("échoue si le joueur ciblé n'existe pas, est banni, ou n'est pas un joueur régulier", async () => {
+    const prisma = fakePrisma({ userCarriere: { findUnique: jest.fn().mockResolvedValue(null) } });
+    const { svc } = await service(prisma);
+    await expect(svc.profilPublic('u1', 'u2')).rejects.toThrow(NotFoundException);
+  });
+
+  it('renvoie une fiche publique sans jamais exposer le rôle ou le statut de bannissement internes', async () => {
+    const prisma = fakePrisma({
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({
+          niveau: 12,
+          xp: 3000,
+          reputation: 400,
+          profilActuel: { nom: 'Chef de chantier' },
+          metierCible: { nom: 'Conducteur' },
+          traits: ['rigoureux'],
+          user: {
+            pseudo: 'Joueur2',
+            nom: 'Joueur2',
+            role: 'USER',
+            banni: false,
+            avatar: { nomPersonnage: 'Kouassi', config: {} },
+            _count: { userBadges: 3, userCertificats: 1 },
+          },
+        }),
+      },
+    });
+    const { svc } = await service(prisma);
+    const resultat = await svc.profilPublic('u1', 'u2');
+    expect(resultat.nom).toBe('Kouassi');
+    expect(resultat.nbBadges).toBe(3);
+    expect(resultat).not.toHaveProperty('role');
+    expect(resultat).not.toHaveProperty('banni');
   });
 });
