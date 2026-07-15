@@ -162,6 +162,101 @@ export function SchemaTechnique({ nom }: { nom: string }) {
         </svg>
       )}
 
+      {nom === 'phases-du-sol' && (
+        <svg viewBox="0 0 400 220" className="h-auto w-full">
+          <Cartouche titre="LES TROIS PHASES DU SOL — DIAGRAMME POIDS-VOLUME" />
+          {/* Colonne volumes */}
+          <rect x="70" y="35" width="90" height="35" fill="#DCE5DC" stroke="#2B2B2E" strokeWidth="1.5" />
+          <rect x="70" y="70" width="90" height="45" fill="#B8C4C9" stroke="#2B2B2E" strokeWidth="1.5" />
+          <rect x="70" y="115" width="90" height="70" fill="#C9A984" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="115" y="56" textAnchor="middle" fontSize="10" fontFamily="monospace">Air — Va</text>
+          <text x="115" y="96" textAnchor="middle" fontSize="10" fontFamily="monospace">Eau — Vw</text>
+          <text x="115" y="153" textAnchor="middle" fontSize="10" fontFamily="monospace">Grains — Vs</text>
+          <text x="115" y="200" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">Volumes (V)</text>
+          {/* accolade vides */}
+          <path d="M55 35 Q45 52 55 70" fill="none" stroke="#B87333" strokeWidth="1.5" />
+          <text x="30" y="56" fontSize="9" fill="#B87333" fontFamily="monospace" textAnchor="middle">Vv</text>
+          {/* Colonne poids */}
+          <rect x="230" y="70" width="90" height="45" fill="#B8C4C9" stroke="#2B2B2E" strokeWidth="1.5" />
+          <rect x="230" y="115" width="90" height="70" fill="#C9A984" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="275" y="96" textAnchor="middle" fontSize="10" fontFamily="monospace">Eau — Ww</text>
+          <text x="275" y="153" textAnchor="middle" fontSize="10" fontFamily="monospace">Grains — Ws</text>
+          <text x="275" y="200" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">Poids (W), Wair ≈ 0</text>
+          <g stroke="#C1502E" strokeWidth="1.8" fill="#C1502E">
+            <line x1="345" y1="35" x2="345" y2="185" />
+            <line x1="340" y1="35" x2="350" y2="35" />
+            <line x1="340" y1="185" x2="350" y2="185" />
+            <text x="358" y="113" fontSize="10" fontWeight="bold" fontFamily="monospace">W = Ws+Ww</text>
+          </g>
+          <text x="200" y="14" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">γ = W/V · ω = Ww/Ws · e = Vv/Vs</text>
+        </svg>
+      )}
+
+      {nom === 'courbe-granulometrique' && (
+        <svg viewBox="0 0 400 220" className="h-auto w-full">
+          <Cartouche titre="COURBE GRANULOMÉTRIQUE (ÉCHELLE SEMI-LOG)" />
+          <line x1="45" y1="180" x2="370" y2="180" stroke="#2B2B2E" strokeWidth="1.5" />
+          <line x1="45" y1="30" x2="45" y2="180" stroke="#2B2B2E" strokeWidth="1.5" />
+          {[45, 100, 155, 210, 265, 320].map((x, i) => (
+            <line key={x} x1={x} y1="176" x2={x} y2="184" stroke="#8A8680" strokeWidth="1" />
+          ))}
+          <text x="45" y="196" fontSize="8" fill="#8A8680" fontFamily="monospace" textAnchor="middle">0,001</text>
+          <text x="155" y="196" fontSize="8" fill="#8A8680" fontFamily="monospace" textAnchor="middle">0,08</text>
+          <text x="265" y="196" fontSize="8" fill="#8A8680" fontFamily="monospace" textAnchor="middle">2</text>
+          <text x="355" y="196" fontSize="8" fill="#8A8680" fontFamily="monospace" textAnchor="middle">20 mm</text>
+          <text x="207" y="212" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">Diamètre des grains D (log)</text>
+          <text x="20" y="105" fontSize="9" fill="#8A8680" fontFamily="monospace" transform="rotate(-90 20 105)">% Tamisats</text>
+          <path d="M55 175 Q120 172 155 155 Q220 100 265 55 Q320 35 365 32" fill="none" stroke="#C1502E" strokeWidth="2.5" />
+          <line x1="155" y1="30" x2="155" y2="180" stroke="#6B7A3F" strokeWidth="1" strokeDasharray="4 3" />
+          <line x1="265" y1="30" x2="265" y2="180" stroke="#6B7A3F" strokeWidth="1" strokeDasharray="4 3" />
+          <text x="100" y="45" fontSize="9" fill="#6B7A3F" fontFamily="monospace">argiles/limons</text>
+          <text x="180" y="45" fontSize="9" fill="#6B7A3F" fontFamily="monospace">sables</text>
+          <text x="290" y="45" fontSize="9" fill="#6B7A3F" fontFamily="monospace">graviers</text>
+        </svg>
+      )}
+
+      {nom === 'limites-atterberg' && (
+        <svg viewBox="0 0 400 150" className="h-auto w-full">
+          <Cartouche titre="ÉTATS DE CONSISTANCE DU SOL — LIMITES D'ATTERBERG" />
+          <line x1="30" y1="90" x2="370" y2="90" stroke="#2B2B2E" strokeWidth="2" />
+          {[30, 143, 256, 370].map((x) => (
+            <line key={x} x1={x} y1="83" x2={x} y2="97" stroke="#2B2B2E" strokeWidth="1.5" />
+          ))}
+          <text x="86" y="112" textAnchor="middle" fontSize="9" fontFamily="monospace">SOLIDE</text>
+          <text x="200" y="112" textAnchor="middle" fontSize="9" fontFamily="monospace">SEMI-SOLIDE</text>
+          <text x="313" y="112" textAnchor="middle" fontSize="9" fontFamily="monospace">PLASTIQUE</text>
+          <text x="200" y="30" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">teneur en eau croissante →</text>
+          <text x="143" y="70" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#B87333" fontFamily="monospace">Wp</text>
+          <text x="256" y="70" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#C1502E" fontFamily="monospace">Wl</text>
+          <text x="370" y="112" textAnchor="middle" fontSize="9" fontFamily="monospace">LIQUIDE</text>
+          <g stroke="#B87333" strokeWidth="1.5" fill="#B87333">
+            <line x1="30" y1="130" x2="143" y2="130" />
+            <text x="86" y="143" textAnchor="middle" fontSize="8" fontFamily="monospace">retrait</text>
+          </g>
+          <g stroke="#C1502E" strokeWidth="1.5" fill="#C1502E">
+            <line x1="143" y1="130" x2="256" y2="130" />
+            <text x="200" y="143" textAnchor="middle" fontSize="8" fontFamily="monospace">indice de plasticité Ip = Wl − Wp</text>
+          </g>
+        </svg>
+      )}
+
+      {nom === 'courbe-proctor' && (
+        <svg viewBox="0 0 400 210" className="h-auto w-full">
+          <Cartouche titre="ESSAI PROCTOR — OPTIMUM DE COMPACTAGE" />
+          <line x1="45" y1="170" x2="360" y2="170" stroke="#2B2B2E" strokeWidth="1.5" />
+          <line x1="45" y1="30" x2="45" y2="170" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="200" y="196" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">teneur en eau ω (%)</text>
+          <text x="20" y="100" fontSize="9" fill="#8A8680" fontFamily="monospace" transform="rotate(-90 20 100)">γd (poids vol. sec)</text>
+          <path d="M60 155 Q140 60 200 48 Q260 60 340 145" fill="none" stroke="#C1502E" strokeWidth="2.5" />
+          <line x1="200" y1="30" x2="200" y2="170" stroke="#6B7A3F" strokeWidth="1" strokeDasharray="4 3" />
+          <circle cx="200" cy="48" r="4" fill="#6B7A3F" />
+          <text x="200" y="190" textAnchor="middle" fontSize="9" fontWeight="bold" fill="#6B7A3F" fontFamily="monospace">ωopt</text>
+          <text x="245" y="42" fontSize="9" fontWeight="bold" fill="#6B7A3F" fontFamily="monospace">γd max — Optimum Proctor</text>
+          <text x="80" y="120" fontSize="8" fill="#8A8680" fontFamily="monospace">versant sec</text>
+          <text x="280" y="120" fontSize="8" fill="#8A8680" fontFamily="monospace">versant mouillé</text>
+        </svg>
+      )}
+
       {nom === 'pente-vrd' && (
         <svg viewBox="0 0 400 230" className="h-auto w-full">
           <Cartouche titre="TRANCHÉE TYPE — RÉSEAU ENTERRÉ" />

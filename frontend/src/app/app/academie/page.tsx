@@ -1,12 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
 import { IllustrationDomaine } from '@/components/app/illustration-domaine';
 import { LecteurSlides } from '@/components/app/lecteur-slides';
+
+// La Grande École (contenu niveau BTS2) reste à part de l'Académie de base : un domaine dédié,
+// filtrable via ?ecole=, pour ne pas noyer les modules d'introduction dans du contenu avancé.
+const DOMAINE_GRANDE_ECOLE = 'grande-ecole-batiment';
 
 interface Bloc {
   type: string;
@@ -28,7 +33,10 @@ interface ModuleAcademie {
   cours: Cours[];
 }
 
-export default function AcademiePage() {
+function AcademieContent() {
+  const searchParams = useSearchParams();
+  const enGrandeEcole = searchParams.get('ecole') === DOMAINE_GRANDE_ECOLE;
+
   const [moduleOuvert, setModuleOuvert] = useState<string | null>(null);
   const [coursEnLecture, setCoursEnLecture] = useState<(Cours & { module: string }) | null>(null);
 
@@ -42,7 +50,11 @@ export default function AcademiePage() {
   });
 
   const statutMission = new Map((missions ?? []).map((m) => [m.id, m.userStatut]));
-  const modules = (data?.items ?? []).filter((m) => m.publie);
+  const modulesPublies = (data?.items ?? []).filter((m) => m.publie);
+  // La Grande École (BTS2) reste séparée de l'Académie de base, dans les deux sens.
+  const modules = enGrandeEcole
+    ? modulesPublies.filter((m) => m.domaine === DOMAINE_GRANDE_ECOLE)
+    : modulesPublies.filter((m) => m.domaine !== DOMAINE_GRANDE_ECOLE);
   const missionValidee = (id: string | null) => !!id && statutMission.get(id) === 'REUSSIE';
 
   const totalValidables = modules.flatMap((m) => m.cours).filter((c) => c.missionPratiqueId).length;
@@ -62,14 +74,25 @@ export default function AcademiePage() {
         />
       )}
 
-      <section className="rounded-2xl border border-pierre bg-white p-3.5 sm:rounded-3xl sm:p-6">
+      <section className={`rounded-2xl border p-3.5 sm:rounded-3xl sm:p-6 ${enGrandeEcole ? 'border-[#8B9DC3] bg-[#8B9DC3]/5' : 'border-pierre bg-white'}`}>
+        {enGrandeEcole && (
+          <Link href="/app/academie" className="mb-2 inline-block text-xs font-semibold text-graphite/50 hover:text-terracotta">
+            ← Retour à l&apos;Académie
+          </Link>
+        )}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-lg font-bold text-graphite sm:text-2xl">📚 Académie BTP</h1>
+            <h1 className="font-display text-lg font-bold text-graphite sm:text-2xl">
+              {enGrandeEcole ? '🎓 Grande École du Bâtiment' : '📚 Académie BTP'}
+            </h1>
             <p className="mt-0.5 hidden text-sm text-graphite/60 sm:block">
-              {modules.length} modules — suis le cours en diapositives, puis valide-le par sa mission pratique.
+              {enGrandeEcole
+                ? `Niveau BTS2 — ${modules.length} matières, un vrai programme technique avancé.`
+                : `${modules.length} modules — suis le cours en diapositives, puis valide-le par sa mission pratique.`}
             </p>
-            <p className="mt-0.5 text-xs text-graphite/50 sm:hidden">{modules.length} modules</p>
+            <p className="mt-0.5 text-xs text-graphite/50 sm:hidden">
+              {enGrandeEcole ? `Niveau BTS2 — ${modules.length} matières` : `${modules.length} modules`}
+            </p>
           </div>
           <div className="w-24 shrink-0 sm:min-w-44 sm:w-auto">
             <p className="text-right font-mono text-[10px] text-graphite/50 sm:text-xs">
@@ -169,6 +192,28 @@ export default function AcademiePage() {
           Les modules apparaîtront une fois la base seedée.
         </p>
       )}
+
+      {!enGrandeEcole && (
+        <Link
+          href="/app/academie?ecole=grande-ecole-batiment"
+          className="carte-vivante flex items-center gap-3 rounded-2xl border-2 border-[#8B9DC3]/40 bg-[#8B9DC3]/5 p-4"
+        >
+          <span className="text-2xl">🎓</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-sm font-bold text-graphite">Grande École du Bâtiment</span>
+            <span className="block text-xs text-graphite/60">Niveau BTS2 — géotechnique, métré, technologie & pathologie du bâtiment</span>
+          </span>
+          <span className="text-graphite/40">→</span>
+        </Link>
+      )}
     </div>
+  );
+}
+
+export default function AcademiePage() {
+  return (
+    <Suspense fallback={null}>
+      <AcademieContent />
+    </Suspense>
   );
 }

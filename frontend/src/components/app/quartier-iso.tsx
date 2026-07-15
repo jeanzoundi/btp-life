@@ -55,6 +55,8 @@ const BATIMENTS: BatimentDef[] = [
   { slug: 'BUREAU_CONTROLE', nom: 'Récompenses', href: '/app/recompenses', ox: 470, oy: 470, w: 58, d: 44, h: 46, couleur: '#CFCAC0', props: 'controle' },
   { slug: 'DEPOT', nom: 'Dépôt', href: '/app/depot', ox: 636, oy: 438, w: 74, d: 52, h: 38, couleur: '#C9A984', props: 'caisses' },
   { slug: 'CLIENT', nom: "Offres d'emploi", href: '/app/offres', ox: 796, oy: 406, w: 56, d: 44, h: 42, couleur: '#E8DCC8', props: 'maison' },
+  // Prestigieuse et distincte (couleur, hauteur) : c'est le nouveau pôle BTS2, séparé de l'École de base.
+  { slug: 'GRANDE_ECOLE', nom: '🎓 Grande École du Bâtiment', href: '/app/academie?ecole=grande-ecole-batiment', ox: 850, oy: 300, w: 78, d: 54, h: 84, couleur: '#8B9DC3', props: 'colonnes' },
 ];
 
 function Batiment({ def, onOuvre }: { def: BatimentDef; onOuvre: (def: BatimentDef) => void }) {

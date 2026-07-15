@@ -8,6 +8,7 @@ import { randomBytes } from 'crypto';
 import { missionsData, questionsSupplementaires, questionsVague2 } from './seed-data/missions-data';
 import { modulesAcademie, coursSupplementaires, enrichissementCours } from './seed-data/academie-data';
 import { MATERIAUX, chantiersGestion } from './seed-data/chantiers-data';
+import { modulesGrandeEcole, missionsGrandeEcole } from './seed-data/grande-ecole-batiment-data';
 
 const prisma = new PrismaClient();
 
@@ -468,6 +469,7 @@ async function main() {
   for (const [slug, contenus] of Object.entries(questionsVague2)) {
     questionsSupplementaires[slug] = [...(questionsSupplementaires[slug] ?? []), ...contenus];
   }
+  missionsData.push(...missionsGrandeEcole);
 
   const missions: Record<string, { id: string }> = {};
   for (const m of missionsData) {
@@ -515,6 +517,7 @@ async function main() {
   }
 
   console.log('Seed — académie (16 modules)...');
+  modulesAcademie.push(...modulesGrandeEcole);
 
   for (const m of modulesAcademie) {
     const module = await prisma.moduleAcademie.upsert({
