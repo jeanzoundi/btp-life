@@ -217,6 +217,7 @@ async function main() {
     { slug: 'gestion-humaine', nom: 'Gestion humaine', domaine: 'management' },
     { slug: 'decision-chantier', nom: 'Décision chantier', domaine: 'management' },
     { slug: 'geotechnique', nom: 'Géotechnique', domaine: 'technique' },
+    { slug: 'technologie-batiment', nom: 'Technologie du bâtiment', domaine: 'technique' },
     { slug: 'topographie', nom: 'Topographie', domaine: 'technique' },
     { slug: 'controle-qualite', nom: 'Contrôle qualité', domaine: 'hse' },
     { slug: 'reception-travaux', nom: 'Réception des travaux', domaine: 'gestion' },
