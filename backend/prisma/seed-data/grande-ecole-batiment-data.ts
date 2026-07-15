@@ -362,6 +362,289 @@ const metreCours: CoursSeed[] = [
   },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════
+// TECHNOLOGIE DES STRUCTURES & PATHOLOGIE DU BÂTIMENT — 11 chapitres (BTS1+BTS2)
+// ═══════════════════════════════════════════════════════════════════════
+
+const technoCours: CoursSeed[] = [
+  // ── Chapitre 1 : Présentation de l'environnement du BTP ──
+  {
+    titre: "L'acte de construire : intervenants, plans et devis",
+    dureeMin: 12,
+    missionPratique: 'techno-quiz-chapitre-1',
+    blocs: [
+      { type: 'objectifs', valeur: "Identifier les trois intervenants principaux d'un projet\nDistinguer les grandes familles de plans\nDistinguer devis descriptif et devis estimatif" },
+      { type: 'texte', valeur: "Un projet de construction comporte l'ensemble de l'étude qui permet de réaliser l'ouvrage sur le terrain : les intervenants, les documents graphiques (plans) et les pièces écrites (devis, cahiers de charges)." },
+      { type: 'texte', valeur: "Le maître d'ouvrage (le client) est celui qui paie et possède le terrain. Le maître d'œuvre (souvent l'architecte) réalise l'étude technique et financière, confectionne le dossier d'appel d'offre. L'entrepreneur exécute les travaux : il fournit la main d'œuvre et les matériaux." },
+      { type: 'exemple', valeur: "Plans de situation (localiser la parcelle), plans de masse (emplacement dans le lot), plans d'exécution (détails par spécialité). Devis descriptif : décrit la nature des ouvrages par corps d'état. Devis estimatif : désignation + quantités (avant-métré) + prix. Cahiers de charges : CCAG, CCAP, CCTP." },
+      { type: 'retenir', valeur: "3 intervenants : maître d'ouvrage (paie) → maître d'œuvre (conçoit) → entrepreneur (exécute). Ne jamais confondre « celui qui paie » et « celui qui conçoit »." },
+    ],
+  },
+
+  // ── Chapitre 2 : Terminologie du BTP — GO et SO ──
+  {
+    titre: 'Terminologie du BTP : gros œuvre, second œuvre, travaux publics',
+    dureeMin: 14,
+    missionPratique: 'techno-quiz-chapitre-2',
+    blocs: [
+      { type: 'texte', valeur: "Le génie civil se partage en bâtiment (ouvrages abritant personnes ou biens) et travaux publics (ouvrages permettant la vie des personnes : VRD, ouvrages d'art, routes). Un bâtiment se divise en gros œuvre (mise hors d'eau et stabilité) et second œuvre (habillage et fonctionnalité)." },
+      { type: 'exemple', valeur: "Lots du gros œuvre : implantation, terrassement, fondations, murs, planchers, structure porteuse, charpente, couverture, parements/revêtements, dallages, assainissement. Lots du second œuvre : menuiserie, peinture, plomberie, électricité, plâtre, carrelage, sanitaire, vitrerie." },
+      { type: 'texte', valeur: "Le matériel du BTP se classe en engins de terrassement (dozer, bulldozer, angledozer, tiltdozer, scraper, chargeur, dragline), matériel de transport et matériel de fabrication du béton." },
+      { type: 'retenir', valeur: "Gros œuvre = structure + étanchéité de l'enveloppe. Second œuvre = habillage + fonctionnalité. Cette frontière organise tous les lots d'un chantier de bâtiment." },
+    ],
+  },
+
+  // ── Chapitre 3 : Matériaux de construction et composants du gros œuvre ──
+  {
+    titre: 'Granulats et liants hydrauliques (ciments, chaux)',
+    dureeMin: 16,
+    blocs: [
+      { type: 'objectifs', valeur: "Classer les granulats par taille et par origine\nConnaître les classes de résistance des ciments\nDistinguer chaux hydraulique naturelle et artificielle" },
+      { type: 'texte', valeur: "Les granulats (sables, gravillons, cailloux) sont dits roulés (désagrégation naturelle, forme arrondie, meilleure compacité) ou concassés (broyage de roche, forme anguleuse). Une granularité continue (toutes les tailles présentes) donne une meilleure ouvrabilité ; une granularité discontinue permet aux petits grains de s'intercaler entre les gros." },
+      { type: 'texte', valeur: "Les liants hydrauliques (ciments et chaux) forment avec l'eau une pâte qui durcit même sous l'eau. Les ciments sont classés en 3 classes de résistance à 28 jours : 32,5 – 42,5 – 52,5 (en MPa), la lettre R signalant une résistance élevée au jeune âge." },
+      { type: 'exemple', valeur: "Emplois : CPA 42,5 pour tous travaux B.A ; CPA 52,5(R) pour béton armé/précontraint et préfabrication à décoffrage rapide ; CPJ 32,5 pour maçonnerie et béton non armé ; CHF pour ouvrages massifs et travaux hydrauliques. Les chaux (classes 30/60/100, en bars) ont une prise plus lente et une teinte plus claire — utilisées en maçonnerie et en enduits." },
+      { type: 'retenir', valeur: "Granulats : classe granulaire = taille min/max (ex. 5/15). Ciments : 3 classes de résistance à 28j (32,5/42,5/52,5), la lettre R = résistance initiale renforcée." },
+    ],
+  },
+  {
+    titre: 'Adjuvants, mortiers et agglomérés',
+    dureeMin: 14,
+    blocs: [
+      { type: 'texte', valeur: "Les adjuvants (< 2 % de la masse du ciment en général) modifient une propriété du béton ou du mortier : plastifiants (améliorent la plasticité, réduisent l'eau de gâchage), fluidifiants, entraîneurs d'air (résistance au gel), retardateurs de prise (bétonnage par temps chaud, longs transports), accélérateurs de prise, antigels, hydrofuges (masse ou surface)." },
+      { type: 'texte', valeur: "Le mortier (liant + sable + eau, sans gros granulats) sert à lier les éléments de maçonnerie, transmettre les charges par les joints, protéger contre les intempéries et l'humidité, et niveler les surfaces par des chapes." },
+      { type: 'exemple', valeur: "Les agglomérés (produits finis en béton de gravillons ou mortier de ciment, moulés) remplacent avantageusement le banco (instable) et la pierre (mise en œuvre difficile) : légèreté, stabilité, économie, industrialisation. Familles : géobéton (graveleux latéritique + 5 % ciment), blocs de béton manufacturé (pleins ou creux), claustras, hourdis, dallettes, carreaux de ciment." },
+      { type: 'attention', valeur: "Les agglomérés doivent être fabriqués à l'abri du soleil, arrosés pour parfaire le durcissement, et jamais stockés au contact direct du sol — un technicien de chantier doit refuser tout bloc fissuré, déformé ou arraché." },
+      { type: 'retenir', valeur: "Adjuvant = additif en faible dose qui change une propriété précise (plasticité, prise, air, gel, étanchéité). Aggloméré = solution moderne au banco et à la pierre : léger, stable, économique, industrialisable." },
+    ],
+  },
+  {
+    titre: 'Le béton armé et le béton précontraint',
+    dureeMin: 16,
+    missionPratique: 'techno-quiz-chapitre-3',
+    blocs: [
+      { type: 'objectifs', valeur: "Comprendre pourquoi on associe béton et acier\nComparer le comportement d'une poutre en béton, béton armé et béton précontraint\nSaisir le principe de la précontrainte (pré-tension / post-tension)" },
+      { type: 'texte', valeur: "Le béton résiste bien en compression (15 à 60 MPa) mais mal en traction (1,5 à 3,5 MPa) : dans les zones tendues, il n'est pas pris en compte dans les calculs. L'acier résiste aussi bien en traction qu'en compression (rupture dès 400-500 MPa) — il est donc placé dans les zones tendues. L'association fonctionne grâce à l'adhérence béton-acier et à des coefficients de dilatation quasi identiques (12×10⁻⁶)." },
+      { type: 'texte', valeur: "Sur une poutre en béton pur posée sur deux appuis : la fibre supérieure se comprime, la fibre inférieure se tend — le béton ne supportant pas la traction, la rupture est brutale. Sur une poutre en béton armé : les barres d'acier placées en zone tendue absorbent la traction, mais le béton continue de se fissurer légèrement à leur voisinage." },
+      { type: 'exemple', valeur: "Eugène Freyssinet invente en 1933 le béton précontraint : comprimer le béton à l'avance (la « précontrainte ») pour qu'il reste toujours en compression, même sous charge. La mise en tension des câbles peut intervenir avant le bétonnage (pré-tension) ou après (post-tension, câbles enfilés dans des gaines puis tendus au vérin, gaines injectées de coulis de ciment)." },
+      { type: 'retenir', valeur: "Béton pur : rupture brutale en traction. Béton armé : aciers en zone tendue, micro-fissuration tolérée. Béton précontraint : le béton reste comprimé en permanence — c'est l'invention de Freyssinet." },
+    ],
+  },
+
+  // ── Chapitre 4 : Terrassements ──
+  {
+    titre: 'Terrassements : vocabulaire, types de fouilles, foisonnement',
+    dureeMin: 12,
+    missionPratique: 'techno-quiz-chapitre-4',
+    blocs: [
+      { type: 'texte', valeur: "Le terrassement modifie le relief d'un terrain par déblais et remblais. On distingue le décapage (faible profondeur, 20-25 cm, grande surface), les fouilles (profondeur importante par rapport à la surface, pour les bâtiments), le talus (pente donnée aux parois pour éviter l'éboulement) et l'emprise (limite du terrassement, à l'intersection des talus et du terrain naturel)." },
+      { type: 'exemple', valeur: "Types de fouilles : rigole (largeur ≤ 2,00 m, hauteur ≤ 1,00 m), tranchée (largeur ≤ 2,00 m, hauteur > 1,00 m), excavation (largeur > 2,00 m, hauteur < largeur/2), trou (largeur et hauteur ≤ 2,00 m), puits (largeur ≤ 2,00 m, hauteur jusqu'à 8,00 m). Le puisard (≈ 1 m de profondeur) collecte les eaux d'infiltration pour les évacuer par pompage." },
+      { type: 'attention', valeur: "Le foisonnement passager (déblai non tassé) sert à évacuer ; le foisonnement permanent (après compactage) sert à remblayer — cette distinction, déjà vue en avant-métré, est la même en technologie de construction." },
+      { type: 'retenir', valeur: "Décapage = surface, faible profondeur. Fouille = profondeur significative pour un bâtiment. Talus = protection contre l'éboulement. Emprise = limite du chantier de terrassement." },
+    ],
+  },
+
+  // ── Chapitre 5 : Les fondations ──
+  {
+    titre: 'Fondations superficielles : rigoles, semelles continues et isolées',
+    dureeMin: 16,
+    blocs: [
+      { type: 'objectifs', valeur: "Distinguer fondation par rigole, semelle continue et semelle isolée\nComprendre le principe de fonctionnement d'une semelle (poinçonnement + rotation)\nConnaître les règles de construction essentielles" },
+      { type: 'schema', valeur: 'semelle' },
+      { type: 'texte', valeur: "La fondation par rigole (profondeur ≤ 1,00 m, gros béton ou béton cyclopéen dosé 200-250 kg/m³, sans coffrage) supporte des charges faibles réparties sur des murs porteurs continus — villas, garages, murs de clôture. Un chaînage en partie basse limite la fissuration." },
+      { type: 'texte', valeur: "Les semelles continues armées sont dites flexibles (peu larges et minces, pour sol cohérent) ou rigides (larges et épaisses, pour sol pulvérulent). Les semelles isolées fonctionnent par translation verticale (poinçonnement) et rotation des consoles : elles sont armées de deux nappes d'aciers orthogonales avec un enrobage de 4 à 5 cm, sur un béton de propreté en fond de fouille." },
+      { type: 'retenir', valeur: "Rigole = charge faible, pas de calcul d'armature complexe. Semelle continue flexible = sol cohérent ; rigide = sol pulvérulent. Semelle isolée = poinçonnement + rotation, 2 nappes d'aciers orthogonales." },
+    ],
+  },
+  {
+    titre: 'Fondations profondes : puits et pieux',
+    dureeMin: 14,
+    missionPratique: 'techno-quiz-chapitre-5',
+    blocs: [
+      { type: 'texte', valeur: "Le puits de fondation (profondeur > 2 m, jusqu'à 8 m environ) ressemble à un gros pilier prenant appui sur un sol résistant. On y a recours quand la couche superficielle est insuffisante, quand les charges sont importantes et concentrées, ou quand un puits revient moins cher qu'un radier." },
+      { type: 'exemple', valeur: "Sections carrées, rectangulaires ou circulaires (côtés ou diamètre de 1 à 1,50 m), base encastrée de 20 à 50 cm en « patte d'éléphant » pour augmenter la surface portante. Forage sans tubage en sol cohérent, avec tubage ou blindage en sol non cohérent. Béton indicatif : cailloux 600-800 dm³, graviers 200-400 dm³, sable 400-500 dm³, ciment CPJ 200-300 kg/m³." },
+      { type: 'texte', valeur: "Les pieux reportent les charges à grande profondeur (20 à 40 m et plus), groupés par 2 à 5 sous une semelle très épaisse. Ils agissent par frottement latéral, par effet de pointe, ou les deux combinés. On distingue les pieux coulés en place (béton armé) et les pieux préfabriqués." },
+      { type: 'retenir', valeur: "Puits = fondation semi-profonde (jusqu'à 8 m), pilier trapu. Pieux = fondation profonde (20-40 m+), travaillant par frottement latéral et/ou effet de pointe." },
+    ],
+  },
+
+  // ── Chapitre 6 : Les murs ──
+  {
+    titre: 'Murs de soubassement : rôle et protection contre l\'humidité',
+    dureeMin: 14,
+    blocs: [
+      { type: 'texte', valeur: "Le mur de soubassement, construit directement sur les fondations, supporte les charges, s'oppose aux poussées de terre et aux infiltrations d'eau. Il est constitué en agglos pleins de 15 ou 20, ou en béton banché armé ou non." },
+      { type: 'texte', valeur: "Les efflorescences (dépôts blanchâtres de sels cristallisés) résultent d'une infiltration d'eau qui dissout les sels du matériau puis les redépose en s'évaporant en surface. Elles altèrent l'aspect, peuvent décoller les revêtements, et favorisent la corrosion des armatures si l'eau atteint le béton armé." },
+      { type: 'exemple', valeur: "Protection : une arase étanche à 15 cm au-dessus du sol extérieur (chape de bitume armé ou chape de mortier hydrofugé dosée à 500 kg/m³). Pour un mur enterré, un système de drainage complet comprend une tranchée drainante, un drain en face supérieure, et un exutoire." },
+      { type: 'retenir', valeur: "3 éléments d'un système de drainage : tranchée drainante + drain + exutoire. Arase étanche à 15 cm au-dessus du sol pour protéger la maçonnerie hors sol des remontées capillaires." },
+    ],
+  },
+  {
+    titre: 'Murs en élévation : maçonneries, classification, voiles',
+    dureeMin: 16,
+    missionPratique: 'techno-quiz-chapitre-6',
+    blocs: [
+      { type: 'objectifs', valeur: "Citer les 5 rôles essentiels d'une maçonnerie\nDistinguer les familles de briques et blocs\nClasser les murs par emplacement et par fonction" },
+      { type: 'texte', valeur: "Les 5 rôles essentiels des maçonneries : clore (limiter, séparer), résister (charges propres, planchers, vent, dilatation), isoler (thermique, acoustique, incendie), protéger (eau de pluie, remontées capillaires, agents chimiques) et embellir (parement, décoration)." },
+      { type: 'exemple', valeur: "Familles de maçonnerie : briques pleines ou perforées (format 6×11×20, perforations ≤ 40 % de la section), blocs perforés (perforations ≤ 60 %), briques creuses à perforations horizontales (≤ 40 %, incluant les briques plâtrières de doublage). Classification par emplacement : murs de clôture, mitoyens, bahut, séparatifs, de soutènement (extérieurs) ; goutterots/pignons (façades), refend (contreventement), échiffre (support d'escalier) pour l'habitation." },
+      { type: 'texte', valeur: "Classification fonctionnelle : murs porteurs (BA, agglos creux de 12-15 cm), murs de cloison (aucune charge autre que leur poids propre), murs de remplissage (ossature poteaux-poutres). Les voiles reprennent les charges des planchers, participent au contreventement, et assurent isolation acoustique et protection incendie." },
+      { type: 'retenir', valeur: "5 rôles : clore / résister / isoler / protéger / embellir. 3 fonctions de mur : porteur / cloison / remplissage." },
+    ],
+  },
+
+  // ── Chapitre 7 : Dallage sur terre-plein ──
+  {
+    titre: 'Dallage sur terre-plein : types et constitution',
+    dureeMin: 12,
+    missionPratique: 'techno-quiz-chapitre-7',
+    blocs: [
+      { type: 'texte', valeur: "Le dallage sur terre-plein est un plancher en béton armé ou non, coulé à même le sol, destiné à isoler de l'humidité, recevoir les revêtements et supporter les charges. Le dallage indépendant (désolidarisé des fondations, épaisseur 6-8 cm) transmet ses charges directement au sol ; le dallage solidaire (repose sur les fondations, 8-12 cm) est plus sûr mais impose plus de ferraillage aux appuis." },
+      { type: 'exemple', valeur: "Constitution de bas en haut : remblai en tout-venant compacté (> 10 cm), couche drainante en sable (> 5 cm), film polyane (protection contre l'humidité du sol), dalle en béton dosé à 350 kg/m³ (6 à 12 cm, armée d'un treillis soudé)." },
+      { type: 'attention', valeur: "En terrain inondable ou nappe phréatique proche, on préfère un plancher sur vide sanitaire (≥ 60 cm de hauteur), totalement hors contact avec le sol, souvent réalisé avec des corps creux." },
+      { type: 'retenir', valeur: "Dallage indépendant (6-8 cm) vs solidaire (8-12 cm, plus de ferraillage). Constitution : remblai tout-venant → sable drainant → film polyane → dalle béton 350 kg/m³ + treillis soudé." },
+    ],
+  },
+
+  // ── Chapitre 8 : Les ouvrages élémentaires en béton armé ──
+  {
+    titre: 'Les poteaux : sollicitations et dispositions constructives',
+    dureeMin: 16,
+    blocs: [
+      { type: 'objectifs', valeur: "Distinguer compression élastique, compression plastique et flambement\nConnaître le rôle des aciers longitudinaux et transversaux\nAppliquer les règles d'enrobage selon l'exposition" },
+      { type: 'schema', valeur: 'enrobage' },
+      { type: 'texte', valeur: "Un poteau peut subir une compression élastique (raccourcissement proportionnel à la charge, section suffisante), une compression plastique (glissement par rupture si section ou dosage insuffisants), ou une flexion par flambement (poteau élancé, section faible, poussées horizontales) — il se comporte alors comme une poutre, comprimé sur une face et tendu sur l'autre." },
+      { type: 'exemple', valeur: "Aciers longitudinaux : équilibrent la flexion, participent à la compression, résistent au flambement avec le béton. Aciers transversaux (cadres) : s'opposent à l'expansion latérale du béton, relient les longitudinaux, augmentent la résistance au flambement, maintiennent l'enrobage." },
+      { type: 'texte', valeur: "Dispositions constructives usuelles : section minimale d'aciers longitudinaux = max(4 cm²/m linéaire de parement, 0,2 % de la section béton) ; longueur de recouvrement 24Ø pour HA, 30Ø pour ronds lisses ; enrobage 2 cm (intempéries), 3 cm (enterré), 4 cm (bord de mer)." },
+      { type: 'retenir', valeur: "3 modes de rupture : compression élastique (OK), compression plastique (section/dosage insuffisants), flambement (poteau élancé). Enrobage : 2/3/4 cm selon l'agressivité du milieu." },
+    ],
+  },
+  {
+    titre: 'Les poutres : fonctionnement, ferraillage, flèches admissibles',
+    dureeMin: 16,
+    blocs: [
+      { type: 'texte', valeur: "Une poutre sur deux appuis libres, chargée, se déforme : fibre supérieure comprimée, fibre inférieure tendue, fibre neutre entre les deux, flèche maximale au milieu de la portée. Elle est soumise aux charges permanentes (G), aux charges d'exploitation (Q), combinées à l'ELS (G+Q) ou à l'ELU (1,35G + 1,5Q)." },
+      { type: 'schema', valeur: 'poutre-flexion' },
+      { type: 'texte', valeur: "Ferraillage : barres longitudinales (résistent à la traction), barres transversales/cadres (résistent au cisaillement), barres de montage. Si le béton comprimé ne suffit pas, on ajoute des aciers comprimés en zone haute." },
+      { type: 'exemple', valeur: "Conditions de flèche : 1/500 de la portée pour une portée ≤ 5 m sur deux appuis, 0,5 + L/1000 au-delà de 5 m, 1/250 pour une console ≤ 2 m. Le coffrage assure stabilité, résistance à la masse du béton, étanchéité et facilité de décoffrage — une contreflèche de L/500 est prévue au fond de moule." },
+      { type: 'retenir', valeur: "ELS = G+Q. ELU = 1,35G + 1,5Q. Flèche admissible : 1/500 (portée ≤ 5m) — c'est la règle à retenir pour ne pas fissurer les cloisons portées." },
+    ],
+  },
+  {
+    titre: 'Les planchers : dalle pleine et corps creux',
+    dureeMin: 16,
+    blocs: [
+      { type: 'texte', valeur: "Le plancher dalle pleine (8 à 20 cm d'épaisseur) fonctionne comme une poutre plate de grande largeur : appuis libres, encastrés, ou continus sur plusieurs côtés. Son épaisseur dépend de la résistance à la flexion, de l'isolation acoustique (≥ 16 cm), et de la sécurité incendie (7 cm pour 1h coupe-feu, 11 cm pour 2h)." },
+      { type: 'texte', valeur: "Les barres porteuses sont placées dans le sens de la petite portée, les barres de répartition orthogonalement (souvent un treillis soudé). Un chaînage fait le tour du plancher en rive." },
+      { type: 'exemple', valeur: "Le plancher à corps creux se compose de poutrelles (BA, précontraintes ou treillis, préfabriquées), d'entrevous (béton, terre cuite ou polystyrène, servant de coffrage), et d'une dalle de compression (4-5 cm, treillis soudé maille 150×300, dosage 350 kg/m³). Désignation ex. « 16+4 » = 16 cm d'entrevous + 4 cm de dalle de compression." },
+      { type: 'retenir', valeur: "Dalle pleine : coupe-feu 7cm(1h)/11cm(2h), isolation ≥16cm. Corps creux « E+C » : E = hauteur entrevous, C = épaisseur dalle de compression." },
+    ],
+  },
+  {
+    titre: 'Les escaliers : types, dimensionnement, formule de Blondel',
+    dureeMin: 14,
+    missionPratique: 'techno-quiz-chapitre-8',
+    blocs: [
+      { type: 'objectifs', valeur: "Distinguer escalier droit, balancé et hélicoïdal\nAppliquer la formule de Blondel\nConnaître les règles d'emmarchement et de volée" },
+      { type: 'schema', valeur: 'escalier-blondel' },
+      { type: 'texte', valeur: "L'escalier droit relie deux étages avec des marches rectangulaires parallèles — le plus répandu, le plus confortable. L'escalier balancé change de direction sans palier grâce à des marches balancées (souvent en bois, esthétique mais plus complexe à réaliser). L'escalier hélicoïdal se développe autour d'un noyau central : encombrement réduit, mais circulation d'objets difficile." },
+      { type: 'exemple', valeur: "Emmarchement : ≥ 0,80 m en maison individuelle, ≥ 1,20 m en immeuble collectif ou bâtiment public. Hauteur de marche h entre 14 et 18 cm, giron g entre 25 et 32 cm — toujours un giron de moins que de hauteurs. Volée limitée à 21 marches maximum ; palier P ≥ 1,2 × largeur de la volée." },
+      { type: 'retenir', valeur: "Formule de Blondel : 60 cm ≤ 2h + g ≤ 66 cm (h = hauteur de marche, g = giron). C'est la formule empirique à retenir pour tout dimensionnement d'escalier." },
+    ],
+  },
+
+  // ── Chapitre 9 : Charpentes, couvertures, toitures-terrasses ──
+  {
+    titre: 'Charpentes bois : traditionnelle et fermette',
+    dureeMin: 16,
+    blocs: [
+      { type: 'texte', valeur: "La charpente traditionnelle, la plus courante dans les constructions anciennes, se compose de gros bois assemblés sans connecteur : ferme (structure porteuse), pannes (appuyées sur la ferme), chevrons (cloués sur les pannes, écartés de 40 à 60 cm), liteaux et voliges (support de couverture). Ordre de montage : fermes → panne faîtière → pannes sablières → pannes ventrières → liteaux." },
+      { type: 'texte', valeur: "La charpente fermette (charpente industrielle, apparue vers 1970) assemble des pièces légères par connecteurs métalliques — arbalétriers, entrait, poinçon. Avantages : prix attractif, pose rapide, légèreté, fiabilité. Les fermes remplacent directement les chevrons traditionnels." },
+      { type: 'exemple', valeur: "Défauts de bois inacceptables en entrait : fentes dans la longueur, nœuds, flache (écorce résiduelle) sur plus de 1/5 de la section. Déformations admissibles : 1/150 pour une console (auvent), 1/200 pour chevrons/liteaux, 1/300 pour pannes, 1/500 pour une pièce supportant d'autres éléments porteurs." },
+      { type: 'retenir', valeur: "Traditionnelle = gros bois assemblés à l'ancienne (tenons-mortaises), esthétique mais lente. Fermette = industrielle, connecteurs métalliques, rapide et économique — mais moins souple architecturalement." },
+    ],
+  },
+  {
+    titre: 'Les couvertures : matériaux et critères de choix',
+    dureeMin: 12,
+    blocs: [
+      { type: 'texte', valeur: "La couverture assure la mise hors d'eau du bâtiment. Le choix du matériau (tuiles, ardoises, tôles) détermine l'espacement des chevrons et dépend de la pente de la charpente, de la région (charge de neige, de vent, évacuation de la pluie) et de la destination des combles." },
+      { type: 'texte', valeur: "La pente minimale pour des combles dits « aménageables » doit permettre une hauteur d'au moins 1,80 m sous plafond. En Afrique de l'Ouest, la tôle bac aluzinc (couramment 7/10e d'épaisseur) domine, complétée de ses accessoires : faîtières, arêtiers, noues." },
+      { type: 'attention', valeur: "Ne jamais négliger le calcul des charges de couverture (permanentes : poids toiture + plafond ; temporaires : neige, vent) dans le dimensionnement des pannes et chevrons — un sous-dimensionnement se traduit par une flèche excessive, visible avant la ruine." },
+      { type: 'retenir', valeur: "Le choix de couverture n'est jamais qu'esthétique : il fixe la pente minimale, l'espacement des chevrons, et les charges à reprendre par toute la charpente." },
+    ],
+  },
+  {
+    titre: 'Toitures-terrasses : étanchéité et constitution',
+    dureeMin: 14,
+    missionPratique: 'techno-quiz-chapitre-9',
+    blocs: [
+      { type: 'texte', valeur: "La toiture-terrasse est le dernier plancher d'un bâtiment, soumis à de fortes variations de température et devant assurer l'écoulement des eaux de pluie : l'étanchéité en est la condition essentielle. Elle doit protéger des éléments extérieurs, jouer un rôle porteur (poids propre + charges d'exploitation), et permettre le passage des conduits." },
+      { type: 'exemple', valeur: "Constitution de bas en haut : élément porteur (dalle B.A.), forme de pente éventuelle (béton dosé à 250 kg/m³, facilite l'écoulement), isolant thermique (mousses plastiques), revêtement d'étanchéité (asphalte coulé, bitumes armés, membranes polymères), protection (gravillons, dalles, ou autoprotection collée en usine)." },
+      { type: 'texte', valeur: "Le revêtement peut être monocouche (une membrane épaisse) ou multicouche (plusieurs couches bitumineuses collées/soudées). La classification par pente distingue notamment les toitures à pente nulle (< 1 %, non admises en zones humides), inaccessibles, techniques, accessibles aux piétons, ou toitures-jardin." },
+      { type: 'retenir', valeur: "5 couches d'une toiture-terrasse : élément porteur → forme de pente → isolant thermique → revêtement d'étanchéité → protection. L'étanchéité est la fonction non négociable de l'ouvrage." },
+    ],
+  },
+
+  // ── Chapitre 10 : Les enduits ──
+  {
+    titre: 'Les enduits : rôles, composition, mise en œuvre en 3 couches',
+    dureeMin: 14,
+    missionPratique: 'techno-quiz-chapitre-10',
+    blocs: [
+      { type: 'objectifs', valeur: "Citer les 3 rôles de l'enduit\nConnaître les 3 couches de l'enduit traditionnel et leurs dosages\nComprendre les délais entre couches" },
+      { type: 'texte', valeur: "L'enduit remplit 3 rôles : protéger le gros œuvre contre les intempéries, imperméabiliser (tout en laissant « respirer » le support), et embellir (finition visible de la construction). Avant application, le support doit être débarrassé de ses poussières, brossé si non rugueux, et suffisamment humidifié." },
+      { type: 'exemple', valeur: "Enduit traditionnel en 3 couches, aux résistances dégressives : gobetis ou couche d'accrochage (2-5 mm, 500-600 kg/m³ de ciment), corps d'enduit (8-12 mm, 400-500 kg/m³), couche de finition (5-7 mm, 300-400 kg/m³, souvent colorée). Délais minimum : 48h entre 1ère et 2ème couche, 4 à 7 jours entre corps d'enduit et finition." },
+      { type: 'attention', valeur: "Les travaux d'enduit sur support neuf ne doivent commencer qu'un mois minimum après la fin de la maçonnerie et après mise hors d'eau, pour laisser le matériau terminer l'essentiel de son retrait." },
+      { type: 'retenir', valeur: "3 couches, dosage dégressif : gobetis (le plus fort, 500-600) → corps d'enduit (400-500) → finition (300-400 kg/m³). Délais 48h puis 4-7 jours entre les couches." },
+    ],
+  },
+
+  // ── Chapitre 11 : Les pathologies du bâtiment ──
+  {
+    titre: 'Terminologie de la pathologie et notion de vieillissement',
+    dureeMin: 12,
+    blocs: [
+      { type: 'objectifs', valeur: "Définir la pathologie du bâtiment\nDistinguer réparation, rénovation, restauration et réhabilitation\nCiter les 5 facteurs du vieillissement" },
+      { type: 'texte', valeur: "La pathologie du bâtiment (du grec pathos = maladie, logos = étude) désigne l'étude, la connaissance et le traitement des désordres d'un ouvrage. Elle vise l'amélioration des techniques constructives, de la réglementation et des marchés de travaux." },
+      { type: 'exemple', valeur: "Vocabulaire à ne pas confondre : réparation (maintien de l'ouvrage), rénovation (opération à l'échelle d'un quartier), restauration (retour à l'état originel, valeur architecturale/historique), réhabilitation (conforter + moderniser), vieillissement (dégradation progressive normale, non pathologique), entretien (tenir en état), maintenance (terme surtout appliqué aux équipements techniques)." },
+      { type: 'texte', valeur: "5 facteurs du vieillissement : la lumière solaire (UV et infrarouges), l'oxygène et l'ozone, l'eau (alternance humidité-sécheresse, capillarité), le vent (séchage, abrasion), et la climatologie (effet conjugué — en zone tropicale humide, l'eau de pluie domine)." },
+      { type: 'retenir', valeur: "Le vieillissement est normal et prévisible : ce n'est pas une pathologie. La pathologie est un accident qui peut, lui, accélérer le vieillissement — 30 % des dégradations viennent d'un entretien déficient ou absent." },
+    ],
+  },
+  {
+    titre: 'Prévention des désordres et méthodologie de l\'expertise',
+    dureeMin: 14,
+    blocs: [
+      { type: 'texte', valeur: "Plus une erreur ou un défaut est détecté tôt (conception, avant travaux), plus il est facile et économique à corriger. Détecté en cours d'exécution, il impose une reprise coûteuse ; découvert après réception, il devient une pathologie à part entière." },
+      { type: 'texte', valeur: "Les désordres ont 3 origines : la conception (calculs insuffisants, matériaux inadaptés), l'exécution (méthodes inadaptées, négligence), ou une cause externe (agents atmosphériques, surcharges d'exploitation hors normes, causes accidentelles comme séisme ou inondation)." },
+      { type: 'exemple', valeur: "Méthodologie d'expertise en 6 étapes : constat (fiche + description + localisation précise) → étude des causes (hypothèses, diagnostic) → degré de gravité (responsabilités, risques) → proposition de solutions (technique, économique, sécurité) → mise en œuvre → réception (PV contresigné, réserves, garanties)." },
+      { type: 'retenir', valeur: "3 origines de désordre : conception / exécution / externe. 6 étapes d'expertise : constat → causes → gravité → solutions → mise en œuvre → réception." },
+    ],
+  },
+  {
+    titre: 'Principales pathologies : fondations, gros œuvre et structure',
+    dureeMin: 16,
+    blocs: [
+      { type: 'texte', valeur: "Un tassement différentiel de seulement 1 cm entre deux appuis distants de 5 m suffit à provoquer une fissuration. Trois conditions se combinent : un sol compressible sous les fondations, des charges irrégulièrement réparties, et une superstructure fragile aux joints de maçonnerie." },
+      { type: 'exemple', valeur: "Les argiles gonflantes sont particulièrement dangereuses : tassement en sécheresse, soulèvement au retour de l'eau, avec des fissures pouvant atteindre 30 à 40 mm (on parle alors de fractures ou lézardes) — un phénomène aggravé par des arbres proches à fort besoin en eau. Un dallage mal conçu (matériaux « tout-venant » impropres, compactage insuffisant le long des façades) tasse également de façon différentielle." },
+      { type: 'texte', valeur: "Au niveau du gros œuvre, l'analyse des fissures dites structurelles permet de remonter à leur cause : une fissure oblique en diagonale évoque un cisaillement, des fissures horizontales/verticales une traction directe. La localisation précise et le tracé de la fissure sont les premiers indices du diagnostic." },
+      { type: 'retenir', valeur: "1 cm de tassement différentiel sur 5 m suffit à fissurer. Argiles gonflantes = alternance tassement (sécheresse) / soulèvement (pluie), fissures jusqu'à 30-40 mm." },
+    ],
+  },
+  {
+    titre: 'Réhabilitation du béton armé dégradé par la corrosion',
+    dureeMin: 16,
+    missionPratique: 'techno-quiz-chapitre-11',
+    blocs: [
+      { type: 'objectifs', valeur: "Comprendre les deux phases de la dégradation par corrosion\nConnaître les deux agents corrosifs principaux\nSavoir quand renforcer des armatures corrodées" },
+      { type: 'texte', valeur: "La dégradation du béton armé comporte deux phases : l'incubation (altération lente et invisible, jusqu'à ce que l'enrobage ne protège plus les aciers — carbonatation ou seuil de chlorures atteint) puis le développement (dégradations visibles : éclats, épaufrures, fissures, rouille), où les réparations deviennent lourdes et coûteuses." },
+      { type: 'exemple', valeur: "Les deux agents corrosifs principaux sont le dioxyde de carbone (carbonatation du béton, qui fait chuter son pH protecteur) et les chlorures (seuil critique ≈ 0,4 % du poids de ciment — eau de mer, sels de déverglaçage). Éléments les plus exposés : acrotères et balcons (minceur, enrobage difficile), parkings en bord de mer, structures portuaires, ponts et ouvrages d'art." },
+      { type: 'texte', valeur: "La corrosion réduit la section des armatures (perte de résistance), peut détruire l'adhérence acier-béton par gainage d'oxydes, et fragilise localement le béton (éclatement dû au foisonnement des oxydes de fer)." },
+      { type: 'attention', valeur: "Si la perte de section des armatures dépasse 10 %, un renforcement est nécessaire (armatures additionnelles noyées, béton projeté connecté, ou plaques/tissus collés) — en s'assurant d'abord que les charges de service n'ont pas évolué depuis la conception d'origine." },
+      { type: 'retenir', valeur: "2 phases : incubation (invisible) → développement (visible, réparation coûteuse). 2 agents : CO₂ (carbonatation) et chlorures (seuil 0,4 % du poids de ciment). Seuil de renforcement : perte de section > 10 %." },
+    ],
+  },
+];
+
 export const modulesGrandeEcole: ModuleSeed[] = [
   {
     slug: 'geotechnique-bts2',
@@ -378,6 +661,14 @@ export const modulesGrandeEcole: ModuleSeed[] = [
     ordre: 2,
     competence: 'metre-devis',
     cours: metreCours,
+  },
+  {
+    slug: 'techno-batiment-bts',
+    titre: 'Technologie des structures & pathologie du bâtiment',
+    domaine: DOMAINE_GRANDE_ECOLE,
+    ordre: 3,
+    competence: 'technologie-batiment',
+    cours: technoCours,
   },
 ];
 
@@ -997,4 +1288,628 @@ const metreMissions: MissionSeed[] = [
   },
 ];
 
-export const missionsGrandeEcole: MissionSeed[] = [...geotechniqueMissions, ...metreMissions];
+// Profils existants (voir profilsData dans seed.ts) — trajectoire conducteur de travaux.
+const PROFILS_TECHNO = ['stagiaire-chantier', 'chef-equipe', 'chef-chantier'];
+
+const technoMissions: MissionSeed[] = [
+  {
+    slug: 'techno-quiz-chapitre-1',
+    titre: "Quiz — L'environnement du BTP",
+    description: "Intervenants, plans et devis d'un projet de construction.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 1,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Dans un projet de construction, le maître d'ouvrage est...",
+        options: [
+          { id: 'a', label: "Celui qui paie et possède le terrain" },
+          { id: 'b', label: "Celui qui exécute les travaux" },
+          { id: 'c', label: "Celui qui réalise l'étude technique et financière" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Maître d'ouvrage = client qui paie. Maître d'œuvre (architecte) = étude technique/financière. Entrepreneur = exécution.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Le devis descriptif...",
+        options: [
+          { id: 'a', label: "Décrit la nature des ouvrages et précise les techniques de mise en œuvre" },
+          { id: 'b', label: "Donne uniquement le prix total des travaux" },
+          { id: 'c', label: "Remplace le plan de masse" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le devis descriptif décrit ; le devis estimatif chiffre (quantités × prix, à partir de l'avant-métré).",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Le CCTP (cahier des clauses techniques particulières) précise...",
+        options: [
+          { id: 'a', label: "Les conventions techniques particulières au marché" },
+          { id: 'b', label: "Uniquement les pénalités de retard" },
+          { id: 'c', label: "Le plan de situation" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Avec le CCAG (clauses administratives générales) et le CCAP (particulières), le CCTP fait partie des cahiers de charges.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-2',
+    titre: 'Quiz — Terminologie du BTP',
+    description: "Gros œuvre, second œuvre, travaux publics.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 2,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Le gros œuvre regroupe principalement...",
+        options: [
+          { id: 'a', label: "Terrassement, fondations, murs, planchers, structure porteuse, charpente, couverture" },
+          { id: 'b', label: "Peinture, plomberie, électricité, carrelage" },
+          { id: 'c', label: "Uniquement les routes et ouvrages d'art" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le gros œuvre assure la mise hors d'eau et la stabilité ; le second œuvre (peinture, plomberie...) habille et rend fonctionnel.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Les V.R.D (voiries et réseaux divers) concernent...",
+        options: [
+          { id: 'a', label: "Les canalisations, câbles, plateformes et l'éclairage public" },
+          { id: 'b', label: "Uniquement la peinture des façades" },
+          { id: 'c', label: "Le calcul du coefficient de vente" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Les VRD sont une des 3 grandes catégories de travaux publics, avec les ouvrages d'art et les routes.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Le bulldozer, l'angledozer et le tiltdozer sont des variantes de...",
+        options: [
+          { id: 'a', label: "Dozer, utilisé pour le nivellement" },
+          { id: 'b', label: "Grue de levage" },
+          { id: 'c', label: "Bétonnière" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce sont des engins de terrassement de la famille des dozers, qui se distinguent par l'orientation et l'inclinaison de leur lame.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-3',
+    titre: 'Quiz — Matériaux, béton armé et précontraint',
+    description: "Granulats, liants, adjuvants, agglomérés, béton armé, béton précontraint.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 4,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Un ciment de classe 42,5R se distingue d'un 42,5 par...",
+        options: [
+          { id: 'a', label: "Une résistance élevée au jeune âge" },
+          { id: 'b', label: "Une teinte blanche" },
+          { id: 'c', label: "L'absence totale de clinker" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La lettre R distingue, dans chaque classe de résistance à 28 jours, les ciments à résistance élevée au jeune âge (utile pour le décoffrage rapide).",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Un adjuvant retardateur de prise est particulièrement utile pour...",
+        options: [
+          { id: 'a', label: "Un bétonnage par temps chaud ou un béton transporté sur une longue distance" },
+          { id: 'b', label: "Accélérer le décoffrage" },
+          { id: 'c', label: "Colorer le béton" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le retardateur allonge la période où le béton reste plastique et maniable — l'inverse de l'accélérateur de prise.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Le béton résiste mal...",
+        options: [
+          { id: 'a', label: "À la traction (1,5 à 3,5 MPa)" },
+          { id: 'b', label: "À la compression" },
+          { id: 'c', label: "Au poids propre" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "D'où l'association avec l'acier (résistant en traction comme en compression), placé dans les zones tendues.",
+      },
+      {
+        ordre: 4, typeQuestion: 'QCM',
+        enonce: "Dans le béton précontraint, la « post-tension » consiste à...",
+        options: [
+          { id: 'a', label: "Tendre les câbles après le bétonnage et le durcissement, via des gaines" },
+          { id: 'b', label: "Tendre les câbles avant le bétonnage" },
+          { id: 'c', label: "Ne jamais tendre les câbles" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Pré-tension = câbles tendus avant coulage. Post-tension = câbles enfilés dans des gaines puis tendus après durcissement du béton.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-4',
+    titre: 'Quiz — Terrassements',
+    description: "Vocabulaire du terrassement, types de fouilles, foisonnement.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 6,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "L'emprise d'un terrassement est...",
+        options: [
+          { id: 'a', label: "La limite du terrassement, à l'intersection des talus et du terrain naturel" },
+          { id: 'b', label: "Le coefficient de foisonnement" },
+          { id: 'c', label: "Une fouille de plus de 8 m de profondeur" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "L'emprise délimite le chantier de terrassement, matérialisée par l'intersection des talus (déblai ou remblai) et du terrain naturel.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Un puisard sert à...",
+        options: [
+          { id: 'a', label: "Collecter les eaux d'infiltration d'une fouille pour les évacuer par pompage" },
+          { id: 'b', label: "Stocker le déblai foisonné" },
+          { id: 'c', label: "Mesurer la classe du terrain" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le puisard (≈1m de profondeur) est installé au point bas de la fouille où convergent les eaux de pluie ou d'infiltration.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Une fouille en excavation se caractérise par...",
+        options: [
+          { id: 'a', label: "Largeur > 2,00 m et hauteur < largeur/2" },
+          { id: 'b', label: "Largeur ≤ 2,00 m et hauteur > 1,00 m" },
+          { id: 'c', label: "Toujours plus de 8 m de profondeur" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est un terrassement général de la surface à construire, à profondeur limitée — à distinguer de la tranchée (largeur ≤2m, hauteur >1m).",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-5',
+    titre: 'Quiz — Les fondations',
+    description: "Fondations superficielles (rigoles, semelles) et profondes (puits, pieux).",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 8,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Une semelle continue « flexible » (peu épaisse) est destinée à...",
+        options: [
+          { id: 'a', label: "Un sol cohérent (rocheux, compact)" },
+          { id: 'b', label: "Un sol pulvérulent (sable, gravier)" },
+          { id: 'c', label: "Uniquement les fondations profondes" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Semelle flexible = sol cohérent. Semelle rigide (large et épaisse) = sol pulvérulent intermédiaire.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Une semelle isolée fonctionne principalement sous l'effet de...",
+        options: [
+          { id: 'a', label: "Translation verticale (poinçonnement) et rotation des consoles" },
+          { id: 'b', label: "Flambement uniquement" },
+          { id: 'c', label: "Foisonnement du sol" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce double mécanisme explique pourquoi elle est armée par deux nappes d'aciers orthogonales, protégées par 4 à 5 cm d'enrobage.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "On choisit une fondation par puits plutôt qu'un radier lorsque...",
+        options: [
+          { id: 'a', label: "La couche superficielle est insuffisante, les charges importantes et concentrées, et le puits moins coûteux" },
+          { id: 'b', label: "Le sol est homogène et très résistant en surface" },
+          { id: 'c', label: "Aucune raison technique ne le justifie jamais" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le puits (fondation semi-profonde, jusqu'à 8m) est un compromis économique entre semelle superficielle et pieu profond.",
+      },
+      {
+        ordre: 4, typeQuestion: 'QCM',
+        enonce: "Les pieux agissent sur le sol par...",
+        options: [
+          { id: 'a', label: "Frottement latéral, effet de pointe, ou les deux combinés" },
+          { id: 'b', label: "Foisonnement uniquement" },
+          { id: 'c', label: "Adhérence béton-acier" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Les pieux (20 à 40m de profondeur et plus) reportent les charges en profondeur par ces deux mécanismes de résistance du sol.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-6',
+    titre: 'Quiz — Les murs',
+    description: "Murs de soubassement, murs en élévation, voiles.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 9,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Les efflorescences sur un mur de soubassement sont...",
+        options: [
+          { id: 'a', label: "Des dépôts de sels cristallisés, révélant une infiltration d'eau" },
+          { id: 'b', label: "Un type d'agglos" },
+          { id: 'c', label: "Une propriété du béton précontraint" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "L'eau infiltrée dissout les sels du matériau puis les redépose en s'évaporant sur une surface ventilée : c'est l'efflorescence.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Un système de drainage complet pour un mur enterré comprend...",
+        options: [
+          { id: 'a', label: "Une tranchée drainante, un drain en face supérieure, et un exutoire" },
+          { id: 'b', label: "Uniquement un enduit hydrofuge" },
+          { id: 'c', label: "Un film polyane seul" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ces 3 éléments sont obligatoires ensemble : la tranchée collecte, le drain conduit, l'exutoire évacue.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Les 5 rôles essentiels d'une maçonnerie en élévation sont...",
+        options: [
+          { id: 'a', label: "Clore, résister, isoler, protéger, embellir" },
+          { id: 'b', label: "Foisonner, décoffrer, ancrer, ferrailler, couler" },
+          { id: 'c', label: "Uniquement porter les charges verticales" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ces 5 rôles couvrent toutes les fonctions d'un mur : structurelles (résister), techniques (isoler, protéger) et esthétiques (embellir).",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-7',
+    titre: 'Quiz — Dallage sur terre-plein',
+    description: "Types de dallage et constitution des couches.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 10,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Un dallage « solidaire » (8 à 12 cm), comparé à un dallage « indépendant »...",
+        options: [
+          { id: 'a', label: "Repose sur les fondations et impose plus de ferraillage aux appuis" },
+          { id: 'b', label: "N'a jamais de treillis soudé" },
+          { id: 'c', label: "Ne peut jamais dépasser 6 cm d'épaisseur" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le dallage indépendant (6-8cm) transmet ses charges directement au sol ; le solidaire (8-12cm) est plus sûr mais plus ferraillé.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Dans la constitution d'un dallage, le film polyane sert à...",
+        options: [
+          { id: 'a', label: "Protéger la dalle en béton contre l'humidité du sol" },
+          { id: 'b', label: "Remplacer le treillis soudé" },
+          { id: 'c', label: "Servir de forme de pente" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Il se place entre la couche drainante en sable et la dalle en béton dosé à 350 kg/m³.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "En terrain inondable ou nappe phréatique proche, on préfère...",
+        options: [
+          { id: 'a', label: "Un plancher sur vide sanitaire (≥ 60 cm), hors contact avec le sol" },
+          { id: 'b', label: "Un dallage indépendant classique" },
+          { id: 'c', label: "Supprimer toute forme de plancher bas" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le vide sanitaire isole totalement le plancher du sol humide, souvent réalisé avec des corps creux.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-8',
+    titre: 'Quiz — Ouvrages en béton armé : poteaux, poutres, planchers, escaliers',
+    description: "Sollicitations, ferraillage et dimensionnement des ouvrages élémentaires.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 12,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Le flambement d'un poteau survient plutôt sur...",
+        options: [
+          { id: 'a', label: "Un poteau élancé, de section faible, soumis à des poussées horizontales" },
+          { id: 'b', label: "Un poteau court et trapu" },
+          { id: 'c', label: "Un poteau parfaitement centré, sans charge horizontale" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le poteau se comporte alors comme une poutre : comprimé sur une face, tendu sur l'autre.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Dans une poutre en flexion, les barres longitudinales sont placées en zone...",
+        options: [
+          { id: 'a', label: "Tendue, pour résister à l'effort de traction" },
+          { id: 'b', label: "Comprimée uniquement" },
+          { id: 'c', label: "Neutre" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le béton résiste bien à la compression (fibre supérieure) mais mal à la traction (fibre inférieure) : c'est là que travaillent les aciers.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Un plancher désigné « 16+4 » signifie...",
+        options: [
+          { id: 'a', label: "16 cm d'entrevous + 4 cm de dalle de compression" },
+          { id: 'b', label: "16 poutrelles pour 4 travées" },
+          { id: 'c', label: "16 cm de dalle pleine pour un coupe-feu de 4h" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La désignation d'un plancher à corps creux donne toujours la hauteur des entrevous, puis l'épaisseur de la table de compression.",
+      },
+      {
+        ordre: 4, typeQuestion: 'NUMERIQUE',
+        enonce: "Selon la formule de Blondel (2h + g), pour une hauteur de marche h = 17 cm, quelle valeur de giron g (en cm) donne un résultat de 63 cm (soit 2×17 + g) ?",
+        bonnesReponses: 29, tolerance: 1,
+        correctionPedagogique: "2×17 = 34, donc g = 63 − 34 = 29 cm — bien dans la fourchette usuelle de 25 à 32 cm.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-9',
+    titre: 'Quiz — Charpentes, couvertures et toitures-terrasses',
+    description: "Charpente traditionnelle/fermette, matériaux de couverture, étanchéité des toitures-terrasses.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 14,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "La charpente fermette, comparée à la traditionnelle...",
+        options: [
+          { id: 'a', label: "Utilise des pièces légères assemblées par connecteurs métalliques, pose plus rapide" },
+          { id: 'b', label: "Utilise exclusivement des tenons et mortaises" },
+          { id: 'c', label: "N'a jamais de ferme" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La fermette est une charpente industrielle (années 1970) : prix attractif, légèreté, pose rapide grâce aux connecteurs métalliques.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Pour des combles dits « aménageables », la pente doit permettre une hauteur minimale de...",
+        options: [
+          { id: 'a', label: "1,80 m" },
+          { id: 'b', label: "0,80 m" },
+          { id: 'c', label: "5,00 m" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "En dessous de cette hauteur sous plafond, les combles sont dits « perdus », non habitables.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Sur une toiture-terrasse, la fonction non négociable à assurer est...",
+        options: [
+          { id: 'a', label: "L'étanchéité" },
+          { id: 'b', label: "La couleur du revêtement" },
+          { id: 'c', label: "Le nombre d'accessoires (faîtières, arêtiers)" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La toiture-terrasse, dernier plancher du bâtiment, doit impérativement rester imperméable malgré les variations de température.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-10',
+    titre: 'Quiz — Les enduits',
+    description: "Rôles, composition en 3 couches, délais de mise en œuvre.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 15,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Dans un enduit traditionnel à 3 couches, le gobetis (1ère couche)...",
+        options: [
+          { id: 'a', label: "A le dosage en liant le plus fort (500-600 kg/m³), pour assurer l'accrochage" },
+          { id: 'b', label: "A le dosage le plus faible" },
+          { id: 'c', label: "N'existe pas en enduit traditionnel" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Les résistances sont dégressives : gobetis (le plus fort) → corps d'enduit → finition (le plus faible).",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Le délai minimum recommandé entre le corps d'enduit et la couche de finition est de...",
+        options: [
+          { id: 'a', label: "4 à 7 jours" },
+          { id: 'b', label: "1 heure" },
+          { id: 'c', label: "6 mois" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce délai (contre 48h entre 1ère et 2ème couche) laisse le mortier effectuer l'essentiel de son retrait avant la couche décorative.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Les travaux d'enduit sur un support neuf ne doivent commencer que...",
+        options: [
+          { id: 'a', label: "Un mois minimum après la fin de la maçonnerie, après mise hors d'eau" },
+          { id: 'b', label: "Immédiatement après le coulage de la dernière dalle" },
+          { id: 'c', label: "Avant même la pose de la charpente" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce délai laisse les matériaux terminer l'essentiel de leur retrait, condition d'une bonne tenue de l'enduit.",
+      },
+    ],
+  },
+  {
+    slug: 'techno-quiz-chapitre-11',
+    titre: 'Quiz — Pathologies du bâtiment',
+    description: "Terminologie, vieillissement, expertise, désordres de fondations, corrosion du béton armé.",
+    type: 'QUIZ',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 16,
+    competences: ['technologie-batiment'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Le vieillissement d'un bâtiment est...",
+        options: [
+          { id: 'a', label: "Un phénomène normal et prévisible, qui n'est pas en soi une pathologie" },
+          { id: 'b', label: "Toujours une pathologie grave" },
+          { id: 'c', label: "Uniquement causé par un défaut de conception" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La pathologie est un accident qui peut, elle, accélérer un vieillissement autrement normal et prévisible.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Un tassement différentiel de seulement 1 cm entre deux appuis distants de 5 m...",
+        options: [
+          { id: 'a', label: "Suffit à provoquer une fissuration" },
+          { id: 'b', label: "N'a jamais de conséquence visible" },
+          { id: 'c', label: "Ne concerne que les fondations profondes" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est l'ordre de grandeur retenu dans le cours pour expliquer l'apparition de fissures de cisaillement ou de traction sur les murs.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Les deux agents corrosifs principaux des armatures du béton armé sont...",
+        options: [
+          { id: 'a', label: "Le dioxyde de carbone (carbonatation) et les chlorures" },
+          { id: 'b', label: "L'azote et l'hélium" },
+          { id: 'c', label: "Le ciment et le sable" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le CO₂ fait chuter le pH protecteur du béton (carbonatation) ; les chlorures deviennent critiques au-delà d'≈0,4% du poids de ciment.",
+      },
+      {
+        ordre: 4, typeQuestion: 'QCM',
+        enonce: "Si la perte de section des armatures corrodées dépasse 10 %, il faut...",
+        options: [
+          { id: 'a', label: "Envisager un renforcement des armatures" },
+          { id: 'b', label: "Ne rien faire, c'est négligeable" },
+          { id: 'c', label: "Démolir systématiquement l'ouvrage" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce seuil de 10% déclenche l'étude d'un renforcement (armatures additionnelles, béton projeté, ou plaques/tissus collés).",
+      },
+    ],
+  },
+  {
+    slug: 'techno-examen-final',
+    titre: 'Examen de synthèse — Technologie & Pathologie du Bâtiment',
+    description: "Épreuve finale couvrant les 11 chapitres du programme.",
+    type: 'EXAMEN',
+    profils: PROFILS_TECHNO,
+    niveauRequis: 20,
+    competences: ['technologie-batiment'],
+    conditionReussite: 70,
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Le gros œuvre a pour rôle principal...",
+        options: [
+          { id: 'a', label: "La mise hors d'eau et la stabilité du bâtiment" },
+          { id: 'b', label: "La décoration intérieure" },
+          { id: 'c', label: "Le calcul du prix de vente" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le second œuvre prend le relais pour habiller et rendre fonctionnel le bâtiment.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Le béton résiste mal en traction : c'est pourquoi, dans une poutre fléchie, les aciers principaux sont placés...",
+        options: [
+          { id: 'a', label: "En zone tendue (en bas, pour une poutre sur deux appuis)" },
+          { id: 'b', label: "Toujours au centre géométrique" },
+          { id: 'c', label: "Uniquement en zone comprimée" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Zone tendue = fibre inférieure sur une poutre simplement appuyée ; c'est l'inverse pour une console (aciers en haut).",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Une semelle isolée est armée par deux nappes d'aciers orthogonales pour reprendre...",
+        options: [
+          { id: 'a', label: "L'effet combiné de poinçonnement (translation verticale) et de rotation des consoles" },
+          { id: 'b', label: "Uniquement le retrait du béton" },
+          { id: 'c', label: "Le foisonnement du sol" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Ce double mécanisme de fonctionnement justifie le double lit d'armatures et l'enrobage de 4 à 5 cm.",
+      },
+      {
+        ordre: 4, typeQuestion: 'NUMERIQUE',
+        enonce: "Pour un escalier droit, hauteur de marche h = 16 cm et giron g = 30 cm. La formule de Blondel (2h+g) donne quelle valeur en cm ?",
+        bonnesReponses: 62, tolerance: 1,
+        correctionPedagogique: "2×16 + 30 = 62 cm, bien dans la fourchette admise de 60 à 66 cm.",
+      },
+      {
+        ordre: 5, typeQuestion: 'QCM',
+        enonce: "Un plancher désigné « 20+4 » a une portée indicative plus grande qu'un « 12+4 » parce que...",
+        options: [
+          { id: 'a', label: "Des entrevous plus hauts permettent des poutrelles plus résistantes en flexion" },
+          { id: 'b', label: "Le dosage en ciment de la dalle de compression change" },
+          { id: 'c', label: "Le treillis soudé est différent" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Plus la hauteur totale du plancher (poutrelle + entrevous) augmente, plus l'inertie et donc la portée admissible augmentent.",
+      },
+      {
+        ordre: 6, typeQuestion: 'CHOIX_CONSEQUENCE',
+        enonce: "Lors d'une visite de chantier, tu constates des efflorescences et un début de rouille sur un mur de soubassement enterré, sans système de drainage visible. Que fais-tu ?",
+        options: [
+          { id: 'diagnostiquer', label: "Faire un constat précis, rechercher la cause (drainage absent) avant toute réparation", points: 60, consequences: { budget: -15000 } },
+          { id: 'repeindre', label: "Repeindre simplement la surface pour masquer les taches", points: 0, consequences: { budget: -5000, reputation: -6 } },
+          { id: 'demolir', label: "Proposer immédiatement la démolition du mur", points: 20, consequences: { budget: -500000, reputation: -3 } },
+        ],
+        bonnesReponses: 'diagnostiquer',
+        correctionPedagogique: "La méthodologie d'expertise impose de commencer par un constat précis et une recherche de cause — ici, l'absence probable de drainage — avant toute solution de réparation.",
+      },
+      {
+        ordre: 7, typeQuestion: 'QCM',
+        enonce: "Une toiture-terrasse à pente nulle (< 1 %) est...",
+        options: [
+          { id: 'a', label: "Non admise dans les zones humides" },
+          { id: 'b', label: "Toujours interdite quel que soit le climat" },
+          { id: 'c', label: "Le seul type de toiture-terrasse existant" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "La classification par pente distingue plusieurs cas d'usage ; la pente nulle pose un problème d'évacuation d'eau en climat humide.",
+      },
+      {
+        ordre: 8, typeQuestion: 'QCM',
+        enonce: "Face à des armatures corrodées avec une perte de section supérieure à 10 %, la première précaution de l'ingénieur est de...",
+        options: [
+          { id: 'a', label: "Vérifier que les charges de service n'ont pas évolué avant de renforcer" },
+          { id: 'b', label: "Renforcer sans aucune vérification préalable" },
+          { id: 'c', label: "Ignorer le seuil de 10 %, il n'a pas d'importance" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Toute réhabilitation structurelle commence par comprendre le fonctionnement réel de l'ouvrage et ses charges de service actuelles.",
+      },
+    ],
+  },
+];
+
+export const missionsGrandeEcole: MissionSeed[] = [...geotechniqueMissions, ...metreMissions, ...technoMissions];

@@ -292,6 +292,32 @@ export function SchemaTechnique({ nom }: { nom: string }) {
         </svg>
       )}
 
+      {nom === 'escalier-blondel' && (
+        <svg viewBox="0 0 400 230" className="h-auto w-full">
+          <Cartouche titre="ESCALIER DROIT — GIRON, HAUTEUR, FORMULE DE BLONDEL" />
+          {/* Marches en coupe (profil d'escalier) */}
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <rect key={i} x={60 + i * 45} y={175 - i * 22} width="45" height="10" fill="#E8DCC8" stroke="#2B2B2E" strokeWidth="1.2" />
+          ))}
+          {/* cote giron sur une marche */}
+          <g stroke="#B87333" strokeWidth="1" fill="#B87333">
+            <line x1="150" y1="132" x2="195" y2="132" />
+            <line x1="150" y1="128" x2="150" y2="136" />
+            <line x1="195" y1="128" x2="195" y2="136" />
+            <text x="172" y="124" textAnchor="middle" fontSize="9" fontFamily="monospace">giron g (25-32cm)</text>
+          </g>
+          {/* cote hauteur sur une marche */}
+          <g stroke="#C1502E" strokeWidth="1" fill="#C1502E">
+            <line x1="200" y1="110" x2="200" y2="132" />
+            <line x1="196" y1="110" x2="204" y2="110" />
+            <line x1="196" y1="132" x2="204" y2="132" />
+            <text x="212" y="124" fontSize="9" fontFamily="monospace">h (14-18cm)</text>
+          </g>
+          <text x="200" y="205" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#6B7A3F" fontFamily="monospace">Formule de Blondel : 60 cm ≤ 2h + g ≤ 66 cm</text>
+          <text x="200" y="220" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">toujours un giron de moins que de hauteurs de marche</text>
+        </svg>
+      )}
+
       {nom === 'pente-vrd' && (
         <svg viewBox="0 0 400 230" className="h-auto w-full">
           <Cartouche titre="TRANCHÉE TYPE — RÉSEAU ENTERRÉ" />
