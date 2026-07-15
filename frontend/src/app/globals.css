@@ -236,8 +236,38 @@ body {
 }
 .pnj-marche { animation: pnj-marche linear infinite; }
 
+/* ── 5 animations prioritaires de l'avatar (AvatarBtp, prop `animation`) ───────── */
+
+/* Repos : respiration lente + clignement occasionnel des yeux (pause longue, fermeture brève). */
+@keyframes avatar-repos {
+  0%, 96%, 100% { transform: scale(1); }
+  98% { transform: scale(0.985); }
+}
+.avatar-anim-repos { animation: avatar-repos 3.4s ease-in-out infinite; transform-origin: center bottom; }
+
+/* Marche : réutilise le rebond existant, exposé sous le nom de la spec. */
+.avatar-anim-marche { animation: avatar-marche 0.3s ease-in-out infinite; }
+
+/* Lecture de plan / tablette : léger hochement vers le bas, comme si le regard suivait un document. */
+@keyframes avatar-consultation {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(3deg) translateY(2px); }
+}
+.avatar-anim-lecture-plan { animation: avatar-consultation 2.2s ease-in-out infinite; transform-origin: center top; }
+.avatar-anim-tablette { animation: avatar-consultation 1.6s ease-in-out infinite; transform-origin: center top; }
+
+/* Célébration : petit saut de joie, plus franc que la marche. */
+@keyframes avatar-celebration {
+  0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+  30% { transform: translateY(-10px) scale(1.05) rotate(-4deg); }
+  55% { transform: translateY(0) scale(0.98) rotate(3deg); }
+  75% { transform: translateY(-4px) scale(1.02) rotate(-1deg); }
+}
+.avatar-anim-celebration { animation: avatar-celebration 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; transform-origin: center bottom; }
+
 @media (prefers-reduced-motion: reduce) {
-  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway, .pnj-marche { animation: none; }
+  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway, .pnj-marche,
+  .avatar-anim-repos, .avatar-anim-marche, .avatar-anim-lecture-plan, .avatar-anim-tablette, .avatar-anim-celebration { animation: none; }
   .batiment-iso { transition: none; }
 }
 

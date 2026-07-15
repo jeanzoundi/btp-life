@@ -116,14 +116,35 @@ const CADRES: Record<Exclude<AvatarConfig['cadre'], 'aucun'>, { couleur: string;
   or: { couleur: '#C9A227', brillance: '#F1C27D' },
 };
 
-export function AvatarBtp({ config, taille = 96, className = '' }: { config?: unknown; taille?: number; className?: string }) {
+export type AnimationAvatar = 'repos' | 'marche' | 'lecture-plan' | 'tablette' | 'celebration';
+
+const CLASSE_ANIMATION: Record<AnimationAvatar, string> = {
+  repos: 'avatar-anim-repos',
+  marche: 'avatar-anim-marche',
+  'lecture-plan': 'avatar-anim-lecture-plan',
+  tablette: 'avatar-anim-tablette',
+  celebration: 'avatar-anim-celebration',
+};
+
+export function AvatarBtp({
+  config,
+  taille = 96,
+  className = '',
+  animation,
+}: {
+  config?: unknown;
+  taille?: number;
+  className?: string;
+  animation?: AnimationAvatar;
+}) {
   const c = configDepuis(config);
   const fondSombre = ['#2B2B2E', '#6B7A3F', '#C1502E'].includes(c.fond);
   const cadre = c.cadre !== 'aucun' ? CADRES[c.cadre] : null;
   const sansCasque = c.casqueStyle === 'aucun';
+  const classeAnimation = animation ? CLASSE_ANIMATION[animation] : '';
 
   return (
-    <svg viewBox="0 0 120 120" width={taille} height={taille} className={`rounded-2xl ${className}`} aria-label="Avatar">
+    <svg viewBox="0 0 120 120" width={taille} height={taille} className={`rounded-2xl ${classeAnimation} ${className}`} aria-label="Avatar">
       <rect width="120" height="120" fill={c.fond} />
       <circle cx="60" cy="130" r="52" fill={fondSombre ? 'rgba(245,240,230,0.12)' : 'rgba(43,43,46,0.06)'} />
 

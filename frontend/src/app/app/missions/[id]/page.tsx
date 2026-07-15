@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { AnneauProgression, Confettis, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { Compteur } from '@/components/public/compteur';
 import { jouerSon } from '@/lib/sons';
+import { AvatarBtp } from '@/components/app/avatar-btp';
 
 interface Option {
   id: string;
@@ -78,6 +79,10 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
   const { data: mission } = useQuery({
     queryKey: ['mission', id],
     queryFn: () => api.get<MissionDetail>(`/missions/${id}`),
+  });
+  const { data: carriere } = useQuery({
+    queryKey: ['carriere', 'me'],
+    queryFn: () => api.get<{ avatar?: { config?: unknown } | null }>('/carriere/me'),
   });
 
   useEffect(() => {
@@ -253,6 +258,11 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
         )}
 
         <div className={`rounded-3xl border-2 p-8 text-center ${resultat.reussie ? 'border-olive bg-olive/5' : 'border-terracotta bg-terracotta/5'}`}>
+          {resultat.reussie && (
+            <div className="mb-2 flex justify-center">
+              <AvatarBtp config={carriere?.avatar?.config} taille={72} animation="celebration" />
+            </div>
+          )}
           <div className="flex justify-center">
             <AnneauProgression valeur={resultat.score} max={resultat.scoreMax} taille={150} epaisseur={12} couleur={resultat.reussie ? '#6B7A3F' : '#C1502E'}>
               <div>

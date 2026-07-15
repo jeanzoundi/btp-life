@@ -79,10 +79,15 @@ export default function DressingPage() {
 
   const itemsCategorie = (items ?? []).filter((i) => i.categorie === categorieActive);
 
+  // Le personnage réagit à l'outil actuellement équipé, façon jeu de simulation.
+  const outilEquipe = (carriere?.avatar?.config as { outil?: string } | undefined)?.outil;
+  const animationApercu =
+    outilEquipe === 'plan' ? 'lecture-plan' : outilEquipe === 'tablette' ? 'tablette' : 'repos';
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-col items-center gap-4 rounded-3xl border border-pierre bg-white p-6 sm:flex-row sm:items-start">
-        <AvatarBtp config={carriere?.avatar?.config} taille={120} />
+        <AvatarBtp config={carriere?.avatar?.config} taille={120} animation={animationApercu} />
         <div>
           <h1 className="font-display text-xl font-bold text-graphite sm:text-2xl">🎽 Dressing</h1>
           <p className="mt-1 text-sm text-graphite/60">
