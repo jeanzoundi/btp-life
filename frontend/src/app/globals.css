@@ -95,6 +95,47 @@ body {
   animation: gradient-shift 12s ease infinite;
 }
 
+/* Texte en dégradé chaud — pour un mot-clé mis en avant dans un titre */
+.texte-degrade {
+  background: linear-gradient(100deg, #c1502e 0%, #b87333 55%, #a85f4c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Halos lumineux diffus derrière le hero — profondeur sans surcharge */
+.halo-hero {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.halo-hero::before,
+.halo-hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.5;
+}
+.halo-hero::before {
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, rgba(193, 80, 46, 0.35), transparent 70%);
+  top: -120px; right: -80px;
+}
+.halo-hero::after {
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(107, 122, 63, 0.30), transparent 70%);
+  bottom: -140px; left: -60px;
+}
+
+/* Puce « live » qui respire, pour un badge d'annonce */
+@keyframes pulse-point {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.45; }
+}
+.pulse-point { animation: pulse-point 1.8s ease-in-out infinite; }
+
 /* ── Application (intérieur) ────────────────────────────── */
 
 @keyframes shimmer {
@@ -202,7 +243,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up, .anim-float, .anim-grue, .anim-etage, .anim-pulse-cta, .marquee-piste, .fond-anime,
-  .skeleton, .confetti, .etage-plein, .selection-pop { animation: none; }
+  .skeleton, .confetti, .etage-plein, .selection-pop, .pulse-point { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .anneau-score circle { transition: none; }
 }
