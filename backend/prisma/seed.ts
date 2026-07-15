@@ -9,6 +9,7 @@ import { missionsData, questionsSupplementaires, questionsVague2 } from './seed-
 import { modulesAcademie, coursSupplementaires, enrichissementCours } from './seed-data/academie-data';
 import { MATERIAUX, chantiersGestion } from './seed-data/chantiers-data';
 import { modulesGrandeEcole, missionsGrandeEcole } from './seed-data/grande-ecole-batiment-data';
+import { avatarItemsData } from './seed-data/avatar-items-data';
 
 const prisma = new PrismaClient();
 
@@ -463,6 +464,15 @@ async function main() {
       where: { slug: b.slug },
       create: { ...b, conditions: { description: b.description } },
       update: { ...b, conditions: { description: b.description } },
+    });
+  }
+
+  console.log('Seed — items avatar (dressing)...');
+  for (const item of avatarItemsData) {
+    await prisma.itemAvatar.upsert({
+      where: { slug: item.slug },
+      create: item,
+      update: item,
     });
   }
 
