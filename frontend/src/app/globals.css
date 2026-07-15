@@ -187,8 +187,16 @@ body {
 }
 .anim-sway { animation: sway 4.2s ease-in-out infinite; }
 
+/* PNJ qui arpentent les routes du quartier : un vrai avatar suit un tracé (offset-path) en
+   boucle. Le mouvement vertical « pas » est géré par .anim-float sur l'enfant. */
+@keyframes pnj-marche {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+.pnj-marche { animation: pnj-marche linear infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway { animation: none; }
+  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway, .pnj-marche { animation: none; }
   .batiment-iso { transition: none; }
 }
 
