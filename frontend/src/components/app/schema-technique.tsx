@@ -257,6 +257,41 @@ export function SchemaTechnique({ nom }: { nom: string }) {
         </svg>
       )}
 
+      {nom === 'schema-prix-vente' && (
+        <svg viewBox="0 0 400 300" className="h-auto w-full">
+          <Cartouche titre="DE LA DÉPENSE AU PRIX DE VENTE" />
+          {/* DS */}
+          <rect x="90" y="26" width="220" height="30" rx="4" fill="#F5F0E6" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="200" y="46" textAnchor="middle" fontSize="11" fontWeight="bold" fontFamily="monospace">D.S — Déboursés secs</text>
+          <text x="320" y="46" fontSize="9" fill="#8A8680" fontFamily="monospace">mat. + m.o + matériel</text>
+          {/* + FC */}
+          <text x="200" y="68" textAnchor="middle" fontSize="10" fill="#6B7A3F" fontFamily="monospace">+ F.C (frais de chantier)</text>
+          <line x1="200" y1="56" x2="200" y2="80" stroke="#8A8680" strokeWidth="1.5" />
+          {/* DT / CR */}
+          <rect x="70" y="80" width="260" height="30" rx="4" fill="#F5F0E6" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="200" y="100" textAnchor="middle" fontSize="11" fontWeight="bold" fontFamily="monospace">D.T / C.R — Coût de réalisation</text>
+          {/* + FG + FM */}
+          <text x="200" y="124" textAnchor="middle" fontSize="10" fill="#6B7A3F" fontFamily="monospace">+ F.G (généraux) + F.M (marché)</text>
+          <line x1="200" y1="110" x2="200" y2="136" stroke="#8A8680" strokeWidth="1.5" />
+          {/* PR */}
+          <rect x="90" y="136" width="220" height="30" rx="4" fill="#F5F0E6" stroke="#2B2B2E" strokeWidth="1.5" />
+          <text x="200" y="156" textAnchor="middle" fontSize="11" fontWeight="bold" fontFamily="monospace">P.R — Prix de revient HT</text>
+          {/* + B */}
+          <text x="200" y="180" textAnchor="middle" fontSize="10" fill="#6B7A3F" fontFamily="monospace">+ B (bénéfice)</text>
+          <line x1="200" y1="166" x2="200" y2="192" stroke="#8A8680" strokeWidth="1.5" />
+          {/* PVHT */}
+          <rect x="70" y="192" width="260" height="32" rx="4" fill="#E8DCC8" stroke="#C1502E" strokeWidth="2" />
+          <text x="200" y="213" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#C1502E" fontFamily="monospace">P.V.H.T — Prix de vente hors taxe</text>
+          {/* + TVA */}
+          <text x="200" y="240" textAnchor="middle" fontSize="10" fill="#6B7A3F" fontFamily="monospace">+ T.V.A</text>
+          <line x1="200" y1="224" x2="200" y2="250" stroke="#8A8680" strokeWidth="1.5" />
+          {/* PVTTC */}
+          <rect x="60" y="250" width="280" height="32" rx="4" fill="#E8DCC8" stroke="#C1502E" strokeWidth="2" />
+          <text x="200" y="271" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#C1502E" fontFamily="monospace">P.V.T.T.C — Toutes taxes comprises</text>
+          <text x="200" y="296" textAnchor="middle" fontSize="9" fill="#8A8680" fontFamily="monospace">P.V.H.T = D.S + F.C + F.M + F.G + B</text>
+        </svg>
+      )}
+
       {nom === 'pente-vrd' && (
         <svg viewBox="0 0 400 230" className="h-auto w-full">
           <Cartouche titre="TRANCHÉE TYPE — RÉSEAU ENTERRÉ" />

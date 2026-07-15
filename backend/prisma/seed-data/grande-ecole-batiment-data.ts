@@ -165,6 +165,203 @@ const geotechniqueCours: CoursSeed[] = [
   },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════
+// MÉTRÉ — 3 chapitres / 18 leçons (BTS2, filière Génie Civil-Bâtiment)
+// ═══════════════════════════════════════════════════════════════════════
+
+const metreCours: CoursSeed[] = [
+  // ── Chapitre A : Avants-métrés (7 leçons) ──
+  {
+    titre: 'Avant-métré de terrassement',
+    dureeMin: 14,
+    blocs: [
+      { type: 'objectifs', valeur: "Distinguer déblai et remblai\nConnaître les types de fouilles et les classes de terrain\nCalculer un volume de terre à évacuer avec le foisonnement" },
+      { type: 'texte', valeur: "Le terrassement est l'ensemble des travaux de modification du relief d'un terrain. Un déblai abaisse le niveau du terrain par enlèvement de terre ; un remblai le relève par apport de terre. On distingue plusieurs types de fouilles selon leurs dimensions : la fouille en rigole (largeur ≤ 2,00 m, profondeur ≤ 1,00 m), la fouille en tranchée (plus profonde que large), et la fouille en excavation ou puits/trou (superficielle, largeur ≤ 2,00 m et profondeur ≤ la moitié de la largeur)." },
+      { type: 'exemple', valeur: "Les terrains sont classés en six catégories A à F selon leur dureté : A (terre végétale, sable), B (terre argileuse ou caillouteuse), C (argile plastique, marne compacte), D (roche moyennement dure), E (roche dure au marteau-piqueur), F (roche très dure, à la mine ou dynamite)." },
+      { type: 'attention', valeur: "Le coefficient de foisonnement passager (toujours > 1, ex. argile f = 1,35) sert à calculer le volume de terre à évacuer. Le coefficient de foisonnement permanent ou résiduel (ex. argile kr = 1,10) sert à calculer le volume de terre à utiliser pour un remblai soigneusement damé — ce ne sont pas le même coefficient." },
+      { type: 'retenir', valeur: "Décapage : m² si épaisseur < 25 cm, sinon m³. Déblais et remblais des fouilles : toujours en m³ « aux vides » (formes géométriques), sans tenir compte du foisonnement — celui-ci n'intervient qu'après, pour évaluer les cubes à évacuer ou à apporter." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de béton',
+    dureeMin: 14,
+    blocs: [
+      { type: 'texte', valeur: "Comme pour le terrassement, l'avant-métré de béton commence par une décomposition de la structure en ouvrages élémentaires : béton de propreté, semelles (isolées ou filantes), radiers, dallages, dalles, voiles, poteaux, longrines, poutres, consoles, escaliers, chaînages (horizontaux ou verticaux), linteaux." },
+      { type: 'texte', valeur: "La quantité de béton d'un ouvrage élémentaire est généralement évaluée en mètre cube (« cube »), sauf le béton de propreté et le dallage qui peuvent être évalués en m² si le prix unitaire est défini à la surface." },
+      { type: 'exemple', valeur: "Pour un ouvrage à section constante : longrines, poutres, chaînages horizontaux, linteaux → volume = section × longueur. Poteaux, chaînages verticaux (raidisseurs), voiles → volume = section × hauteur." },
+      { type: 'attention', valeur: "Ouvertures ou réservations de moins de 0,50 m² négligées. Longueur d'un linteau = largeur de la baie + longueurs sur appuis. Longueur d'une longrine ou d'un chaînage horizontal mesurée entre les nus des poteaux ou des raidisseurs." },
+      { type: 'retenir', valeur: "Le terme « cube » désigne toujours le volume de béton (ou de déblai/remblai) à déterminer dans un avant-métré." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de ferraillage',
+    dureeMin: 14,
+    blocs: [
+      { type: 'texte', valeur: "Il existe deux approches : les ratios d'aciers (kg par m³ de béton, issus de bilans de chantiers antérieurs) pour une estimation rapide, et la méthode des masses linéiques pour un calcul précis à partir des plans d'armatures." },
+      { type: 'exemple', valeur: "Ratios usuels (kg/m³) : semelles filantes 20-25, semelles isolées 60-120, longrines 100-130, poteaux 140-150, poutres 130-150, dalles pleines 60-80, raidisseurs 100-150, chaînages et linteaux 80-120, escaliers 60-80. Les treillis soudés sont quantifiés en m² (surface réelle, sans déduire les vides < 1,00 m²)." },
+      { type: 'texte', valeur: "Méthode des masses linéiques : la masse d'aciers par repère = longueur développée (Ldev) × nombre de barres (n) × masse linéique du diamètre. La masse totale par ouvrage élémentaire est la somme des masses de tous ses repères." },
+      { type: 'exemple', valeur: "Masse linéique par diamètre (kg/m) : Ø6 = 0,222 · Ø8 = 0,395 · Ø10 = 0,617 · Ø12 = 0,888 · Ø14 = 1,208 · Ø16 = 1,578 · Ø20 = 2,466 · Ø25 = 3,853 · Ø32 = 6,313 · Ø40 = 9,865." },
+      { type: 'retenir', valeur: "Estimation rapide : Quantité d'aciers ≈ (Cube béton ou surface) × Ratio d'aciers.\nCalcul précis : M/repère = Ldev × n × masse linéique, puis somme par ouvrage élémentaire." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de coffrage',
+    dureeMin: 12,
+    blocs: [
+      { type: 'texte', valeur: "Le coffrage (bois ou métal, ordinaire ou soigné) impose, comme le béton, une décomposition de la structure en ouvrages élémentaires. Il est toujours évalué en mètre carré (m²) : c'est l'aire de la surface du béton en contact direct avec le matériau de coffrage (le moule)." },
+      { type: 'exemple', valeur: "Formule générale : Surface de coffrage = (périmètre ou linéaire des faces coffrées) × hauteur coffrée × n. Pour les semelles, longrines, chaînages horizontaux et linteaux à section constante, on applique ce même principe au fond de moule et aux faces latérales." },
+      { type: 'attention', valeur: "Les trémies ou réservations de surface inférieure à 0,50 m² sont négligées — même seuil que pour le terrassement, mais différent de celui du ferraillage (1,00 m² pour les treillis soudés)." },
+      { type: 'retenir', valeur: "Coffrage = même décomposition que le béton, mais mesure de surface de contact, pas de volume." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de maçonnerie',
+    dureeMin: 12,
+    blocs: [
+      { type: 'texte', valeur: "Les quantités de maçonnerie sont définies par nature et par épaisseur brute (10, 12, 15, 20 cm) : agglomérés pleins ou creux de mortier/béton, briques creuses ou pleines, géobéton, claustras. Elles sont évaluées en m²." },
+      { type: 'exemple', valeur: "Typologie courante d'un bâtiment : murs de soubassement en fondation (agglos pleins de 20 ou 15), murs de façade en élévation (agglos creux de 20), murs intérieurs (agglos creux de 15 ou 10)." },
+      { type: 'texte', valeur: "Les enduits et chapes au mortier de ciment complètent la maçonnerie : enduit extérieur (dosé à 300 kg/m³, ép. 1,5 cm), enduit intérieur (250 kg/m³, ép. 1,5 cm, sur la hauteur sous plafond + 10 cm), chape (400 kg/m³, ép. 5 cm)." },
+      { type: 'retenir', valeur: "Surface de maçonnerie = linéaire du mur × hauteur de maçonnerie, ouvertures déduites selon les mêmes principes de seuil que le béton et le coffrage." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de charpente bois',
+    dureeMin: 10,
+    blocs: [
+      { type: 'texte', valeur: "Les pièces de charpente bois se distinguent par leur section : madrier (ex. 7,5×22,5 cm), bastaing (5×15 cm), chevron (6×6 à 12×12 cm), planche (3×22 à 3,5×25 cm), liteau (1,5×4 à 3×3 cm), volige (épaisseur 1,2 à 2,2 cm, largeur 10 à 30 cm)." },
+      { type: 'exemple', valeur: "Formule générale : Cube de bois = section × (longueur ou linéaire). C'est le même principe que pour les ouvrages en béton à section constante — poteaux, longrines, chaînages." },
+      { type: 'retenir', valeur: "Fermes triangulées, pannes et planches de rive se quantifient toutes avec section × longueur ; seule la section change selon la pièce." },
+    ],
+  },
+  {
+    titre: 'Avant-métré de couverture',
+    dureeMin: 10,
+    missionPratique: 'metre-quiz-chapitre-a',
+    blocs: [
+      { type: 'texte', valeur: "La couverture sur charpente se compose de la tôle bac aluzinc (épaisseur type 7/10e) et de ses accessoires : faîtières, arêtiers, noues (souvent en tôle aluminium)." },
+      { type: 'texte', valeur: "La couverture elle-même est quantifiée par versant (la surface de chaque pan de toiture), tandis que les accessoires (faîtières, arêtiers, noues) sont quantifiés en mètre linéaire, chacun avec sa propre ligne dans l'avant-métré." },
+      { type: 'astuce', valeur: "Réflexe d'examen : ne jamais confondre la surface de couverture (par versant, en m²) avec le linéaire des accessoires (faîtières/arêtiers/noues, en mL) — ce sont deux familles d'unités bien distinctes dans le même avant-métré." },
+    ],
+  },
+
+  // ── Chapitre B : Calculs d'approvisionnements (3 leçons) ──
+  {
+    titre: "Calculs d'approvisionnement — Ciment, sable, gravier",
+    dureeMin: 14,
+    blocs: [
+      { type: 'objectifs', valeur: "Lire un tableau de dosage en matériaux\nCalculer une quantité de ciment, sable ou gravier à partir d'un volume de béton\nAppliquer un pourcentage de pertes présumées" },
+      { type: 'texte', valeur: "Chaque type de béton ou mortier a un dosage normalisé en ciment (kg/m³), sable (l/m³) et gravier (l/m³). Exemples courants : béton de propreté 150/400/800, semelles-longrines-poteaux-poutres-consoles-dalles pleines en B.A 350/400/800, dallage en B.A 200/400/800, chape au mortier de ciment 400/1000/—, enduit au mortier de ciment 300/1000/—." },
+      { type: 'exemple', valeur: "Pertes présumées habituelles : ciment 2 %, sable 3 %, gravier 3 %. Ces pourcentages compensent le gaspillage inévitable sur chantier (répandage, transport, mise en œuvre)." },
+      { type: 'retenir', valeur: "Quantité de matériau = Volume de l'ouvrage × Dosage (kg ou l / m³) × (1 + % pertes / 100)." },
+    ],
+  },
+  {
+    titre: "Calculs d'approvisionnement — Agglomérés, briques, hourdis",
+    dureeMin: 12,
+    blocs: [
+      { type: 'texte', valeur: "Les quantités concernent les surfaces de maçonnerie en agglomérés et briques, et les surfaces de plancher à corps creux. Elles sont estimées à partir de ratios d'unités au mètre carré." },
+      { type: 'exemple', valeur: "Ratios usuels : agglomérés pleins ou creux (long. 40 cm) ≈ 11,5 U/m² ; agglomérés (long. 50 cm) ≈ 9,5 U/m² ; briques creuses (57×30 cm) ≈ 5,5 U/m² ; hourdis pour poutrelles préfabriquées (entraxe 60 cm) ≈ 8,5 U/m² ; hourdis pour poutrelles coulées sur place (entraxe 50 cm) ≈ 10 U/m²." },
+      { type: 'attention', valeur: "Les pertes présumées sont plus élevées pour les agglomérés de béton/mortier et les hourdis-entrevous de plancher (1 à 2 %) que pour les blocs en terre cuite comme les briques (0,5 à 1 %)." },
+      { type: 'retenir', valeur: "Nombre d'unités à commander = Surface de l'ouvrage × Ratio (U/m²) × (1 + % pertes / 100)." },
+    ],
+  },
+  {
+    titre: "Calculs d'approvisionnement — Fer à béton",
+    dureeMin: 12,
+    missionPratique: 'metre-quiz-chapitre-b',
+    blocs: [
+      { type: 'texte', valeur: "La fiche d'approvisionnement en barres d'acier reprend, ouvrage élémentaire par ouvrage élémentaire, le nombre d'éléments à façonner et leur longueur, répartis par diamètre. Pour chaque diamètre, on additionne les longueurs de tous les ouvrages afin d'obtenir une longueur totale par diamètre." },
+      { type: 'texte', valeur: "Cette longueur totale est ensuite majorée d'un pourcentage pour chutes (couramment 5 %), avant de déterminer le nombre de barres commerciales de 12 m à commander." },
+      { type: 'exemple', valeur: "Nombre de barres de 12 m à commander = Longueur totale majorée (m) ÷ 12, arrondi à l'entier supérieur — on ne commande jamais une fraction de barre." },
+      { type: 'retenir', valeur: "Chaîne de calcul : longueur par diamètre → + 5 % de chutes → ÷ 12 m → nombre de barres à commander, arrondi au-dessus." },
+    ],
+  },
+
+  // ── Chapitre C : Étude de prix (8 leçons) ──
+  {
+    titre: 'Mode de passation des marchés',
+    dureeMin: 10,
+    blocs: [
+      { type: 'texte', valeur: "Un marché de travaux est le contrat par lequel un entrepreneur s'engage à exécuter des travaux pour le compte d'un maître d'ouvrage, qui s'engage en retour à en payer le montant selon les clauses du contrat." },
+      { type: 'texte', valeur: "Quatre modes de passation : le gré à gré (entente directe, fréquent chez les particuliers) ; l'appel d'offres, ouvert ou restreint (mise en concurrence, mais l'examen des soumissions n'est pas public et le client n'est pas obligé de choisir le mieux-disant) ; l'adjudication, ouverte ou restreinte (examen en séance publique, avec obligation d'attribuer au mieux-disant) ; le concours (pour des travaux à caractère technique, artistique ou scientifique)." },
+      { type: 'attention', valeur: "Ne pas confondre appel d'offres et adjudication : dans l'appel d'offres, le client garde la liberté de choix ; dans l'adjudication, l'examen est public et l'attribution au mieux-disant est obligatoire (sous réserve de garanties suffisantes)." },
+      { type: 'retenir', valeur: "4 modes de passation : gré à gré / appel d'offres (ouvert ou restreint) / adjudication (ouverte ou restreinte) / concours." },
+    ],
+  },
+  {
+    titre: 'Mode de règlement des marchés',
+    dureeMin: 10,
+    blocs: [
+      { type: 'texte', valeur: "Le marché à prix global forfaitaire fixe un montant global à l'avance, à partir d'un avant-métré et d'un bordereau de prix établis par l'entrepreneur soumissionnaire ; réservé aux petits travaux à délai court." },
+      { type: 'texte', valeur: "Le marché à prix unitaire règle l'entreprise sur la base des quantités réellement réalisées, multipliées par des prix unitaires fixés à la soumission — le plus intéressant pour l'entreprise, car il suit l'exécution réelle." },
+      { type: 'texte', valeur: "Le marché sur dépenses contrôlées ne fixe aucun prix à l'avance : le montant est établi sur justification des dépenses réelles, augmentées du bénéfice. Le marché en régie est un contrat de location de services : le client ou le maître d'œuvre assure lui-même la direction des travaux, l'entrepreneur agissant en simple prestataire." },
+      { type: 'retenir', valeur: "4 modes de règlement : prix global forfaitaire / prix unitaire / dépenses contrôlées / régie. Le prix unitaire reste le plus courant dans le bâtiment." },
+    ],
+  },
+  {
+    titre: "Composition d'un dossier d'appel d'offre",
+    dureeMin: 10,
+    blocs: [
+      { type: 'texte', valeur: "L'appel d'offre consiste à porter à la connaissance des entreprises, par lettre individuelle, affiche ou publication, un projet de construction élaboré par le maître d'œuvre, en les invitant à proposer un prix pour l'exécution des travaux." },
+      { type: 'texte', valeur: "Le dossier d'appel d'offre comprend des pièces graphiques (plans de situation et de masse, plans de conception architecturale, plans de détails) et des pièces écrites (devis descriptif, devis quantitatif et estimatif, données géotechniques du site, cahiers des prescriptions techniques ou cahiers de charges)." },
+      { type: 'retenir', valeur: "Un dossier d'appel d'offre complet = pièces graphiques + pièces écrites, jamais l'un sans l'autre." },
+    ],
+  },
+  {
+    titre: "Analyse d'un dossier d'appel d'offre avec rédaction de la soumission",
+    dureeMin: 14,
+    blocs: [
+      { type: 'objectifs', valeur: "Distinguer étude juridique, étude technique et étude de prix\nComprendre le rôle de la visite de site\nSavoir ce que contient une soumission" },
+      { type: 'texte', valeur: "L'étude juridique (direction générale) examine les cahiers des charges : conditions du marché, délais d'exécution, modes de règlement, révision des prix — elle débouche sur un avis favorable ou défavorable à participer." },
+      { type: 'texte', valeur: "L'étude technique (service des travaux) identifie le type de construction et les techniques de mise en œuvre, complétée par une visite de site : conformité des plans, état naturel des lieux, sondages du sous-sol, constructions mitoyennes, viabilités, et, si le chantier est isolé, ressources locales en matériaux et main d'œuvre." },
+      { type: 'texte', valeur: "L'étude de prix recherche les quantités de travaux (avant-métré), puis détermine les prix de vente unitaires : calcul des déboursés secs, calcul des coûts de réalisation, calcul du coefficient de vente, calcul des prix de vente unitaires hors taxe, rédaction du devis estimatif." },
+      { type: 'retenir', valeur: "La soumission = offre technique (capacités humaines, matérielles, expérience) + offre financière (le prix proposé) — c'est l'engagement final et formel de l'entreprise." },
+    ],
+  },
+  {
+    titre: 'Composition d\'un prix de vente de travaux de bâtiment',
+    dureeMin: 14,
+    blocs: [
+      { type: 'objectifs', valeur: "Mémoriser la chaîne déboursés secs → prix de vente TTC\nComprendre le rôle de la marge bénéficiaire et de la TVA" },
+      { type: 'schema', valeur: 'schema-prix-vente' },
+      { type: 'texte', valeur: "Les déboursés secs (D.S) regroupent main d'œuvre, matériaux, matériel et matières consommables. Ajoutés aux frais de chantier (F.C : personnel du chantier, installation et repliement, matériels non affectables, frais complémentaires), ils forment les déboursés totaux (D.T), aussi appelés coût de réalisation (C.R)." },
+      { type: 'texte', valeur: "Au coût de réalisation s'ajoutent les frais généraux (F.G : administratif, comptable, commercial, financier) et les frais de marché (F.M : adjudication, cautionnement, bureau d'études et de contrôle, assurances complémentaires, dossier) pour obtenir le prix de revient hors taxe (P.R)." },
+      { type: 'exemple', valeur: "Le prix de revient, augmenté de la marge bénéficiaire (B, souvent 10 % ou plus du prix de vente hors taxe), donne le prix de vente hors taxe (P.V.H.T). Celui-ci, majoré de la TVA, donne le prix de vente toutes taxes comprises (P.V.T.T.C)." },
+      { type: 'retenir', valeur: "Formule littérale à retenir : P.V.H.T = D.S + F.C + F.M + F.G + B." },
+    ],
+  },
+  {
+    titre: 'Calcul des déboursés secs',
+    dureeMin: 16,
+    blocs: [
+      { type: 'texte', valeur: "Déboursé sec de matériau : D.S = P.R.C (Prix Rendu Chantier) × Dosage × (1 + % pertes / 100). Exemple : ciment CPA 325 à 120 000 F/t, dosage 350 kg/m³, pertes 2 % ; sable 0/5 à 7 500 F/m³, 450 l/m³, pertes 4 % ; gravier 5/25 à 16 500 F/m³, 850 l/m³, pertes 3 %." },
+      { type: 'texte', valeur: "Déboursé sec de main d'œuvre : D.S(M.O) = tu × THM, où le temps unitaire tu (en h par unité d'ouvrage) = (Horaire journalier Hjr × effectif n) / Rendement journalier qr de l'équipe, et le taux horaire moyen THM (F/h) = somme des salaires horaires de l'équipe / effectif n." },
+      { type: 'exemple', valeur: "Équipe : 1 Chef d'Équipe (750 F/h), 2 Ouvriers Spécialisés (550 F/h chacun), 3 Ouvriers Manœuvres (360 F/h chacun), Hjr = 8 h/j, qr = 15 m³/j. THM = (750 + 2×550 + 3×360) / 6 ≈ 488 F/h. tu = (8 × 6) / 15 ≈ 3,2 h/m³. D.S(M.O) ≈ 3,2 × 488 ≈ 1 563 F/m³." },
+      { type: 'texte', valeur: "Déboursé sec de matériel : pour un matériel loué, on rapporte le coût de location journalier au rendement journalier de l'équipe ; pour un matériel acheté et amorti, on rapporte le coût d'achat au rendement journalier multiplié par le nombre de jours effectifs de travail dans le mois (souvent 22 jours sur 30)." },
+      { type: 'retenir', valeur: "3 familles de déboursés secs, 3 méthodes : matériaux (P.R.C × dosage × pertes), main d'œuvre (tu × THM), matériel (coût / rendement, éventuellement amorti sur les jours effectifs)." },
+    ],
+  },
+  {
+    titre: "Calcul du coefficient de vente d'une entreprise",
+    dureeMin: 12,
+    blocs: [
+      { type: 'texte', valeur: "Le coefficient de vente Kv permet de passer directement d'un déboursé sec au prix de vente unitaire hors taxe, sans reconstruire toute la chaîne (frais de chantier, frais généraux, frais de marché, bénéfice) à chaque ouvrage élémentaire." },
+      { type: 'exemple', valeur: "Lorsque tous les frais et le bénéfice sont exprimés en pourcentage du P.V.U.H.T, on a : Kv = 100 % / (100 % − (somme des frais % + bénéfice %)). Exemple : frais + bénéfice = 20 % du P.V.U.H.T → Kv = 100 / (100 − 20) = 100 / 80 = 1,25." },
+      { type: 'retenir', valeur: "Kv se calcule une seule fois pour l'entreprise (ou par type de marché), puis sert directement pour tous les ouvrages élémentaires du sous-détail de prix." },
+    ],
+  },
+  {
+    titre: "Calcul d'un prix de vente unitaire hors taxe (PVUHT)",
+    dureeMin: 12,
+    missionPratique: 'metre-quiz-chapitre-c',
+    blocs: [
+      { type: 'texte', valeur: "Le sous-détail de prix est le document qui résume, pour un ouvrage élémentaire donné, l'analyse détaillée des déboursés secs (matériaux, main d'œuvre, matériel), le coefficient de vente de l'entreprise, et le calcul du prix de vente unitaire hors taxe." },
+      { type: 'exemple', valeur: "Une fois Kv connu, la formule finale est directe : P.V.U.H.T = D.S × Kv. C'est cette formule que l'entreprise applique concrètement, ouvrage après ouvrage, pour construire son bordereau de prix et répondre à un appel d'offres." },
+      { type: 'retenir', valeur: "P.V.U.H.T = Déboursé Sec × Coefficient de vente — la formule opérationnelle finale de tout le chapitre étude de prix." },
+    ],
+  },
+];
+
 export const modulesGrandeEcole: ModuleSeed[] = [
   {
     slug: 'geotechnique-bts2',
@@ -173,6 +370,14 @@ export const modulesGrandeEcole: ModuleSeed[] = [
     ordre: 1,
     competence: 'geotechnique',
     cours: geotechniqueCours,
+  },
+  {
+    slug: 'metre-bts2',
+    titre: 'Métré — BTS2',
+    domaine: DOMAINE_GRANDE_ECOLE,
+    ordre: 2,
+    competence: 'metre-devis',
+    cours: metreCours,
   },
 ];
 
@@ -514,4 +719,282 @@ const geotechniqueMissions: MissionSeed[] = [
   },
 ];
 
-export const missionsGrandeEcole: MissionSeed[] = [...geotechniqueMissions];
+// Profils existants (voir profilsData dans seed.ts) déjà liés au métré/devis.
+const PROFILS_METRE = ['aide-metreur', 'metreur-junior', 'economiste'];
+
+const metreMissions: MissionSeed[] = [
+  {
+    slug: 'metre-quiz-chapitre-a',
+    titre: 'Quiz — Avants-métrés (terrassement, béton, ferraillage, coffrage, maçonnerie, bois, couverture)',
+    description: "Vérifie tes acquis sur les 7 leçons du chapitre Avants-métrés.",
+    type: 'QUIZ',
+    profils: PROFILS_METRE,
+    niveauRequis: 1,
+    competences: ['metre-devis'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Dans le vocabulaire du terrassement, un remblai est...",
+        options: [
+          { id: 'a', label: "Un relèvement du niveau du terrain par apport de terre" },
+          { id: 'b', label: "Un abaissement du niveau du terrain par enlèvement de terre" },
+          { id: 'c', label: "Une classe de terrain rocheux" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Déblai = abaissement par enlèvement ; remblai = relèvement par apport de terre.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Le coefficient de foisonnement permanent (résiduel) sert à...",
+        options: [
+          { id: 'a', label: "Calculer le volume de terre à utiliser pour un remblai soigneusement damé" },
+          { id: 'b', label: "Calculer le volume de terre à évacuer à la décharge" },
+          { id: 'c', label: "Calculer le dosage en ciment d'un béton" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le foisonnement passager sert à évacuer ; le foisonnement permanent (résiduel) sert à remblayer — deux coefficients distincts.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Pour un ouvrage élémentaire en béton à section constante comme un poteau ou un voile, le volume se calcule par...",
+        options: [
+          { id: 'a', label: "Section × hauteur" },
+          { id: 'b', label: "Section × largeur" },
+          { id: 'c', label: "Périmètre × épaisseur" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Poteaux, chaînages verticaux et voiles : volume = section × hauteur. Pour les longrines, poutres et chaînages horizontaux, c'est section × longueur.",
+      },
+      {
+        ordre: 4, typeQuestion: 'QCM',
+        enonce: "Une trémie ou réservation est négligée dans un avant-métré de coffrage lorsque sa surface est...",
+        options: [
+          { id: 'a', label: "Inférieure à 0,50 m²" },
+          { id: 'b', label: "Inférieure à 5,00 m²" },
+          { id: 'c', label: "Jamais négligée, quelle que soit sa taille" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Seuil de 0,50 m², identique à celui du terrassement et du béton (pour le coffrage et les ouvertures courantes).",
+      },
+      {
+        ordre: 5, typeQuestion: 'QCM',
+        enonce: "La quantité d'aciers d'un ouvrage élémentaire peut être rapidement estimée par...",
+        options: [
+          { id: 'a', label: "Cube de béton (ou surface) × ratio d'aciers en kg/m³ (ou kg/m²)" },
+          { id: 'b', label: "Périmètre du bâtiment × nombre d'étages" },
+          { id: 'c', label: "Longueur de la charpente bois uniquement" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est la méthode rapide des ratios (ex. poteaux 140-150 kg/m³) ; la méthode précise reste les masses linéiques par repère.",
+      },
+    ],
+  },
+  {
+    slug: 'metre-quiz-chapitre-b',
+    titre: "Quiz — Calculs d'approvisionnements",
+    description: "Ciment/sable/gravier, agglomérés/briques/hourdis, fer à béton.",
+    type: 'QUIZ',
+    profils: PROFILS_METRE,
+    niveauRequis: 6,
+    competences: ['metre-devis'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "La quantité de ciment nécessaire pour un ouvrage se calcule par...",
+        options: [
+          { id: 'a', label: "Volume de l'ouvrage × dosage en kg/m³ × (1 + % de pertes)" },
+          { id: 'b', label: "Surface de l'ouvrage × prix du ciment au sac" },
+          { id: 'c', label: "Nombre d'ouvriers × durée du chantier" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est la formule générale d'approvisionnement en matériaux liquides/pulvérulents, appliquée aussi au sable et au gravier.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Pour des agglomérés de longueur 40 cm, le ratio usuel d'approvisionnement est d'environ...",
+        options: [
+          { id: 'a', label: "11,5 unités/m²" },
+          { id: 'b', label: "5,5 unités/m²" },
+          { id: 'c', label: "50 unités/m²" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "11,5 U/m² pour les agglos de 40 cm de long (9,5 U/m² pour ceux de 50 cm). 5,5 U/m² correspond plutôt aux briques creuses (57×30 cm).",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "Le pourcentage de pertes présumées est généralement le plus faible pour...",
+        options: [
+          { id: 'a', label: "Les blocs en terre cuite et les hourdis de plancher (0,5 à 1 %)" },
+          { id: 'b', label: "Les agglomérés de béton ou de mortier pour murs (1 à 2 %)" },
+          { id: 'c', label: "Le ciment (toujours 10 %)" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Les blocs en terre cuite (briques, hourdis) cassent moins facilement à la mise en œuvre que les agglomérés de béton.",
+      },
+      {
+        ordre: 4, typeQuestion: 'NUMERIQUE',
+        enonce: "Une fiche d'approvisionnement en aciers HA12 donne une longueur totale, majoration pour chutes de 5 % déjà incluse, de 138 m. Combien de barres de 12 m faut-il commander (arrondi à l'entier supérieur) ?",
+        bonnesReponses: 12, tolerance: 0,
+        correctionPedagogique: "138 ÷ 12 = 11,5, arrondi à l'entier supérieur : 12 barres. On ne commande jamais une fraction de barre.",
+      },
+    ],
+  },
+  {
+    slug: 'metre-quiz-chapitre-c',
+    titre: 'Quiz — Étude de prix',
+    description: "Marchés, dossiers d'appel d'offre, déboursés secs, coefficient de vente, PVUHT.",
+    type: 'QUIZ',
+    profils: PROFILS_METRE,
+    niveauRequis: 10,
+    competences: ['metre-devis'],
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Dans un marché par adjudication, l'examen des soumissions...",
+        options: [
+          { id: 'a', label: "Est fait en séance publique, avec obligation d'attribuer le marché au mieux-disant" },
+          { id: 'b', label: "N'est jamais public et le client choisit librement" },
+          { id: 'c', label: "N'existe pas : le marché est automatique" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est ce qui distingue l'adjudication de l'appel d'offres : examen public et obligation d'attribution au mieux-disant (sous réserve de garanties suffisantes).",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Un marché à prix unitaire est réglé sur la base de...",
+        options: [
+          { id: 'a', label: "Les quantités réellement réalisées × les prix unitaires proposés à la soumission" },
+          { id: 'b', label: "Un montant global fixé une fois pour toutes, quelles que soient les quantités" },
+          { id: 'c', label: "Les seules dépenses justifiées par l'entrepreneur" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "C'est le principe du prix unitaire ; le prix global forfaitaire fixe un montant en bloc, les dépenses contrôlées se règlent sur justificatifs.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "La formule littérale du prix de vente hors taxe est...",
+        options: [
+          { id: 'a', label: "P.V.H.T = D.S + F.C + F.M + F.G + B" },
+          { id: 'b', label: "P.V.H.T = D.S × TVA" },
+          { id: 'c', label: "P.V.H.T = Bénéfice uniquement" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Déboursés secs + frais de chantier + frais de marché + frais généraux + bénéfice = prix de vente hors taxe.",
+      },
+      {
+        ordre: 4, typeQuestion: 'QCM',
+        enonce: "Le coefficient de vente Kv d'une entreprise permet de...",
+        options: [
+          { id: 'a', label: "Passer directement du déboursé sec au prix de vente unitaire HT (PVUHT = D.S × Kv)" },
+          { id: 'b', label: "Calculer uniquement la TVA à payer" },
+          { id: 'c', label: "Remplacer entièrement l'avant-métré" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Kv se calcule une fois pour l'entreprise, puis s'applique directement à chaque déboursé sec du sous-détail de prix.",
+      },
+      {
+        ordre: 5, typeQuestion: 'NUMERIQUE',
+        enonce: "Une entreprise a des frais et un bénéfice représentant ensemble 20 % de son PVUHT. Quel est son coefficient de vente Kv (arrondi à 2 décimales) ?",
+        bonnesReponses: 1.25, tolerance: 0.02,
+        correctionPedagogique: "Kv = 100 % / (100 % − 20 %) = 100 / 80 = 1,25.",
+      },
+    ],
+  },
+  {
+    slug: 'metre-examen-final',
+    titre: 'Examen de synthèse — Métré BTS2',
+    description: "Épreuve finale couvrant les 3 chapitres du programme de métré.",
+    type: 'EXAMEN',
+    profils: PROFILS_METRE,
+    niveauRequis: 14,
+    competences: ['metre-devis'],
+    conditionReussite: 70,
+    contenus: [
+      {
+        ordre: 1, typeQuestion: 'QCM',
+        enonce: "Le coefficient de foisonnement passager sert à calculer...",
+        options: [
+          { id: 'a', label: "Le volume de terre à évacuer" },
+          { id: 'b', label: "Le dosage en ciment d'un béton" },
+          { id: 'c', label: "La surface de coffrage" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Le foisonnement passager (toujours > 1) majore le déblai restant pour donner le volume réel à évacuer.",
+      },
+      {
+        ordre: 2, typeQuestion: 'QCM',
+        enonce: "Pour un ouvrage à section constante comme une longrine, le volume de béton se calcule par...",
+        options: [
+          { id: 'a', label: "Section × longueur" },
+          { id: 'b', label: "Section × hauteur" },
+          { id: 'c', label: "Périmètre × épaisseur de coffrage" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Longrines, poutres, chaînages horizontaux et linteaux : section × longueur. Poteaux et voiles : section × hauteur.",
+      },
+      {
+        ordre: 3, typeQuestion: 'QCM',
+        enonce: "La formule générale pour calculer une quantité de matériau d'approvisionnement à partir d'un volume d'ouvrage est...",
+        options: [
+          { id: 'a', label: "Volume × dosage × (1 + % de pertes)" },
+          { id: 'b', label: "Volume ÷ nombre d'ouvriers" },
+          { id: 'c', label: "Surface du chantier × coefficient de vente" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Vrai pour le ciment, le sable et le gravier — seuls le dosage et le % de pertes changent selon le matériau et l'ouvrage.",
+      },
+      {
+        ordre: 4, typeQuestion: 'NUMERIQUE',
+        enonce: "Une équipe de 5 ouvriers travaille 8 h/jour avec un rendement de 20 m³/jour. Quel est le temps unitaire tu, en heures par m³ (arrondi à 1 décimale) ?",
+        bonnesReponses: 2.0, tolerance: 0.1,
+        correctionPedagogique: "tu = (Hjr × n) / qr = (8 × 5) / 20 = 40 / 20 = 2,0 h/m³.",
+      },
+      {
+        ordre: 5, typeQuestion: 'QCM',
+        enonce: "Dans un sous-détail de prix, le PVUHT d'un ouvrage élémentaire s'obtient par...",
+        options: [
+          { id: 'a', label: "D.S × Kv (déboursé sec × coefficient de vente)" },
+          { id: 'b', label: "D.S + TVA uniquement" },
+          { id: 'c', label: "Prix du marché ÷ surface du terrain" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "Formule opérationnelle finale du chapitre étude de prix : PVUHT = D.S × Kv.",
+      },
+      {
+        ordre: 6, typeQuestion: 'CHOIX_CONSEQUENCE',
+        enonce: "Ton entreprise a mal évalué son coefficient de vente Kv (trop bas) avant de répondre à un appel d'offres par adjudication. La remise des offres est demain matin. Que fais-tu ?",
+        options: [
+          { id: 'recalculer', label: "Recalculer correctement Kv cette nuit et corriger le bordereau de prix avant la remise", points: 60, consequences: { budget: -10000 } },
+          { id: 'signer', label: "Remettre l'offre telle quelle en espérant se rattraper sur des avenants en cours de chantier", points: 0, consequences: { budget: -400000, reputation: -8 } },
+          { id: 'retirer', label: "Retirer purement et simplement l'entreprise de l'appel d'offres", points: 30, consequences: { budget: -20000, reputation: -2 } },
+        ],
+        bonnesReponses: 'recalculer',
+        correctionPedagogique: "Un Kv trop bas signifie un prix de vente sous-évalué : chaque ouvrage vendu perd de l'argent. Le cours est clair — le sous-détail de prix doit être fiable avant la remise, pas corrigé après coup sur le dos du client via des avenants.",
+      },
+      {
+        ordre: 7, typeQuestion: 'QCM',
+        enonce: "Un plancher à corps creux (hourdis + poutrelles préfabriquées, entraxe 60 cm) se quantifie en général avec un ratio proche de...",
+        options: [
+          { id: 'a', label: "8,5 hourdis/m²" },
+          { id: 'b', label: "1 hourdis/m²" },
+          { id: 'c', label: "50 hourdis/m²" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "8,5 U/m² pour un entraxe de 60 cm avec poutrelles préfabriquées (10 U/m² pour un entraxe de 50 cm avec poutrelles coulées sur place).",
+      },
+      {
+        ordre: 8, typeQuestion: 'QCM',
+        enonce: "Le marché en régie se caractérise par...",
+        options: [
+          { id: 'a', label: "Le client ou le maître d'œuvre assure la direction des travaux, l'entrepreneur agissant en simple prestataire de services" },
+          { id: 'b', label: "Un prix global forfaitaire fixé à l'avance" },
+          { id: 'c', label: "Un examen des soumissions en séance publique" },
+        ],
+        bonnesReponses: ['a'],
+        correctionPedagogique: "En régie, l'entrepreneur loue ses services (matériel, main d'œuvre) mais c'est le client/maître d'œuvre qui dirige et endosse les responsabilités habituellement portées par l'entrepreneur.",
+      },
+    ],
+  },
+];
+
+export const missionsGrandeEcole: MissionSeed[] = [...geotechniqueMissions, ...metreMissions];
