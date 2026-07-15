@@ -259,6 +259,25 @@ enum Rarete {
   OR
 }
 
+enum RareteItem {
+  COMMUN
+  PROFESSIONNEL
+  RARE
+  EXPERT
+  LEGENDAIRE
+}
+
+// Catégorie = le champ (ou groupe de champs) d'AvatarConfig que l'item modifie
+// quand il est équipé (voir frontend/src/components/app/avatar-btp.tsx).
+enum SlotAvatar {
+  CASQUE
+  TENUE
+  LUNETTES
+  OUTIL
+  ECUSSON
+  CADRE
+}
+
 // ─────────────────────────────────────────────────────────────
 // 5.1 IDENTITE ET CARRIERE
 // ─────────────────────────────────────────────────────────────
@@ -303,6 +322,7 @@ model User {
   notifications         Notification[]
   auditLogs             AuditLog[]
   missionsCreated       Mission[]             @relation("MissionCreatedBy")
+  itemsAvatar           UserItemAvatar[]
 }
 
 model Avatar {
@@ -315,6 +335,40 @@ model Avatar {
   equipement       String?
   metierRepresente String?
   config           Json?
+}
+
+// Catalogue des items cosmétiques d'avatar (dressing) : tenues de départ par métier,
+// accessoires débloqués par niveau ou par mission. Équiper un item fusionne son
+// configPatch dans Avatar.config — le rendu SVG (AvatarBtp) n'a pas besoin de connaître
+// les items, seulement les mêmes champs qu'aujourd'hui.
+model ItemAvatar {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  nom          String
+  description  String?
+  categorie    SlotAvatar
+  rarete       RareteItem @default(COMMUN)
+  metierRequis String?
+  niveauRequis Int        @default(1)
+  configPatch  Json
+  ordre        Int        @default(0)
+  publie       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  possessions UserItemAvatar[]
+}
+
+model UserItemAvatar {
+  id       String     @id @default(cuid())
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId   String
+  item     ItemAvatar @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  obtenuLe DateTime   @default(now())
+  source   String?
+  equipe   Boolean    @default(false)
+
+  @@unique([userId, itemId])
 }
 
 model Profil {
