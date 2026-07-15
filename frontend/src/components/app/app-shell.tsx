@@ -57,6 +57,8 @@ const SECTIONS_NAV = [
     titre: 'Autres',
     liens: [
       { href: '/app/profil', label: 'Mon profil', icon: '👤' },
+      { href: '/app/dressing', label: 'Dressing', icon: '🎽' },
+      { href: '/app/inventaire', label: 'Inventaire', icon: '🎒' },
       { href: '/app/monde', label: 'Monde virtuel', icon: '🗺️' },
       { href: '/app/messages', label: 'Messages', icon: '💬' },
       { href: '/app/parametres', label: 'Paramètres', icon: '⚙️' },
