@@ -5,6 +5,7 @@ import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/ca
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
 import { xpRequisPourNiveau } from './progression.service';
+import { AvatarItemsService } from './avatar-items.service';
 
 /** Seuil pour se reconvertir en entrepreneur — voir CarriereService.devenirEntrepreneur. */
 export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
@@ -15,6 +16,7 @@ export class CarriereService {
     private readonly prisma: PrismaService,
     private readonly besoins: BesoinsService,
     private readonly epargne: EpargneService,
+    private readonly avatarItems: AvatarItemsService,
   ) {}
 
   async me(userId: string) {
@@ -57,7 +59,7 @@ export class CarriereService {
     // simple mission) recalcule niveau = xpToNiveau(xp) à partir d'un xp resté proche de 0, et
     // écrase silencieusement le niveau de départ du profil choisi.
     const xpMinimum = xpRequisPourNiveau(niveau);
-    return this.prisma.userCarriere.update({
+    const resultat = await this.prisma.userCarriere.update({
       where: { userId },
       data: {
         profilActuelId: profil.id,
@@ -65,6 +67,8 @@ export class CarriereService {
         xp: Math.max(carriereActuelle?.xp ?? 0, xpMinimum),
       },
     });
+    await this.avatarItems.debloquerItemsEligibles(userId, `metier:${profil.slug}`);
+    return resultat;
   }
 
   async setMetierCible(userId: string, dto: SetMetierCibleDto) {

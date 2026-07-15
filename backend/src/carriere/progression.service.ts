@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AvatarItemsService } from './avatar-items.service';
 
 export interface ProgressionDelta {
   xp?: number;
@@ -28,7 +29,10 @@ export function xpToNiveau(xpTotal: number): number {
 
 @Injectable()
 export class ProgressionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly avatarItems: AvatarItemsService,
+  ) {}
 
   async appliquerDelta(userId: string, delta: ProgressionDelta) {
     const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
@@ -40,7 +44,7 @@ export class ProgressionService {
     const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
     const nouveauNiveau = xpToNiveau(nouvelleXp);
 
-    return this.prisma.userCarriere.update({
+    const resultat = await this.prisma.userCarriere.update({
       where: { userId },
       data: {
         xp: nouvelleXp,
@@ -49,6 +53,12 @@ export class ProgressionService {
         niveau: nouveauNiveau,
       },
     });
+
+    if (nouveauNiveau > carriere.niveau) {
+      await this.avatarItems.debloquerItemsEligibles(userId, `niveau:${nouveauNiveau}`);
+    }
+
+    return resultat;
   }
 
   async validerCompetence(userId: string, competenceId: string, xpGagne: number, source: string) {

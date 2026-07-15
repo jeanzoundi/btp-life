@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
 import { xpRequisPourNiveau } from './progression.service';
+import { AvatarItemsService } from './avatar-items.service';
 
 function fakePrisma(overrides: Record<string, object> = {}) {
   const defaut: Record<string, object> = {
@@ -27,16 +28,18 @@ function fakePrisma(overrides: Record<string, object> = {}) {
 
 async function service(
   prisma: ReturnType<typeof fakePrisma>,
-  overrides: { besoins?: Record<string, unknown>; epargne?: Record<string, unknown> } = {},
+  overrides: { besoins?: Record<string, unknown>; epargne?: Record<string, unknown>; avatarItems?: Record<string, unknown> } = {},
 ) {
   const besoins = overrides.besoins ?? {};
   const epargne = overrides.epargne ?? {};
+  const avatarItems = overrides.avatarItems ?? { debloquerItemsEligibles: jest.fn().mockResolvedValue([]) };
   const module = await Test.createTestingModule({
     providers: [
       CarriereService,
       { provide: PrismaService, useValue: prisma },
       { provide: BesoinsService, useValue: besoins },
       { provide: EpargneService, useValue: epargne },
+      { provide: AvatarItemsService, useValue: avatarItems },
     ],
   }).compile();
   return { svc: module.get(CarriereService), prisma };

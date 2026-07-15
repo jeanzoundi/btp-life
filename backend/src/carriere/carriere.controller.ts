@@ -2,10 +2,11 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
+import { AvatarItemsService } from './avatar-items.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('carriere')
@@ -15,6 +16,7 @@ export class CarriereController {
     private readonly besoinsService: BesoinsService,
     private readonly pnjService: PnjService,
     private readonly epargneService: EpargneService,
+    private readonly avatarItemsService: AvatarItemsService,
   ) {}
 
   @Get('me')
@@ -60,6 +62,21 @@ export class CarriereController {
   @Patch('avatar')
   avatar(@CurrentUser() user: RequestUser, @Body() dto: UpdateAvatarDto) {
     return this.carriereService.upsertAvatar(user.userId, dto);
+  }
+
+  @Get('avatar/dressing')
+  dressing(@CurrentUser() user: RequestUser) {
+    return this.avatarItemsService.catalogue(user.userId);
+  }
+
+  @Get('avatar/inventaire')
+  inventaireAvatar(@CurrentUser() user: RequestUser) {
+    return this.avatarItemsService.inventaire(user.userId);
+  }
+
+  @Post('avatar/equiper')
+  equiperItemAvatar(@CurrentUser() user: RequestUser, @Body() dto: EquiperItemAvatarDto) {
+    return this.avatarItemsService.equiper(user.userId, dto.itemId);
   }
 
   @Patch('profil-actuel')

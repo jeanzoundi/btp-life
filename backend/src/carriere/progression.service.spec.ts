@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ProgressionService, xpToNiveau, xpRequisPourNiveau } from './progression.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AvatarItemsService } from './avatar-items.service';
 
 describe('xpToNiveau', () => {
   it('reste niveau 1 tant que le seuil du niveau 2 n’est pas atteint', () => {
@@ -32,18 +33,26 @@ describe('xpToNiveau', () => {
 });
 
 describe('ProgressionService.appliquerDelta', () => {
-  function prismaMock(carriere: { xp: number; reputation: number; argentVirtuel: number }) {
+  function prismaMock(carriere: { xp: number; reputation: number; argentVirtuel: number; niveau?: number }) {
     return {
       userCarriere: {
-        findUnique: jest.fn().mockResolvedValue(carriere),
+        findUnique: jest.fn().mockResolvedValue({ niveau: 1, ...carriere }),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve(data)),
       },
     };
   }
 
-  async function service(prisma: ReturnType<typeof prismaMock>) {
+  function avatarItemsMock() {
+    return { debloquerItemsEligibles: jest.fn().mockResolvedValue([]) };
+  }
+
+  async function service(prisma: ReturnType<typeof prismaMock>, avatarItems = avatarItemsMock()) {
     const module = await Test.createTestingModule({
-      providers: [ProgressionService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ProgressionService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AvatarItemsService, useValue: avatarItems },
+      ],
     }).compile();
     return module.get(ProgressionService);
   }
@@ -79,5 +88,21 @@ describe('ProgressionService.appliquerDelta', () => {
     const svc = await service(prisma as never);
     expect(await svc.appliquerDelta('inconnu', { xp: 10 })).toBeNull();
     expect(prisma.userCarriere.update).not.toHaveBeenCalled();
+  });
+
+  it('déclenche le déblocage d’items avatar quand le niveau augmente', async () => {
+    const prisma = prismaMock({ xp: 50, reputation: 50, argentVirtuel: 1000, niveau: 1 });
+    const avatarItems = avatarItemsMock();
+    const svc = await service(prisma, avatarItems);
+    await svc.appliquerDelta('u1', { xp: 60 });
+    expect(avatarItems.debloquerItemsEligibles).toHaveBeenCalledWith('u1', 'niveau:2');
+  });
+
+  it('ne déclenche pas le déblocage d’items avatar si le niveau ne change pas', async () => {
+    const prisma = prismaMock({ xp: 50, reputation: 50, argentVirtuel: 1000, niveau: 1 });
+    const avatarItems = avatarItemsMock();
+    const svc = await service(prisma, avatarItems);
+    await svc.appliquerDelta('u1', { xp: 5 });
+    expect(avatarItems.debloquerItemsEligibles).not.toHaveBeenCalled();
   });
 });

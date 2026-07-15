@@ -26,6 +26,11 @@ export class UpdateAvatarDto {
   config?: Record<string, unknown>;
 }
 
+export class EquiperItemAvatarDto {
+  @IsString()
+  itemId: string;
+}
+
 export class SetProfilActuelDto {
   @IsString()
   profilId: string;
