@@ -13,6 +13,7 @@ import {
   PRESETS_AVATAR,
   type AvatarConfig,
 } from '@/components/app/avatar-btp';
+import { Avatar3D } from '@/components/app/avatar-3d-lazy';
 import { jouerSon } from '@/lib/sons';
 import { AnneauProgression, JaugeImmeuble, RadarCompetences, Skeleton } from '@/components/app/ui';
 import { TRAITS, traitParSlug } from '@/lib/traits';
@@ -278,9 +279,7 @@ export default function ProfilPage() {
           <div className="grid gap-6 lg:grid-cols-5">
             {/* Aperçu */}
             <div className="flex flex-col items-center justify-center rounded-3xl border border-pierre bg-white p-8 lg:col-span-2">
-              <div className="anim-float">
-                <AvatarBtp config={config} taille={210} className="shadow-2xl" />
-              </div>
+              <Avatar3D config={config} taille={210} className="shadow-2xl" />
               <input
                 value={nomPersonnage}
                 onChange={(e) => setNomPersonnage(e.target.value)}
