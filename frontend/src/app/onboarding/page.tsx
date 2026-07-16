@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthGuard } from '@/components/app/auth-guard';
 import { api } from '@/lib/api';
-import { AVATAR_DEFAUT, OPTIONS_AVATAR, type AvatarConfig } from '@/components/app/avatar-btp';
-import { Avatar3D } from '@/components/app/avatar-3d-lazy';
+import { AvatarBtp, AVATAR_DEFAUT, OPTIONS_AVATAR, type AvatarConfig } from '@/components/app/avatar-btp';
 import { MentorBulle } from '@/components/app/mentor';
 import { TRAITS } from '@/lib/traits';
 
@@ -130,7 +129,9 @@ function OnboardingContent() {
           </MentorBulle>
           <h1 className="font-display text-2xl font-bold text-graphite">Crée ton avatar</h1>
           <div className="flex justify-center">
-            <Avatar3D config={config} taille={150} className="shadow-xl" />
+            <div className="anim-float">
+              <AvatarBtp config={config} taille={150} className="shadow-xl" />
+            </div>
           </div>
           <input
             value={nomPersonnage}
