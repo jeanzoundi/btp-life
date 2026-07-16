@@ -25,13 +25,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!accessToken) router.replace('/connexion');
     else if (user && user.role !== 'ADMIN') router.replace('/app');
-  }, [accessToken, user, router]);
+  }, [hasHydrated, accessToken, user, router]);
 
-  if (!accessToken || (user && user.role !== 'ADMIN')) return null;
+  if (!hasHydrated || !accessToken || (user && user.role !== 'ADMIN')) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-graphite md:flex-row">
