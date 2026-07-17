@@ -10,6 +10,7 @@ import { JaugeImmeuble } from './ui';
 import { AvatarBtp } from './avatar-btp';
 import { GuideMentor } from './guide-mentor';
 import { BesoinsMini } from './besoins';
+import { NotificationsBell } from './notifications-bell';
 
 interface CarriereMe {
   niveau: number;
@@ -204,6 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="hidden rounded-full bg-cuivre/10 px-3 py-1.5 font-mono text-xs font-semibold text-cuivre sm:block">
                 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR', { notation: 'compact' })} F
               </span>
+              <NotificationsBell />
             </div>
           </div>
         </header>

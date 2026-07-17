@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ProgressionService, xpToNiveau, xpRequisPourNiveau } from './progression.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('xpToNiveau', () => {
   it('reste niveau 1 tant que le seuil du niveau 2 n’est pas atteint', () => {
@@ -46,12 +47,21 @@ describe('ProgressionService.appliquerDelta', () => {
     return { debloquerItemsEligibles: jest.fn().mockResolvedValue([]) };
   }
 
-  async function service(prisma: ReturnType<typeof prismaMock>, avatarItems = avatarItemsMock()) {
+  function notificationsMock() {
+    return { envoyerNotification: jest.fn().mockResolvedValue(undefined) };
+  }
+
+  async function service(
+    prisma: ReturnType<typeof prismaMock>,
+    avatarItems = avatarItemsMock(),
+    notifications = notificationsMock(),
+  ) {
     const module = await Test.createTestingModule({
       providers: [
         ProgressionService,
         { provide: PrismaService, useValue: prisma },
         { provide: AvatarItemsService, useValue: avatarItems },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
     return module.get(ProgressionService);

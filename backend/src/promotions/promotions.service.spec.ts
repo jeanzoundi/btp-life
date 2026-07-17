@@ -4,6 +4,7 @@ import { PromotionsService } from './promotions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { PnjService } from '../carriere/pnj.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function fakePrisma(overrides: Record<string, object> = {}) {
   // Fusion clé par clé (pas un simple spread final, qui écraserait entièrement une clé déjà
@@ -35,15 +36,17 @@ function fakePrisma(overrides: Record<string, object> = {}) {
 async function service(prisma: ReturnType<typeof fakePrisma>) {
   const progression = { appliquerDelta: jest.fn().mockResolvedValue({}) };
   const pnj = { surPromotion: jest.fn().mockResolvedValue(undefined) };
+  const notifications = { envoyerNotification: jest.fn().mockResolvedValue(undefined) };
   const module = await Test.createTestingModule({
     providers: [
       PromotionsService,
       { provide: PrismaService, useValue: prisma },
       { provide: ProgressionService, useValue: progression },
       { provide: PnjService, useValue: pnj },
+      { provide: NotificationsService, useValue: notifications },
     ],
   }).compile();
-  return { svc: module.get(PromotionsService), progression, pnj };
+  return { svc: module.get(PromotionsService), progression, pnj, notifications };
 }
 
 describe('PromotionsService.eligibles', () => {

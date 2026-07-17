@@ -31,3 +31,42 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request).then((cached) => cached ?? caches.match('/'))),
   );
 });
+
+// Notifications push façon Duolingo : reçues même app/onglet fermé (voir notifications.service.ts
+// côté backend pour ce qui déclenche l'envoi — badge, niveau, promotion, rappels quotidiens).
+self.addEventListener('push', (event) => {
+  let data = { titre: 'BTP Life', contenu: 'Une nouvelle notification t\'attend.', lien: '/app' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // Payload non-JSON (ne devrait pas arriver, mais on garde le titre par défaut plutôt que planter).
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.titre, {
+      body: data.contenu,
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      data: { lien: data.lien ?? '/app' },
+      tag: data.id ?? undefined,
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const lien = event.notification.data?.lien ?? '/app';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+      for (const client of clientsList) {
+        const url = new URL(client.url);
+        if (url.origin === self.location.origin && 'focus' in client) {
+          client.navigate(lien);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(lien);
+    }),
+  );
+});

@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MESSAGES_BADGE, MESSAGES_NIVEAU, messageAleatoire } from '../notifications/messages';
 
 export interface ProgressionDelta {
   xp?: number;
@@ -32,6 +35,7 @@ export class ProgressionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly avatarItems: AvatarItemsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async appliquerDelta(userId: string, delta: ProgressionDelta) {
@@ -56,6 +60,12 @@ export class ProgressionService {
 
     if (nouveauNiveau > carriere.niveau) {
       await this.avatarItems.debloquerItemsEligibles(userId, `niveau:${nouveauNiveau}`);
+      await this.notifications.envoyerNotification(userId, {
+        type: NotificationType.NIVEAU,
+        titre: `Niveau ${nouveauNiveau} !`,
+        contenu: messageAleatoire(MESSAGES_NIVEAU),
+        lien: '/app',
+      });
     }
 
     return resultat;
@@ -100,6 +110,16 @@ export class ProgressionService {
       where: { userId_badgeId: { userId, badgeId } },
     });
     if (already) return already;
-    return this.prisma.userBadge.create({ data: { userId, badgeId, missionSourceId } });
+    const userBadge = await this.prisma.userBadge.create({ data: { userId, badgeId, missionSourceId } });
+
+    const badge = await this.prisma.badge.findUnique({ where: { id: badgeId } });
+    await this.notifications.envoyerNotification(userId, {
+      type: NotificationType.BADGE,
+      titre: badge ? `Badge débloqué : ${badge.nom}` : 'Nouveau badge débloqué !',
+      contenu: messageAleatoire(MESSAGES_BADGE),
+      lien: '/app/profil',
+    });
+
+    return userBadge;
   }
 }

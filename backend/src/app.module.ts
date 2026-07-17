@@ -12,6 +12,7 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { CatalogModule } from './common/catalog/catalog.module';
 import { AdminModule } from './admin/admin.module';
 import { AdminCrudModule } from './common/admin-crud/admin-crud.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminCrudModule } from './common/admin-crud/admin-crud.module';
     CatalogModule,
     AdminModule,
     AdminCrudModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

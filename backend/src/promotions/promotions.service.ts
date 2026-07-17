@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { PnjService } from '../carriere/pnj.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MESSAGES_PROMOTION, messageAleatoire } from '../notifications/messages';
 
 @Injectable()
 export class PromotionsService {
@@ -9,6 +12,7 @@ export class PromotionsService {
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
     private readonly pnj: PnjService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async eligibles(userId: string) {
@@ -104,6 +108,12 @@ export class PromotionsService {
       });
       await this.progression.appliquerDelta(userId, { xp: 100, reputation: 5, argentVirtuel: 2000 });
       await this.pnj.surPromotion(userId, regle.profilSource.nom, regle.profilCible.nom);
+      await this.notifications.envoyerNotification(userId, {
+        type: NotificationType.PROMOTION,
+        titre: `Promotion : ${regle.profilCible.nom}`,
+        contenu: messageAleatoire(MESSAGES_PROMOTION),
+        lien: '/app/parcours',
+      });
     }
 
     return demande;

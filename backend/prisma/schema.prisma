@@ -249,6 +249,7 @@ enum NotificationType {
   CANDIDATURE
   RAPPEL_SERIE
   BADGE
+  NIVEAU
   PROMOTION
   SYSTEME
 }
@@ -320,6 +321,7 @@ model User {
   b2bMembre             B2bMembre?
   b2bCompteAdmin        CompteB2b[]           @relation("CompteB2bAdmin")
   notifications         Notification[]
+  pushSubscriptions     PushSubscription[]
   auditLogs             AuditLog[]
   missionsCreated       Mission[]             @relation("MissionCreatedBy")
   itemsAvatar           UserItemAvatar[]
@@ -1085,6 +1087,19 @@ model Notification {
   createdAt   DateTime         @default(now())
 
   @@index([userId, lue])
+}
+
+// Un abonnement Web Push par appareil/navigateur — un même joueur peut en avoir plusieurs.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {

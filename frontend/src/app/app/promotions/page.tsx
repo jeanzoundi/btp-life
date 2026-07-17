@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { jouerSon } from '@/lib/sons';
 
 interface Eligible {
   regle: { id: string; profilCible: { nom: string } };
@@ -35,7 +36,8 @@ export default function PromotionsPage() {
     setErreur(null);
     setEnCours(regleId);
     try {
-      await api.post(`/promotions/${regleId}/demander`);
+      const demande = await api.post<{ statut: string }>(`/promotions/${regleId}/demander`);
+      jouerSon(demande.statut === 'ACCEPTEE' ? 'niveau' : 'echec');
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       queryClient.invalidateQueries({ queryKey: ['carriere'] });
     } catch (err) {
