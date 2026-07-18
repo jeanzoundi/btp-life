@@ -22,9 +22,15 @@ export class CatalogService {
     const delegate = this.delegate(config);
     const { q, page = '1', pageSize = '50', ...filters } = query;
 
-    const where: Record<string, unknown> = {};
+    // Le filtre public (ex. { publie: true }) est appliqué en premier et n'est jamais surchargeable
+    // par un paramètre de requête — un brouillon ne doit jamais fuiter via le catalogue public.
+    const where: Record<string, unknown> = { ...(config.publicWhere ?? {}) };
+    // Seuls les champs explicitement autorisés peuvent être filtrés depuis l'URL : ça ferme
+    // l'injection de filtres Prisma arbitraires (et empêche d'écraser le publicWhere ci-dessus).
     for (const [key, value] of Object.entries(filters)) {
-      if (value !== undefined) where[key] = value;
+      if (value !== undefined && config.filterableFields?.includes(key) && !(key in where)) {
+        where[key] = value;
+      }
     }
     if (q && config.searchFields?.length) {
       where.OR = config.searchFields.map((field) => ({
@@ -46,14 +52,21 @@ export class CatalogService {
   async getById(resource: string, id: string) {
     const config = this.resolve(resource);
     const item = await this.delegate(config).findUnique({ where: { id }, include: config.include });
-    if (!item) throw new NotFoundException(`${resource} ${id} introuvable`);
+    if (!item || this.estMasque(config, item)) throw new NotFoundException(`${resource} ${id} introuvable`);
     return item;
   }
 
   async getBySlug(resource: string, slug: string) {
     const config = this.resolve(resource);
     const item = await this.delegate(config).findUnique({ where: { slug }, include: config.include });
-    if (!item) throw new NotFoundException(`${resource} "${slug}" introuvable`);
+    if (!item || this.estMasque(config, item)) throw new NotFoundException(`${resource} "${slug}" introuvable`);
     return item;
+  }
+
+  // Applique le publicWhere aussi sur les accès unitaires (par id/slug), sinon on pourrait récupérer
+  // un brouillon en le demandant directement par son identifiant.
+  private estMasque(config: ResourceConfig, item: Record<string, unknown>): boolean {
+    if (!config.publicWhere) return false;
+    return Object.entries(config.publicWhere).some(([key, value]) => item[key] !== value);
   }
 }

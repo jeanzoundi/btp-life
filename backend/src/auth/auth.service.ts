@@ -75,6 +75,9 @@ export class AuthService {
       });
       const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
       if (!user) throw new UnauthorizedException();
+      // Un compte banni ne doit pas pouvoir prolonger sa session via le refresh token (valable 30j) —
+      // sans ce contrôle, le bannissement ne prend effet qu'à l'expiration du token, pas immédiatement.
+      if (user.banni) throw new UnauthorizedException('Ce compte a été suspendu');
       const tokens = await this.signTokens({ sub: user.id, email: user.email, role: user.role });
       return { user: this.sanitize(user), ...tokens };
     } catch {

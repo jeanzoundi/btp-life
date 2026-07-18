@@ -2,7 +2,9 @@ import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/c
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -53,13 +55,11 @@ export class AdminUsersController {
   }
 
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() body: { role?: string; adminSubRole?: string | null; plan?: string; banni?: boolean },
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateUserAdminDto) {
+    // Le DTO a déjà filtré les champs autorisés ; le cast ne fait que satisfaire le typage enum de Prisma.
     const { passwordHash: _omit, ...user } = await this.prisma.user.update({
       where: { id },
-      data: body as never,
+      data: body as Prisma.UserUpdateInput,
     });
     return user;
   }

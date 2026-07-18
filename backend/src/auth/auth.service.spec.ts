@@ -139,6 +139,15 @@ describe('AuthService.refresh', () => {
     await expect(svc.refresh('token-valide')).rejects.toThrow(UnauthorizedException);
   });
 
+  it('refuse de renouveler la session si le compte a été banni entre-temps (le bannissement doit couper le refresh, pas seulement le login)', async () => {
+    const prisma = fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue(utilisateur({ banni: true })) } });
+    const { svc, jwt } = await service(prisma);
+    jwt.verifyAsync.mockResolvedValue({ sub: 'u1', email: 'joueur@btplife.com', role: 'USER' });
+    // Le message reste générique (le catch de refresh l'uniformise), mais aucun token ne doit sortir.
+    await expect(svc.refresh('token-valide')).rejects.toThrow(UnauthorizedException);
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
   it('émet une nouvelle paire de tokens quand le refresh token est valide', async () => {
     const prisma = fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue(utilisateur()) } });
     const { svc, jwt } = await service(prisma);

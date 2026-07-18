@@ -9,7 +9,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_ACCESS_SECRET ?? 'change-me-access-secret',
+      // Pas de valeur de repli : un secret par défaut connu (présent dans le dépôt) permettrait de
+      // forger des tokens. L'absence de JWT_ACCESS_SECRET est bloquée au démarrage (voir create-app.ts).
+      secretOrKey: process.env.JWT_ACCESS_SECRET as string,
     });
   }
 

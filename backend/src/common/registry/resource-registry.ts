@@ -11,6 +11,17 @@ export interface ResourceConfig {
   include?: Record<string, boolean>;
   /** Default order */
   orderBy?: Record<string, 'asc' | 'desc'>;
+  /**
+   * Restriction appliquée UNIQUEMENT côté catalogue public (jamais côté admin) : n'expose que le
+   * contenu réellement publié. Sans ça, l'API renvoie aussi les brouillons — c'était au frontend de
+   * les masquer, ce qui n'est pas une frontière de sécurité.
+   */
+  publicWhere?: Record<string, unknown>;
+  /**
+   * Liste blanche des champs qu'un paramètre de requête peut filtrer (`?champ=valeur`). Tout autre
+   * paramètre est ignoré, ce qui ferme l'injection de filtres Prisma arbitraires via l'URL.
+   */
+  filterableFields?: string[];
 }
 
 export const CATALOG_RESOURCES: Record<string, ResourceConfig> = {
@@ -23,18 +34,25 @@ export const CATALOG_RESOURCES: Record<string, ResourceConfig> = {
     searchFields: ['titre'],
     orderBy: { ordre: 'asc' },
     include: { cours: true },
+    publicWhere: { publie: true },
+    filterableFields: ['domaine'],
   },
   cours: { model: 'cours', searchFields: ['titre'] },
   logiciels: { model: 'logiciel', searchFields: ['nom'], include: { exercices: true } },
   'exercices-logiciels': { model: 'exerciceLogiciel', searchFields: ['titre'] },
   badges: { model: 'badge', searchFields: ['nom'] },
   certificats: { model: 'certificat', searchFields: ['nom'] },
-  'offres-emploi': { model: 'offreEmploi', searchFields: ['titre'], orderBy: { publieeLe: 'desc' } },
+  'offres-emploi': {
+    model: 'offreEmploi',
+    searchFields: ['titre'],
+    orderBy: { publieeLe: 'desc' },
+    publicWhere: { statut: 'publiee' },
+  },
   lieux: { model: 'lieu' },
   pnj: { model: 'pnj', searchFields: ['nom'] },
   chantiers: { model: 'chantier', searchFields: ['nom'] },
   medias: { model: 'media', searchFields: ['titre'] },
-  'pages-cms': { model: 'pageCms', searchFields: ['titre'] },
+  'pages-cms': { model: 'pageCms', searchFields: ['titre'], publicWhere: { publie: true } },
   'referentiels-normes': { model: 'referentielNorme' },
   'bibliotheques-prix': { model: 'bibliothequePrix', searchFields: ['designation'] },
   'materiaux-pays': { model: 'materiauPays', searchFields: ['materiau'] },

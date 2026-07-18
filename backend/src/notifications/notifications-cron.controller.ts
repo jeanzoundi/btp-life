@@ -1,5 +1,14 @@
 import { Controller, Headers, Post, UnauthorizedException } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { NotificationsService } from './notifications.service';
+
+// Comparaison à temps constant pour ne pas laisser fuiter le secret via le temps de réponse.
+function secretValide(fourni: string | undefined, attendu: string | undefined): boolean {
+  if (!attendu || !fourni) return false;
+  const a = Buffer.from(fourni);
+  const b = Buffer.from(attendu);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 // Déclenché par un cron Vercel (voir vercel.json) — protégé par un secret partagé, pas par
 // l'authentification utilisateur habituelle. Double garde volontaire : CRON_SECRET contrôle qui
@@ -11,8 +20,7 @@ export class NotificationsCronController {
 
   @Post('rappels')
   async rappels(@Headers('x-cron-secret') secret?: string) {
-    const secretAttendu = process.env.CRON_SECRET;
-    if (!secretAttendu || secret !== secretAttendu) {
+    if (!secretValide(secret, process.env.CRON_SECRET)) {
       throw new UnauthorizedException();
     }
     if (process.env.CRON_ENVOI_ACTIF !== 'true') {
