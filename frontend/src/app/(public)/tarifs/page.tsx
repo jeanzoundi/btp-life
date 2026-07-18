@@ -18,6 +18,13 @@ const FUTURS = [
   { nom: 'Entreprises', desc: 'Tests de compétences, campagnes de formation, suivi des équipes.' },
 ];
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Tarifs',
+  description: 'Commence gratuitement sur BTP Life, passe au premium pour débloquer tout le contenu et aller plus loin.',
+};
+
 export default function TarifsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">

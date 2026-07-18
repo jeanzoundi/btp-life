@@ -25,8 +25,8 @@ function fakePrisma(overrides: Record<string, object> = {}) {
     offreEmploi: { findUnique: jest.fn().mockResolvedValue(offre()) },
     userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 10, reputation: 500 }), update: jest.fn().mockResolvedValue({}) },
     userChantier: { count: jest.fn().mockResolvedValue(0) },
-    competence: { findUnique: jest.fn().mockResolvedValue(null) },
-    userCompetence: { findUnique: jest.fn().mockResolvedValue(null) },
+    competence: { findUnique: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
+    userCompetence: { findUnique: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
     userMission: { findUnique: jest.fn().mockResolvedValue(null) },
     carriereHistorique: { create: jest.fn().mockResolvedValue({}) },
   };

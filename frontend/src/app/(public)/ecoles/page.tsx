@@ -1,5 +1,12 @@
 import Link from 'next/link';
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'BTP Life pour les écoles',
+  description: 'Un outil pédagogique clé en main pour former vos élèves aux métiers du bâtiment de façon ludique.',
+};
+
 export default function EcolesPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">

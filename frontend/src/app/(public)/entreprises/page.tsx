@@ -1,5 +1,12 @@
 import Link from 'next/link';
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'BTP Life pour les entreprises',
+  description: 'Formez et évaluez vos équipes sur les métiers du bâtiment avec un simulateur de carrière engageant.',
+};
+
 export default function EntreprisesPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">

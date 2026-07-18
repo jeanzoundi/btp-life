@@ -40,14 +40,21 @@ export class OffresService {
     }
 
     if (Array.isArray(offre.competencesRequises)) {
-      for (const req of offre.competencesRequises as Array<{ slug: string; niveau: number }>) {
-        const competence = await this.prisma.competence.findUnique({ where: { slug: req.slug } });
-        const userCompetence = competence
-          ? await this.prisma.userCompetence.findUnique({
-              where: { userId_competenceId: { userId, competenceId: competence.id } },
-            })
-          : null;
-        if (!userCompetence || userCompetence.niveauActuel < req.niveau) {
+      const requis = offre.competencesRequises as Array<{ slug: string; niveau: number }>;
+      // Groupé en deux requêtes au lieu de 2 par compétence requise.
+      const competences = await this.prisma.competence.findMany({
+        where: { slug: { in: requis.map((r) => r.slug) } },
+      });
+      const parSlug = new Map(competences.map((c) => [c.slug, c]));
+      const userCompetences = await this.prisma.userCompetence.findMany({
+        where: { userId, competenceId: { in: competences.map((c) => c.id) } },
+      });
+      const niveauParCompetence = new Map(userCompetences.map((uc) => [uc.competenceId, uc.niveauActuel]));
+
+      for (const req of requis) {
+        const competence = parSlug.get(req.slug);
+        const niveauActuel = competence ? (niveauParCompetence.get(competence.id) ?? 0) : 0;
+        if (niveauActuel < req.niveau) {
           manquants.push(`${competence?.nom ?? req.slug} niveau ${req.niveau} requis`);
         }
       }

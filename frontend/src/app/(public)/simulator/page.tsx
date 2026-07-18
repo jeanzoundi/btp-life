@@ -11,6 +11,13 @@ interface Chantier {
   delaiJours: number;
 }
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'BTP Simulator',
+  description: 'Teste ton parcours et découvre les métiers du bâtiment avec le simulateur de carrière BTP Life.',
+};
+
 export default async function SimulatorPage() {
   const chantiers = await fetchCatalog<{ items: Chantier[] }>('/catalog/chantiers?pageSize=6');
 

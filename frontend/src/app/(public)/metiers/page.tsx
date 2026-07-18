@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { fetchCatalog } from '@/lib/api-server';
 import { MetiersFilter } from './metiers-filter';
@@ -12,10 +13,10 @@ interface Profil {
   ordre?: number;
 }
 
-export const metadata = {
-  title: 'Découvrir les métiers du BTP | BTP Life',
+export const metadata: Metadata = {
+  title: 'Les métiers du BTP',
   description:
-    'Explore les ~29 profils et parcours de carrière du BTP : chantier, bureau d’études, BIM, topographie, géotechnique, métré, qualité/HSE, entrepreneur.',
+    'Explore les profils et parcours de carrière du BTP : chantier, bureau d’études, BIM, topographie, géotechnique, métré, qualité/HSE, entrepreneur.',
 };
 
 export default async function MetiersPage() {

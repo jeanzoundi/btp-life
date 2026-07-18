@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Blog',
+  description: 'Actualités, conseils et coulisses des métiers du bâtiment — le blog de BTP Life.',
+};
+
 export default function BlogPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-24 text-center">

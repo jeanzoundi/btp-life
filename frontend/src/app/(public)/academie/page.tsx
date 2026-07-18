@@ -12,6 +12,13 @@ interface Logiciel {
   categorie: string | null;
 }
 
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Académie BTP',
+  description: "Cours et quiz pour apprendre les métiers du bâtiment, du gros œuvre aux finitions — gratuitement sur BTP Life.",
+};
+
 export default async function AcademiePublicPage() {
   const [modules, logiciels] = await Promise.all([
     fetchCatalog<{ items: ModuleAcademie[] }>('/catalog/modules-academie?pageSize=30'),
