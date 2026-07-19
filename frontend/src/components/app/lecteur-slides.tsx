@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SchemaTechnique } from './schema-technique';
 import { MockupLogiciel } from './mockup-logiciel';
+import { AutoEvaluation, CartesRecall, ListeCascade, enPoints } from './cours-interactif';
 import { jouerSon } from '@/lib/sons';
 
 export interface BlocCours {
@@ -37,10 +38,19 @@ export function LecteurSlides({
   missionPratiqueId?: string | null;
   onClose: () => void;
 }) {
-  // Slide 0 = couverture (avec objectifs si présents) · 1 bloc = 1 slide · dernière = félicitations.
+  // Slide 0 = couverture (avec objectifs si présents) · 1 bloc = 1 slide · une slide « Teste-toi »
+  // interactive juste avant · dernière = félicitations.
   const objectifs = blocs.find((b) => b.type === 'objectifs');
   const contenu = useMemo(() => blocs.filter((b) => b.type !== 'objectifs'), [blocs]);
-  const totalSlides = contenu.length + 2;
+  // Points de rappel actif pour l'auto-évaluation : les « à retenir » en priorité, sinon les objectifs.
+  const pointsRecall = useMemo(() => {
+    const retenir = blocs.find((b) => b.type === 'retenir');
+    const source = retenir?.valeur ?? objectifs?.valeur ?? '';
+    return enPoints(source);
+  }, [blocs, objectifs]);
+  const aTesteToi = pointsRecall.length >= 2;
+  const idxTesteToi = contenu.length + 1; // juste après le dernier bloc de contenu
+  const totalSlides = contenu.length + 2 + (aTesteToi ? 1 : 0);
   const [index, setIndex] = useState(0);
   const suivant = () => setIndex((i) => Math.min(totalSlides - 1, i + 1));
   const precedent = () => setIndex((i) => Math.max(0, i - 1));
@@ -117,13 +127,9 @@ export function LecteurSlides({
               {objectifs && (
                 <div className="mx-auto mt-6 max-w-lg rounded-2xl border border-pierre bg-white p-4 text-left sm:p-5">
                   <p className="text-xs font-bold uppercase tracking-widest text-olive">🎯 À la fin de ce cours, tu sauras :</p>
-                  <ul className="mt-2 space-y-1.5">
-                    {objectifs.valeur.split('\n').filter(Boolean).map((l, i) => (
-                      <li key={i} className="flex items-start gap-2 text-graphite/80">
-                        <span className="mt-0.5 shrink-0 text-olive">▸</span> {l}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-2">
+                    <ListeCascade points={enPoints(objectifs.valeur)} />
+                  </div>
                 </div>
               )}
             </div>
@@ -137,20 +143,15 @@ export function LecteurSlides({
               </p>
               <div className="mt-4 sm:mt-5">
                 {(bloc.type === 'schema' || bloc.type === 'logiciel') && (
-                  <div className="max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch]">
+                  <div className="schema-entree max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch]">
                     {bloc.type === 'schema' && <SchemaTechnique nom={bloc.valeur} />}
                     {bloc.type === 'logiciel' && <MockupLogiciel logiciel={bloc.valeur} />}
                   </div>
                 )}
                 {bloc.type === 'retenir' && (
-                  <div className="rounded-2xl bg-graphite p-5 text-ivoire sm:rounded-3xl sm:p-8">
-                    <ul className="space-y-2.5 sm:space-y-3">
-                      {bloc.valeur.split('\n').filter(Boolean).map((l, i) => (
-                        <li key={i} className="flex items-start gap-2.5 text-base sm:gap-3 sm:text-lg">
-                          <span className="mt-0.5 shrink-0 text-cuivre">★</span> {l}
-                        </li>
-                      ))}
-                    </ul>
+                  <div>
+                    <p className="mb-3 text-center text-sm text-graphite/50">Essaie de te rappeler, puis tape chaque carte 👇</p>
+                    <CartesRecall points={enPoints(bloc.valeur)} />
                   </div>
                 )}
                 {bloc.type === 'exemple' && (
@@ -173,6 +174,21 @@ export function LecteurSlides({
                     <p className="text-base leading-relaxed text-graphite/90 sm:text-lg">{bloc.valeur}</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Slide interactive « Teste-toi » — auto-évaluation active avant la fin */}
+          {aTesteToi && index === idxTesteToi && (
+            <div>
+              <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-graphite/40 sm:tracking-[0.3em]">
+                🧠 Teste-toi
+              </p>
+              <h2 className="mt-3 text-center font-display text-xl font-bold text-graphite sm:text-2xl">
+                Vérifie ce que tu retiens
+              </h2>
+              <div className="mt-5">
+                <AutoEvaluation points={pointsRecall} />
               </div>
             </div>
           )}
