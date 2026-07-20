@@ -359,6 +359,24 @@ export class CarriereService {
     };
   }
 
+  /** Ids des cours que le joueur a lus jusqu'au bout (pour cocher « terminé » dans l'académie). */
+  async coursTermines(userId: string): Promise<string[]> {
+    const lignes = await this.prisma.userCours.findMany({ where: { userId }, select: { coursId: true } });
+    return lignes.map((l) => l.coursId);
+  }
+
+  /** Marque un cours comme lu (idempotent) — appelé quand le joueur atteint la dernière diapositive. */
+  async marquerCoursTermine(userId: string, coursId: string) {
+    const cours = await this.prisma.cours.findUnique({ where: { id: coursId }, select: { id: true } });
+    if (!cours) throw new NotFoundException('Cours introuvable');
+    await this.prisma.userCours.upsert({
+      where: { userId_coursId: { userId, coursId } },
+      create: { userId, coursId },
+      update: {},
+    });
+    return { statut: 'ok' };
+  }
+
   /** Série de jours consécutifs avec au moins une mission terminée. */
   async streak(userId: string) {
     const missions = await this.prisma.userMission.findMany({

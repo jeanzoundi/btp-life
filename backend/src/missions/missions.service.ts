@@ -89,6 +89,11 @@ export class MissionsService {
       where: { userId_missionId: { userId, missionId } },
     });
 
+    // Anti-triche : une mission déjà réussie peut être rejouée pour améliorer sa note, mais le rejeu
+    // ne rapporte plus rien (XP/argent/réputation/badge/compétences). Sinon on farmerait des missions
+    // faciles à l'infini. Seul le meilleur score reste mis à jour (fierté / classement).
+    const dejaReussie = existing?.statut === 'REUSSIE';
+
     const userMission = await this.prisma.userMission.upsert({
       where: { userId_missionId: { userId, missionId } },
       create: {
@@ -117,32 +122,36 @@ export class MissionsService {
 
     // XP : la réussite paie plus, mais l'échec n'est jamais puni à zéro (pédagogie de l'échec).
     // L'état du personnage (énergie/moral/faim/social) module légèrement les gains — jamais en dessous de 70 %.
+    // Sur un rejeu d'une mission déjà réussie, tous les gains sont neutralisés (anti-farm).
     const besoinsActuels = await this.besoins.actualiser(userId);
     const facteurBesoins = BesoinsService.facteurPerformance(besoinsActuels);
     const xpBase = resultat.reussie ? resultat.score * 2 : Math.round(resultat.score * 0.5);
-    const xpGagne = Math.round(xpBase * facteurBesoins);
-    const reputationDelta = resultat.reputationDelta + (resultat.reussie ? 2 : -1);
+    const xpGagne = dejaReussie ? 0 : Math.round(xpBase * facteurBesoins);
+    const reputationDelta = dejaReussie ? 0 : resultat.reputationDelta + (resultat.reussie ? 2 : -1);
     // Montants x10 par rapport à l'origine pour rester proportionnels aux budgets de chantier
     // (en millions) — voir CONDITIONS_CHANTIER/apportPersonnelRequis dans chantiers.service.ts.
-    const argentDelta = resultat.budgetDelta + (resultat.reussie ? 500 : 100);
+    const argentDelta = dejaReussie ? 0 : resultat.budgetDelta + (resultat.reussie ? 500 : 100);
 
     const carriereAvant = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
-    await this.progression.appliquerDelta(userId, {
-      xp: xpGagne,
-      reputation: reputationDelta,
-      argentVirtuel: argentDelta,
-    });
-    // Jouer une mission demande de la concentration : petit coût d'énergie et de faim.
-    await this.besoins.consommer(userId, { energie: 3, faim: 2 });
+    if (!dejaReussie) {
+      await this.progression.appliquerDelta(userId, {
+        xp: xpGagne,
+        reputation: reputationDelta,
+        argentVirtuel: argentDelta,
+      });
+      // Jouer une mission demande de la concentration : petit coût d'énergie et de faim.
+      // (Pas de coût non plus sur un rejeu déjà réussi — cohérent avec l'absence de gain.)
+      await this.besoins.consommer(userId, { energie: 3, faim: 2 });
+    }
     const carriereApres = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
 
     let badgeObtenu: Awaited<ReturnType<ProgressionService['attribuerBadgeSiAbsent']>> | null = null;
-    if (resultat.reussie && mission.badgeId) {
+    if (resultat.reussie && !dejaReussie && mission.badgeId) {
       badgeObtenu = await this.progression.attribuerBadgeSiAbsent(userId, mission.badgeId, missionId);
     }
 
     const competencesMaj: unknown[] = [];
-    if (resultat.reussie && Array.isArray(mission.competences)) {
+    if (resultat.reussie && !dejaReussie && Array.isArray(mission.competences)) {
       for (const competenceId of mission.competences as string[]) {
         const maj = await this.progression.validerCompetence(userId, competenceId, resultat.score, 'mission');
         competencesMaj.push(maj);
@@ -174,6 +183,7 @@ export class MissionsService {
       score: resultat.score,
       scoreMax: mission.scoreMax,
       reussie: resultat.reussie,
+      rejeuSansRecompense: dejaReussie,
       bonusChrono: resultat.bonusChrono,
       securiteEchec: resultat.securiteEchec,
       xpGagne,

@@ -29,6 +29,9 @@ export function LecteurSlides({
   dureeMin,
   blocs,
   missionPratiqueId,
+  coursSuivant,
+  onTermine,
+  onCoursSuivant,
   onClose,
 }: {
   titre: string;
@@ -36,6 +39,9 @@ export function LecteurSlides({
   dureeMin?: number | null;
   blocs: BlocCours[];
   missionPratiqueId?: string | null;
+  coursSuivant?: { titre: string } | null;
+  onTermine?: () => void;
+  onCoursSuivant?: () => void;
   onClose: () => void;
 }) {
   // Slide 0 = couverture (avec objectifs si présents) · 1 bloc = 1 slide · une slide « Teste-toi »
@@ -80,9 +86,17 @@ export function LecteurSlides({
     else precedent();
   }
 
+  // À la dernière diapositive : son de réussite + on marque le cours comme lu (une seule fois).
+  const termineRef = useRef(false);
   useEffect(() => {
-    if (index === totalSlides - 1) jouerSon('succes');
-  }, [index, totalSlides]);
+    if (index === totalSlides - 1) {
+      jouerSon('succes');
+      if (!termineRef.current) {
+        termineRef.current = true;
+        onTermine?.();
+      }
+    }
+  }, [index, totalSlides, onTermine]);
 
   const bloc = index >= 1 && index <= contenu.length ? contenu[index - 1] : null;
   const meta = bloc ? TITRES_BLOC[bloc.type] ?? TITRES_BLOC.texte : null;
@@ -197,18 +211,31 @@ export function LecteurSlides({
           {index === totalSlides - 1 && (
             <div className="text-center">
               <p className="anim-float inline-block text-5xl sm:text-6xl">🎓</p>
-              <h2 className="mt-4 font-display text-2xl font-bold text-graphite sm:text-3xl">Cours terminé !</h2>
+              <h2 className="mt-4 font-display text-2xl font-bold text-graphite sm:text-3xl">Cours terminé ! ✓</h2>
               <p className="mx-auto mt-3 max-w-md text-graphite/60">
-                La théorie est posée — maintenant on la met en pratique, c&apos;est là que ça rentre vraiment.
+                {missionPratiqueId
+                  ? 'La théorie est posée — passe à l’exercice, c’est là que ça rentre vraiment.'
+                  : 'Bien joué, ce cours est validé. Continue sur ta lancée !'}
               </p>
               <div className="mt-8 flex flex-col items-center gap-3">
+                {/* Étape suivante logique : d'abord l'exercice du cours, sinon directement le cours suivant. */}
                 {missionPratiqueId && (
                   <Link
                     href={`/app/missions/${missionPratiqueId}`}
                     className="anim-pulse-cta rounded-full bg-terracotta px-8 py-3.5 font-semibold text-ivoire transition-transform hover:scale-105 hover:bg-argile"
                   >
-                    🎯 Passer à la mission pratique
+                    🎯 Faire l&apos;exercice
                   </Link>
+                )}
+                {onCoursSuivant && coursSuivant && (
+                  <button
+                    onClick={onCoursSuivant}
+                    className={`rounded-full px-8 py-3 font-semibold transition-transform hover:scale-105 ${
+                      missionPratiqueId ? 'border border-graphite/25 text-graphite hover:border-olive hover:text-olive' : 'anim-pulse-cta bg-olive text-ivoire'
+                    }`}
+                  >
+                    📗 Cours suivant : {coursSuivant.titre.length > 32 ? coursSuivant.titre.slice(0, 32) + '…' : coursSuivant.titre} →
+                  </button>
                 )}
                 <button onClick={onClose} className="rounded-full border border-graphite/20 px-6 py-2.5 text-sm font-semibold text-graphite hover:border-terracotta hover:text-terracotta">
                   Revenir à la liste

@@ -325,6 +325,7 @@ model User {
   auditLogs             AuditLog[]
   missionsCreated       Mission[]             @relation("MissionCreatedBy")
   itemsAvatar           UserItemAvatar[]
+  coursTermines         UserCours[]
 }
 
 model Avatar {
@@ -528,6 +529,7 @@ model Cours {
   competenceId      String?
   competence        Competence?    @relation(fields: [competenceId], references: [id])
   dureeMin          Int?
+  userCours         UserCours[]
 }
 
 model Logiciel {
@@ -648,6 +650,20 @@ model UserMission {
 
   @@unique([userId, missionId])
   @@index([userId, statut])
+}
+
+// Cours lu/terminé par un joueur — marqué quand il atteint la dernière diapositive. Distinct de la
+// mission pratique associée : on peut avoir lu le cours sans avoir (encore) validé son exercice.
+model UserCours {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coursId   String
+  cours     Cours    @relation(fields: [coursId], references: [id], onDelete: Cascade)
+  termineLe DateTime @default(now())
+
+  @@unique([userId, coursId])
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────────────────────

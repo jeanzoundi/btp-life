@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
 import { IllustrationDomaine } from '@/components/app/illustration-domaine';
@@ -37,6 +37,7 @@ function AcademieContent() {
   const searchParams = useSearchParams();
   const enGrandeEcole = searchParams.get('ecole') === DOMAINE_GRANDE_ECOLE;
 
+  const queryClient = useQueryClient();
   const [moduleOuvert, setModuleOuvert] = useState<string | null>(null);
   const [coursEnLecture, setCoursEnLecture] = useState<(Cours & { module: string }) | null>(null);
 
@@ -48,8 +49,13 @@ function AcademieContent() {
     queryKey: ['missions', 'list'],
     queryFn: () => api.get<Array<{ id: string; userStatut: string }>>('/missions?niveauMax=99'),
   });
+  const { data: coursTermines } = useQuery({
+    queryKey: ['carriere', 'cours-termines'],
+    queryFn: () => api.get<string[]>('/carriere/cours-termines'),
+  });
 
   const statutMission = new Map((missions ?? []).map((m) => [m.id, m.userStatut]));
+  const coursLus = new Set(coursTermines ?? []);
   const modulesPublies = (data?.items ?? []).filter((m) => m.publie);
   // La Grande École (BTS2) reste séparée de l'Académie de base, dans les deux sens.
   const modules = enGrandeEcole
@@ -59,6 +65,23 @@ function AcademieContent() {
 
   const totalValidables = modules.flatMap((m) => m.cours).filter((c) => c.missionPratiqueId).length;
   const totalValides = modules.flatMap((m) => m.cours).filter((c) => missionValidee(c.missionPratiqueId)).length;
+
+  // Liste à plat, dans l'ordre d'affichage (module par module), pour enchaîner « cours suivant ».
+  const tousLesCours = modules.flatMap((m) => m.cours.map((c) => ({ ...c, module: m.titre })));
+  const coursSuivant = (() => {
+    if (!coursEnLecture) return null;
+    const i = tousLesCours.findIndex((c) => c.id === coursEnLecture.id);
+    return i >= 0 && i < tousLesCours.length - 1 ? tousLesCours[i + 1] : null;
+  })();
+
+  async function marquerTermine(coursId: string) {
+    try {
+      await api.post(`/carriere/cours/${coursId}/termine`);
+      queryClient.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] });
+    } catch {
+      /* silencieux — la complétion se re-tentera à la prochaine ouverture */
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-3 sm:space-y-6">
@@ -70,6 +93,9 @@ function AcademieContent() {
           dureeMin={coursEnLecture.dureeMin}
           blocs={coursEnLecture.contenu?.blocs ?? []}
           missionPratiqueId={coursEnLecture.missionPratiqueId}
+          coursSuivant={coursSuivant ? { titre: coursSuivant.titre } : null}
+          onTermine={() => marquerTermine(coursEnLecture.id)}
+          onCoursSuivant={coursSuivant ? () => setCoursEnLecture(coursSuivant) : undefined}
           onClose={() => setCoursEnLecture(null)}
         />
       )}
@@ -165,7 +191,10 @@ function AcademieContent() {
                   {m.cours.map((c) => (
                     <div key={c.id} className="mt-3 flex flex-wrap items-center justify-between gap-2 sm:mt-4 sm:gap-3">
                       <p className="text-sm font-medium text-graphite sm:text-base">
-                        {missionValidee(c.missionPratiqueId) ? '✅' : '📖'} {c.titre}
+                        {missionValidee(c.missionPratiqueId) ? '✅' : coursLus.has(c.id) ? '📗' : '📖'} {c.titre}
+                        {coursLus.has(c.id) && (
+                          <span className="ml-2 rounded-full bg-olive/10 px-2 py-0.5 align-middle text-[10px] font-bold text-olive">✓ lu</span>
+                        )}
                         {c.dureeMin && (
                           <span className="ml-2 font-mono text-xs text-graphite/50">
                             {c.dureeMin} min · {(c.contenu?.blocs ?? []).length + 1} slides
@@ -177,7 +206,7 @@ function AcademieContent() {
                           onClick={() => setCoursEnLecture({ ...c, module: m.titre })}
                           className="rounded-full bg-graphite px-3 py-1.5 text-xs font-semibold text-ivoire transition-transform hover:scale-105 sm:px-4"
                         >
-                          ▶ Suivre le cours
+                          {coursLus.has(c.id) ? '↻ Revoir' : '▶ Suivre le cours'}
                         </button>
                         {c.missionPratiqueId && (
                           <Link

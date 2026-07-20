@@ -34,6 +34,7 @@ interface Resultat {
   score: number;
   scoreMax: number;
   reussie: boolean;
+  rejeuSansRecompense?: boolean;
   bonusChrono: number;
   securiteEchec: boolean;
   xpGagne: number;
@@ -288,7 +289,13 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap justify-center gap-2 text-sm">
+          {resultat.rejeuSansRecompense && (
+            <p className="mx-auto mt-4 max-w-md rounded-xl border border-graphite/15 bg-sable/40 p-3 text-sm font-semibold text-graphite/70">
+              ↻ Tu avais déjà réussi cette mission — ce rejeu met à jour ta note mais ne redonne pas d&apos;XP ni d&apos;argent (pour rester équitable, on ne farme pas les missions déjà validées).
+            </p>
+          )}
+
+          <div className={`mt-5 flex flex-wrap justify-center gap-2 text-sm ${resultat.rejeuSansRecompense ? 'hidden' : ''}`}>
             <span className="rounded-full bg-white px-4 py-1.5 font-semibold text-graphite shadow-sm">
               ⚡ +<Compteur cible={resultat.xpGagne} duree={900} /> XP
             </span>

@@ -127,6 +127,30 @@ describe('MissionsService.submit', () => {
     expect(pnj.surMissionEchouee).not.toHaveBeenCalled();
   });
 
+  it("anti-triche : rejouer une mission déjà réussie ne redonne aucun gain (XP/argent/réputation), et ne coûte pas de besoins", async () => {
+    const prisma = fakePrisma({
+      userMission: {
+        // Le joueur a déjà réussi cette mission auparavant.
+        findUnique: jest.fn().mockResolvedValue({ statut: 'REUSSIE', meilleurScore: 100, termineeLe: new Date() }),
+        upsert: jest.fn().mockImplementation(({ create, update }: { create: object; update: object }) =>
+          Promise.resolve({ id: 'um1', ...(create ?? update) }),
+        ),
+      },
+    });
+    const { svc, progression, besoins } = await service(prisma);
+
+    const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] } });
+
+    expect(resultat.reussie).toBe(true);
+    expect(resultat.rejeuSansRecompense).toBe(true);
+    expect(resultat.xpGagne).toBe(0);
+    expect(resultat.reputationDelta).toBe(0);
+    expect(resultat.argentDelta).toBe(0);
+    // Aucun gain appliqué, aucun coût de besoins sur un rejeu déjà validé.
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+    expect(besoins.consommer).not.toHaveBeenCalled();
+  });
+
   it("un échec paie moitié moins (jamais zéro net) et fait légèrement baisser la réputation", async () => {
     const prisma = fakePrisma();
     const { svc, progression, pnj } = await service(prisma);

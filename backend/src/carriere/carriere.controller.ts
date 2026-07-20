@@ -39,6 +39,16 @@ export class CarriereController {
     return this.carriereService.streak(user.userId);
   }
 
+  @Get('cours-termines')
+  coursTermines(@CurrentUser() user: RequestUser) {
+    return this.carriereService.coursTermines(user.userId);
+  }
+
+  @Post('cours/:coursId/termine')
+  marquerCoursTermine(@CurrentUser() user: RequestUser, @Param('coursId') coursId: string) {
+    return this.carriereService.marquerCoursTermine(user.userId, coursId);
+  }
+
   @Get('classement')
   classement(@CurrentUser() user: RequestUser) {
     return this.carriereService.classement(user.userId);
