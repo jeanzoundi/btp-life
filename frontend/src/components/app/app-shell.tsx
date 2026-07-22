@@ -11,7 +11,6 @@ import { AvatarBtp } from './avatar-btp';
 import { GuideMentor } from './guide-mentor';
 import { BesoinsMini } from './besoins';
 import { NotificationsBell } from './notifications-bell';
-import { Icone } from './icones';
 
 interface CarriereMe {
   niveau: number;
@@ -30,49 +29,49 @@ const SECTIONS_NAV = [
   {
     titre: 'Jouer',
     liens: [
-      { href: '/app', label: 'Accueil', icon: 'accueil' },
-      { href: '/app/missions', label: 'Missions', icon: 'missions' },
-      { href: '/app/chantiers', label: 'Chantiers', icon: 'chantiers' },
+      { href: '/app', label: 'Accueil', icon: '🏠' },
+      { href: '/app/missions', label: 'Missions', icon: '🎯' },
+      { href: '/app/chantiers', label: 'Chantiers', icon: '🏗️' },
     ],
   },
   {
     titre: 'Apprendre',
     liens: [
-      { href: '/app/academie', label: 'Académie BTP', icon: 'academie' },
-      { href: '/app/logiciels', label: 'Logiciels', icon: 'logiciels' },
-      { href: '/app/competences', label: 'Compétences', icon: 'competences' },
+      { href: '/app/academie', label: 'Académie BTP', icon: '📚' },
+      { href: '/app/logiciels', label: 'Logiciels', icon: '💻' },
+      { href: '/app/competences', label: 'Compétences', icon: '🌟' },
     ],
   },
   {
     titre: 'Carrière',
     liens: [
-      { href: '/app/parcours', label: 'Mon parcours', icon: 'parcours' },
-      { href: '/app/entreprise', label: 'Mon entreprise', icon: 'entreprise' },
-      { href: '/app/cv', label: 'CV virtuel', icon: 'cv' },
-      { href: '/app/offres', label: 'Offres', icon: 'offres' },
-      { href: '/app/promotions', label: 'Promotions', icon: 'promotions' },
-      { href: '/app/recompenses', label: 'Récompenses', icon: 'recompenses' },
-      { href: '/app/classements', label: 'Classement', icon: 'classement' },
+      { href: '/app/parcours', label: 'Mon parcours', icon: '🧭' },
+      { href: '/app/entreprise', label: 'Mon entreprise', icon: '🏢' },
+      { href: '/app/cv', label: 'CV virtuel', icon: '📄' },
+      { href: '/app/offres', label: 'Offres', icon: '💼' },
+      { href: '/app/promotions', label: 'Promotions', icon: '📈' },
+      { href: '/app/recompenses', label: 'Récompenses', icon: '🏅' },
+      { href: '/app/classements', label: 'Classement', icon: '🏆' },
     ],
   },
   {
     titre: 'Autres',
     liens: [
-      { href: '/app/profil', label: 'Mon profil', icon: 'profil' },
-      { href: '/app/dressing', label: 'Dressing', icon: 'dressing' },
-      { href: '/app/inventaire', label: 'Inventaire', icon: 'inventaire' },
-      { href: '/app/monde', label: 'Monde virtuel', icon: 'monde' },
-      { href: '/app/messages', label: 'Messages', icon: 'messages' },
-      { href: '/app/parametres', label: 'Paramètres', icon: 'parametres' },
+      { href: '/app/profil', label: 'Mon profil', icon: '👤' },
+      { href: '/app/dressing', label: 'Dressing', icon: '🎽' },
+      { href: '/app/inventaire', label: 'Inventaire', icon: '🎒' },
+      { href: '/app/monde', label: 'Monde virtuel', icon: '🗺️' },
+      { href: '/app/messages', label: 'Messages', icon: '💬' },
+      { href: '/app/parametres', label: 'Paramètres', icon: '⚙️' },
     ],
   },
 ];
 
 const NAV_MOBILE = [
-  { href: '/app', label: 'Accueil', icon: 'accueil' },
-  { href: '/app/missions', label: 'Missions', icon: 'missions' },
-  { href: '/app/chantiers', label: 'Chantiers', icon: 'chantiers' },
-  { href: '/app/messages', label: 'Messages', icon: 'messages' },
+  { href: '/app', label: 'Accueil', icon: '🏠' },
+  { href: '/app/missions', label: 'Missions', icon: '🎯' },
+  { href: '/app/chantiers', label: 'Chantiers', icon: '🏗️' },
+  { href: '/app/messages', label: 'Messages', icon: '💬' },
 ];
 
 function progressionNiveau(xp: number, niveau: number) {
@@ -148,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : 'text-graphite/70 hover:translate-x-1 hover:bg-pierre/60 hover:text-graphite'
                     }`}
                   >
-                    <Icone nom={l.icon} taille={19} className="shrink-0" />
+                    <span className="text-base">{l.icon}</span>
                     {l.label}
                     {l.href === '/app/messages' && !!messagesNonLus && (
                       <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-cuivre px-1 text-[10px] font-bold text-ivoire">
@@ -163,9 +162,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <button
           onClick={deconnexion}
-          className="flex items-center gap-2 border-t border-pierre px-6 py-4 text-left text-sm text-graphite/60 transition-colors hover:text-terracotta"
+          className="border-t border-pierre px-6 py-4 text-left text-sm text-graphite/60 transition-colors hover:text-terracotta"
         >
-          <Icone nom="deconnexion" taille={17} /> Se déconnecter
+          ⏻ Se déconnecter
         </button>
       </aside>
 
@@ -230,7 +229,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 actif ? 'scale-110 font-semibold text-terracotta' : 'text-graphite/60'
               }`}
             >
-              <Icone nom={l.icon} taille={22} />
+              <span className="text-lg">{l.icon}</span>
               {l.label}
               {l.href === '/app/messages' && !!messagesNonLus && (
                 <span className="absolute right-[22%] top-1 h-2.5 w-2.5 rounded-full bg-cuivre" aria-label="Messages non lus" />
@@ -244,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             menuOuvert ? 'scale-110 font-semibold text-terracotta' : 'text-graphite/60'
           }`}
         >
-          <Icone nom="menu" taille={22} />
+          <span className="text-lg">☰</span>
           Menu
         </button>
       </nav>
@@ -311,7 +310,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             actif ? 'bg-terracotta text-ivoire' : 'bg-pierre/50 text-graphite/80'
                           }`}
                         >
-                          <Icone nom={l.icon} taille={19} className="shrink-0" />
+                          <span className="text-base">{l.icon}</span>
                           <span className="truncate">{l.label}</span>
                           {l.href === '/app/messages' && !!messagesNonLus && (
                             <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-cuivre" aria-label="Messages non lus" />
@@ -326,9 +325,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <button
               onClick={deconnexion}
-              className="mx-5 mt-2 flex w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-xl border border-pierre py-3 text-sm font-semibold text-graphite/60"
+              className="mx-5 mt-2 w-[calc(100%-2.5rem)] rounded-xl border border-pierre py-3 text-sm font-semibold text-graphite/60"
             >
-              <Icone nom="deconnexion" taille={17} /> Se déconnecter
+              ⏻ Se déconnecter
             </button>
           </div>
         </div>
