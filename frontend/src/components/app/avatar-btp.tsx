@@ -1,7 +1,20 @@
 'use client';
 
+import { useId } from 'react';
+
 // Avatar BTP vectoriel — personnalisation profonde façon RPG (12 catégories),
 // rétro-compatible avec les configs v1 (accessoire → pilosité/lunettes).
+
+// Éclaircit (f > 0, vers le blanc) ou assombrit (f < 0, vers le noir) une couleur hex — sert à
+// dériver les nuances des dégradés (peau, tenue, casque, fond) pour donner du volume.
+function teinte(hex: string, f: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  if (f >= 0) { r += (255 - r) * f; g += (255 - g) * f; b += (255 - b) * f; }
+  else { r *= 1 + f; g *= 1 + f; b *= 1 + f; }
+  const h = (x: number) => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
 
 export interface AvatarConfig {
   peau: string;
@@ -143,13 +156,47 @@ export function AvatarBtp({
   const sansCasque = c.casqueStyle === 'aucun';
   const classeAnimation = animation ? CLASSE_ANIMATION[animation] : '';
 
+  // Identifiants uniques par instance : plusieurs avatars sur une même page (classement, monde)
+  // ne doivent pas partager leurs dégradés.
+  const uid = useId().replace(/:/g, '');
+  const idFond = `f${uid}`, idPeau = `p${uid}`, idTenue = `t${uid}`, idCasque = `c${uid}`;
+
   return (
     <svg viewBox="0 0 120 120" width={taille} height={taille} className={`rounded-2xl ${classeAnimation} ${className}`} aria-label="Avatar">
-      <rect width="120" height="120" fill={c.fond} />
-      <circle cx="60" cy="130" r="52" fill={fondSombre ? 'rgba(245,240,230,0.12)' : 'rgba(43,43,46,0.06)'} />
+      <defs>
+        {/* Fond : halo doux plus clair au centre, plus profond sur les bords (vignette chic). */}
+        <radialGradient id={idFond} cx="50%" cy="38%" r="75%">
+          <stop offset="0%" stopColor={teinte(c.fond, 0.16)} />
+          <stop offset="65%" stopColor={c.fond} />
+          <stop offset="100%" stopColor={teinte(c.fond, -0.22)} />
+        </radialGradient>
+        {/* Peau : lumière en haut à gauche, ombre en bas à droite → volume du visage. */}
+        <radialGradient id={idPeau} cx="40%" cy="34%" r="72%">
+          <stop offset="0%" stopColor={teinte(c.peau, 0.14)} />
+          <stop offset="60%" stopColor={c.peau} />
+          <stop offset="100%" stopColor={teinte(c.peau, -0.16)} />
+        </radialGradient>
+        {/* Tenue : léger dégradé vertical (épaules éclairées, bas plus sombre) — donne du tissu. */}
+        <linearGradient id={idTenue} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={teinte(c.couleurTenue, 0.12)} />
+          <stop offset="100%" stopColor={teinte(c.couleurTenue, -0.14)} />
+        </linearGradient>
+        {/* Casque : reflet en haut, ombre du bord en bas. */}
+        <linearGradient id={idCasque} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={teinte(c.casque, 0.18)} />
+          <stop offset="70%" stopColor={c.casque} />
+          <stop offset="100%" stopColor={teinte(c.casque, -0.12)} />
+        </linearGradient>
+      </defs>
+
+      <rect width="120" height="120" fill={`url(#${idFond})`} />
+      {/* Ombre portée douce sous le buste, pour décoller le personnage du fond. */}
+      <ellipse cx="60" cy="118" rx="40" ry="9" fill={fondSombre ? 'rgba(0,0,0,0.28)' : 'rgba(43,43,46,0.14)'} />
 
       {/* ── Corps / tenue ── */}
-      <path d="M28 120 L28 96 Q28 82 44 80 L76 80 Q92 82 92 96 L92 120 Z" fill={c.couleurTenue} />
+      <path d="M28 120 L28 96 Q28 82 44 80 L76 80 Q92 82 92 96 L92 120 Z" fill={`url(#${idTenue})`} />
+      {/* Ombre du cou projetée sur le haut de la tenue (col). */}
+      <path d="M50 80 Q60 90 70 80 L70 80 Q60 86 50 80 Z" fill="rgba(43,43,46,0.16)" />
       {c.typeTenue === 'gilet' && (
         <>
           <rect x="40" y="82" width="7" height="38" fill="#D9B382" />
@@ -238,10 +285,17 @@ export function AvatarBtp({
       )}
 
       {/* ── Cou et tête ── */}
-      <rect x="52" y="68" width="16" height="14" rx="6" fill={c.peau} />
-      <circle cx="60" cy="50" r="24" fill={c.peau} />
-      <circle cx="36" cy="52" r="5" fill={c.peau} />
-      <circle cx="84" cy="52" r="5" fill={c.peau} />
+      <rect x="52" y="68" width="16" height="14" rx="6" fill={teinte(c.peau, -0.08)} />
+      {/* Ombre sous le menton (le cou est en retrait). */}
+      <path d="M48 66 Q60 78 72 66 Q60 72 48 66 Z" fill="rgba(43,43,46,0.14)" />
+      <circle cx="36" cy="52" r="5" fill={teinte(c.peau, -0.06)} />
+      <circle cx="84" cy="52" r="5" fill={teinte(c.peau, -0.06)} />
+      <circle cx="60" cy="50" r="24" fill={`url(#${idPeau})`} />
+      {/* Nez : une arête douce et une narine, juste suggérées. */}
+      <path d="M60 51 Q62.5 57 60 60" stroke={teinte(c.peau, -0.2)} strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.6" />
+      {/* Joues : deux touches chaudes discrètes. */}
+      <ellipse cx="47" cy="60" rx="4" ry="2.6" fill="#C1502E" opacity="0.12" />
+      <ellipse cx="73" cy="60" rx="4" ry="2.6" fill="#C1502E" opacity="0.12" />
 
       {/* ── Cheveux (si pas de casque) ── */}
       {sansCasque && c.cheveux !== 'chauve' && (
@@ -274,9 +328,11 @@ export function AvatarBtp({
       {/* ── Casque ── */}
       {!sansCasque && (
         <>
-          <path d="M34 46 Q34 22 60 22 Q86 22 86 46 L86 48 L34 48 Z" fill={c.casque} />
-          <rect x="30" y="45" width="60" height="6" rx="3" fill={c.casque} />
+          <path d="M34 46 Q34 22 60 22 Q86 22 86 46 L86 48 L34 48 Z" fill={`url(#${idCasque})`} />
+          <rect x="30" y="45" width="60" height="6" rx="3" fill={teinte(c.casque, -0.06)} />
+          {/* Nervure centrale + reflet lumineux courbé sur le dôme. */}
           <rect x="56" y="24" width="8" height="22" fill="rgba(43,43,46,0.12)" />
+          <path d="M42 40 Q48 27 60 26" stroke={teinte(c.casque, 0.4)} strokeWidth="2.4" fill="none" strokeLinecap="round" opacity="0.7" />
           {c.casqueStyle === 'visiere' && (
             <path d="M34 51 Q60 60 86 51 L86 55 Q60 65 34 55 Z" fill="#2B2B2E" opacity="0.35" />
           )}
