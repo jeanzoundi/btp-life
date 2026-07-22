@@ -289,6 +289,42 @@ body {
 }
 .schema-entree { animation: schema-entree 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+/* Schéma qui « se dessine » : chaque élément du SVG apparaît en cascade, comme un tracé au fur et
+   à mesure. Générique — s'applique aux 29 schémas existants sans les modifier un par un. */
+@keyframes schema-trait {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.schema-anime svg > * { opacity: 0; animation: schema-trait 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: center; }
+.schema-anime svg > *:nth-child(1) { animation-delay: 0.04s; }
+.schema-anime svg > *:nth-child(2) { animation-delay: 0.1s; }
+.schema-anime svg > *:nth-child(3) { animation-delay: 0.16s; }
+.schema-anime svg > *:nth-child(4) { animation-delay: 0.22s; }
+.schema-anime svg > *:nth-child(5) { animation-delay: 0.28s; }
+.schema-anime svg > *:nth-child(6) { animation-delay: 0.34s; }
+.schema-anime svg > *:nth-child(7) { animation-delay: 0.4s; }
+.schema-anime svg > *:nth-child(8) { animation-delay: 0.46s; }
+.schema-anime svg > *:nth-child(n+9) { animation-delay: 0.52s; }
+
+/* Transition directionnelle entre diapositives — glisse dans le sens de la navigation. */
+@keyframes slide-avant {
+  from { opacity: 0; transform: translateX(26px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-arriere {
+  from { opacity: 0; transform: translateX(-26px); }
+  to { opacity: 1; transform: none; }
+}
+.slide-avant { animation: slide-avant 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.slide-arriere { animation: slide-arriere 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Halo doux derrière l'illustration de couverture (effet « chic », respiration lente). */
+@keyframes halo-respire {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+.halo-cours { animation: halo-respire 6s ease-in-out infinite; }
+
 /* Pop de validation (bonne réponse / auto-évaluation). */
 @keyframes cours-pop {
   0% { transform: scale(0.9); }
@@ -306,7 +342,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up, .anim-float, .anim-grue, .anim-etage, .anim-pulse-cta, .marquee-piste, .fond-anime,
   .skeleton, .confetti, .etage-plein, .selection-pop, .pulse-point,
-  .cours-reveal, .schema-entree, .cours-pop { animation: none; opacity: 1; }
+  .cours-reveal, .schema-entree, .cours-pop, .halo-cours,
+  .slide-avant, .slide-arriere { animation: none; opacity: 1; transform: none; }
+  .schema-anime svg > * { animation: none; opacity: 1; transform: none; }
   .carte-recall-inner { transition: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .anneau-score circle { transition: none; }

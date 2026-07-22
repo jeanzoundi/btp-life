@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SchemaTechnique } from './schema-technique';
 import { MockupLogiciel } from './mockup-logiciel';
+import { IllustrationDomaine } from './illustration-domaine';
 import { AutoEvaluation, CartesRecall, ListeCascade, enPoints } from './cours-interactif';
 import { jouerSon } from '@/lib/sons';
 
@@ -29,6 +30,7 @@ export function LecteurSlides({
   dureeMin,
   blocs,
   missionPratiqueId,
+  domaine,
   coursSuivant,
   onTermine,
   onCoursSuivant,
@@ -39,6 +41,7 @@ export function LecteurSlides({
   dureeMin?: number | null;
   blocs: BlocCours[];
   missionPratiqueId?: string | null;
+  domaine?: string;
   coursSuivant?: { titre: string } | null;
   onTermine?: () => void;
   onCoursSuivant?: () => void;
@@ -58,8 +61,11 @@ export function LecteurSlides({
   const idxTesteToi = contenu.length + 1; // juste après le dernier bloc de contenu
   const totalSlides = contenu.length + 2 + (aTesteToi ? 1 : 0);
   const [index, setIndex] = useState(0);
-  const suivant = () => setIndex((i) => Math.min(totalSlides - 1, i + 1));
-  const precedent = () => setIndex((i) => Math.max(0, i - 1));
+  // Sens de navigation : la diapositive glisse dans la direction du déplacement (effet premium).
+  const [sens, setSens] = useState<'avant' | 'arriere'>('avant');
+  const suivant = () => setIndex((i) => { setSens('avant'); return Math.min(totalSlides - 1, i + 1); });
+  const precedent = () => setIndex((i) => { setSens('arriere'); return Math.max(0, i - 1); });
+  const allerA = (cible: number) => setIndex((i) => { setSens(cible >= i ? 'avant' : 'arriere'); return cible; });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,15 +135,31 @@ export function LecteurSlides({
         key={index}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
-        className="anim-fade-up flex flex-1 items-center justify-center overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 sm:py-8"
+        className={`flex flex-1 items-center justify-center overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 sm:py-8 ${
+          sens === 'avant' ? 'slide-avant' : 'slide-arriere'
+        }`}
       >
         <div className="w-full max-w-2xl overflow-x-hidden">
           {/* Couverture */}
           {index === 0 && (
             <div className="text-center">
-              <p className="text-4xl sm:text-5xl">📚</p>
-              <h1 className="mt-4 font-display text-2xl font-bold text-graphite sm:text-3xl">{titre}</h1>
-              {dureeMin && <p className="mt-2 text-sm text-graphite/50">⏱ Environ {dureeMin} minutes · {contenu.length} étapes</p>}
+              {/* Illustration du domaine, posée sur un halo qui respire — entrée de cours « chic ». */}
+              <div className="relative mx-auto flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
+                <span className="halo-cours absolute inset-0 rounded-full bg-gradient-to-br from-cuivre/30 via-terracotta/20 to-olive/25 blur-xl" />
+                <span className="anim-float relative">
+                  {domaine ? <IllustrationDomaine domaine={domaine} taille={92} /> : <span className="text-5xl">📚</span>}
+                </span>
+              </div>
+              <h1 className="mt-5 font-display text-2xl font-bold leading-tight tracking-tight text-graphite sm:text-4xl">{titre}</h1>
+              {sousTitre && (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-cuivre">{sousTitre}</p>
+              )}
+              {dureeMin && (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
+                  <span className="rounded-full border border-pierre bg-white px-3 py-1 font-semibold text-graphite/60">⏱ {dureeMin} min</span>
+                  <span className="rounded-full border border-pierre bg-white px-3 py-1 font-semibold text-graphite/60">{contenu.length} étapes</span>
+                </div>
+              )}
               {objectifs && (
                 <div className="mx-auto mt-6 max-w-lg rounded-2xl border border-pierre bg-white p-4 text-left sm:p-5">
                   <p className="text-xs font-bold uppercase tracking-widest text-olive">🎯 À la fin de ce cours, tu sauras :</p>
@@ -157,7 +179,12 @@ export function LecteurSlides({
               </p>
               <div className="mt-4 sm:mt-5">
                 {(bloc.type === 'schema' || bloc.type === 'logiciel') && (
-                  <div className="schema-entree max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch]">
+                  <div
+                    key={`${index}-${bloc.valeur}`}
+                    className={`schema-entree max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] ${
+                      bloc.type === 'schema' ? 'schema-anime' : ''
+                    }`}
+                  >
                     {bloc.type === 'schema' && <SchemaTechnique nom={bloc.valeur} />}
                     {bloc.type === 'logiciel' && <MockupLogiciel logiciel={bloc.valeur} />}
                   </div>
@@ -253,7 +280,7 @@ export function LecteurSlides({
           {Array.from({ length: totalSlides }).map((_, i) => (
             <button
               key={i}
-              onClick={() => setIndex(i)}
+              onClick={() => allerA(i)}
               className={`h-2.5 shrink-0 rounded-full transition-all ${i === index ? 'w-6 bg-terracotta' : i < index ? 'w-2.5 bg-olive' : 'w-2.5 bg-pierre'}`}
               aria-label={`Slide ${i + 1}`}
             />

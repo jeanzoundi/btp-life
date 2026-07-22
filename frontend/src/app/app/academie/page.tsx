@@ -39,7 +39,7 @@ function AcademieContent() {
 
   const queryClient = useQueryClient();
   const [moduleOuvert, setModuleOuvert] = useState<string | null>(null);
-  const [coursEnLecture, setCoursEnLecture] = useState<(Cours & { module: string }) | null>(null);
+  const [coursEnLecture, setCoursEnLecture] = useState<(Cours & { module: string; domaine?: string }) | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['catalog', 'modules-academie'],
@@ -67,7 +67,7 @@ function AcademieContent() {
   const totalValides = modules.flatMap((m) => m.cours).filter((c) => missionValidee(c.missionPratiqueId)).length;
 
   // Liste à plat, dans l'ordre d'affichage (module par module), pour enchaîner « cours suivant ».
-  const tousLesCours = modules.flatMap((m) => m.cours.map((c) => ({ ...c, module: m.titre })));
+  const tousLesCours = modules.flatMap((m) => m.cours.map((c) => ({ ...c, module: m.titre, domaine: m.domaine })));
   const coursSuivant = (() => {
     if (!coursEnLecture) return null;
     const i = tousLesCours.findIndex((c) => c.id === coursEnLecture.id);
@@ -93,6 +93,7 @@ function AcademieContent() {
           dureeMin={coursEnLecture.dureeMin}
           blocs={coursEnLecture.contenu?.blocs ?? []}
           missionPratiqueId={coursEnLecture.missionPratiqueId}
+          domaine={coursEnLecture.domaine}
           coursSuivant={coursSuivant ? { titre: coursSuivant.titre } : null}
           onTermine={() => marquerTermine(coursEnLecture.id)}
           onCoursSuivant={coursSuivant ? () => setCoursEnLecture(coursSuivant) : undefined}
