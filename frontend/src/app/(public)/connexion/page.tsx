@@ -33,7 +33,7 @@ export default function ConnexionPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+    <div className="anim-fade-up mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
       <h1 className="font-display text-3xl font-bold text-graphite">Connexion</h1>
       <p className="mt-2 text-sm text-graphite/60">Reprends ta carrière là où tu l&apos;as laissée.</p>
 

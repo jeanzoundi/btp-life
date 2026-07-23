@@ -55,7 +55,7 @@ export default function InscriptionPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
+    <div className="anim-fade-up mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
       <h1 className="font-display text-3xl font-bold text-graphite">Créer mon compte</h1>
       <p className="mt-2 text-sm text-graphite/60">Ta première mission t&apos;attend dans moins de 3 minutes.</p>
 

@@ -90,7 +90,7 @@ export default function ParametresPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="anim-fade-up mx-auto max-w-xl space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold text-graphite">Profil & paramètres</h1>
         <p className="text-sm text-graphite/60">{email} · Plan {plan}</p>

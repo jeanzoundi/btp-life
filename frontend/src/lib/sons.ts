@@ -33,7 +33,28 @@ function note(ac: AudioContext, freq: number, debut: number, duree: number, volu
   osc.stop(ac.currentTime + debut + duree + 0.05);
 }
 
+// Retour haptique mobile : une petite vibration accompagne les moments forts (public mobile-first).
+// Échec silencieux si non supporté (desktop, iOS Safari qui n'expose pas navigator.vibrate).
+const VIBRATIONS: Partial<Record<TypeSon, number | number[]>> = {
+  succes: 14,
+  badge: [10, 40, 22],
+  niveau: [16, 55, 16, 55, 40],
+  echec: 32,
+};
+
+function vibrer(type: TypeSon) {
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  const motif = VIBRATIONS[type];
+  if (motif === undefined) return;
+  try {
+    navigator.vibrate(motif);
+  } catch {
+    // silencieux
+  }
+}
+
 export function jouerSon(type: TypeSon) {
+  vibrer(type);
   const ac = ctx();
   if (!ac) return;
   try {
