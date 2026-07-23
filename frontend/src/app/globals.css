@@ -325,6 +325,38 @@ body {
 }
 .halo-cours { animation: halo-respire 6s ease-in-out infinite; }
 
+/* ── Hub d'accueil cinématique ──────────────────────────── */
+
+/* Grille type plan technique en surimpression, sur les fonds sombres du héros. */
+.grille-plan {
+  background-image:
+    linear-gradient(rgba(245, 240, 230, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 240, 230, 0.10) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Aura lumineuse qui respire derrière l'avatar héros. */
+@keyframes aura-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+.aura-avatar { animation: aura-pulse 4.5s ease-in-out infinite; }
+
+/* Balayage de lumière qui traverse lentement la bannière (effet « premium »). */
+@keyframes reflet-heros {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
+}
+.reflet-heros {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(245, 240, 230, 0.14), transparent);
+  animation: reflet-heros 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* Pop de validation (bonne réponse / auto-évaluation). */
 @keyframes cours-pop {
   0% { transform: scale(0.9); }

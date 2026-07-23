@@ -59,6 +59,42 @@ const ACCES_RAPIDES = [
   { href: '/app/recompenses', label: 'Badges', icon: '🏅', desc: 'Ta vitrine' },
 ];
 
+// Courbe de niveau identique au backend (progression.service.ts) : niveau N = round(100*(N-1)^2.2)
+// XP cumulés. Sert à afficher la barre « progression vers le niveau suivant » sur le hub.
+function xpRequisPourNiveau(n: number): number {
+  return Math.round(100 * Math.pow(Math.max(0, n - 1), 2.2));
+}
+function progressionVersNiveauSuivant(xp: number, niveau: number) {
+  const bas = xpRequisPourNiveau(niveau);
+  const haut = xpRequisPourNiveau(niveau + 1);
+  const pct = haut > bas ? Math.min(100, Math.max(0, Math.round(((xp - bas) / (haut - bas)) * 100))) : 100;
+  return { pct, restant: Math.max(0, haut - xp) };
+}
+
+/** Silhouette de chantier (immeubles + grue) posée en bas de la bannière — profondeur « décor de jeu ». */
+function SkylineChantier({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 400 70" preserveAspectRatio="none" className={className} aria-hidden="true">
+      <g fill="#2B2B2E">
+        <rect x="14" y="34" width="34" height="36" />
+        <rect x="58" y="20" width="26" height="50" />
+        <rect x="150" y="42" width="40" height="28" />
+        <rect x="250" y="28" width="30" height="42" />
+        <rect x="300" y="46" width="46" height="24" />
+        <rect x="356" y="30" width="30" height="40" />
+      </g>
+      {/* Grue */}
+      <g stroke="#2B2B2E" strokeWidth="3" fill="none" strokeLinecap="round">
+        <line x1="112" y1="70" x2="112" y2="8" />
+        <line x1="92" y1="16" x2="168" y2="16" />
+        <line x1="112" y1="8" x2="112" y2="16" />
+        <line x1="150" y1="16" x2="150" y2="30" />
+      </g>
+      <rect x="108" y="14" width="8" height="8" fill="#2B2B2E" />
+    </svg>
+  );
+}
+
 export default function DashboardPage() {
   const { data: carriere, isLoading: carriereLoading } = useQuery({
     queryKey: ['carriere', 'me'],
@@ -101,34 +137,42 @@ export default function DashboardPage() {
       {carriereLoading ? (
         <Skeleton className="h-44 w-full" />
       ) : (
-        <section className="fond-anime relative overflow-hidden rounded-3xl p-6 text-ivoire md:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-6">
+        <section className="fond-anime relative overflow-hidden rounded-3xl p-6 text-ivoire shadow-2xl md:p-8">
+          {/* ── Couches décoratives : grille de plan, halos, balayage de lumière, skyline ── */}
+          <div className="grille-plan pointer-events-none absolute inset-0 opacity-50" />
+          <div className="halo-hero" />
+          <div className="reflet-heros" />
+          <SkylineChantier className="pointer-events-none absolute inset-x-0 bottom-0 h-14 w-full opacity-[0.18] md:h-20" />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <Link href="/app/profil" className="flex shrink-0 flex-col items-center transition-transform hover:scale-105">
+              <Link href="/app/profil" className="relative flex shrink-0 flex-col items-center transition-transform hover:scale-105">
+                {/* Aura lumineuse pulsée derrière l'avatar */}
+                <span className="aura-avatar absolute left-1/2 top-1/2 -z-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sable/50 blur-2xl md:h-28 md:w-28" />
                 <Plumbob
                   taille={18}
                   humeur={carriere ? humeurDepuisBesoins({ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }) : 'bien'}
                 />
-                <span className="anim-float">
-                  <AvatarBtp config={carriere?.avatar?.config} taille={88} className="shadow-xl ring-4 ring-ivoire/20" />
+                <span className="anim-float relative">
+                  <AvatarBtp config={carriere?.avatar?.config} taille={92} className="shadow-2xl ring-4 ring-ivoire/25" />
                 </span>
               </Link>
               <div>
-              <p className="text-sm text-ivoire/70">Bonjour 👋</p>
-              <h1 className="mt-1 font-display text-2xl font-bold md:text-3xl">
-                {carriere?.avatar?.nomPersonnage ?? 'Aventurier BTP'}
-              </h1>
-              <p className="mt-1 text-sm text-ivoire/80">
-                {carriere?.profilActuel?.nom ?? 'Profil à choisir'} → objectif :{' '}
-                <span className="font-semibold text-sable">{carriere?.metierCible?.nom ?? 'à définir'}</span>
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">⚡ {carriere?.xp ?? 0} XP</span>
-                <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold">🏅 Réputation {carriere?.reputation ?? 500}/1000</span>
-                <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-mono font-semibold">
-                  💰 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} FCFA
-                </span>
-              </div>
+                <p className="text-sm text-ivoire/70">Bonjour 👋</p>
+                <h1 className="mt-1 font-display text-2xl font-bold tracking-tight md:text-3xl">
+                  {carriere?.avatar?.nomPersonnage ?? 'Aventurier BTP'}
+                </h1>
+                <p className="mt-1 text-sm text-ivoire/80">
+                  {carriere?.profilActuel?.nom ?? 'Profil à choisir'} → objectif :{' '}
+                  <span className="font-semibold text-sable">{carriere?.metierCible?.nom ?? 'à définir'}</span>
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold ring-1 ring-ivoire/10">⚡ {carriere?.xp ?? 0} XP</span>
+                  <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-semibold ring-1 ring-ivoire/10">🏅 {carriere?.reputation ?? 500}/1000</span>
+                  <span className="rounded-full bg-ivoire/15 px-3 py-1.5 font-mono font-semibold ring-1 ring-ivoire/10">
+                    💰 {(carriere?.argentVirtuel ?? 0).toLocaleString('fr-FR')} F
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-6">
@@ -138,12 +182,35 @@ export default function DashboardPage() {
                   <p className="text-[10px] text-ivoire/70">/{total} missions</p>
                 </div>
               </AnneauProgression>
-              <div className="hidden text-center sm:block">
-                <p className="font-display text-4xl font-bold text-sable">{carriere?.niveau ?? 1}</p>
-                <p className="text-xs text-ivoire/70">Niveau</p>
+              {/* Badge de niveau — écusson lumineux */}
+              <div className="relative hidden text-center sm:block">
+                <div className="flex h-20 w-20 flex-col items-center justify-center rounded-2xl bg-ivoire/10 ring-2 ring-sable/60 backdrop-blur">
+                  <p className="font-display text-4xl font-bold text-sable drop-shadow">{carriere?.niveau ?? 1}</p>
+                </div>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-ivoire/70">Niveau</p>
               </div>
             </div>
           </div>
+
+          {/* ── Barre d'XP vers le niveau suivant — pleine largeur, façon jauge de jeu ── */}
+          {(() => {
+            const niveau = carriere?.niveau ?? 1;
+            const { pct, restant } = progressionVersNiveauSuivant(carriere?.xp ?? 0, niveau);
+            return (
+              <div className="relative mt-6">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-ivoire/75">
+                  <span>Niveau {niveau}</span>
+                  <span className="text-sable">{restant > 0 ? `${restant.toLocaleString('fr-FR')} XP → Niveau ${niveau + 1}` : 'Niveau max atteint'}</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-graphite/40 ring-1 ring-ivoire/10">
+                  <div
+                    className="barre-progression h-full rounded-full bg-gradient-to-r from-sable via-cuivre to-terracotta shadow-[0_0_10px_rgba(217,179,130,0.6)]"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </section>
       )}
 
