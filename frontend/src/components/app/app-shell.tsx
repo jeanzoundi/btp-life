@@ -11,6 +11,7 @@ import { AvatarBtp } from './avatar-btp';
 import { GuideMentor } from './guide-mentor';
 import { BesoinsMini } from './besoins';
 import { NotificationsBell } from './notifications-bell';
+import { progressionVersNiveauSuivant } from '@/lib/niveau';
 
 interface CarriereMe {
   niveau: number;
@@ -74,13 +75,6 @@ const NAV_MOBILE = [
   { href: '/app/messages', label: 'Messages', icon: '💬' },
 ];
 
-function progressionNiveau(xp: number, niveau: number) {
-  const xpPourNiveau = (niveau * (niveau + 1) * 100) / 2;
-  const xpNiveauPrecedent = ((niveau - 1) * niveau * 100) / 2;
-  if (xpPourNiveau <= xpNiveauPrecedent) return 0;
-  return Math.min(100, Math.max(0, Math.round(((xp - xpNiveauPrecedent) / (xpPourNiveau - xpNiveauPrecedent)) * 100)));
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -99,7 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     staleTime: 30_000,
   });
 
-  const pct = progressionNiveau(carriere?.xp ?? 0, carriere?.niveau ?? 1);
+  const { pct } = progressionVersNiveauSuivant(carriere?.xp ?? 0, carriere?.niveau ?? 1);
   const initiale = (carriere?.avatar?.nomPersonnage ?? user?.nom ?? 'A').charAt(0).toUpperCase();
 
   // Fermer le tiroir automatiquement à chaque changement de page.
@@ -192,11 +186,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {carriere && (
                 <BesoinsMini besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} />
               )}
-              <div className="flex items-center gap-2 rounded-full border border-pierre px-3 py-1.5">
+              {/* Bloc niveau — HUD : jauge immeuble + mini-barre d'XP lumineuse toujours visible */}
+              <div className="flex items-center gap-2 rounded-full border border-pierre bg-white/60 px-3 py-1.5">
                 <JaugeImmeuble progressionPct={pct} />
-                <div className="text-right">
+                <div className="min-w-[54px]">
                   <p className="font-display text-sm font-bold leading-none text-graphite">Niv. {carriere?.niveau ?? 1}</p>
-                  <p className="mt-0.5 font-mono text-[10px] leading-none text-graphite/50">{pct}% → suivant</p>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-pierre">
+                    <div
+                      className="barre-progression h-full rounded-full bg-gradient-to-r from-sable via-cuivre to-terracotta shadow-[0_0_6px_rgba(184,115,51,0.55)]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="mt-0.5 hidden font-mono text-[9px] leading-none text-graphite/45 sm:block">{pct}% → niv. suivant</p>
                 </div>
               </div>
               <span className="rounded-full bg-olive/10 px-2.5 py-1.5 text-xs font-semibold text-olive sm:px-3">

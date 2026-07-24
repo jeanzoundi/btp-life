@@ -7,6 +7,7 @@ import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
 import { Plumbob } from '@/components/app/quartier-iso';
 import { PanneauBesoins, humeurDepuisBesoins } from '@/components/app/besoins';
+import { progressionVersNiveauSuivant } from '@/lib/niveau';
 
 interface Mission {
   id: string;
@@ -58,18 +59,6 @@ const ACCES_RAPIDES = [
   { href: '/app/offres', label: 'Offres', icon: '💼', desc: 'Candidate' },
   { href: '/app/recompenses', label: 'Badges', icon: '🏅', desc: 'Ta vitrine' },
 ];
-
-// Courbe de niveau identique au backend (progression.service.ts) : niveau N = round(100*(N-1)^2.2)
-// XP cumulés. Sert à afficher la barre « progression vers le niveau suivant » sur le hub.
-function xpRequisPourNiveau(n: number): number {
-  return Math.round(100 * Math.pow(Math.max(0, n - 1), 2.2));
-}
-function progressionVersNiveauSuivant(xp: number, niveau: number) {
-  const bas = xpRequisPourNiveau(niveau);
-  const haut = xpRequisPourNiveau(niveau + 1);
-  const pct = haut > bas ? Math.min(100, Math.max(0, Math.round(((xp - bas) / (haut - bas)) * 100))) : 100;
-  return { pct, restant: Math.max(0, haut - xp) };
-}
 
 /** Silhouette de chantier (immeubles + grue) posée en bas de la bannière — profondeur « décor de jeu ». */
 function SkylineChantier({ className = '' }: { className?: string }) {
