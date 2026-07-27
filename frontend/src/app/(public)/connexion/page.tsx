@@ -76,9 +76,6 @@ export default function ConnexionPage() {
           Inscris-toi gratuitement
         </Link>
       </p>
-      <p className="mt-2 text-center text-xs text-graphite/40">
-        Démo : demo@btplife.com / Demo1234! — Admin : admin@btplife.com / Admin1234!
-      </p>
     </div>
   );
 }
