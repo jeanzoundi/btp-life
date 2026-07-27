@@ -1,1 +1,6 @@
 .vercel
+
+# Supports de cours source (PDF convertis en texte) utilisés pour rédiger le contenu — scratch,
+# pas du code, gardés en local uniquement.
+tmp-*.txt
+.dev-pg-data/
