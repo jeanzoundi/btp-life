@@ -109,44 +109,77 @@ export default function MissionsPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtrees.map((m) => (
-          <div
-            key={m.id}
-            className={`rounded-2xl border p-4 ${
-              m.verrouillee ? 'border-pierre bg-pierre/30 opacity-70' : 'carte-vivante border-pierre bg-white'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-olive">
-                <span className="text-lg">{ICONES_TYPE[m.type] ?? '🎯'}</span> {m.type.replaceAll('_', ' ')}
-              </span>
-              {m.userStatut === 'REUSSIE' && (
-                <span className="rounded-full bg-olive/10 px-2 py-0.5 text-xs font-bold text-olive">✔ {m.meilleurScore}/100</span>
+        {filtrees.map((m) => {
+          const reussie = m.userStatut === 'REUSSIE';
+          const echouee = m.userStatut === 'ECHOUEE';
+          return (
+            <div
+              key={m.id}
+              className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 transition-all ${
+                m.verrouillee
+                  ? 'border-pierre bg-pierre/25'
+                  : reussie
+                    ? 'carte-vivante border-olive/40 bg-white'
+                    : 'carte-vivante border-pierre bg-white hover:border-terracotta'
+              }`}
+            >
+              {/* Barre d'accent — l'identité « type de quête » de la carte */}
+              <div
+                className={`h-1.5 w-full ${
+                  m.verrouillee ? 'bg-pierre' : reussie ? 'bg-olive' : echouee ? 'bg-terracotta' : 'bg-gradient-to-r from-terracotta via-cuivre to-sable'
+                }`}
+              />
+              {/* Ruban de réussite */}
+              {reussie && (
+                <span className="absolute right-2 top-3.5 rounded-full bg-olive px-2 py-0.5 text-[10px] font-bold text-ivoire shadow-sm">
+                  ✔ {m.meilleurScore}/100
+                </span>
               )}
-              {m.userStatut === 'ECHOUEE' && (
-                <span className="rounded-full bg-terracotta/10 px-2 py-0.5 text-xs font-bold text-terracotta">↻ À retenter</span>
+              {echouee && (
+                <span className="absolute right-2 top-3.5 rounded-full bg-terracotta/15 px-2 py-0.5 text-[10px] font-bold text-terracotta">
+                  ↻ à retenter
+                </span>
               )}
+
+              <div className="flex flex-1 flex-col p-4">
+                <div className="flex items-start gap-3">
+                  {/* Médaillon d'icône */}
+                  <span
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl transition-transform group-hover:scale-110 ${
+                      m.verrouillee ? 'bg-pierre/60 grayscale' : reussie ? 'bg-olive/10 ring-1 ring-olive/30' : 'bg-terracotta/10 ring-1 ring-terracotta/20'
+                    }`}
+                  >
+                    {ICONES_TYPE[m.type] ?? '🎯'}
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="truncate text-[10px] font-bold uppercase tracking-wide text-olive">{m.type.replaceAll('_', ' ')}</p>
+                    <p className="font-display font-bold leading-tight text-graphite">{m.titre}</p>
+                  </div>
+                </div>
+                <p className="mt-2 line-clamp-2 flex-1 text-sm text-graphite/60">{m.description}</p>
+
+                <div className="mt-3 flex items-center justify-between border-t border-pierre/60 pt-3 text-xs">
+                  <span className="flex items-center gap-1.5 text-graphite/50">
+                    <span className="rounded-full bg-graphite/5 px-2 py-0.5 font-mono font-semibold text-graphite/60">Niv. {m.niveauRequis}</span>
+                    {m.dureeLimiteSec ? <span className="font-mono">⏱ {Math.round(m.dureeLimiteSec / 60)}′</span> : null}
+                  </span>
+                  {m.verrouillee ? (
+                    <span className="font-semibold text-graphite/40">🔒 Niv. {m.niveauRequis}</span>
+                  ) : (
+                    <Link
+                      href={`/app/missions/${m.id}`}
+                      className={`rounded-full px-4 py-1.5 font-semibold text-ivoire transition-transform hover:scale-105 ${
+                        reussie ? 'bg-olive hover:brightness-110' : 'bg-terracotta shadow-[0_0_10px_rgba(193,80,46,0.35)] hover:bg-argile'
+                      }`}
+                    >
+                      {reussie ? 'Améliorer' : 'Jouer'} →
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
-            <p className="mt-2 font-display font-bold text-graphite">{m.titre}</p>
-            <p className="mt-1 line-clamp-2 text-sm text-graphite/60">{m.description}</p>
-            <div className="mt-3 flex items-center justify-between border-t border-pierre/60 pt-3 text-xs text-graphite/50">
-              <span className="font-mono">
-                Niv. {m.niveauRequis}
-                {m.dureeLimiteSec ? ` · ⏱ ${Math.round(m.dureeLimiteSec / 60)} min` : ''}
-              </span>
-              {m.verrouillee ? (
-                <span className="font-semibold">🔒 Niveau {m.niveauRequis}</span>
-              ) : (
-                <Link
-                  href={`/app/missions/${m.id}`}
-                  className="rounded-full bg-terracotta px-4 py-1.5 font-semibold text-ivoire transition-transform hover:scale-105 hover:bg-argile"
-                >
-                  {m.userStatut === 'REUSSIE' ? 'Améliorer' : 'Jouer'} →
-                </Link>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!isLoading && !filtrees.length && (
