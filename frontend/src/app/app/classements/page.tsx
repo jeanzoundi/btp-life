@@ -35,11 +35,20 @@ export default function ClassementsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <section className="rounded-3xl border border-pierre bg-white p-6 text-center">
-        <h1 className="font-display text-2xl font-bold text-graphite">🏆 Classement des bâtisseurs</h1>
-        <p className="mt-1 text-sm text-graphite/60">
-          Le top 20 par XP — ta place actuelle : <span className="font-display font-bold text-terracotta">#{data?.monRang ?? '—'}</span>
-        </p>
+      <section className="fond-anime relative overflow-hidden rounded-3xl p-6 text-center text-ivoire shadow-2xl">
+        <div className="grille-plan pointer-events-none absolute inset-0 opacity-40" />
+        <div className="halo-hero" />
+        <div className="reflet-heros" />
+        <div className="relative">
+          <p className="anim-float inline-block text-4xl">🏆</p>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight md:text-3xl">Classement des bâtisseurs</h1>
+          <p className="mt-2 text-sm text-ivoire/75">
+            Top 20 par XP · ta place :{' '}
+            <span className="ml-1 rounded-full bg-ivoire/15 px-3 py-1 font-display text-base font-bold text-sable ring-1 ring-sable/40">
+              #{data?.monRang ?? '—'}
+            </span>
+          </p>
+        </div>
       </section>
 
       {isLoading && <Skeleton className="h-64 w-full" />}
@@ -51,12 +60,16 @@ export default function ClassementsPage() {
             const premier = e.rang === 1;
             return (
               <div key={e.rang} className={`flex flex-col items-center ${premier ? '-translate-y-3' : ''}`}>
-                <span className="text-3xl">{MEDAILLES[e.rang - 1]}</span>
-                <div className={premier ? 'anim-float' : ''}>
+                {premier && <span className="anim-float text-2xl">👑</span>}
+                <span className="text-3xl drop-shadow">{MEDAILLES[e.rang - 1]}</span>
+                <div className={`relative ${premier ? 'anim-float' : ''}`}>
+                  {premier && (
+                    <span className="aura-avatar absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sable/60 blur-2xl" />
+                  )}
                   <AvatarBtp
                     config={e.avatarConfig}
                     taille={premier ? 108 : 84}
-                    className={`shadow-xl ${e.estMoi ? 'ring-4 ring-terracotta' : ''}`}
+                    className={`relative shadow-xl ${premier ? 'ring-4 ring-sable' : ''} ${e.estMoi ? 'ring-4 ring-terracotta' : ''}`}
                   />
                 </div>
                 <p className={`mt-2 max-w-28 truncate font-display font-bold text-graphite ${premier ? 'text-lg' : 'text-sm'}`}>

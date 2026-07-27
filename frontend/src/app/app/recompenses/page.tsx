@@ -15,10 +15,11 @@ interface UserCertificat {
   certificat: { nom: string };
 }
 
-const RARETE_STYLE: Record<string, string> = {
-  BRONZE: 'bg-argile/10 text-argile',
-  ARGENT: 'bg-mineral/20 text-graphite',
-  OR: 'bg-cuivre/15 text-cuivre',
+// Cadre de trophée selon la rareté — bordure, fond du médaillon, et lueur pour l'or.
+const RARETE_CONFIG: Record<string, { bordure: string; medaillon: string; pastille: string; lueur: string; emoji: string }> = {
+  BRONZE: { bordure: 'border-argile/40', medaillon: 'bg-argile/15', pastille: 'bg-argile/15 text-argile', lueur: '', emoji: '🥉' },
+  ARGENT: { bordure: 'border-mineral/50', medaillon: 'bg-mineral/25', pastille: 'bg-mineral/25 text-graphite', lueur: '', emoji: '🥈' },
+  OR: { bordure: 'border-cuivre/60', medaillon: 'bg-cuivre/20', pastille: 'bg-cuivre/20 text-cuivre', lueur: 'shadow-[0_0_18px_rgba(184,115,51,0.35)]', emoji: '🥇' },
 };
 
 export default function RecompensesPage() {
@@ -32,26 +33,39 @@ export default function RecompensesPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-graphite">Badges & certificats</h1>
-        <p className="text-sm text-graphite/60">Chaque réussite laisse une trace — y compris la persévérance après un échec.</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-8">
+      <section className="fond-anime relative overflow-hidden rounded-3xl p-6 text-center text-ivoire shadow-2xl">
+        <div className="grille-plan pointer-events-none absolute inset-0 opacity-40" />
+        <div className="halo-hero" />
+        <div className="reflet-heros" />
+        <div className="relative">
+          <p className="anim-float inline-block text-4xl">🏅</p>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight md:text-3xl">Ta vitrine de trophées</h1>
+          <p className="mt-2 text-sm text-ivoire/75">
+            {(badges ?? []).length} badge{(badges ?? []).length !== 1 ? 's' : ''} · {(certificats ?? []).length} certificat{(certificats ?? []).length !== 1 ? 's' : ''} — chaque réussite laisse une trace.
+          </p>
+        </div>
+      </section>
 
       <section>
         <h2 className="font-display text-lg font-bold text-graphite">Mes badges</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {(badges ?? []).map((ub) => (
-            <div key={ub.id} className="rounded-2xl border border-pierre bg-white p-4 text-center">
-              <p className="text-3xl">🏅</p>
-              <p className="mt-1 font-display font-bold text-graphite">{ub.badge.nom}</p>
-              <p className="mt-1 text-xs text-graphite/60">{ub.badge.description}</p>
-              <span className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-semibold ${RARETE_STYLE[ub.badge.rarete] ?? ''}`}>
-                {ub.badge.rarete}
-              </span>
-            </div>
-          ))}
-          {!(badges ?? []).length && <p className="text-sm text-graphite/60">Aucun badge — joue ta première mission !</p>}
+          {(badges ?? []).map((ub) => {
+            const r = RARETE_CONFIG[ub.badge.rarete] ?? RARETE_CONFIG.BRONZE;
+            return (
+              <div key={ub.id} className={`carte-vivante rounded-2xl border-2 bg-white p-4 text-center ${r.bordure} ${r.lueur}`}>
+                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl ${r.medaillon}`}>{r.emoji}</div>
+                <p className="mt-2 font-display font-bold text-graphite">{ub.badge.nom}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-graphite/60">{ub.badge.description}</p>
+                <span className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-bold ${r.pastille}`}>{ub.badge.rarete}</span>
+              </div>
+            );
+          })}
+          {!(badges ?? []).length && (
+            <p className="rounded-2xl border border-dashed border-pierre p-6 text-sm text-graphite/60 sm:col-span-2 lg:col-span-4">
+              Aucun badge — joue ta première mission pour décrocher ton premier trophée !
+            </p>
+          )}
         </div>
       </section>
 
