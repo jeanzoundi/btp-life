@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface Offre {
   id: string;
@@ -52,11 +53,12 @@ export default function OffresPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-graphite">Offres d&apos;emploi virtuelles</h1>
-        <p className="text-sm text-graphite/60">Ton CV virtuel est envoyé automatiquement. Un refus donne toujours un plan d&apos;action.</p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-8">
+      <BanniereHub
+        emoji="💼"
+        titre="Offres d'emploi virtuelles"
+        soustitre="Ton CV virtuel est envoyé automatiquement. Un refus donne toujours un plan d'action."
+      />
 
       {erreur && <p className="text-sm text-terracotta">{erreur}</p>}
 

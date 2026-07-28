@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { ChantierIso } from '@/components/app/chantier-iso';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface Chantier {
   id: string;
@@ -86,12 +87,17 @@ export default function ChantiersPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-graphite">Chantiers virtuels</h1>
-        <p className="text-sm text-graphite/60">BTP Simulator — phases, budget, délais et imprévus.</p>
-        <p className="mt-1 text-xs font-semibold text-cuivre">💰 Solde disponible : {argent.toLocaleString('fr-FR')} F</p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-8">
+      <BanniereHub
+        emoji="🏗️"
+        titre="Chantiers virtuels"
+        soustitre="BTP Simulator — phases, budget, délais et imprévus."
+      >
+        <div className="rounded-2xl bg-ivoire/10 px-4 py-2.5 text-center ring-1 ring-sable/30">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-ivoire/60">Solde</p>
+          <p className="font-mono text-lg font-bold text-sable">{argent.toLocaleString('fr-FR')} F</p>
+        </div>
+      </BanniereHub>
 
       {erreur && <p className="anim-fade-up rounded-2xl bg-terracotta/10 px-4 py-2.5 text-sm font-semibold text-terracotta">{erreur}</p>}
 

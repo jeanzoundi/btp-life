@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface UserCompetence {
   id: string;
@@ -29,11 +30,12 @@ export default function CompetencesPage() {
   const domaines = [...new Set((toutes?.items ?? []).map((c) => c.domaine))];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-graphite">Arbre de compétences</h1>
-        <p className="text-sm text-graphite/60">Chaque compétence se valide par des missions et des examens, niveau par niveau (1–5).</p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <BanniereHub
+        emoji="🌟"
+        titre="Arbre de compétences"
+        soustitre="Chaque compétence se valide par des missions et des examens, niveau par niveau (1–5)."
+      />
 
       {domaines.map((domaine) => (
         <section key={domaine}>
