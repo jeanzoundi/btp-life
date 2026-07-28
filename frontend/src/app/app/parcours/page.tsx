@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface Poste {
   profilId: string;
@@ -78,13 +79,16 @@ export default function ParcoursPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="font-display text-xl font-bold text-graphite sm:text-2xl">🧭 Mon parcours de carrière</h1>
-        <p className="text-sm text-graphite/60">
-          {carriere?.profilActuel?.nom ?? '—'} → objectif :{' '}
-          <span className="font-semibold text-terracotta">{carriere?.metierCible?.nom ?? '—'}</span>
-        </p>
-      </div>
+      <BanniereHub
+        emoji="🧭"
+        titre="Mon parcours de carrière"
+        soustitre={
+          <>
+            {carriere?.profilActuel?.nom ?? '—'} → objectif :{' '}
+            <span className="font-semibold text-sable">{carriere?.metierCible?.nom ?? '—'}</span>
+          </>
+        }
+      />
 
       {/* Synchronisé sur ta position réelle dans la filière : ce PNJ change à mesure que tu progresses. */}
       {pnjActuel && (

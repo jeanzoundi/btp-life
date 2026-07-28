@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface CvContenu {
   identite?: { nom?: string; pays?: string; referentiel?: string };
@@ -32,20 +33,22 @@ export default function CvPage() {
   const c = cv?.contenu ?? {};
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-graphite">Mon CV virtuel</h1>
-          <p className="text-sm text-graphite/60">Généré automatiquement à partir de ta carrière — jamais rédigé à la main.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={regenerer} className="rounded-full border border-graphite/20 px-4 py-2 text-sm font-semibold text-graphite hover:bg-graphite/5">
-            Actualiser
-          </button>
-          <button onClick={() => window.print()} className="rounded-full bg-terracotta px-4 py-2 text-sm font-semibold text-ivoire hover:bg-argile">
-            Exporter (imprimer)
-          </button>
-        </div>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="print:hidden">
+        <BanniereHub
+          emoji="📄"
+          titre="Mon CV virtuel"
+          soustitre="Généré automatiquement à partir de ta carrière — jamais rédigé à la main."
+        >
+          <div className="flex gap-2">
+            <button onClick={regenerer} className="rounded-full border border-ivoire/30 px-4 py-2 text-sm font-semibold text-ivoire hover:bg-ivoire/10">
+              Actualiser
+            </button>
+            <button onClick={() => window.print()} className="rounded-full bg-sable px-4 py-2 text-sm font-semibold text-graphite hover:bg-cuivre hover:text-ivoire">
+              Exporter (imprimer)
+            </button>
+          </div>
+        </BanniereHub>
       </div>
 
       <div className="rounded-2xl border border-pierre bg-white p-6 print:border-0">

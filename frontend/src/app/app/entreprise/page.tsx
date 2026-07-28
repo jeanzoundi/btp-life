@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { BanniereHub } from '@/components/app/banniere-hub';
 
 interface CarriereMe {
   niveau: number;
@@ -154,35 +155,40 @@ export default function EntreprisePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-graphite">🏢 {carriere?.nomEntreprise || 'Mon entreprise'}</h1>
+      <BanniereHub
+        emoji="🏢"
+        titre={carriere?.nomEntreprise || 'Mon entreprise'}
+        soustitre="Candidate aux marchés ci-dessous pour décrocher tes propres chantiers."
+      >
         {nomEdite === null ? (
-          <button onClick={() => setNomEdite(carriere?.nomEntreprise ?? '')} className="mt-1 text-xs font-semibold text-terracotta hover:underline">
-            {carriere?.nomEntreprise ? 'Renommer' : "Donner un nom à l'entreprise"}
+          <button
+            onClick={() => setNomEdite(carriere?.nomEntreprise ?? '')}
+            className="rounded-full border border-ivoire/30 px-4 py-2 text-xs font-semibold text-ivoire hover:bg-ivoire/10"
+          >
+            {carriere?.nomEntreprise ? 'Renommer' : "Nommer l'entreprise"}
           </button>
         ) : (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={nomEdite}
               onChange={(e) => setNomEdite(e.target.value)}
               placeholder="Nom de l'entreprise"
-              className="rounded-full border-2 border-pierre px-4 py-1.5 text-sm font-semibold text-graphite focus:border-terracotta focus:outline-none"
+              className="rounded-full border-2 border-ivoire/30 bg-ivoire/10 px-4 py-1.5 text-sm font-semibold text-ivoire placeholder:text-ivoire/50 focus:border-sable focus:outline-none"
             />
             <button
               onClick={() => renommer.mutate(nomEdite)}
               disabled={renommer.isPending || !nomEdite.trim()}
-              className="rounded-full bg-terracotta px-4 py-1.5 text-xs font-bold text-ivoire disabled:opacity-50"
+              className="rounded-full bg-sable px-4 py-1.5 text-xs font-bold text-graphite disabled:opacity-50"
             >
               Valider
             </button>
-            <button onClick={() => setNomEdite(null)} className="text-xs text-graphite/50 hover:underline">
+            <button onClick={() => setNomEdite(null)} className="text-xs text-ivoire/70 hover:underline">
               Annuler
             </button>
           </div>
         )}
-        {erreur && <p className="mt-1.5 text-sm font-semibold text-terracotta">{erreur}</p>}
-        <p className="mt-2 text-sm text-graphite/60">Candidate aux marchés ci-dessous pour décrocher tes propres chantiers.</p>
-      </div>
+      </BanniereHub>
+      {erreur && <p className="text-sm font-semibold text-terracotta">{erreur}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {chargementMarches && <p className="text-sm text-graphite/60">Chargement des marchés…</p>}

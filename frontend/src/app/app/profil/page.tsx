@@ -184,7 +184,11 @@ export default function ProfilPage() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <section className="fond-anime flex flex-wrap items-center gap-6 rounded-3xl p-6 text-ivoire md:p-8">
+        <section className="fond-anime relative overflow-hidden rounded-3xl p-6 text-ivoire shadow-2xl md:p-8">
+          <div className="grille-plan pointer-events-none absolute inset-0 opacity-40" />
+          <div className="halo-hero" />
+          <div className="reflet-heros" />
+          <div className="relative flex flex-wrap items-center gap-6">
           <div className="anim-float">
             <AvatarBtp config={carriere?.avatar?.config} taille={112} className="shadow-xl ring-4 ring-ivoire/20" />
           </div>
@@ -226,6 +230,7 @@ export default function ProfilPage() {
                 🏅
               </span>
             ))}
+          </div>
           </div>
         </section>
       )}
