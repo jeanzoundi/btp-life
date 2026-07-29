@@ -1,9 +1,16 @@
-// Service worker BTP Life — shell offline minimal (stratégies avancées : voir CONCEPTION.md §15).
-const CACHE = 'btp-life-v1';
-const SHELL = ['/', '/manifest.json', '/icon.svg'];
+// Service worker BTP Life — offline-first.
+// Le SHELL (HTML + JS/CSS de l'app) est mis en cache pour que l'app démarre sans réseau ;
+// les DONNÉES de jeu sont, elles, gérées hors ligne par la persistance TanStack Query (IndexedDB),
+// pas ici — l'API backend (autre origine) n'est donc jamais interceptée.
+const CACHE = 'btp-life-v2';
+const SHELL = ['/', '/app', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+  // On ne fait pas échouer l'install si un fichier manque (addAll est atomique) : on met en cache
+  // au mieux, fichier par fichier.
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => Promise.all(SHELL.map((u) => cache.add(u).catch(() => {})))),
+  );
   self.skipWaiting();
 });
 
@@ -17,16 +24,51 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
-  const url = new URL(request.url);
-  // L'API reste network-only (données de jeu à jour) ; le shell est network-first avec repli cache.
-  if (url.pathname.startsWith('/api')) return;
 
+  const url = new URL(request.url);
+
+  // Ne pas intercepter les autres origines (API backend, polices, etc.) : elles passent au réseau
+  // normalement. Les données offline viennent du cache TanStack Query, pas du service worker.
+  if (url.origin !== self.location.origin) return;
+
+  // Assets immuables de Next (hashés) + icônes → cache-first (rapide, dispo hors ligne).
+  const cacheFirst = url.pathname.startsWith('/_next/static/') || /\.(png|svg|jpg|jpeg|webp|woff2?|ico)$/.test(url.pathname);
+  if (cacheFirst) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ??
+          fetch(request).then((res) => {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // Navigations (chargement d'une page) → network-first, repli sur le shell en cache si hors ligne.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(request).then((c) => c ?? caches.match('/app').then((a) => a ?? caches.match('/')))),
+    );
+    return;
+  }
+
+  // Autres GET same-origin → network-first avec repli cache.
   event.respondWith(
     fetch(request)
-      .then((response) => {
-        const copy = response.clone();
+      .then((res) => {
+        const copy = res.clone();
         caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
-        return response;
+        return res;
       })
       .catch(() => caches.match(request).then((cached) => cached ?? caches.match('/'))),
   );
@@ -45,8 +87,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.titre, {
       body: data.contenu,
-      icon: '/icon.svg',
-      badge: '/icon.svg',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       data: { lien: data.lien ?? '/app' },
       tag: data.id ?? undefined,
     }),

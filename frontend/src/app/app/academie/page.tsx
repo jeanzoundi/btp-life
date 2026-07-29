@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
 import { IllustrationDomaine } from '@/components/app/illustration-domaine';
@@ -74,14 +74,28 @@ function AcademieContent() {
     return i >= 0 && i < tousLesCours.length - 1 ? tousLesCours[i + 1] : null;
   })();
 
-  async function marquerTermine(coursId: string) {
-    try {
-      await api.post(`/carriere/cours/${coursId}/termine`);
+  // Complétion de cours en mutation offline-first : la mise à jour optimiste marque le cours
+  // terminé tout de suite (même hors ligne), et l'appel serveur est mis en file d'attente puis
+  // rejoué au retour du réseau (voir Providers → mutationKey 'cours-termine'). L'anti-triche
+  // serveur (pas de récompense au rejeu) reste la source de vérité.
+  const marquerTermineMutation = useMutation({
+    mutationKey: ['cours-termine'],
+    mutationFn: (coursId: string) => api.post(`/carriere/cours/${coursId}/termine`),
+    onMutate: async (coursId) => {
+      await queryClient.cancelQueries({ queryKey: ['carriere', 'cours-termines'] });
+      const prev = queryClient.getQueryData<string[]>(['carriere', 'cours-termines']);
+      queryClient.setQueryData<string[]>(['carriere', 'cours-termines'], (old) =>
+        old ? (old.includes(coursId) ? old : [...old, coursId]) : [coursId],
+      );
+      return { prev };
+    },
+    onError: (_err, _coursId, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['carriere', 'cours-termines'], ctx.prev);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] });
-    } catch {
-      /* silencieux — la complétion se re-tentera à la prochaine ouverture */
-    }
-  }
+    },
+  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-3 sm:space-y-6">
@@ -95,7 +109,7 @@ function AcademieContent() {
           missionPratiqueId={coursEnLecture.missionPratiqueId}
           domaine={coursEnLecture.domaine}
           coursSuivant={coursSuivant ? { titre: coursSuivant.titre } : null}
-          onTermine={() => marquerTermine(coursEnLecture.id)}
+          onTermine={() => marquerTermineMutation.mutate(coursEnLecture.id)}
           onCoursSuivant={coursSuivant ? () => setCoursEnLecture(coursSuivant) : undefined}
           onClose={() => setCoursEnLecture(null)}
         />

@@ -11,6 +11,7 @@ import { AvatarBtp } from './avatar-btp';
 import { GuideMentor } from './guide-mentor';
 import { BesoinsMini } from './besoins';
 import { NotificationsBell } from './notifications-bell';
+import { IndicateurHorsLigne } from './indicateur-hors-ligne';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
 
 interface CarriereMe {
@@ -163,6 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <IndicateurHorsLigne />
         {/* Topbar carrière */}
         <header className="sticky top-0 z-30 border-b border-pierre bg-white/95 px-4 py-2.5 backdrop-blur">
           <div className="flex items-center justify-between gap-4">
