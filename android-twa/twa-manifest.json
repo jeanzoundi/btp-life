@@ -1,0 +1,42 @@
+{
+  "packageId": "com.btplife.twa",
+  "host": "btp-life-frontend.vercel.app",
+  "name": "BTP Life — Le simulateur de carrière BTP",
+  "launcherName": "BTP Life",
+  "display": "standalone",
+  "themeColor": "#2B2B2E",
+  "themeColorDark": "#1A1A1C",
+  "navigationColor": "#2B2B2E",
+  "navigationColorDark": "#1A1A1C",
+  "navigationDividerColor": "#2B2B2E",
+  "navigationDividerColorDark": "#1A1A1C",
+  "backgroundColor": "#F5F0E6",
+  "enableNotifications": true,
+  "startUrl": "/app",
+  "iconUrl": "https://btp-life-frontend.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://btp-life-frontend.vercel.app/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "btplife"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://btp-life-frontend.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://btp-life-frontend.vercel.app/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    {
+      "name": "btplife",
+      "value": "93:5D:C5:9B:B7:F6:EA:3F:5A:34:F4:7B:83:C9:4E:E8:9D:51:E8:0A:4E:7A:70:B0:6C:94:14:AD:6D:AB:CE:67"
+    }
+  ]
+}

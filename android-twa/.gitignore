@@ -1,0 +1,15 @@
+# Clé de signature — NE JAMAIS committer (secret). Garder une sauvegarde privée.
+*.keystore
+android.keystore
+
+# Artefacts de build Gradle
+.gradle/
+build/
+app/build/
+app/release/
+*.apk
+*.aab
+local.properties
+
+# Script d'échafaudage temporaire
+gen-twa.cjs
