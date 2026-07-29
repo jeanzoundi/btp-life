@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { JaugeImmeuble } from './ui';
@@ -81,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const clear = useAuthStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
   const [menuOuvert, setMenuOuvert] = useState(false);
 
   const { data: carriere } = useQuery({
@@ -111,6 +112,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = original;
     };
   }, [menuOuvert]);
+
+  // Préchauffage du cache pour un usage hors ligne COMPLET : on précharge le contenu lourd
+  // (tous les cours + la liste des missions + la progression) dès l'ouverture, tant qu'on est en
+  // ligne. Ainsi, même les cours jamais ouverts sont consultables hors ligne. Ces clés/URLs sont
+  // identiques à celles des pages, donc le cache est partagé (persisté en IndexedDB).
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['catalog', 'modules-academie'],
+      queryFn: () => api.get('/catalog/modules-academie?pageSize=50'),
+      staleTime: 60_000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['missions', 'list'],
+      queryFn: () => api.get('/missions?niveauMax=99'),
+      staleTime: 60_000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['carriere', 'cours-termines'],
+      queryFn: () => api.get('/carriere/cours-termines'),
+      staleTime: 60_000,
+    });
+  }, [queryClient]);
 
   function deconnexion() {
     clear();
@@ -161,6 +184,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           ⏻ Se déconnecter
         </button>
+        <p className="border-t border-pierre px-6 py-3 text-center text-[11px] font-semibold tracking-wide text-graphite/40">
+          ✦ by Mister JZ
+        </p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

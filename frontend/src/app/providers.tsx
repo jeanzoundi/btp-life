@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { QueryClient, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '@/lib/offline/query-persister';
+import { notifierSync } from '@/lib/offline/sync-notify';
 import { api } from '@/lib/api';
+
+// Résultat renvoyé par /missions/:id/submit (sous-ensemble utile à la notification de synchro).
+type ResultatMission = { reussie: boolean; xpGagne: number; rejeuSansRecompense?: boolean };
 
 // Requêtes temps réel / multijoueur : inutile (voire trompeur) de les servir depuis le cache
 // hors ligne — on ne les persiste pas.
@@ -27,10 +31,34 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // Défaut de mutation pour la complétion de cours : permet de REJOUER une mutation reprise
-    // après un rechargement de l'app (la fonction est retrouvée via la mutationKey persistée).
+    // Défauts de mutation : permettent de REJOUER une mutation reprise après un rechargement de
+    // l'app (la fonction est retrouvée via la mutationKey persistée). Ces onSuccess ne se déclenchent
+    // QUE pour les mutations rejouées sans composant monté (hors ligne → reconnexion, ou après
+    // fermeture/réouverture) ; quand l'écran est ouvert, ses propres callbacks priment.
     qc.setMutationDefaults(['cours-termine'], {
       mutationFn: (coursId: string) => api.post(`/carriere/cours/${coursId}/termine`),
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] });
+      },
+    });
+
+    qc.setMutationDefaults(['mission-submit'], {
+      mutationFn: (vars: { id: string; reponses: Record<string, unknown>; tempsUtiliseSec: number }) =>
+        api.post<ResultatMission>(`/missions/${vars.id}/submit`, {
+          reponses: vars.reponses,
+          tempsUtiliseSec: vars.tempsUtiliseSec,
+        }),
+      onSuccess: (res) => {
+        qc.invalidateQueries({ queryKey: ['carriere'] });
+        qc.invalidateQueries({ queryKey: ['missions'] });
+        const r = res as ResultatMission;
+        if (r && !r.rejeuSansRecompense) {
+          notifierSync(
+            r.reussie ? 'Mission synchronisée 🎉' : 'Mission synchronisée',
+            r.reussie ? `Réussie ! +${r.xpGagne} XP crédités.` : 'Tes réponses ont été corrigées.',
+          );
+        }
+      },
     });
 
     return qc;

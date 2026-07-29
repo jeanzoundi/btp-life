@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, onlineManager } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AnneauProgression, Confettis, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { Compteur } from '@/components/public/compteur';
@@ -63,12 +63,11 @@ const AIDE_TYPE: Record<Contenu['typeQuestion'], string> = {
 export default function MissionPlayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const queryClient = useQueryClient();
-  const [phase, setPhase] = useState<'briefing' | 'jeu' | 'resultat'>('briefing');
+  const [phase, setPhase] = useState<'briefing' | 'jeu' | 'resultat' | 'enfile'>('briefing');
   const [etapeIdx, setEtapeIdx] = useState(0);
   const [reponses, setReponses] = useState<Record<string, unknown>>({});
   const [resultat, setResultat] = useState<Resultat | null>(null);
   const [tempsRestant, setTempsRestant] = useState<number | null>(null);
-  const [envoi, setEnvoi] = useState(false);
   const [popId, setPopId] = useState<string | null>(null);
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const debutRef = useRef<number>(0);
@@ -93,7 +92,13 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
   }, []);
 
   async function demarrer() {
-    await api.post(`/missions/${id}/start`);
+    // Le /start est idempotent et non indispensable (le /submit fait l'upsert) : hors ligne on
+    // n'empêche pas de jouer.
+    try {
+      await api.post(`/missions/${id}/start`);
+    } catch {
+      /* hors ligne : on démarre quand même, le submit sera mis en file d'attente */
+    }
     debutRef.current = Date.now();
     soumisRef.current = false;
     setEtapeIdx(0);
@@ -114,20 +119,14 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  async function soumettre() {
-    if (soumisRef.current) return;
-    soumisRef.current = true;
-    if (timerRef.current) clearInterval(timerRef.current);
-    setEnvoi(true);
-    try {
-      const tempsUtiliseSec = Math.round((Date.now() - debutRef.current) / 1000);
-      const reponsesEffectives = { ...reponsesRef.current };
-      for (const c of mission?.contenus ?? []) {
-        if (c.typeQuestion === 'ORDONNANCEMENT' && reponsesEffectives[c.id] === undefined) {
-          reponsesEffectives[c.id] = (c.options ?? []).map((o) => o.id);
-        }
-      }
-      const res = await api.post<Resultat>(`/missions/${id}/submit`, { reponses: reponsesEffectives, tempsUtiliseSec });
+  // Soumission de mission offline-first : mise en file d'attente + rejeu à la reconnexion (le
+  // barème et la récompense restent calculés côté serveur — anti-triche préservé, la clé de
+  // réponses n'est jamais sur le client). Voir Providers → mutationKey 'mission-submit'.
+  const submitMutation = useMutation({
+    mutationKey: ['mission-submit'],
+    mutationFn: (vars: { id: string; reponses: Record<string, unknown>; tempsUtiliseSec: number }) =>
+      api.post<Resultat>(`/missions/${vars.id}/submit`, { reponses: vars.reponses, tempsUtiliseSec: vars.tempsUtiliseSec }),
+    onSuccess: (res) => {
       setResultat(res);
       setPhase('resultat');
       jouerSon(res.reussie ? 'succes' : 'echec');
@@ -138,11 +137,33 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
       }
       queryClient.invalidateQueries({ queryKey: ['carriere'] });
       queryClient.invalidateQueries({ queryKey: ['missions'] });
-    } catch {
+    },
+    onError: () => {
       soumisRef.current = false;
-    } finally {
-      setEnvoi(false);
+    },
+  });
+
+  function soumettre() {
+    if (soumisRef.current) return;
+    soumisRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const tempsUtiliseSec = Math.round((Date.now() - debutRef.current) / 1000);
+    const reponsesEffectives = { ...reponsesRef.current };
+    for (const c of mission?.contenus ?? []) {
+      if (c.typeQuestion === 'ORDONNANCEMENT' && reponsesEffectives[c.id] === undefined) {
+        reponsesEffectives[c.id] = (c.options ?? []).map((o) => o.id);
+      }
     }
+
+    // Hors ligne : on met la validation en file d'attente et on affiche un écran dédié. Le serveur
+    // corrige et crédite la récompense au retour du réseau ; une notification prévient le joueur.
+    if (!onlineManager.isOnline()) {
+      submitMutation.mutate({ id, reponses: reponsesEffectives, tempsUtiliseSec });
+      setPhase('enfile');
+      return;
+    }
+    submitMutation.mutate({ id, reponses: reponsesEffectives, tempsUtiliseSec });
   }
 
   function setReponse(contenuId: string, valeur: unknown) {
@@ -184,6 +205,36 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
       <div className="mx-auto max-w-2xl space-y-4">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-52 w-full" />
+      </div>
+    );
+  }
+
+  /* ── EN FILE D'ATTENTE (validation hors ligne) ── */
+  if (phase === 'enfile') {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="overflow-hidden rounded-3xl border border-pierre bg-white text-center">
+          <div className="fond-anime p-8 text-ivoire">
+            <p className="text-5xl">📶</p>
+            <h1 className="mt-3 font-display text-2xl font-bold">Réponses enregistrées ✅</h1>
+          </div>
+          <div className="space-y-4 p-6">
+            <p className="text-graphite/70">
+              Tu es hors ligne — tes réponses sont en sécurité sur ton téléphone. La correction et ta
+              récompense (XP, réputation) seront calculées et créditées{' '}
+              <strong>dès le retour de la connexion</strong>. Une notification te préviendra.
+            </p>
+            <div className="flex items-center justify-center gap-2 rounded-2xl bg-sable/30 p-3 text-sm font-semibold text-graphite/70">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-cuivre" /> En attente de synchronisation…
+            </div>
+            <Link
+              href="/app/missions"
+              className="block rounded-full bg-terracotta py-3 font-semibold text-ivoire transition-transform hover:scale-[1.02] hover:bg-argile"
+            >
+              Continuer →
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -518,10 +569,10 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
         {derniere ? (
           <button
             onClick={soumettre}
-            disabled={envoi}
+            disabled={submitMutation.isPending}
             className="anim-pulse-cta rounded-full bg-terracotta px-6 py-2.5 text-sm font-bold text-ivoire transition-transform hover:scale-105 hover:bg-argile disabled:opacity-60"
           >
-            {envoi ? 'Correction…' : '✔ Valider'}
+            {submitMutation.isPending ? 'Correction…' : '✔ Valider'}
           </button>
         ) : (
           <button
