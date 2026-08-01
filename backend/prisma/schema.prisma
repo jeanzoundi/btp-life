@@ -5,7 +5,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Requêtes applicatives : pooler Supabase en mode transaction (port 6543) — indispensable en
+  // serverless, où chaque invocation ouvrirait sinon sa propre connexion.
   url      = env("DATABASE_URL")
+  // Migrations : le mode transaction du pooler ne peut pas tenir le verrou consultatif dont
+  // `prisma migrate deploy` a besoin — il échoue. On passe donc par le mode session (même hôte,
+  // port 5432) pour les migrations uniquement.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────
