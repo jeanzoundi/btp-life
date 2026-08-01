@@ -9,6 +9,17 @@ import { calculerScoreMission } from './mission-scoring';
 
 @Injectable()
 export class MissionsService {
+  /**
+   * Part de l'XP conservée quand on rejoue une mission déjà réussie (« entraînement »).
+   *
+   * Le contenu du jeu est fini (~21 500 XP en tout premier passage) alors que la courbe de niveau
+   * vise le niveau 100 (~2,46 M XP). Sans rejeu payant, la progression butait sur un plafond dur
+   * au niveau 12. Ce taux rouvre la progression sans casser l'anti-farm : le rejeu ne rapporte
+   * QUE de l'XP — jamais d'argent, de réputation, de badge ni de compétence — et coûte de
+   * l'énergie, donc il n'est ni gratuit ni automatisable à l'infini.
+   */
+  static readonly TAUX_ENTRAINEMENT = 0.25;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
@@ -158,25 +169,31 @@ export class MissionsService {
 
     // XP : la réussite paie plus, mais l'échec n'est jamais puni à zéro (pédagogie de l'échec).
     // L'état du personnage (énergie/moral/faim/social) module légèrement les gains — jamais en dessous de 70 %.
-    // Sur un rejeu d'une mission déjà réussie, tous les gains sont neutralisés (anti-farm).
+    //
+    // Rejeu d'une mission déjà réussie = « entraînement » : il rapporte une fraction de l'XP
+    // (TAUX_ENTRAINEMENT), mais jamais d'argent, de réputation, de badge ni de compétence. Sans
+    // cette soupape, le contenu du jeu (fini) plafonnait la progression au niveau 12 alors que la
+    // courbe et les missions vont jusqu'à 100 : plus aucun joueur assidu ne pouvait avancer.
+    // L'économie reste protégée (pas de farm d'argent/réputation), seul le temps investi paie.
     const besoinsActuels = await this.besoins.actualiser(userId);
     const facteurBesoins = BesoinsService.facteurPerformance(besoinsActuels);
     const xpBase = resultat.reussie ? resultat.score * 2 : Math.round(resultat.score * 0.5);
-    const xpGagne = dejaReussie ? 0 : Math.round(xpBase * facteurBesoins);
+    const xpPlein = Math.round(xpBase * facteurBesoins);
+    const xpGagne = dejaReussie ? Math.round(xpPlein * MissionsService.TAUX_ENTRAINEMENT) : xpPlein;
     const reputationDelta = dejaReussie ? 0 : resultat.reputationDelta + (resultat.reussie ? 2 : -1);
     // Montants x10 par rapport à l'origine pour rester proportionnels aux budgets de chantier
     // (en millions) — voir CONDITIONS_CHANTIER/apportPersonnelRequis dans chantiers.service.ts.
     const argentDelta = dejaReussie ? 0 : resultat.budgetDelta + (resultat.reussie ? 500 : 100);
 
     const carriereAvant = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
-    if (!dejaReussie) {
+    if (!dejaReussie || xpGagne > 0) {
       await this.progression.appliquerDelta(userId, {
         xp: xpGagne,
         reputation: reputationDelta,
         argentVirtuel: argentDelta,
       });
       // Jouer une mission demande de la concentration : petit coût d'énergie et de faim.
-      // (Pas de coût non plus sur un rejeu déjà réussi — cohérent avec l'absence de gain.)
+      // Le rejeu coûte aussi — sinon l'entraînement serait gratuit et se ferait en boucle sans fin.
       await this.besoins.consommer(userId, { energie: 3, faim: 2 });
     }
     const carriereApres = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });

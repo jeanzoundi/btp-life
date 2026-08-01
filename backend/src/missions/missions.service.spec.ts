@@ -127,7 +127,7 @@ describe('MissionsService.submit', () => {
     expect(pnj.surMissionEchouee).not.toHaveBeenCalled();
   });
 
-  it("anti-triche : rejouer une mission déjà réussie ne redonne aucun gain (XP/argent/réputation), et ne coûte pas de besoins", async () => {
+  it("rejouer une mission déjà réussie = entraînement : XP réduite, mais aucun argent ni réputation", async () => {
     const prisma = fakePrisma({
       userMission: {
         // Le joueur a déjà réussi cette mission auparavant.
@@ -143,12 +143,34 @@ describe('MissionsService.submit', () => {
 
     expect(resultat.reussie).toBe(true);
     expect(resultat.rejeuSansRecompense).toBe(true);
-    expect(resultat.xpGagne).toBe(0);
+    // 200 XP au premier passage → 25 % en entraînement. Sans cette soupape, le contenu fini du
+    // jeu plafonnait toute progression au niveau 12 (voir TAUX_ENTRAINEMENT).
+    expect(resultat.xpGagne).toBe(50);
+    // L'économie reste protégée : pas de farm d'argent ni de réputation.
     expect(resultat.reputationDelta).toBe(0);
     expect(resultat.argentDelta).toBe(0);
-    // Aucun gain appliqué, aucun coût de besoins sur un rejeu déjà validé.
-    expect(progression.appliquerDelta).not.toHaveBeenCalled();
-    expect(besoins.consommer).not.toHaveBeenCalled();
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 50, reputation: 0, argentVirtuel: 0 });
+    // L'entraînement coûte de l'énergie : il n'est ni gratuit ni automatisable à l'infini.
+    expect(besoins.consommer).toHaveBeenCalled();
+  });
+
+  it("l'entraînement ne redonne ni badge ni compétence", async () => {
+    const prisma = fakePrisma({
+      userMission: {
+        findUnique: jest.fn().mockResolvedValue({ statut: 'REUSSIE', meilleurScore: 100, termineeLe: new Date() }),
+        upsert: jest.fn().mockImplementation(({ create, update }: { create: object; update: object }) =>
+          Promise.resolve({ id: 'um1', ...(create ?? update) }),
+        ),
+      },
+      mission: { findUnique: jest.fn().mockResolvedValue(missionQuiz({ badgeId: 'badge-1', competences: ['secu'] })) },
+    });
+    const { svc, progression } = await service(prisma);
+
+    const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] } });
+
+    expect(resultat.badgeObtenu).toBeNull();
+    expect(progression.attribuerBadgeSiAbsent).not.toHaveBeenCalled();
+    expect(progression.validerCompetence).not.toHaveBeenCalled();
   });
 
   it("un échec paie moitié moins (jamais zéro net) et fait légèrement baisser la réputation", async () => {

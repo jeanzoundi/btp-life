@@ -342,20 +342,27 @@ export default function MissionPlayPage({ params }: { params: Promise<{ id: stri
 
           {resultat.rejeuSansRecompense && (
             <p className="mx-auto mt-4 max-w-md rounded-xl border border-graphite/15 bg-sable/40 p-3 text-sm font-semibold text-graphite/70">
-              ↻ Tu avais déjà réussi cette mission — ce rejeu met à jour ta note mais ne redonne pas d&apos;XP ni d&apos;argent (pour rester équitable, on ne farme pas les missions déjà validées).
+              🎓 Séance d&apos;entraînement — tu avais déjà validé cette mission. Tu gagnes de l&apos;XP réduite
+              ({resultat.xpGagne} XP) et ta note est mise à jour, mais pas d&apos;argent ni de réputation
+              (on ne farme pas une mission déjà décrochée).
             </p>
           )}
 
-          <div className={`mt-5 flex flex-wrap justify-center gap-2 text-sm ${resultat.rejeuSansRecompense ? 'hidden' : ''}`}>
+          <div className="mt-5 flex flex-wrap justify-center gap-2 text-sm">
             <span className="rounded-full bg-white px-4 py-1.5 font-semibold text-graphite shadow-sm">
               ⚡ +<Compteur cible={resultat.xpGagne} duree={900} /> XP
             </span>
-            <span className="rounded-full bg-white px-4 py-1.5 font-semibold text-graphite shadow-sm">
-              🏅 {resultat.reputationDelta >= 0 ? '+' : ''}{resultat.reputationDelta} réputation
-            </span>
-            <span className="rounded-full bg-white px-4 py-1.5 font-mono font-semibold text-graphite shadow-sm">
-              💰 {resultat.argentDelta >= 0 ? '+' : ''}{resultat.argentDelta} F
-            </span>
+            {/* En entraînement, argent et réputation restent à zéro : on n'affiche pas des « +0 ». */}
+            {!resultat.rejeuSansRecompense && (
+              <>
+                <span className="rounded-full bg-white px-4 py-1.5 font-semibold text-graphite shadow-sm">
+                  🏅 {resultat.reputationDelta >= 0 ? '+' : ''}{resultat.reputationDelta} réputation
+                </span>
+                <span className="rounded-full bg-white px-4 py-1.5 font-mono font-semibold text-graphite shadow-sm">
+                  💰 {resultat.argentDelta >= 0 ? '+' : ''}{resultat.argentDelta} F
+                </span>
+              </>
+            )}
             {resultat.bonusChrono > 0 && (
               <span className="rounded-full bg-cuivre/15 px-4 py-1.5 font-semibold text-cuivre shadow-sm">⏱ Bonus chrono +{resultat.bonusChrono}</span>
             )}

@@ -4,3 +4,7 @@
 # pas du code, gardés en local uniquement.
 tmp-*.txt
 .dev-pg-data/
+
+# Variables d’environnement de production récupérées via `vercel env pull` — JAMAIS versionnées.
+.env.prod
+.env*.local
