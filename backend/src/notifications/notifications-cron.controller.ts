@@ -1,4 +1,4 @@
-import { Controller, Headers, Post, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Headers, Post, UnauthorizedException } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
 import { NotificationsService } from './notifications.service';
 
@@ -18,8 +18,21 @@ function secretValide(fourni: string | undefined, attendu: string | undefined): 
 export class NotificationsCronController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  // Cron Vercel : appel GET avec `Authorization: Bearer <CRON_SECRET>` (Vercel injecte ce header
+  // automatiquement quand la variable CRON_SECRET existe). Voir l'entrée `crons` de vercel.json.
+  @Get('rappels')
+  async rappelsCron(@Headers('authorization') authorization?: string) {
+    const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
+    return this.declencher(bearer);
+  }
+
+  // Déclenchement manuel (tests) : POST avec le header `x-cron-secret`.
   @Post('rappels')
   async rappels(@Headers('x-cron-secret') secret?: string) {
+    return this.declencher(secret);
+  }
+
+  private async declencher(secret: string | undefined) {
     if (!secretValide(secret, process.env.CRON_SECRET)) {
       throw new UnauthorizedException();
     }
