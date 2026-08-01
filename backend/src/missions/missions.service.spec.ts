@@ -294,3 +294,61 @@ describe('MissionsService.disponibles', () => {
     expect(resultat[0].meilleurScore).toBe(90);
   });
 });
+
+describe('MissionsService — anti-triche du bonus chrono', () => {
+  const missionChronometree = () => missionQuiz({ dureeLimiteSec: 600 });
+
+  it('ignore un temps client irréaliste quand le serveur a horodaté le démarrage', async () => {
+    // Le joueur prétend avoir répondu en 0 s, mais le serveur sait qu'il a démarré il y a 10 min :
+    // le bonus chrono doit être calculé sur la durée réelle, donc nul ici.
+    const demarreeLe = new Date(Date.now() - 600_000);
+    const prisma = fakePrisma({
+      mission: { findUnique: jest.fn().mockResolvedValue(missionChronometree()) },
+      userMission: {
+        findUnique: jest.fn().mockResolvedValue({ statut: 'EN_COURS', demarreeLe, meilleurScore: 0 }),
+        upsert: jest.fn().mockImplementation(({ create, update }: { create: object; update: object }) =>
+          Promise.resolve({ id: 'um1', ...(create ?? update) }),
+        ),
+      },
+    });
+    const { svc } = await service(prisma);
+
+    const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] }, tempsUtiliseSec: 0 });
+
+    expect(resultat.bonusChrono).toBe(0);
+  });
+
+  it('applique un plancher au temps client quand la mission a été jouée hors ligne', async () => {
+    // Hors ligne, /start n'a pas pu aboutir (demarreeLe absent) : on accepte la valeur du client,
+    // mais jamais en dessous du plancher (3 s par question) — sinon bonus maximal gratuit.
+    const prisma = fakePrisma({
+      mission: { findUnique: jest.fn().mockResolvedValue(missionChronometree()) },
+    });
+    const { svc } = await service(prisma);
+
+    const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] }, tempsUtiliseSec: 0 });
+
+    // 1 question → plancher de 3 s sur 600 s : le bonus reste quasi maximal mais le temps
+    // enregistré n'est plus zéro.
+    expect(prisma.userMission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ tempsUtiliseSec: 3 }) }),
+    );
+    expect(resultat.bonusChrono).toBeLessThanOrEqual(10);
+  });
+
+  it('horodate le démarrage côté serveur au /start', async () => {
+    const prisma = fakePrisma({
+      mission: { findUnique: jest.fn().mockResolvedValue({ id: 'mission-1', statut: 'PUBLIE' }) },
+    });
+    const { svc } = await service(prisma);
+
+    await svc.start('u1', 'mission-1');
+
+    expect(prisma.userMission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ demarreeLe: expect.any(Date) }),
+        update: expect.objectContaining({ demarreeLe: expect.any(Date) }),
+      }),
+    );
+  });
+});

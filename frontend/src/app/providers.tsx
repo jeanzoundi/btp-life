@@ -5,7 +5,7 @@ import { QueryClient, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '@/lib/offline/query-persister';
 import { notifierSync } from '@/lib/offline/sync-notify';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 
 // Résultat renvoyé par /missions/:id/submit (sous-ensemble utile à la notification de synchro).
 type ResultatMission = { reussie: boolean; xpGagne: number; rejeuSansRecompense?: boolean };
@@ -13,6 +13,14 @@ type ResultatMission = { reussie: boolean; xpGagne: number; rejeuSansRecompense?
 // Requêtes temps réel / multijoueur : inutile (voire trompeur) de les servir depuis le cache
 // hors ligne — on ne les persiste pas.
 const NE_PAS_PERSISTER = new Set(['monde', 'autres-joueurs', 'classement', 'classements']);
+
+// Distingue un refus serveur (4xx : session expirée, ressource disparue…) d'une simple coupure
+// réseau. Une coupure sera rejouée toute seule au retour de la connexion : inutile d'alarmer.
+// Un 4xx, lui, ne se réparera jamais tout seul — il faut le dire au joueur.
+function echecDefinitif(err: unknown): boolean {
+  const status = (err as ApiError | undefined)?.status;
+  return typeof status === 'number' && status >= 400 && status < 500;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => {
@@ -26,7 +34,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
         mutations: {
           networkMode: 'online', // hors ligne : mise en file d'attente, rejouée au retour du réseau
-          retry: 3,
+          // On réessaie les erreurs réseau/serveur, jamais un refus 4xx (il ne se répare pas seul).
+          retry: (nbEchecs, err) => !echecDefinitif(err) && nbEchecs < 3,
         },
       },
     });
@@ -39,6 +48,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       mutationFn: (coursId: string) => api.post(`/carriere/cours/${coursId}/termine`),
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] });
+      },
+      onError: (err) => {
+        // Échec définitif après les tentatives : ne pas mourir en silence, sinon le joueur croit
+        // que son cours est validé alors qu'il ne l'est pas.
+        if (echecDefinitif(err)) {
+          notifierSync('Cours non synchronisé', 'Reconnecte-toi puis rouvre le cours pour le valider.');
+          qc.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] });
+        }
       },
     });
 
@@ -56,6 +73,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
           notifierSync(
             r.reussie ? 'Mission synchronisée 🎉' : 'Mission synchronisée',
             r.reussie ? `Réussie ! +${r.xpGagne} XP crédités.` : 'Tes réponses ont été corrigées.',
+          );
+        }
+      },
+      onError: (err) => {
+        // Session expirée pendant le hors-ligne, mission supprimée… : prévenir plutôt que de
+        // perdre silencieusement les réponses du joueur.
+        if (echecDefinitif(err)) {
+          notifierSync(
+            'Mission non synchronisée',
+            'Ta session a peut-être expiré. Reconnecte-toi et rejoue la mission pour valider tes points.',
           );
         }
       },

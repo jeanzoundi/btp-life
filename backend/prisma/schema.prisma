@@ -645,6 +645,10 @@ model UserMission {
   erreurs         Json?
   tentatives      Int               @default(0)
   meilleurScore   Int?
+  // Horodatage serveur du dernier /start : sert de référence anti-triche pour le bonus chrono
+  // (le temps envoyé par le client n'est jamais cru sur parole). Null si la mission a été jouée
+  // hors ligne (le /start n'a pas pu aboutir) — on retombe alors sur une valeur client plafonnée.
+  demarreeLe      DateTime?
   termineeLe      DateTime?
   createdAt       DateTime          @default(now())
 

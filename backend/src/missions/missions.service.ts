@@ -63,9 +63,34 @@ export class MissionsService {
 
     return this.prisma.userMission.upsert({
       where: { userId_missionId: { userId, missionId } },
-      create: { userId, missionId, statut: 'EN_COURS' },
-      update: { statut: 'EN_COURS' },
+      create: { userId, missionId, statut: 'EN_COURS', demarreeLe: new Date() },
+      update: { statut: 'EN_COURS', demarreeLe: new Date() },
     });
+  }
+
+  /**
+   * Temps de réalisation retenu pour le bonus chrono, résistant à la triche.
+   *
+   * - Si le serveur a horodaté le démarrage (/start), c'est LUI qui fait foi : le client ne peut
+   *   pas prétendre avoir répondu instantanément.
+   * - Sinon (mission jouée hors ligne, /start jamais arrivé), on accepte la valeur du client mais
+   *   avec un plancher : nul ne répond à une question en moins de PLANCHER_SEC_PAR_QUESTION.
+   */
+  private tempsUtiliseFiable(
+    tempsClient: number | null | undefined,
+    demarreeLe: Date | null,
+    nbQuestions: number,
+  ): number {
+    const PLANCHER_SEC_PAR_QUESTION = 3;
+    const plancher = nbQuestions * PLANCHER_SEC_PAR_QUESTION;
+
+    if (demarreeLe) {
+      const ecouleServeur = Math.round((Date.now() - demarreeLe.getTime()) / 1000);
+      return Math.max(0, ecouleServeur);
+    }
+
+    const client = typeof tempsClient === 'number' && Number.isFinite(tempsClient) ? Math.max(0, Math.round(tempsClient)) : plancher;
+    return Math.max(plancher, client);
   }
 
   async submit(userId: string, missionId: string, dto: SubmitMissionDto) {
@@ -76,17 +101,28 @@ export class MissionsService {
     if (!mission) throw new NotFoundException('Mission introuvable');
     if (mission.contenus.length === 0) throw new BadRequestException('Mission sans contenu');
 
+    const existing = await this.prisma.userMission.findUnique({
+      where: { userId_missionId: { userId, missionId } },
+    });
+
+    // Anti-triche chrono : le temps annoncé par le client n'est jamais cru sur parole (sinon on
+    // enverrait tempsUtiliseSec: 0 pour empocher le bonus maximal à chaque fois). Quand le /start
+    // a bien eu lieu, le serveur mesure lui-même la durée écoulée. Sinon (mission jouée hors ligne,
+    // le /start n'ayant pas pu aboutir), on retombe sur la valeur client mais plancher compris :
+    // un humain ne répond pas à une question en moins de quelques secondes.
+    const tempsUtiliseSec = this.tempsUtiliseFiable(
+      dto.tempsUtiliseSec,
+      existing?.demarreeLe ?? null,
+      mission.contenus.length,
+    );
+
     const resultat = calculerScoreMission({
       contenus: mission.contenus,
       reponses: dto.reponses,
       scoreMax: mission.scoreMax,
       conditionReussite: mission.conditionReussite,
       dureeLimiteSec: mission.dureeLimiteSec,
-      tempsUtiliseSec: dto.tempsUtiliseSec,
-    });
-
-    const existing = await this.prisma.userMission.findUnique({
-      where: { userId_missionId: { userId, missionId } },
+      tempsUtiliseSec,
     });
 
     // Anti-triche : une mission déjà réussie peut être rejouée pour améliorer sa note, mais le rejeu
@@ -101,7 +137,7 @@ export class MissionsService {
         missionId,
         statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
         score: resultat.score,
-        tempsUtiliseSec: dto.tempsUtiliseSec,
+        tempsUtiliseSec,
         reponses: dto.reponses as Prisma.InputJsonValue,
         erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
         tentatives: 1,
@@ -111,7 +147,7 @@ export class MissionsService {
       update: {
         statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
         score: resultat.score,
-        tempsUtiliseSec: dto.tempsUtiliseSec,
+        tempsUtiliseSec,
         reponses: dto.reponses as Prisma.InputJsonValue,
         erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
         tentatives: { increment: 1 },
