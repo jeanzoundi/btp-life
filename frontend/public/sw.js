@@ -2,8 +2,26 @@
 // Le SHELL (HTML + JS/CSS de l'app) est mis en cache pour que l'app démarre sans réseau ;
 // les DONNÉES de jeu sont, elles, gérées hors ligne par la persistance TanStack Query (IndexedDB),
 // pas ici — l'API backend (autre origine) n'est donc jamais interceptée.
-const CACHE = 'btp-life-v2';
+const CACHE = 'btp-life-v3';
 const SHELL = ['/', '/app', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+
+// Le client (pwa-register.tsx) envoie la liste des fichiers JS/CSS réellement chargés par la page
+// ainsi que les routes de l'app à garder hors ligne. Indispensable : au tout premier lancement, ce
+// service worker ne contrôle pas encore la page, donc aucun de ses fichiers ne passe par le
+// gestionnaire `fetch` ci-dessous — sans ce message, l'app restait inutilisable hors ligne tant
+// qu'on ne l'avait pas rouverte une deuxième fois.
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'PRECACHER') return;
+
+  event.waitUntil(
+    caches.open(CACHE).then(async (cache) => {
+      const aMettreEnCache = [...(data.ressources ?? []), ...(data.routes ?? [])];
+      // Fichier par fichier : un seul échec ne doit pas annuler tout le préchargement.
+      await Promise.all(aMettreEnCache.map((url) => cache.add(url).catch(() => {})));
+    }),
+  );
+});
 
 self.addEventListener('install', (event) => {
   // On ne fait pas échouer l'install si un fichier manque (addAll est atomique) : on met en cache
