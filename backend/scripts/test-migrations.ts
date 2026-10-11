@@ -44,7 +44,11 @@ async function main() {
   await pg.start();
   await pg.createDatabase('btp_life_test');
 
-  const env = { ...process.env, DATABASE_URL };
+  // Prisma utilise `directUrl` pour les migrations lorsqu'il est défini dans le
+  // schéma. Les deux URL doivent donc viser la base embarquée : sinon une valeur
+  // DIRECT_URL chargée depuis `.env` contourne ce test et peut toucher un Postgres
+  // local ou distant au lieu du cluster éphémère créé ci-dessus.
+  const env = { ...process.env, DATABASE_URL, DIRECT_URL: DATABASE_URL };
   const cwd = path.join(__dirname, '..');
 
   try {
