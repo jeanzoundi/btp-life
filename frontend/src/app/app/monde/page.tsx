@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
-import { QuartierIso } from '@/components/app/quartier-iso';
+import { Quartier3D } from '@/components/app/quartier-3d';
 import { useAuthStore } from '@/lib/auth-store';
 
 interface Lieu {
@@ -84,13 +84,7 @@ export default function MondePage() {
         <Skeleton className="h-[58vh] min-h-[400px] w-full sm:h-[68vh]" />
       ) : (
         <div className="-mx-3 sm:-mx-4 md:-mx-6">
-          <QuartierIso
-            avatarConfig={carriere?.avatar?.config}
-            nomJoueur={carriere?.avatar?.nomPersonnage}
-            besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
-            niveau={carriere?.niveau}
-            userId={user?.id}
-          />
+          <Quartier3D nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]} />
         </div>
       )}
 

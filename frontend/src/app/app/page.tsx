@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
-import { Plumbob } from '@/components/app/quartier-iso';
+import { Plumbob } from '@/components/app/plumbob';
 import { PanneauBesoins, humeurDepuisBesoins } from '@/components/app/besoins';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
 

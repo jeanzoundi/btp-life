@@ -141,7 +141,7 @@ export default async function AccueilPage() {
       </section>
 
       {/* MONDE VIRTUEL — le vrai différenciateur : pas des menus, une ville vivante et partagée */}
-      <section className="relative border-y border-pierre bg-white px-4 py-16 md:py-20">
+      <section id="monde-3d" className="relative border-y border-pierre bg-white px-4 py-16 md:py-20">
         <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
           <Reveal className="order-2 flex justify-center md:order-1">
             <MondeTeaser />
@@ -151,12 +151,12 @@ export default async function AccueilPage() {
               Un vrai monde, pas juste des menus
             </p>
             <h2 className="font-display text-2xl font-bold tracking-tight text-graphite md:text-4xl">
-              Ta carrière se joue dans une ville isométrique, façon jeu de simulation de vie
+              Explore ton quartier en 3D et construis ta vie dans le BTP
             </h2>
             <p className="mt-4 leading-relaxed text-graphite/70">
-              Un centre-ville où chaque bâtiment ouvre une partie du jeu, un quartier résidentiel avec ta propre
-              maison — et tu n&apos;y es jamais seul. Les avatars que tu croises sont de vrais autres joueurs, actifs
-              récemment, que tu peux saluer et découvrir. On l&apos;explore en le glissant, du bout du doigt comme à la souris.
+              Marche dans un premier quartier inspiré d&apos;Abidjan : résidence, université, entreprise, chantier et
+              lieux de vie sont reliés aux données et aux activités déjà disponibles. Les profils actifs apparaissent
+              dans la scène ; la synchronisation multijoueur en temps réel sera ajoutée pendant FOUNDATION.
             </p>
             <ul className="mt-5 space-y-2.5 text-sm text-graphite/75">
               <li className="flex items-start gap-2.5">

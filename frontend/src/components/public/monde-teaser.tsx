@@ -1,61 +1,43 @@
-import { pt, facesIso, assombrir } from '@/lib/iso-geometrie';
+'use client';
 
-// Aperçu du monde virtuel pour la page publique — mêmes helpers iso que le vrai quartier
-// (frontend/src/components/app/quartier-iso.tsx), en miniature, pour donner un vrai avant-goût
-// sans dupliquer toute la logique de caméra/besoins réservée à l'app connectée.
-function BatimentMini({ ox, oy, w, d, h, couleur }: { ox: number; oy: number; w: number; d: number; h: number; couleur: string }) {
-  const f = facesIso(ox, oy, w, d, h);
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Sky } from '@react-three/drei';
+
+function Immeuble({ position, taille, couleur }: { position: [number, number, number]; taille: [number, number, number]; couleur: string }) {
   return (
-    <g>
-      <ellipse cx={f.F.x} cy={f.F.y + h + 4} rx={(w + d) * 0.6} ry={(w + d) * 0.16} fill="rgba(43,43,46,0.12)" />
-      <polygon points={f.gauche} fill={couleur} />
-      <polygon points={f.droite} fill={assombrir(couleur, 0.78)} />
-      <polygon points={f.top} fill={assombrir(couleur, 0.95)} stroke={assombrir(couleur, 0.7)} strokeWidth="0.8" />
-    </g>
+    <group position={position}>
+      <mesh castShadow receiveShadow><boxGeometry args={taille} /><meshStandardMaterial color={couleur} roughness={0.72} /></mesh>
+      <mesh position={[0, 0, taille[2] / 2 + 0.02]}><boxGeometry args={[taille[0] * 0.62, Math.max(0.55, taille[1] * 0.14), 0.06]} /><meshStandardMaterial color="#9ed8ee" emissive="#164e63" emissiveIntensity={0.12} /></mesh>
+    </group>
   );
 }
 
-function AvatarMini({ x, y, couleur }: { x: number; y: number; couleur: string }) {
+function ApercuVille() {
   return (
-    <g className="anim-float">
-      <polygon points={`${pt(x, y - 20)} ${pt(x + 6, y - 12)} ${pt(x, y - 6)} ${pt(x - 6, y - 12)}`} fill="#6B7A3F" opacity="0.9" />
-      <circle cx={x} cy={y - 2} r="7" fill={couleur} />
-      <rect x={x - 6} y={y + 4} width="12" height="13" rx="4" fill="#2B2B2E" />
-    </g>
+    <>
+      <Sky sunPosition={[20, 20, 8]} />
+      <ambientLight intensity={1.3} />
+      <directionalLight castShadow position={[8, 15, 10]} intensity={2.2} />
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[30, 24]} /><meshStandardMaterial color="#789564" /></mesh>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><planeGeometry args={[4, 24]} /><meshStandardMaterial color="#48494d" /></mesh>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[0, 0.03, 0]}><planeGeometry args={[4, 30]} /><meshStandardMaterial color="#48494d" /></mesh>
+      <Immeuble position={[-6, 2, -5]} taille={[5, 4, 4]} couleur="#d9b382" />
+      <Immeuble position={[6, 3.5, -5]} taille={[4, 7, 4]} couleur="#708090" />
+      <Immeuble position={[-6, 1.5, 5]} taille={[5, 3, 4]} couleur="#b85b42" />
+      <Immeuble position={[6, 1.8, 5]} taille={[5, 3.6, 4]} couleur="#d5c28d" />
+      <mesh castShadow position={[0, 1.25, 1]}><capsuleGeometry args={[0.42, 1.15, 6, 12]} /><meshStandardMaterial color="#c1502e" /></mesh>
+      <mesh castShadow position={[0, 2.5, 1]}><sphereGeometry args={[0.46, 18, 18]} /><meshStandardMaterial color="#8d5524" /></mesh>
+      <OrbitControls enablePan={false} enableZoom={false} autoRotate autoRotateSpeed={0.6} minPolarAngle={0.8} maxPolarAngle={1.25} />
+    </>
   );
 }
 
 export function MondeTeaser() {
   return (
-    <svg viewBox="0 0 420 300" className="h-auto w-full max-w-md" aria-hidden="true">
-      {/* Ciel dégradé jour/nuit — clin d'œil au cycle réel du jeu */}
-      <defs>
-        <linearGradient id="monde-ciel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#EAF0E2" />
-          <stop offset="100%" stopColor="#DFE6CE" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="420" height="300" rx="18" fill="url(#monde-ciel)" />
-
-      {/* Routes */}
-      <polygon points="20,140 400,260 400,278 20,158" fill="#8A8680" opacity="0.5" />
-
-      {/* Bâtiments (ordre peintre approximatif) */}
-      <BatimentMini ox={70} oy={70} w={54} d={40} h={44} couleur="#D9B382" />
-      <BatimentMini ox={190} oy={50} w={48} d={38} h={58} couleur="#B8C4C9" />
-      <BatimentMini ox={300} oy={90} w={42} d={32} h={36} couleur="#C1502E" />
-      <BatimentMini ox={130} oy={150} w={38} d={30} h={30} couleur="#E8DCC8" />
-
-      {/* Le joueur + deux vrais autres joueurs, façon Sims */}
-      <AvatarMini x={110} y={200} couleur="#C68642" />
-      <AvatarMini x={230} y={185} couleur="#8D5524" />
-      <AvatarMini x={330} y={205} couleur="#E0AC69" />
-
-      {/* Bulle sociale */}
-      <g>
-        <rect x="245" y="150" width="60" height="24" rx="12" fill="#FFFFFF" opacity="0.92" />
-        <text x="275" y="166" textAnchor="middle" fontSize="14">💬</text>
-      </g>
-    </svg>
+    <div className="h-[320px] w-full max-w-md overflow-hidden rounded-3xl border border-white/30 bg-sky-200 shadow-2xl" aria-label="Apercu 3D du quartier BTP Life">
+      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [15, 12, 17], fov: 42 }}>
+        <ApercuVille />
+      </Canvas>
+    </div>
   );
 }
