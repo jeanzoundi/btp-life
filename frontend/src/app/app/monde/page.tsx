@@ -75,7 +75,7 @@ export default function MondePage() {
       <div>
         <h1 className="font-display text-xl font-bold text-graphite sm:text-2xl">🗺️ Le quartier BTP Life</h1>
         <p className="text-sm text-graphite/60">
-          Ton monde à explorer — glisse au doigt ou à la souris, touche un bâtiment pour y entrer.
+          Ton monde à explorer en 3D — utilise ZQSD, WASD, les flèches ou les commandes tactiles, puis sélectionne un bâtiment pour y entrer.
         </p>
       </div>
 
