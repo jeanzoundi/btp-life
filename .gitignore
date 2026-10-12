@@ -12,3 +12,12 @@ dist/
 coverage/
 *.tsbuildinfo
 .embedded-pg-data/
+# Unreal Engine generated files
+game-unreal 5.8/
+game-unreal/Binaries/
+game-unreal/DerivedDataCache/
+game-unreal/Intermediate/
+game-unreal/Saved/
+game-unreal/.vs/
+game-unreal/*.sln
+game-unreal/*.slnx

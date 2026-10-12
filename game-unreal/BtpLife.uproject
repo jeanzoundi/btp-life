@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Games",
+  "Description": "BTP Life FOUNDATION - client 3D Unreal Engine",
+  "Modules": [
+    {
+      "Name": "BtpLife",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
