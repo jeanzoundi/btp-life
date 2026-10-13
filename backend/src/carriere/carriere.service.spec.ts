@@ -16,7 +16,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
       update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve({ profilActuelId: (data as { profilActuelId: string }).profilActuelId })),
     },
     profil: { findFirst: jest.fn().mockResolvedValue({ id: 'profil-ouvrier-qualifie', slug: 'ouvrier-qualifie' }) },
-    carriereHistorique: { create: jest.fn().mockResolvedValue({}) },
+    carriereHistorique: { create: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fusion: any = {};
@@ -359,6 +359,22 @@ describe('CarriereService.arbreCarriere', () => {
     // Poste encore verrouillé : ses conditions ne sont même pas évaluées (hors de portée).
     expect(verrouille?.manquants).toEqual([]);
     expect(verrouille?.eligible).toBe(false);
+  });
+});
+
+describe('CarriereService.chronologie', () => {
+  it('renvoie les événements les plus récents en premier et limités à 100', async () => {
+    const evenements = [{ id: 'e2', type: 'PROMOTION', dateVirtuelle: new Date(), details: null, profil: { nom: 'Chef', famille: 'CHANTIER' } }];
+    const prisma = fakePrisma({ carriereHistorique: { findMany: jest.fn().mockResolvedValue(evenements) } });
+    const { svc } = await service(prisma);
+
+    await expect(svc.chronologie('u1')).resolves.toEqual(evenements);
+    expect(prisma.carriereHistorique.findMany).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      orderBy: [{ dateVirtuelle: 'desc' }, { id: 'desc' }],
+      take: 100,
+      select: expect.objectContaining({ id: true, type: true, dateVirtuelle: true }),
+    });
   });
 });
 

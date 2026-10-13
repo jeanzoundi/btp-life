@@ -13,13 +13,13 @@ import { DialoguePersonnage, HABITANTS } from './dialogue-personnage';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { PanneauModesJeu } from './panneau-modes-jeu';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
+import { useAuthStore } from '@/lib/auth-store';
+import { appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type PointMonde = [number, number];
 
 export interface BesoinsJoueur { energie: number; moral: number; faim: number; social: number; }
-interface EtatMonde { version: number; position: { x: number; z: number }; quartier: string; relations: Record<string, number>; mode: ModeJeuId; etapeMode: number; score: number; secondes: number | null; }
-
 interface Batiment3D {
   slug: string; nom: string; href: string;
   position: [number, number, number]; taille: [number, number, number]; couleur: string;
@@ -238,6 +238,7 @@ function JaugeBesoin({ label, valeur, couleur }: { label: string; valeur: number
 }
 
 export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: string; besoins?: BesoinsJoueur; demo?: boolean }) {
+  const userId = useAuthStore((s) => s.user?.id);
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
@@ -261,6 +262,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: s
   const etatRef = useRef<EtatMonde | null>(null);
   const modifieRef = useRef(false);
   const pretRef = useRef(demo);
+  const hydratationRef = useRef(false);
   const modeActif = MODES_JEU.find(m => m.id === mode)!;
   const quartierActuel = useMemo(() => [...QUARTIERS].sort((a, b) => Math.hypot(positionCourante[0] - a.x, positionCourante[1] - a.z) - Math.hypot(positionCourante[0] - b.x, positionCourante[1] - b.z))[0] ?? QUARTIERS[0], [positionCourante]);
   const choisir = useCallback((b: Batiment3D) => {
@@ -277,30 +279,67 @@ export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: s
     setMode(id); setEtapeMode(0); setScore(0); setSecondes(nouveau.duree); setMenuModes(false); setSelection(null); setMessage(id === 'libre' ? 'Exploration libre activée.' : `${nouveau.nom} lancé : suis les objectifs.`);
   }, []);
   const { data: joueurs = [] } = useQuery({ queryKey: ['carriere', 'joueurs-actifs'], queryFn: () => api.get<JoueurActif[]>('/carriere/joueurs-actifs'), staleTime: 45_000, refetchInterval: 45_000, enabled: !demo });
-  const { data: etatMonde } = useQuery({ queryKey: ['carriere', 'monde'], queryFn: () => api.get<EtatMonde>('/carriere/monde'), enabled: !demo, staleTime: Infinity });
+  const { data: etatMonde } = useQuery({
+    queryKey: ['carriere', 'monde'],
+    queryFn: () => api.get<EtatMonde>('/carriere/monde'),
+    enabled: !demo,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
   const directions = useMemo(() => directionsRef.current, []);
   useEffect(() => {
     if (!etatMonde || demo || pretRef.current) return;
-    setPositionInitiale([etatMonde.position.x, etatMonde.position.z]); setPositionCourante([etatMonde.position.x, etatMonde.position.z]);
-    setRelations(etatMonde.relations ?? {}); setMode(etatMonde.mode); setEtapeMode(etatMonde.etapeMode); setScore(etatMonde.score); setSecondes(etatMonde.secondes);
-    pretRef.current = true; setEtatSauvegarde('sauvegarde-ok');
-  }, [etatMonde, demo]);
+    const plusRecent = choisirEtatMondeRecent(etatMonde, chargerEtatMondeLocal(userId));
+    if (!plusRecent) return;
+    const etat = appliquerTempsEcoule(plusRecent);
+    hydratationRef.current = true;
+    setPositionInitiale([etat.position.x, etat.position.z]); setPositionCourante([etat.position.x, etat.position.z]);
+    setRelations(etat.relations ?? {}); setMode(etat.mode); setEtapeMode(etat.etapeMode); setScore(etat.score); setSecondes(etat.secondes);
+    setHeure(etat.heure); setPause(etat.pause);
+    etatRef.current = etat;
+    pretRef.current = true;
+    if (etat !== etatMonde) modifieRef.current = true;
+    setEtatSauvegarde('sauvegarde-ok');
+  }, [etatMonde, demo, userId]);
   useEffect(() => {
     const quartier = [...QUARTIERS].sort((a, b) => Math.hypot(positionCourante[0] - a.x, positionCourante[1] - a.z) - Math.hypot(positionCourante[0] - b.x, positionCourante[1] - b.z))[0]?.nom ?? 'Les Palmiers';
-    etatRef.current = { version: 1, position: { x: positionCourante[0], z: positionCourante[1] }, quartier, relations, mode, etapeMode, score, secondes };
-    if (pretRef.current && !demo) modifieRef.current = true;
-  }, [positionCourante, relations, mode, etapeMode, score, secondes, demo]);
+    const etat: EtatMonde = { version: 3, position: { x: positionCourante[0], z: positionCourante[1] }, quartier, relations, mode, etapeMode, score, secondes, heure, pause, sauvegardeLe: new Date().toISOString() };
+    etatRef.current = etat;
+    if (pretRef.current && !demo) {
+      sauvegarderEtatMondeLocal(userId, etat);
+      if (hydratationRef.current) hydratationRef.current = false;
+      else modifieRef.current = true;
+    }
+  }, [positionCourante, relations, mode, etapeMode, score, secondes, heure, pause, demo, userId]);
   useEffect(() => {
     if (demo) return;
     const sauvegarder = async () => {
       if (!pretRef.current || !modifieRef.current || !etatRef.current) return;
       modifieRef.current = false; setEtatSauvegarde('sauvegarde');
-      try { await api.patch('/carriere/monde', { etat: etatRef.current }); setEtatSauvegarde('sauvegarde-ok'); }
+      try {
+        const enregistre = await api.patch<EtatMonde>('/carriere/monde', { etat: etatRef.current });
+        etatRef.current = enregistre;
+        sauvegarderEtatMondeLocal(userId, enregistre);
+        setEtatSauvegarde('sauvegarde-ok');
+      }
       catch { modifieRef.current = true; setEtatSauvegarde('erreur'); }
     };
-    const timer = window.setInterval(sauvegarder, 6000);
-    return () => window.clearInterval(timer);
-  }, [demo]);
+    const sauvegarderAvantSortie = () => {
+      if (!pretRef.current || !modifieRef.current || !etatRef.current) return;
+      sauvegarderEtatMondeLocal(userId, etatRef.current);
+      void api.patchKeepalive('/carriere/monde', { etat: etatRef.current });
+    };
+    const surVisibilite = () => { if (document.visibilityState === 'hidden') sauvegarderAvantSortie(); };
+    const timer = window.setInterval(sauvegarder, 2000);
+    window.addEventListener('pagehide', sauvegarderAvantSortie);
+    document.addEventListener('visibilitychange', surVisibilite);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('pagehide', sauvegarderAvantSortie);
+      document.removeEventListener('visibilitychange', surVisibilite);
+      sauvegarderAvantSortie();
+    };
+  }, [demo, userId]);
   useEffect(() => {
     if (pause) return;
     const timer = window.setInterval(() => setHeure((h) => (h + 0.25) % 24), 15000);
@@ -324,6 +363,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: s
   const minutes = Math.round((heure % 1) * 60);
   const affichageHeure = `${String(Math.floor(heure)).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   const stats = demo ? demoStats : besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 };
+  const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
   return <div className="relative h-[86vh] min-h-[580px] w-full overflow-hidden rounded-2xl border border-white/20 bg-slate-900 shadow-2xl" data-testid="quartier-3d">
     <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, 1.5]} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
       <Scene nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} />
@@ -335,6 +375,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: s
       <div className="mt-3 border-t border-white/15 pt-3 text-[10px] leading-relaxed text-white/70">Sol : marcher · Bâtiment : interagir<br />Glisser : tourner · Molette : zoom<br />ZQSD / flèches : se déplacer</div>
     </div>
     <PanneauModesJeu ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
+    <div role="status" className={`pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[10px] font-bold shadow-lg backdrop-blur sm:hidden ${etatSauvegarde === 'erreur' ? 'border-amber-300/40 bg-amber-950/90 text-amber-100' : 'border-white/20 bg-[#182e32]/90 text-emerald-100'}`}>{libelleSauvegarde}</div>
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
     <button onClick={() => { setPlan(v => !v); setSelection(null); }} aria-expanded={plan} className="absolute right-3 top-16 rounded-xl border border-white/20 bg-[#182e32]/95 px-4 py-3 text-sm text-amber-100">Plan & lieux</button>
     {plan && <nav aria-label="Lieux du quartier" className="absolute right-3 top-32 z-10 max-h-[55%] w-72 max-w-[calc(100%_-_24px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#182e32]/95 p-3 text-white shadow-xl">
@@ -353,7 +394,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false }: { nomJoueur?: s
     <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
     <div className="absolute bottom-3 left-3 right-3 hidden gap-3 rounded-xl border border-white/15 bg-graphite/85 p-3 shadow-xl backdrop-blur sm:flex">
       <JaugeBesoin label="Énergie" valeur={stats.energie} couleur="#60a5fa" /><JaugeBesoin label="Moral" valeur={stats.moral} couleur="#f4c430" /><JaugeBesoin label="Faim" valeur={stats.faim} couleur="#fb923c" /><JaugeBesoin label="Social" valeur={stats.social} couleur="#a78bfa" />
-      <div className="border-l border-white/20 pl-3 text-right text-[10px] text-white/70"><strong className="block text-xs text-white">5 voisins</strong>{demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde à reprendre' : '✓ Progression sauvegardée'}</div>
+      <div className="border-l border-white/20 pl-3 text-right text-[10px] text-white/70"><strong className="block text-xs text-white">5 voisins</strong>{libelleSauvegarde}</div>
     </div>
   </div>;
 }

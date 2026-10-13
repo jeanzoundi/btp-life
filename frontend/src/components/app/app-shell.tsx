@@ -48,6 +48,7 @@ const SECTIONS_NAV = [
     titre: 'Carrière',
     liens: [
       { href: '/app/parcours', label: 'Mon parcours', icon: '🧭' },
+      { href: '/app/chronologie', label: 'Chronologie', icon: '🕰️' },
       { href: '/app/entreprise', label: 'Mon entreprise', icon: '🏢' },
       { href: '/app/cv', label: 'CV virtuel', icon: '📄' },
       { href: '/app/offres', label: 'Offres', icon: '💼' },
@@ -154,11 +155,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {section.titre}
               </p>
               {section.liens.map((l) => {
-                const actif = pathname === l.href;
+                const actif = pathname === l.href || (l.href !== '/app' && pathname.startsWith(`${l.href}/`));
                 return (
                   <Link
                     key={l.href}
                     href={l.href}
+                    aria-current={actif ? 'page' : undefined}
                     className={`group mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
                       actif
                         ? 'bg-terracotta text-ivoire shadow-sm'
@@ -249,11 +251,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Bottom nav mobile — accès rapides + Menu complet (§15.3) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-pierre bg-white/95 backdrop-blur md:hidden">
         {NAV_MOBILE.map((l) => {
-          const actif = pathname === l.href;
+          const actif = pathname === l.href || (l.href !== '/app' && pathname.startsWith(`${l.href}/`));
           return (
             <Link
               key={l.href}
               href={l.href}
+              aria-current={actif ? 'page' : undefined}
               className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-transform ${
                 actif ? 'scale-110 font-semibold text-terracotta' : 'text-graphite/60'
               }`}
@@ -329,11 +332,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-widest text-graphite/35">{section.titre}</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {section.liens.map((l) => {
-                      const actif = pathname === l.href;
+                      const actif = pathname === l.href || (l.href !== '/app' && pathname.startsWith(`${l.href}/`));
                       return (
                         <Link
                           key={l.href}
                           href={l.href}
+                          aria-current={actif ? 'page' : undefined}
                           onClick={() => setMenuOuvert(false)}
                           className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                             actif ? 'bg-terracotta text-ivoire' : 'bg-pierre/50 text-graphite/80'

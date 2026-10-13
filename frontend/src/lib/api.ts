@@ -77,6 +77,8 @@ export const api = {
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+  patchKeepalive: (path: string, body?: unknown) =>
+    request<unknown>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined, keepalive: true }, false).catch(() => undefined),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   // Envoi multipart — ne surtout pas fixer Content-Type nous-mêmes : le navigateur doit poser
   // la frontière (boundary) du FormData lui-même, sinon la requête est illisible côté serveur.

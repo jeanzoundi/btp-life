@@ -54,6 +54,8 @@ interface UserMessage {
 }
 
 const ACCES_RAPIDES = [
+  { href: '/app/monde', label: 'Ville vivante', icon: '🌍', desc: 'Explore et interagis' },
+  { href: '/app/chronologie', label: 'Chronologie', icon: '🕰️', desc: 'Relis ton parcours' },
   { href: '/app/academie', label: 'Académie', icon: '📚', desc: 'Cours et quiz' },
   { href: '/app/cv', label: 'CV virtuel', icon: '📄', desc: 'Toujours à jour' },
   { href: '/app/offres', label: 'Offres', icon: '💼', desc: 'Candidate' },
@@ -281,7 +283,7 @@ export default function DashboardPage() {
       </section>
 
       {/* ── Accès rapides ── */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {ACCES_RAPIDES.map((a) => (
           <Link key={a.href} href={a.href} className="carte-vivante rounded-2xl border border-pierre bg-white p-4 text-center">
             <p className="text-2xl">{a.icon}</p>

@@ -34,6 +34,11 @@ export class CarriereController {
     return this.carriereService.arbreCarriere(user.userId);
   }
 
+  @Get('chronologie')
+  chronologie(@CurrentUser() user: RequestUser) {
+    return this.carriereService.chronologie(user.userId);
+  }
+
   @Get('streak')
   streak(@CurrentUser() user: RequestUser) {
     return this.carriereService.streak(user.userId);

@@ -21,7 +21,7 @@ export function nettoyerEtatMonde(brut: Record<string, unknown>) {
   const relations = Object.fromEntries(Object.entries(relationsBrutes).slice(0, 50).map(([nom, valeur]) => [nom.slice(0, 40), Math.round(nombreBorne(valeur, 0, 100))]));
   const mode = typeof brut.mode === 'string' && MODES_MONDE.has(brut.mode) ? brut.mode : 'libre';
   return {
-    version: 1,
+    version: 3,
     position: { x: nombreBorne(position.x, -118, 118), z: nombreBorne(position.z, -120, 66) },
     quartier: typeof brut.quartier === 'string' ? brut.quartier.slice(0, 60) : 'Les Palmiers',
     relations,
@@ -29,6 +29,9 @@ export function nettoyerEtatMonde(brut: Record<string, unknown>) {
     etapeMode: Math.round(nombreBorne(brut.etapeMode, 0, 20)),
     score: Math.round(nombreBorne(brut.score, 0, 1_000_000)),
     secondes: brut.secondes === null ? null : Math.round(nombreBorne(brut.secondes, 0, 3600)),
+    heure: nombreBorne(brut.heure, 0, 23.999, 16),
+    pause: brut.pause === true,
+    sauvegardeLe: typeof brut.sauvegardeLe === 'string' && Number.isFinite(Date.parse(brut.sauvegardeLe)) ? brut.sauvegardeLe : null,
   };
 }
 
@@ -66,7 +69,7 @@ export class CarriereService {
   }
 
   async sauvegarderEtatMonde(userId: string, etat: Record<string, unknown>) {
-    const propre = nettoyerEtatMonde(etat);
+    const propre = { ...nettoyerEtatMonde(etat), sauvegardeLe: new Date().toISOString() };
     await this.prisma.userCarriere.update({ where: { userId }, data: { etatMonde: propre as Prisma.InputJsonValue } });
     return propre;
   }
@@ -391,6 +394,22 @@ export class CarriereService {
       profilActuel: carriere.profilActuel.nom,
       postes,
     };
+  }
+
+  /** Événements marquants de la carrière, du plus récent au plus ancien. */
+  async chronologie(userId: string) {
+    return this.prisma.carriereHistorique.findMany({
+      where: { userId },
+      orderBy: [{ dateVirtuelle: 'desc' }, { id: 'desc' }],
+      take: 100,
+      select: {
+        id: true,
+        type: true,
+        dateVirtuelle: true,
+        details: true,
+        profil: { select: { nom: true, famille: true } },
+      },
+    });
   }
 
   /** Ids des cours que le joueur a lus jusqu'au bout (pour cocher « terminé » dans l'académie). */
