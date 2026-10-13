@@ -39,24 +39,25 @@ export class ProgressionService {
   ) {}
 
   async appliquerDelta(userId: string, delta: ProgressionDelta) {
-    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
-    if (!carriere) return null;
+    // Lecture et écriture dans la même transaction : deux récompenses arrivant presque en
+    // même temps ne peuvent plus s'écraser en repartant toutes les deux de l'ancien solde.
+    const operation = await this.prisma.$transaction(async (tx) => {
+      const carriere = await tx.userCarriere.findUnique({ where: { userId } });
+      if (!carriere) return null;
 
-    const nouvelleXp = Math.max(0, carriere.xp + (delta.xp ?? 0));
-    // Échelle 0-1000 — voir le commentaire sur UserCarriere.reputation dans schema.prisma.
-    const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
-    const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
-    const nouveauNiveau = xpToNiveau(nouvelleXp);
-
-    const resultat = await this.prisma.userCarriere.update({
-      where: { userId },
-      data: {
-        xp: nouvelleXp,
-        reputation: nouvelleReputation,
-        argentVirtuel: nouvelArgent,
-        niveau: nouveauNiveau,
-      },
-    });
+      const nouvelleXp = Math.max(0, carriere.xp + (delta.xp ?? 0));
+      // Échelle 0-1000 — voir le commentaire sur UserCarriere.reputation dans schema.prisma.
+      const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
+      const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
+      const nouveauNiveau = xpToNiveau(nouvelleXp);
+      const resultat = await tx.userCarriere.update({
+        where: { userId },
+        data: { xp: nouvelleXp, reputation: nouvelleReputation, argentVirtuel: nouvelArgent, niveau: nouveauNiveau },
+      });
+      return { carriere, resultat, nouveauNiveau };
+    }, { isolationLevel: 'Serializable' });
+    if (!operation) return null;
+    const { carriere, resultat, nouveauNiveau } = operation;
 
     if (nouveauNiveau > carriere.niveau) {
       await this.avatarItems.debloquerItemsEligibles(userId, `niveau:${nouveauNiveau}`);

@@ -329,7 +329,7 @@ export class ChantiersService {
 
   /** Commande de matériaux : consomme le budget, alimente le stock (livraison immédiate en v1). */
   async commander(userId: string, userChantierId: string, ressourceId: string, quantite: number) {
-    if (!quantite || quantite <= 0) throw new BadRequestException('Quantité invalide');
+    if (!Number.isFinite(quantite) || quantite <= 0 || quantite > 1_000_000) throw new BadRequestException('Quantité invalide');
     const uc = await this.chantierEnCours(userId, userChantierId);
 
     const ressource = await this.prisma.chantierRessource.findFirst({
@@ -347,15 +347,24 @@ export class ChantiersService {
     const stock = { ...((uc.stock ?? {}) as Record<string, number>) };
     stock[nom] = (stock[nom] ?? 0) + quantite;
 
+    // Le budget est réservé avec une condition directement en base. Deux commandes lancées
+    // en même temps ne peuvent donc jamais faire passer la caisse du chantier sous zéro.
+    const debit = await this.prisma.userChantier.updateMany({
+      where: { id: uc.id, userId, statut: 'en_cours', budgetRestant: { gte: cout } },
+      data: { budgetRestant: { decrement: cout } },
+    });
+    if (debit.count !== 1) {
+      throw new BadRequestException('Budget modifié entre-temps : actualise le chantier puis réessaie');
+    }
+
     return this.prisma.userChantier.update({
       where: { id: uc.id },
       data: {
-        budgetRestant: { decrement: cout },
         stock: stock as Prisma.InputJsonValue,
         evenementsLog: this.ajouterEvenement(uc, {
           jour: this.jourCourant(uc),
           type: 'commande',
-          texte: `Livraison : ${quantite} ${ref.unite ?? ''} de ${nom} (−${cout.toLocaleString('fr-FR')} F)`,
+          texte: `Livraison : ${quantite} ${ref.unite ?? ''} de ${nom} (−${cout.toLocaleString('fr-FR')} FCFA)`,
         }),
       },
       include: { ouvriers: true },
@@ -635,21 +644,30 @@ export class ChantiersService {
     const score = uc.qualite * 0.3 + uc.securite * 0.25 + uc.moralEquipe * 0.1 + scoreBudget * 0.15 + scoreDelai * 0.2;
     const note = score >= 82 ? 'A' : score >= 65 ? 'B' : score >= 48 ? 'C' : 'D';
 
-    const termine = await this.prisma.userChantier.update({
-      where: { id: userChantierId },
+    const termineLe = new Date();
+    // Le passage en "termine" sert de verrou idempotent. Un second appel simultané ne peut
+    // pas gagner ce verrou et ne recevra donc ni prime, ni XP, ni réputation une seconde fois.
+    const verrou = await this.prisma.userChantier.updateMany({
+      where: { id: userChantierId, userId, statut: 'en_cours' },
       data: {
         statut: 'termine',
         avancementPct: 100,
         noteFinale: note,
-        termineLe: new Date(),
+        termineLe,
         evenementsLog: this.ajouterEvenement(uc, {
           jour: this.jourCourant(uc),
           type: 'livraison',
           texte: `🏁 Chantier livré — note ${note} (qualité ${uc.qualite}, sécurité ${uc.securite}, budget restant ${uc.budgetRestant.toLocaleString('fr-FR')} F, ${uc.joursRestants >= 0 ? `${uc.joursRestants} j d'avance` : `${-uc.joursRestants} j de retard`}).`,
         }),
       },
-      include: { chantier: true, ouvriers: true },
     });
+    if (verrou.count !== 1) {
+      return this.prisma.userChantier.findUniqueOrThrow({
+        where: { id: userChantierId },
+        include: { chantier: true, ouvriers: true },
+      });
+    }
+    const termine = { ...uc, statut: 'termine', avancementPct: 100, noteFinale: note, termineLe };
 
     await this.progression.appliquerDelta(userId, {
       xp: note === 'A' ? 400 : note === 'B' ? 250 : note === 'C' ? 120 : 50,

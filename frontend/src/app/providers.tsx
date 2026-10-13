@@ -5,7 +5,7 @@ import { QueryClient, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '@/lib/offline/query-persister';
 import { notifierSync } from '@/lib/offline/sync-notify';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, CANAL_SYNCHRO } from '@/lib/api';
 
 // Résultat renvoyé par /missions/:id/submit (sous-ensemble utile à la notification de synchro).
 type ResultatMission = { reussie: boolean; xpGagne: number; rejeuSansRecompense?: boolean };
@@ -101,13 +101,32 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return unsub;
   }, [client]);
 
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const canal = new BroadcastChannel(CANAL_SYNCHRO);
+    canal.onmessage = (event: MessageEvent<{ type?: string; path?: string }>) => {
+      if (event.data?.type !== 'mutation') return;
+      const path = event.data.path ?? '';
+      if (path.includes('/carriere/monde')) {
+        client.invalidateQueries({ queryKey: ['carriere', 'monde'] });
+        return;
+      }
+      client.invalidateQueries({ queryKey: ['carriere'] });
+      if (path.includes('/mission')) client.invalidateQueries({ queryKey: ['missions'] });
+      if (path.includes('/chantier')) client.invalidateQueries({ queryKey: ['chantiers'] });
+      if (path.includes('/avatar')) client.invalidateQueries({ queryKey: ['avatar'] });
+      if (path.includes('/message')) client.invalidateQueries({ queryKey: ['messages'] });
+    };
+    return () => canal.close();
+  }, [client]);
+
   return (
     <PersistQueryClientProvider
       client={client}
       persistOptions={{
         persister: queryPersister,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 jours
-        buster: 'v1', // changer pour invalider tout le cache persisté après un changement de format
+        buster: 'v2-finances', // invalide les anciens soldes persistés avant la synchro financière
         dehydrateOptions: {
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' && !NE_PAS_PERSISTER.has(String(q.queryKey?.[0])),

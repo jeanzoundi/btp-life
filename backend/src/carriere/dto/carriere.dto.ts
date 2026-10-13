@@ -68,3 +68,8 @@ export class NomEntrepriseDto {
   @MaxLength(60)
   nom: string;
 }
+
+export class UpdateEtatMondeDto {
+  @IsObject()
+  etat: Record<string, unknown>;
+}

@@ -14,22 +14,24 @@ function carriereAvec(overrides: Record<string, unknown>) {
 }
 
 function fakePrisma(carriere: ReturnType<typeof carriereAvec>) {
+  let etat = { ...carriere };
+  const appliquer = (data: Record<string, unknown>) => {
+    const resolu: Record<string, unknown> = { ...etat };
+    for (const [cle, valeur] of Object.entries(data)) {
+      if (valeur && typeof valeur === 'object' && 'increment' in (valeur as object)) {
+        resolu[cle] = Number(etat[cle as keyof typeof etat]) + (valeur as { increment: number }).increment;
+      } else if (valeur && typeof valeur === 'object' && 'decrement' in (valeur as object)) {
+        resolu[cle] = Number(etat[cle as keyof typeof etat]) - (valeur as { decrement: number }).decrement;
+      } else resolu[cle] = valeur;
+    }
+    etat = resolu as typeof etat;
+    return etat;
+  };
   return {
     userCarriere: {
-      findUnique: jest.fn().mockResolvedValue(carriere),
-      update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
-        const resolu: Record<string, unknown> = { ...carriere };
-        for (const [cle, valeur] of Object.entries(data)) {
-          if (valeur && typeof valeur === 'object' && 'increment' in (valeur as object)) {
-            resolu[cle] = (carriere as unknown as Record<string, number>)[cle] + (valeur as { increment: number }).increment;
-          } else if (valeur && typeof valeur === 'object' && 'decrement' in (valeur as object)) {
-            resolu[cle] = (carriere as unknown as Record<string, number>)[cle] - (valeur as { decrement: number }).decrement;
-          } else {
-            resolu[cle] = valeur;
-          }
-        }
-        return Promise.resolve(resolu);
-      }),
+      findUnique: jest.fn().mockImplementation(() => Promise.resolve(etat)),
+      update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve(appliquer(data))),
+      updateMany: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => { appliquer(data); return Promise.resolve({ count: 1 }); }),
     },
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
@@ -87,6 +87,7 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
   const [quantites, setQuantites] = useState<Record<string, number>>({});
   const [posteChoisi, setPosteChoisi] = useState('Maçon');
   const [livraison, setLivraison] = useState(false);
+  const verrouAction = useRef(false);
 
   const { data: uc, isLoading } = useQuery({
     queryKey: ['chantier', id],
@@ -99,6 +100,8 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
   }
 
   async function action(fn: () => Promise<unknown>, sonOk: Parameters<typeof jouerSon>[0] = 'clic') {
+    if (verrouAction.current) return;
+    verrouAction.current = true;
     setMessage(null);
     setEnCours(true);
     try {
@@ -109,11 +112,14 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
       setMessage(err instanceof ApiError ? err.message : 'Erreur');
       jouerSon('echec');
     } finally {
+      verrouAction.current = false;
       setEnCours(false);
     }
   }
 
   async function lancerJournee() {
+    if (verrouAction.current) return;
+    verrouAction.current = true;
     setMessage(null);
     setEnCours(true);
     try {
@@ -130,6 +136,7 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
       setMessage(err instanceof ApiError ? err.message : 'Erreur');
       jouerSon('echec');
     } finally {
+      verrouAction.current = false;
       setEnCours(false);
     }
   }
@@ -220,12 +227,12 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-6">
           {(
             [
-              ['💰 Budget', `${uc.budgetRestant.toLocaleString('fr-FR')} F`],
+              ['💰 Budget', `${uc.budgetRestant.toLocaleString('fr-FR')} FCFA`],
               ['📅 Jours', uc.joursRestants >= 0 ? `${uc.joursRestants} restants` : `${-uc.joursRestants} j de retard ⚠`],
               ['⭐ Qualité', uc.qualite],
               ['🦺 Sécurité', uc.securite],
               ['❤️ Moral', uc.moralEquipe],
-              ['💸 Salaires/jour', `${salairesJour.toLocaleString('fr-FR')} F`],
+              ['💸 Salaires/jour', `${salairesJour.toLocaleString('fr-FR')} FCFA`],
             ] as const
           ).map(([label, valeur]) => (
             <div key={label} className="rounded-xl bg-pierre/50 p-3 text-center">
@@ -307,7 +314,7 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
                 >
                   {Object.entries(uc.postesDisponibles ?? {}).map(([poste, infos]) => (
                     <option key={poste} value={poste}>
-                      {poste} — {infos.salaire.toLocaleString('fr-FR')} F/j
+                      {poste} — {infos.salaire.toLocaleString('fr-FR')} FCFA/j
                     </option>
                   ))}
                 </select>
@@ -327,7 +334,7 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-graphite">{o.nom}</p>
-                    <p className="text-xs text-graphite/50">{o.poste} · {o.salaireJournalier.toLocaleString('fr-FR')} F/j</p>
+                    <p className="text-xs text-graphite/50">{o.poste} · {o.salaireJournalier.toLocaleString('fr-FR')} FCFA/j</p>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${o.statut === 'actif' ? 'bg-olive/10 text-olive' : 'bg-cuivre/10 text-cuivre'}`}>
                     {o.statut === 'actif' ? 'AU TRAVAIL' : 'REPOS'}

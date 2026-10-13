@@ -4,10 +4,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // Requêtes applicatives : pooler Supabase en mode transaction (port 6543) — indispensable en
   // serverless, où chaque invocation ouvrirait sinon sa propre connexion.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // Migrations : le mode transaction du pooler ne peut pas tenir le verrou consultatif dont
   // `prisma migrate deploy` a besoin — il échoue. On passe donc par le mode session (même hôte,
   // port 5432) pour les migrations uniquement.
@@ -436,6 +436,8 @@ model UserCarriere {
   derniereMajBesoins       DateTime     @default(now())
   // Traits de personnalité choisis à la création (2-3 slugs), donnent de petits bonus thématiques.
   traits                   Json?
+  // État persistant du monde 3D : position, relations et progression des modes de jeu.
+  etatMonde                Json?
   // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
   // et pour candidater aux marchés (voir Chantier.typeMarche).
   nomEntreprise            String?
@@ -738,27 +740,27 @@ model Imprevu {
 }
 
 model UserChantier {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chantierId    String
-  chantier      Chantier  @relation(fields: [chantierId], references: [id], onDelete: Cascade)
-  statut        String    @default("en_cours")
-  phaseCourante Int       @default(0)
-  budgetRestant Int
-  joursRestants Int
-  qualite       Int       @default(100)
-  securite      Int       @default(100)
-  moralEquipe   Int       @default(100)
-  avancementPct Int       @default(0)
-  evenementsLog Json?
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chantierId       String
+  chantier         Chantier  @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+  statut           String    @default("en_cours")
+  phaseCourante    Int       @default(0)
+  budgetRestant    Int
+  joursRestants    Int
+  qualite          Int       @default(100)
+  securite         Int       @default(100)
+  moralEquipe      Int       @default(100)
+  avancementPct    Int       @default(0)
+  evenementsLog    Json?
   // Stock de matériaux : { [nom]: quantite } — alimenté par les commandes.
-  stock         Json?
+  stock            Json?
   // Avancement par phase (0-100) : { [index]: pct }
   avancementPhases Json?
-  noteFinale    String?
-  termineLe     DateTime?
-  createdAt     DateTime  @default(now())
+  noteFinale       String?
+  termineLe        DateTime?
+  createdAt        DateTime  @default(now())
 
   ouvriers OuvrierVirtuel[]
 

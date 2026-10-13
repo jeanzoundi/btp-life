@@ -9,6 +9,28 @@ import { AvatarItemsService } from './avatar-items.service';
 
 /** Seuil pour se reconvertir en entrepreneur — voir CarriereService.devenirEntrepreneur. */
 export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
+const MODES_MONDE = new Set(['libre', 'carriere', 'urgence', 'entrepreneur', 'exploration', 'communaute']);
+
+function nombreBorne(value: unknown, min: number, max: number, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+}
+
+export function nettoyerEtatMonde(brut: Record<string, unknown>) {
+  const position = (brut.position && typeof brut.position === 'object' ? brut.position : {}) as Record<string, unknown>;
+  const relationsBrutes = (brut.relations && typeof brut.relations === 'object' ? brut.relations : {}) as Record<string, unknown>;
+  const relations = Object.fromEntries(Object.entries(relationsBrutes).slice(0, 50).map(([nom, valeur]) => [nom.slice(0, 40), Math.round(nombreBorne(valeur, 0, 100))]));
+  const mode = typeof brut.mode === 'string' && MODES_MONDE.has(brut.mode) ? brut.mode : 'libre';
+  return {
+    version: 1,
+    position: { x: nombreBorne(position.x, -118, 118), z: nombreBorne(position.z, -120, 66) },
+    quartier: typeof brut.quartier === 'string' ? brut.quartier.slice(0, 60) : 'Les Palmiers',
+    relations,
+    mode,
+    etapeMode: Math.round(nombreBorne(brut.etapeMode, 0, 20)),
+    score: Math.round(nombreBorne(brut.score, 0, 1_000_000)),
+    secondes: brut.secondes === null ? null : Math.round(nombreBorne(brut.secondes, 0, 3600)),
+  };
+}
 
 @Injectable()
 export class CarriereService {
@@ -35,6 +57,18 @@ export class CarriereService {
       orderBy: { genereLe: 'desc' },
     });
     return { ...complet, energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social, avatar, parcours };
+  }
+
+  async etatMonde(userId: string) {
+    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { etatMonde: true } });
+    if (!carriere) throw new NotFoundException('Carrière introuvable');
+    return nettoyerEtatMonde((carriere.etatMonde as Record<string, unknown> | null) ?? {});
+  }
+
+  async sauvegarderEtatMonde(userId: string, etat: Record<string, unknown>) {
+    const propre = nettoyerEtatMonde(etat);
+    await this.prisma.userCarriere.update({ where: { userId }, data: { etatMonde: propre as Prisma.InputJsonValue } });
+    return propre;
   }
 
   async upsertAvatar(userId: string, dto: UpdateAvatarDto) {

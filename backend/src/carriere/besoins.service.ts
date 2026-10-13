@@ -71,14 +71,19 @@ export class BesoinsService {
       );
     }
 
-    const maj = await this.prisma.userCarriere.update({
-      where: { userId },
+    const resultat = await this.prisma.userCarriere.updateMany({
+      where: { userId, ...(effet.cout > 0 ? { argentVirtuel: { gte: effet.cout } } : {}) },
       data: {
         [effet.cible]: effet.valeur,
         moral: Math.min(100, actualisee.moral + effet.bonusMoral),
         ...(effet.cout > 0 ? { argentVirtuel: { decrement: effet.cout } } : {}),
       },
     });
+    if (resultat.count !== 1) {
+      throw new BadRequestException("Solde modifié entre-temps : actualise la page puis réessaie");
+    }
+    const maj = await this.prisma.userCarriere.findUnique({ where: { userId } });
+    if (!maj) throw new NotFoundException('Carrière introuvable');
     return { carriere: maj, message: effet.message, change: true, coutPaye: effet.cout };
   }
 

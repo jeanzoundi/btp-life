@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
@@ -57,6 +57,16 @@ export class CarriereController {
   @Get('joueurs-actifs')
   joueursActifs(@CurrentUser() user: RequestUser) {
     return this.carriereService.joueursActifs(user.userId);
+  }
+
+  @Get('monde')
+  etatMonde(@CurrentUser() user: RequestUser) {
+    return this.carriereService.etatMonde(user.userId);
+  }
+
+  @Patch('monde')
+  sauvegarderMonde(@CurrentUser() user: RequestUser, @Body() dto: UpdateEtatMondeDto) {
+    return this.carriereService.sauvegarderEtatMonde(user.userId, dto.etat);
   }
 
   @Get('joueurs/:id')

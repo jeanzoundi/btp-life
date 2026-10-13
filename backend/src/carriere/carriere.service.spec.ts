@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CarriereService, SEUIL_ENTREPRENEUR } from './carriere.service';
+import { CarriereService, nettoyerEtatMonde, SEUIL_ENTREPRENEUR } from './carriere.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
@@ -25,6 +25,16 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   }
   return fusion;
 }
+
+describe('nettoyerEtatMonde', () => {
+  it('borne la position et refuse les modes inconnus', () => {
+    expect(nettoyerEtatMonde({ position: { x: 999, z: -999 }, mode: 'triche', score: -50 })).toEqual(expect.objectContaining({ position: { x: 118, z: -120 }, mode: 'libre', score: 0 }));
+  });
+
+  it('conserve une progression et limite les affinités', () => {
+    expect(nettoyerEtatMonde({ relations: { Awa: 145, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90 })).toEqual(expect.objectContaining({ relations: { Awa: 100, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90 }));
+  });
+});
 
 async function service(
   prisma: ReturnType<typeof fakePrisma>,

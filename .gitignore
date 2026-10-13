@@ -10,6 +10,7 @@ dist/
 .DS_Store
 .vercel/
 coverage/
+.tmp-tests/
 *.tsbuildinfo
 .embedded-pg-data/
 # Unreal Engine generated files

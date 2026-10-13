@@ -37,10 +37,14 @@ export class EpargneService {
     if (carriere.argentVirtuel < montant) {
       throw new BadRequestException(`Solde insuffisant : ${montant.toLocaleString('fr-FR')} F requis (disponible ${carriere.argentVirtuel.toLocaleString('fr-FR')} F)`);
     }
-    return this.prisma.userCarriere.update({
-      where: { userId },
+    const resultat = await this.prisma.userCarriere.updateMany({
+      where: { userId, argentVirtuel: { gte: montant } },
       data: { argentVirtuel: { decrement: montant }, epargne: { increment: montant } },
     });
+    if (resultat.count !== 1) throw new BadRequestException('Solde modifié entre-temps : actualise la page puis réessaie');
+    const maj = await this.prisma.userCarriere.findUnique({ where: { userId } });
+    if (!maj) throw new NotFoundException('Carrière introuvable');
+    return maj;
   }
 
   async retirer(userId: string, montant: number) {
@@ -49,9 +53,13 @@ export class EpargneService {
     if (carriere.epargne < montant) {
       throw new BadRequestException(`Épargne insuffisante : ${montant.toLocaleString('fr-FR')} F requis (épargné ${carriere.epargne.toLocaleString('fr-FR')} F)`);
     }
-    return this.prisma.userCarriere.update({
-      where: { userId },
+    const resultat = await this.prisma.userCarriere.updateMany({
+      where: { userId, epargne: { gte: montant } },
       data: { argentVirtuel: { increment: montant }, epargne: { decrement: montant } },
     });
+    if (resultat.count !== 1) throw new BadRequestException('Épargne modifiée entre-temps : actualise la page puis réessaie');
+    const maj = await this.prisma.userCarriere.findUnique({ where: { userId } });
+    if (!maj) throw new NotFoundException('Carrière introuvable');
+    return maj;
   }
 }

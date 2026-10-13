@@ -84,7 +84,10 @@ export default function MondePage() {
         <Skeleton className="h-[58vh] min-h-[400px] w-full sm:h-[68vh]" />
       ) : (
         <div className="-mx-3 sm:-mx-4 md:-mx-6">
-          <Quartier3D nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]} />
+          <Quartier3D
+            nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
+            besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
+          />
         </div>
       )}
 

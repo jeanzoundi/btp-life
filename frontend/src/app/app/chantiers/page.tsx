@@ -95,7 +95,7 @@ export default function ChantiersPage() {
       >
         <div className="rounded-2xl bg-ivoire/10 px-4 py-2.5 text-center ring-1 ring-sable/30">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-ivoire/60">Solde</p>
-          <p className="font-mono text-lg font-bold text-sable">{argent.toLocaleString('fr-FR')} F</p>
+          <p className="font-mono text-lg font-bold text-sable">{argent.toLocaleString('fr-FR')} FCFA</p>
         </div>
       </BanniereHub>
 

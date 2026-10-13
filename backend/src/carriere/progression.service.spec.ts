@@ -35,12 +35,15 @@ describe('xpToNiveau', () => {
 
 describe('ProgressionService.appliquerDelta', () => {
   function prismaMock(carriere: { xp: number; reputation: number; argentVirtuel: number; niveau?: number }) {
-    return {
+    const prisma = {
       userCarriere: {
         findUnique: jest.fn().mockResolvedValue({ niveau: 1, ...carriere }),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve(data)),
       },
+      $transaction: jest.fn(),
     };
+    prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
+    return prisma;
   }
 
   function avatarItemsMock() {
@@ -94,7 +97,8 @@ describe('ProgressionService.appliquerDelta', () => {
   });
 
   it('renvoie null sans planter si la carrière n’existe pas', async () => {
-    const prisma = { userCarriere: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() } };
+    const prisma = { userCarriere: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() }, $transaction: jest.fn() };
+    prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
     const svc = await service(prisma as never);
     expect(await svc.appliquerDelta('inconnu', { xp: 10 })).toBeNull();
     expect(prisma.userCarriere.update).not.toHaveBeenCalled();

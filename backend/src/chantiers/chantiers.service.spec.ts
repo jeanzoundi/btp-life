@@ -16,7 +16,9 @@ interface ServicePrive {
 function ucAvec(overrides: Record<string, unknown>) {
   return {
     id: 'uc1',
+    userId: 'u1',
     chantierId: 'chantier1',
+    statut: 'en_cours',
     budgetRestant: 800_000,
     joursRestants: 2,
     qualite: 80,
@@ -34,6 +36,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
       findUniqueOrThrow: jest.fn(),
       findFirst: jest.fn().mockResolvedValue(null),
       update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve(data)),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       create: jest.fn(),
     },
     userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1, argentVirtuel: 999_999 }) },
@@ -328,6 +331,21 @@ describe('ChantiersService (livraison — notation finale)', () => {
       ordre[resultatOk.noteFinale as keyof typeof ordre],
     );
   });
+
+  it('ne crédite jamais deux fois une livraison déjà validée', async () => {
+    const uc = ucAvec({ statut: 'termine', noteFinale: 'A' });
+    const prisma = fakePrisma({
+      userChantier: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue(uc),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    });
+    const { svc, progression, pnj } = await service(prisma);
+    const resultat = (await (svc as unknown as ServicePrive).livrer('u1', 'uc1')) as { noteFinale: string };
+    expect(resultat.noteFinale).toBe('A');
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+    expect(pnj.surChantierLivre).not.toHaveBeenCalled();
+  });
 });
 
 describe('ChantiersService.soumettreOffre — appel d’offres des marchés', () => {
@@ -598,9 +616,21 @@ describe('ChantiersService.commander', () => {
     });
     const { svc, prisma: p } = await service(prisma);
     await svc.commander('u1', 'uc1', 'r1', 10);
+    const debit = p.userChantier.updateMany.mock.calls[0][0];
+    expect(debit.data.budgetRestant).toEqual({ decrement: 50000 });
+    expect(debit.where.budgetRestant).toEqual({ gte: 50000 });
     const appel = p.userChantier.update.mock.calls[0][0];
-    expect(appel.data.budgetRestant).toEqual({ decrement: 50000 });
     expect(appel.data.stock.Ciment).toBe(10);
+  });
+
+  it('refuse proprement si une autre commande a consommé le budget entre le contrôle et le débit', async () => {
+    const prisma = fakePrisma({
+      userChantier: { findFirst: jest.fn().mockResolvedValue(ucRh()), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      chantierRessource: { findFirst: jest.fn().mockResolvedValue({ id: 'r1', coutUnitaire: 5000, ref: { nom: 'Ciment', unite: 'sac' } }) },
+    });
+    const { svc, prisma: p } = await service(prisma);
+    await expect(svc.commander('u1', 'uc1', 'r1', 10)).rejects.toThrow('Budget modifié entre-temps');
+    expect(p.userChantier.update).not.toHaveBeenCalled();
   });
 });
 

@@ -88,11 +88,12 @@ function ActionCarte({ action, argent, epargne }: { action: ActionLieu; argent: 
   const [erreur, setErreur] = useState<string | null>(null);
 
   const agir = useMutation({
-    mutationFn: (besoin: string) => api.post<{ message: string; change: boolean; coutPaye: number }>(`/carriere/besoins/${besoin}`),
+    mutationFn: (besoin: string) => api.post<{ message: string; change: boolean; coutPaye: number; carriere: CarriereMe }>(`/carriere/besoins/${besoin}`),
     onSuccess: (res) => {
       jouerSon(res.change ? 'succes' : 'clic');
       setErreur(null);
       setMessage(res.change && res.coutPaye > 0 ? `${res.message} (−${res.coutPaye.toLocaleString('fr-FR')} F)` : res.message);
+      queryClient.setQueryData(['carriere', 'me'], (ancienne: CarriereMe | undefined) => ({ ...ancienne, ...res.carriere }));
       queryClient.invalidateQueries({ queryKey: ['carriere', 'me'] });
       setTimeout(() => setMessage(null), 3500);
     },
@@ -120,7 +121,7 @@ function ActionCarte({ action, argent, epargne }: { action: ActionLieu; argent: 
         {erreur && <p className="anim-fade-up mt-2 rounded-lg bg-terracotta/10 px-3 py-1.5 text-xs font-semibold text-terracotta">{erreur}</p>}
         <button
           onClick={() => agir.mutate(action.besoin)}
-          disabled={agir.isPending}
+          disabled={agir.isPending || !abordable}
           className="anim-pulse-cta mt-3 w-full rounded-full bg-terracotta py-2.5 text-sm font-semibold text-ivoire transition-transform hover:scale-[1.02] disabled:opacity-50"
         >
           {action.icone} {action.label}
@@ -167,11 +168,12 @@ function CarteEpargne({ action, argent, epargne }: { action: Extract<ActionLieu,
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  function surReussite(msg: string) {
+  function surReussite(msg: string, carriere: CarriereMe) {
     jouerSon('succes');
     setErreur(null);
     setMessage(msg);
     setMontant('');
+    queryClient.setQueryData(['carriere', 'me'], (ancienne: CarriereMe | undefined) => ({ ...ancienne, ...carriere }));
     queryClient.invalidateQueries({ queryKey: ['carriere', 'me'] });
     setTimeout(() => setMessage(null), 3500);
   }
@@ -182,13 +184,13 @@ function CarteEpargne({ action, argent, epargne }: { action: Extract<ActionLieu,
   }
 
   const deposer = useMutation({
-    mutationFn: (m: number) => api.post('/carriere/epargne/deposer', { montant: m }),
-    onSuccess: () => surReussite('Déposé en épargne !'),
+    mutationFn: (m: number) => api.post<CarriereMe>('/carriere/epargne/deposer', { montant: m }),
+    onSuccess: (res) => surReussite('Déposé en épargne !', res),
     onError: surErreur,
   });
   const retirer = useMutation({
-    mutationFn: (m: number) => api.post('/carriere/epargne/retirer', { montant: m }),
-    onSuccess: () => surReussite('Retiré de l’épargne !'),
+    mutationFn: (m: number) => api.post<CarriereMe>('/carriere/epargne/retirer', { montant: m }),
+    onSuccess: (res) => surReussite('Retiré de l’épargne !', res),
     onError: surErreur,
   });
 
@@ -217,14 +219,14 @@ function CarteEpargne({ action, argent, epargne }: { action: Extract<ActionLieu,
         />
         <button
           onClick={() => montantValide > 0 && deposer.mutate(montantValide)}
-          disabled={enCours || !(montantValide > 0)}
+          disabled={enCours || !(montantValide > 0) || montantValide > argent}
           className="rounded-full bg-[#2E5FA3] px-4 py-2 text-sm font-semibold text-ivoire transition-transform hover:scale-105 disabled:opacity-40"
         >
           Déposer
         </button>
         <button
           onClick={() => montantValide > 0 && retirer.mutate(montantValide)}
-          disabled={enCours || !(montantValide > 0)}
+          disabled={enCours || !(montantValide > 0) || montantValide > epargne}
           className="rounded-full border border-[#2E5FA3] px-4 py-2 text-sm font-semibold text-[#2E5FA3] transition-transform hover:scale-105 disabled:opacity-40"
         >
           Retirer

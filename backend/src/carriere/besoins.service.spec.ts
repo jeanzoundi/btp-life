@@ -31,10 +31,19 @@ describe('BesoinsService.actualiser', () => {
   });
 
   async function service(carriere: Record<string, unknown>) {
+    let etat = { ...carriere };
+    const appliquer = (data: Record<string, unknown>) => {
+      for (const [cle, valeur] of Object.entries(data)) {
+        if (valeur && typeof valeur === 'object' && 'decrement' in valeur) etat[cle] = Number(etat[cle]) - Number((valeur as { decrement: number }).decrement);
+        else etat[cle] = valeur;
+      }
+      return etat;
+    };
     const prisma = {
       userCarriere: {
-        findUnique: jest.fn().mockResolvedValue(carriere),
-        update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...carriere, ...data })),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve(etat)),
+        update: jest.fn().mockImplementation(({ data }) => Promise.resolve(appliquer(data))),
+        updateMany: jest.fn().mockImplementation(({ data }) => { appliquer(data); return Promise.resolve({ count: 1 }); }),
       },
     };
     const module = await Test.createTestingModule({
@@ -93,10 +102,19 @@ describe('BesoinsService.actualiser', () => {
 
 describe('BesoinsService.agir', () => {
   async function service(carriere: Record<string, unknown>) {
+    let etat = { ...carriere };
+    const appliquer = (data: Record<string, unknown>) => {
+      for (const [cle, valeur] of Object.entries(data)) {
+        if (valeur && typeof valeur === 'object' && 'decrement' in valeur) etat[cle] = Number(etat[cle]) - Number((valeur as { decrement: number }).decrement);
+        else etat[cle] = valeur;
+      }
+      return etat;
+    };
     const prisma = {
       userCarriere: {
-        findUnique: jest.fn().mockResolvedValue(carriere),
-        update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...carriere, ...data })),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve(etat)),
+        update: jest.fn().mockImplementation(({ data }) => Promise.resolve(appliquer(data))),
+        updateMany: jest.fn().mockImplementation(({ data }) => { appliquer(data); return Promise.resolve({ count: 1 }); }),
       },
     };
     const module = await Test.createTestingModule({

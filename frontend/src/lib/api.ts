@@ -3,6 +3,14 @@
 import { useAuthStore } from './auth-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+export const CANAL_SYNCHRO = 'btp-life-sync-v1';
+
+function signalerMutation(path: string) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+  const canal = new BroadcastChannel(CANAL_SYNCHRO);
+  canal.postMessage({ type: 'mutation', path, date: Date.now() });
+  canal.close();
+}
 
 export class ApiError extends Error {
   status: number;
@@ -39,8 +47,9 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true,
     throw new ApiError(res.status, body);
   }
 
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const resultat = res.status === 204 ? undefined as T : await res.json() as T;
+  if (options.method && options.method !== 'GET') signalerMutation(path);
+  return resultat;
 }
 
 async function tryRefresh(): Promise<boolean> {
