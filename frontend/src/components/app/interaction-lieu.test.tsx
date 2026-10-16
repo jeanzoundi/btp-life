@@ -8,9 +8,10 @@ vi.mock('@/lib/api', () => ({ api: { post: vi.fn() } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 function setup(demo: boolean) {
   const onDemo = vi.fn();
+  const onEnter = vi.fn();
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  render(<QueryClientProvider client={client}><InteractionLieu slug="maquis" nom="Le Maquis" href="/app/lieu/maquis" demo={demo} onDemo={onDemo} onClose={() => {}} /></QueryClientProvider>);
-  return { onDemo, client };
+  render(<QueryClientProvider client={client}><InteractionLieu slug="maquis" nom="Le Maquis" href="/app/lieu/maquis" demo={demo} onDemo={onDemo} onClose={() => {}} onEnter={onEnter} /></QueryClientProvider>);
+  return { onDemo, onEnter, client };
 }
 describe('Interactions dans la ville', () => {
   it('isole les actions de démonstration du serveur', () => {
@@ -19,6 +20,12 @@ describe('Interactions dans la ville', () => {
     expect(onDemo).toHaveBeenCalledOnce();
     expect(api.post).not.toHaveBeenCalled();
     expect(screen.getByRole('link')).toHaveAttribute('href', '/connexion');
+  });
+  it('entre réellement dans le bâtiment au lieu d’afficher un aperçu', () => {
+    const { onEnter } = setup(true);
+    fireEvent.click(screen.getByRole('button', { name: /Entrer dans le bâtiment/ }));
+    expect(onEnter).toHaveBeenCalledOnce();
+    expect(screen.queryByText(/aperçu intérieur/i)).not.toBeInTheDocument();
   });
   it('affiche le coût et actualise la carrière après une action réelle', async () => {
     vi.mocked(api.post).mockResolvedValue({ message: 'Repas terminé', coutPaye: 1200 });

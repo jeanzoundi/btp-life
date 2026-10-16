@@ -25,6 +25,16 @@ function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
 function PanneauRue({ p, texte }: { p: V; texte: string }) {
   return <group position={p}><Bloc p={[0, 1.35, 0]} s={[0.1, 2.7, 0.1]} c="#344449" /><mesh position={[0, 2.65, 0]}><boxGeometry args={[3.2, 0.72, 0.12]} /><meshStandardMaterial color="#1d5558" roughness={0.55} /></mesh><Text position={[0, 2.65, 0.08]} fontSize={0.27} color="#fff3d2" anchorX="center" anchorY="middle">{texte}</Text></group>;
 }
+function PanneauAffichage({ p, titre, texte, r = 0, couleur = '#d89b3e' }: { p: V; titre: string; texte: string; r?: number; couleur?: string }) {
+  return <group position={p} rotation={[0, r, 0]}>
+    {[-1.65, 1.65].map(x => <Bloc key={x} p={[x, 1.3, 0]} s={[.13, 2.6, .13]} c="#344348" />)}
+    <Bloc p={[0, 2.6, 0]} s={[4, 2.3, .22]} c="#25373d" />
+    <Bloc p={[0, 2.6, .13]} s={[3.62, 1.92, .04]} c={couleur} e={couleur} />
+    <Text position={[0, 2.93, .17]} fontSize={.3} maxWidth={3.2} textAlign="center" color="#17272c" anchorX="center">{titre}</Text>
+    <Text position={[0, 2.42, .17]} fontSize={.17} maxWidth={3.1} textAlign="center" lineHeight={1.25} color="#fff6df" anchorX="center">{texte}</Text>
+    <Bloc p={[0, 1.25, 0]} s={[4.4, .15, .7]} c="#706354" />
+  </group>;
+}
 function Palmier({ p, scale = 1 }: { p: V; scale?: number }) {
   return <group position={p} scale={scale}>
     <mesh position={[0, 2.5, 0]} rotation={[0, 0, -0.08]} castShadow><cylinderGeometry args={[0.13, 0.28, 5, 7]} /><meshStandardMaterial color="#8b6242" /></mesh>
@@ -172,7 +182,7 @@ function Oiseaux({ pause }: { pause: boolean }) {
   return <group ref={ref}>{Array.from({ length: 7 }, (_, i) => <group key={i} position={[28 + i * 4, 19 + i % 3, 15 + i * 3]} rotation={[0, i, 0]}><mesh rotation={[0, 0, 0.4]}><boxGeometry args={[1.1, 0.05, 0.22]} /><meshBasicMaterial color="#25393b" /></mesh><mesh rotation={[0, 0, -0.4]}><boxGeometry args={[1.1, 0.05, 0.22]} /><meshBasicMaterial color="#25393b" /></mesh></group>)}</group>;
 }
 function Fontaine() {
-  return <group position={[0, 0, -66]}><mesh position={[0, 0.4, 0]}><cylinderGeometry args={[4.2, 4.5, 0.8, 32]} /><meshStandardMaterial color="#b5b4a5" /></mesh><mesh position={[0, 0.8, 0]}><cylinderGeometry args={[3.6, 3.6, 0.18, 32]} /><meshStandardMaterial color="#55a6b2" /></mesh>{[-1.8, 0, 1.8].map(x => <mesh key={x} position={[x, 2, 0]}><cylinderGeometry args={[0.08, 0.14, 2.5, 8]} /><meshStandardMaterial color="#9adbea" transparent opacity={0.75} /></mesh>)}</group>;
+  return <group position={[0, 0, -52]}><mesh position={[0, 0.4, 0]}><cylinderGeometry args={[4.2, 4.5, 0.8, 32]} /><meshStandardMaterial color="#b5b4a5" /></mesh><mesh position={[0, 0.8, 0]}><cylinderGeometry args={[3.6, 3.6, 0.18, 32]} /><meshStandardMaterial color="#55a6b2" /></mesh>{[-1.8, 0, 1.8].map(x => <mesh key={x} position={[x, 2, 0]}><cylinderGeometry args={[0.08, 0.14, 2.5, 8]} /><meshStandardMaterial color="#9adbea" transparent opacity={0.75} /></mesh>)}</group>;
 }
 
 function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
@@ -222,15 +232,22 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
     {[-54, 54].flatMap(x => [-66, -10, 10].flatMap(z => Array.from({ length: 6 }, (_, i) => <Bloc key={`${x}-${z}-${i}`} p={[x + (i - 2.5) * 0.65, 0.15, z]} s={[0.38, 0.025, 4.2]} c="#eee8d7" />)))}
     {[-66, -10, 10].flatMap(z => [-54, 54].map(x => <FeuTricolore key={`signal-${x}-${z}`} p={[x + 3.8, 0, z + 3.8]} axe={x < 0 ? 'horizontal' : 'vertical'} />))}
     {QUARTIERS.slice(1).map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.13, 0]}><circleGeometry args={[6, 32]} /><meshStandardMaterial color="#a8b292" /></mesh>
-      <Billboard position={[0, 5.5, 0]}><Text fontSize={0.8} color="#183c3d" outlineColor="#fff0d3" outlineWidth={0.07}>{q.nom}</Text></Billboard>
-      {[-5, 5].map(x => <group key={x}><Palmier p={[x, 0, 2]} /><Banc p={[x, 0, -2]} /><Lampadaire p={[x, 0, -5]} /></group>)}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.14, 0]}><ringGeometry args={[4.7, 5.1, 40]} /><meshStandardMaterial color="#8d9b7e" /></mesh>
+      <Billboard position={[0, 4.2, 0]}><Text fontSize={0.52} color="#183c3d" outlineColor="#fff0d3" outlineWidth={0.055}>{q.nom}</Text></Billboard>
+      <Palmier p={[4.8, 0, 3.5]} scale={0.8} /><Lampadaire p={[-4.8, 0, -3.5]} />
     </group>)}
     {[-108, -72, 72, 108].flatMap(x => [-55, -110].map(z => <Palmier key={`${x}-${z}`} p={[x, 0, z]} />))}
     {[-86, 86].map(x => <ArretBus key={x} p={[x, 0.1, -61]} />)}
     <PanneauRue p={[-48, 0, -4]} texte="PLATEAU" /><PanneauRue p={[48, 0, 16]} texte="LAGUNE" />
-    <VoitureStationnee p={[-36, 0, -13]} c="#7e2831" /><VoitureStationnee p={[-27, 0, 7]} r={Math.PI} c="#d5c9aa" />
-    <VoitureStationnee p={[25, 0, -63]} c="#416f84" /><VoitureStationnee p={[38, 0, -69]} r={Math.PI} c="#b88735" />
+    <PanneauAffichage p={[-18, 0, 7]} titre="BTP LIFE" texte={'Missions · Formations\nDécouvre la ville'} />
+    <PanneauAffichage p={[18, 0, -7]} r={Math.PI} titre="SÉCURITÉ CHANTIER" texte={'Casque · Chaussures\nConsignes avant action'} couleur="#e9c94e" />
+    <PanneauAffichage p={[-55, 0, -47]} r={Math.PI / 2} titre="QUARTIER DES JARDINS" texte={'Marché · Résidences\nZone musicale à proximité'} couleur="#68a979" />
+    <PanneauAffichage p={[55, 0, -46]} r={-Math.PI / 2} titre="PLATEAU TECHNIQUE" texte={'Atelier · Logistique\nChantier du Plateau'} couleur="#5fa5b2" />
+    <PanneauAffichage p={[72, 0, 48]} titre="MARINA" texte={'Promenade · Détente\nMusique lounge'} couleur="#589da6" />
+    <Bloc p={[-31.5, 0.08, -15.2]} s={[17, 0.05, 3.2]} c="#666b69" />
+    <Bloc p={[31.5, 0.08, -74]} s={[22, 0.05, 5.5]} c="#666b69" />
+    <VoitureStationnee p={[-36, 0, -15.2]} c="#7e2831" /><VoitureStationnee p={[-27, 0, -15.2]} c="#d5c9aa" />
+    <VoitureStationnee p={[26, 0, -74]} c="#416f84" /><VoitureStationnee p={[37, 0, -74]} c="#b88735" />
     {/* The square is pedestrian-only; road markings never cut across it. */}
     <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[5.8, 64]} /><meshStandardMaterial color="#b99471" /></mesh>
     <mesh position={[0, 0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[5.3, 5.5, 64]} /><meshStandardMaterial color="#eee2c3" /></mesh>

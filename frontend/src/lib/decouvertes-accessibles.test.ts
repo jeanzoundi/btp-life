@@ -21,4 +21,18 @@ describe('repères de découverte', () => {
       expect(obstacles.map(b => b.slug), point.id).toEqual([]);
     }
   });
+  it('garde les bâtiments hors des chaussées et sans chevauchement', () => {
+    const routesX = [-54, 54];
+    const routesZ = [-66, -10, 10];
+    for (const [index, batiment] of batiments.entries()) {
+      const [x, , z] = batiment.position;
+      const [largeur, , profondeur] = batiment.taille;
+      expect(routesX.some(route => Math.abs(x - route) < largeur / 2 + 3), `${batiment.slug} sur une route verticale`).toBe(false);
+      expect(routesZ.some(route => Math.abs(z - route) < profondeur / 2 + 3), `${batiment.slug} sur une route horizontale`).toBe(false);
+      for (const autre of batiments.slice(index + 1)) {
+        const seChevauchent = Math.abs(x - autre.position[0]) < (largeur + autre.taille[0]) / 2 + 1 && Math.abs(z - autre.position[2]) < (profondeur + autre.taille[2]) / 2 + 1;
+        expect(seChevauchent, `${batiment.slug} chevauche ${autre.slug}`).toBe(false);
+      }
+    }
+  });
 });

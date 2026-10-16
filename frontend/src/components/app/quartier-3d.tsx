@@ -10,9 +10,11 @@ import { api } from '@/lib/api';
 import type { JoueurActif } from './autres-joueurs';
 import { Architecture, PaysageLagune } from './ville-lagune';
 import { InteractionLieu } from './interaction-lieu';
+import { InterieurLieu3D } from './interieur-lieu-3d';
 import { DialoguePersonnage, HABITANTS } from './dialogue-personnage';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { PanneauModesJeu } from './panneau-modes-jeu';
+import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
 import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
@@ -42,7 +44,7 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'jardins-residence', nom: 'Résidences des Jardins', href: '/app/lieu/residence', position: [-88, 3, -33], taille: [14, 6, 12], couleur: '#d7b58b', type: 'maison' },
   { slug: 'marche', nom: 'Marché des Jardins', href: '/app/lieu/maquis', position: [-88, 2, -58], taille: [16, 4, 10], couleur: '#b65d45', type: 'commerce' },
   { slug: 'atelier', nom: 'Atelier de formation', href: '/app/logiciels', position: [87, 3, -33], taille: [18, 6, 12], couleur: '#b1aa82', type: 'campus' },
-  { slug: 'logistique', nom: 'Plateforme logistique', href: '/app/depot', position: [88, 3, -58], taille: [22, 6, 14], couleur: '#788d99', type: 'campus' },
+  { slug: 'logistique', nom: 'Plateforme logistique', href: '/app/depot', position: [88, 3, -54], taille: [22, 6, 14], couleur: '#788d99', type: 'campus' },
   { slug: 'agence', nom: 'Agence des talents', href: '/app/offres', position: [-88, 4.5, -88], taille: [14, 9, 12], couleur: '#a2b5a1', type: 'tour' },
   { slug: 'construction-nord', nom: 'Chantier du Plateau', href: '/app/chantiers', position: [87, 2, -88], taille: [20, 4, 16], couleur: '#c39b64', type: 'chantier' },
   { slug: 'centre-azur', nom: 'Centre commercial Azur', href: '/app/inventaire', position: [-84, 5, 24], taille: [28, 10, 18], couleur: '#88aeb2', type: 'commerce' },
@@ -51,7 +53,7 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'sports', nom: 'Complexe sportif', href: '/app/recompenses', position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
 const POINTS_DECOUVERTE = [
-  { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -66] as PointMonde },
+  { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
   { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
   { id: 'marche-jardins', nom: 'Marché des Jardins', position: [-88, 11] as PointMonde },
   { id: 'marina', nom: 'Marina BTP Life', position: [89, 47] as PointMonde },
@@ -84,10 +86,11 @@ const TOUCHES: Record<string, Direction | undefined> = {
 function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batiment3D; selectionne: boolean; nuit: boolean; onSelect: (b: Batiment3D) => void }) {
   return <group position={[batiment.position[0], 0, batiment.position[2]]} onClick={(e) => { e.stopPropagation(); if (e.delta < 5) onSelect(batiment); }}>
     <Architecture width={batiment.taille[0]} height={batiment.taille[1]} depth={batiment.taille[2]} color={batiment.couleur} kind={batiment.type} nuit={nuit} />
-    <Billboard position={[0, Math.max(batiment.taille[1], batiment.type === 'chantier' ? 14 : 0) + 2, 0]}>
-      <mesh><planeGeometry args={[Math.max(9, batiment.nom.length * 0.55), 1.8]} /><meshBasicMaterial color={selectionne ? '#9b6422' : '#152b30'} transparent opacity={0.93} /></mesh>
-      <Text position={[0, 0, 0.02]} fontSize={0.65} color="#fff0ce" anchorX="center" anchorY="middle">{batiment.nom}</Text>
-    </Billboard>
+    {batiment.type !== 'chantier' && <group position={[0, Math.min(2.25, batiment.taille[1] * 0.35), batiment.taille[2] / 2 + 0.28]}>
+      <mesh><boxGeometry args={[Math.min(batiment.taille[0] - 1, Math.max(4.8, batiment.nom.length * 0.32)), 0.78, 0.14]} /><meshStandardMaterial color="#18363b" roughness={0.5} /></mesh>
+      <Text position={[0, 0, 0.09]} fontSize={0.28} maxWidth={batiment.taille[0] - 1.5} color="#fff0ce" anchorX="center" anchorY="middle">{batiment.nom}</Text>
+    </group>}
+    {selectionne && <Billboard position={[0, Math.max(batiment.taille[1], batiment.type === 'chantier' ? 14 : 0) + 2, 0]}><mesh><planeGeometry args={[Math.max(7, batiment.nom.length * 0.48), 1.55]} /><meshBasicMaterial color="#9b6422" transparent opacity={0.94} /></mesh><Text position={[0, 0, 0.02]} fontSize={0.55} color="#fff5dc" anchorX="center" anchorY="middle">{batiment.nom}</Text></Billboard>}
     {selectionne && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.19, 0]}><ringGeometry args={[Math.max(...[batiment.taille[0], batiment.taille[2]]) * 0.65, Math.max(batiment.taille[0], batiment.taille[2]) * 0.65 + 0.25, 48]} /><meshBasicMaterial color="#ffd47a" /></mesh>}
   </group>;
 }
@@ -303,11 +306,13 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   }, []);
   const [pause, setPause] = useState(false);
   const [selection, setSelection] = useState<Batiment3D | null>(null);
+  const [interieur, setInterieur] = useState<Batiment3D | null>(null);
   const lieuEnApproche = useRef<Batiment3D | null>(null);
   const [interlocuteur, setInterlocuteur] = useState<string | null>(null);
   const [relations, setRelations] = useState<Record<string, number>>({});
   const parler = useCallback((nom: string) => { setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
   const [plan, setPlan] = useState(false);
+  const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
   const [message, setMessage] = useState('');
   const [mode, setMode] = useState<ModeJeuId>('libre');
@@ -462,20 +467,21 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   }, [pause, secondes, etapeMode, modeActif.etapes.length]);
   useEffect(() => {
     const changer = (code: string, actif: boolean) => { const direction = TOUCHES[code]; if (!direction) return; if (actif) directions.add(direction); else directions.delete(direction); };
+    if (interieur) { directions.clear(); return; }
     const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); } };
     const up = (e: KeyboardEvent) => changer(e.code, false);
     const clear = () => directions.clear();
     window.addEventListener('blur', clear);
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('blur', clear); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); document.body.style.cursor = 'default'; };
-  }, [directions]);
+  }, [directions, interieur]);
   const setDirection = (d: Direction, actif: boolean) => { if (actif) { lieuEnApproche.current = null; directions.add(d); } else directions.delete(d); rafraichir((v) => v + 1); };
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
   const stats = demo ? demoStats : besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 };
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
   return <div className={`relative w-full overflow-hidden border border-white/20 bg-slate-900 shadow-2xl ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl'}`} data-testid="quartier-3d">
-    <Canvas shadows={qualite === 'elevee' ? { type: THREE.PCFSoftShadowMap } : false} dpr={qualite === 'elevee' ? [1, 1.75] : 1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
+    <Canvas frameloop={interieur ? 'never' : 'always'} shadows={qualite === 'elevee' ? { type: THREE.PCFSoftShadowMap } : false} dpr={qualite === 'elevee' ? [1, 1.75] : 1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
       <Scene nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
     </Canvas>
     <div className={`pointer-events-none absolute left-3 max-w-[175px] rounded-2xl border border-white/20 bg-[#182e32]/90 p-3 text-white shadow-xl backdrop-blur sm:max-w-[250px] ${immersif ? 'top-20' : 'top-3'}`}>
@@ -485,6 +491,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
       <div className="mt-3 hidden border-t border-white/15 pt-3 text-[10px] leading-relaxed text-white/70 sm:block">Sol : marcher · Bâtiment : rejoindre<br />Glisser : tourner · Molette : vue proche / ville<br />ZQSD / flèches : marcher · R : recentrer · Échap : fermer</div>
     </div>
     <PanneauModesJeu ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
+    <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
     <div role="status" className={`pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[10px] font-bold shadow-lg backdrop-blur sm:hidden ${etatSauvegarde === 'erreur' ? 'border-amber-300/40 bg-amber-950/90 text-amber-100' : 'border-white/20 bg-[#182e32]/90 text-emerald-100'}`}>{libelleSauvegarde}</div>
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
     <button onClick={() => { setPlan(v => !v); setSelection(null); }} aria-expanded={plan} className="absolute right-3 top-16 rounded-xl border border-white/20 bg-[#182e32]/95 px-4 py-3 text-sm text-amber-100">Plan & lieux</button>
@@ -502,9 +509,16 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
         {QUARTIERS.map(q => <button key={q.nom} title={`Se déplacer vers ${q.nom}`} onClick={() => { destination.current = [q.x, q.z]; setPlan(false); setMessage(`Itinéraire vers ${q.nom}.`); }} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-center text-[9px] ${q.nom === quartierActuel.nom ? 'bg-amber-300 font-bold text-slate-900' : 'bg-[#152b30]/90 hover:bg-emerald-700'}`} style={{ left: `${(q.x + 130) / 260 * 100}%`, top: `${(q.z + 130) / 190 * 100}%` }}>{q.nom}</button>)}
       </div>
       <p className="px-2 text-[10px] text-white/60">Cliquez un quartier sur la carte pour lancer l’itinéraire, ou choisissez directement un lieu.</p>
-      {BATIMENTS.map((b, i) => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-3 text-left text-sm hover:bg-white/10"><span className="mr-3 text-amber-200">{String(i + 1).padStart(2, '0')}</span>{b.nom}</button>)}
+      <label className="my-3 block text-xs text-amber-100">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-lg bg-slate-800 p-3 text-white"><option>Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom}>{q.nom}</option>)}</select></label>
+      {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/15 p-2"><h3 className="text-sm font-bold text-amber-200">{q.nom}</h3><p className="my-2 text-xs text-white/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-3 text-left text-sm hover:bg-white/10">{b.nom}<span className="mt-1 block text-[10px] text-white/50">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
-    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); setMessage(`${action.label} : besoin restauré (démo, non sauvegardé).`); }} />}
+    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); setMessage(`${action.label} : besoin restauré (démo, non sauvegardé).`); }} />}
+    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} onSortir={() => { directions.clear(); setInterieur(null); setMessage(`Vous êtes sorti de ${interieur.nom}.`); }}>
+      <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
+        const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
+        setDemoStats(s => ({ ...s, [cible]: 100 }));
+      }} />
+    </InterieurLieu3D>}
     {message && <p role="status" className="absolute bottom-16 left-3 right-3 rounded-xl bg-emerald-950/95 p-3 text-center text-xs text-emerald-100">{message}</p>}
     <button type="button" onClick={() => setPause((v) => !v)} className="absolute right-3 top-3 rounded-xl border border-white/20 bg-graphite/85 px-3 py-2 text-sm font-bold text-white shadow backdrop-blur" aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'}>{pause ? '▶' : 'Ⅱ'} {affichageHeure}</button>
     <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
