@@ -133,7 +133,7 @@ export const modulesAcademie: ModuleSeed[] = [
           ],
         },
         {
-          titre: 'Word et le rapport de chantier', dureeMin: 8, missionPratique: 'rapport-journalier',
+          titre: 'Word et le rapport de chantier', dureeMin: 8, missionPratique: 'rapport-journalier-coulage',
           blocs: [
             { type: 'texte', valeur: "Le rapport journalier trace ce qui s'est réellement passé : effectifs, travaux réalisés, matériaux reçus, incidents, météo. C'est un document contractuel en cas de litige sur les délais." },
             { type: 'astuce', valeur: "Un bon rapport se relit en 1 minute : des faits, des chiffres, pas d'opinions." },

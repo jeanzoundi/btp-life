@@ -5,11 +5,25 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
+import { EauLagune, JardinsUrbains } from './ambiance-lagune';
 
 type V = [number, number, number];
 const ivoire = '#e8d9bd';
-function Bloc({ p, s, c, r = 0 }: { p: V; s: V; c: string; r?: number }) {
-  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} /><meshStandardMaterial color={c} roughness={0.78} /></mesh>;
+function Bloc({ p, s, c, r = 0, e }: { p: V; s: V; c: string; r?: number; e?: string }) {
+  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} /><meshStandardMaterial color={c} roughness={0.72} metalness={e ? 0.08 : 0.02} emissive={e} emissiveIntensity={e ? 0.65 : 0} /></mesh>;
+}
+
+function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
+  return <group position={p} rotation={[0, r, 0]}>
+    <Bloc p={[0, 0.52, 0]} s={[3.5, 0.58, 1.65]} c={c} />
+    <mesh position={[-0.25, 1.05, 0]} castShadow><boxGeometry args={[1.8, 0.55, 1.42]} /><meshPhysicalMaterial color="#28434d" roughness={0.18} metalness={0.2} clearcoat={0.7} /></mesh>
+    {[-1.05, 1.05].flatMap(x => [-0.84, 0.84].map(z => <mesh key={`${x}-${z}`} position={[x, 0.28, z]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[0.34, 0.34, 0.2, 16]} /><meshStandardMaterial color="#171b1d" roughness={0.95} /></mesh>))}
+    {[-0.5, 0.5].map(z => <mesh key={z} position={[1.77, 0.58, z]}><boxGeometry args={[0.04, 0.2, 0.34]} /><meshStandardMaterial color="#fff1bf" emissive="#f2d077" emissiveIntensity={0.35} /></mesh>)}
+  </group>;
+}
+
+function PanneauRue({ p, texte }: { p: V; texte: string }) {
+  return <group position={p}><Bloc p={[0, 1.35, 0]} s={[0.1, 2.7, 0.1]} c="#344449" /><mesh position={[0, 2.65, 0]}><boxGeometry args={[3.2, 0.72, 0.12]} /><meshStandardMaterial color="#1d5558" roughness={0.55} /></mesh><Text position={[0, 2.65, 0.08]} fontSize={0.27} color="#fff3d2" anchorX="center" anchorY="middle">{texte}</Text></group>;
 }
 function Palmier({ p, scale = 1 }: { p: V; scale?: number }) {
   return <group position={p} scale={scale}>
@@ -52,7 +66,7 @@ function Kiosque({ p }: { p: V }) {
 function Textile({ p }: { p: V }) { return <group position={p}>{[-1.5, -0.5, 0.5, 1.5].map((x, i) => <Bloc key={x} p={[x, 0, 0]} s={[1, 0.18, 0.9]} c={i % 2 ? '#efe3bf' : '#3e7666'} />)}</group>; }
 
 /** Original modular architecture: recessed glass, wraparound balconies and shopfronts. */
-export function Architecture({ width: w, height: h, depth: d, kind, color }: { width: number; height: number; depth: number; kind: string; color: string }) {
+export function Architecture({ width: w, height: h, depth: d, kind, color, nuit = false }: { width: number; height: number; depth: number; kind: string; color: string; nuit?: boolean }) {
   if (kind === 'chantier') return <group>
     <Bloc p={[0, 0.18, 0]} s={[w, 0.36, d]} c="#a89980" />
     {[0, 3.3, 6.6].map(y => <group key={y}>
@@ -78,7 +92,7 @@ export function Architecture({ width: w, height: h, depth: d, kind, color }: { w
         return <group key={side} rotation={[0, r, 0]}>
           {Array.from({ length: count }, (_, k) => <group key={k} position={[(k - (count - 1) / 2) * (span / count), f * 3 + 1.8, offset + 0.05]}>
             <Bloc p={[0, 0, 0]} s={[1.6, 2.1, 0.15]} c="#e9ddc5" />
-            <Bloc p={[0, 0, 0.09]} s={[1.35, 1.85, 0.1]} c={kind === 'tour' ? '#345763' : '#41686a'} />
+            <Bloc p={[0, 0, 0.09]} s={[1.35, 1.85, 0.1]} c={nuit && (k + f + side) % 3 !== 0 ? '#e6bb67' : kind === 'tour' ? '#345763' : '#41686a'} e={nuit && (k + f + side) % 3 !== 0 ? '#b66e28' : undefined} />
             <Bloc p={[0, 0, 0.16]} s={[0.065, 1.85, 0.05]} c="#bfc3b8" />
             {f > 0 && kind !== 'tour' && <>
               <Bloc p={[0, -1.12, 0.47]} s={[1.95, 0.16, 1.1]} c={ivoire} />
@@ -103,7 +117,13 @@ export function Architecture({ width: w, height: h, depth: d, kind, color }: { w
 
 function Traffic({ offset, color, pause }: { offset: number; color: string; pause: boolean }) {
   const car = useRef<THREE.Group>(null);
-  useFrame((_, delta) => { if (car.current && !pause) car.current.position.x = ((car.current.position.x + Math.min(delta, 0.05) * 3 + 60) % 120) - 60; });
+  useFrame(({ clock }, delta) => {
+    if (!car.current || pause) return;
+    const feuRouge = clock.elapsedTime % 12 >= 6;
+    const x = car.current.position.x;
+    const procheStop = [-58.5, 49.5].some(stop => x >= stop - 0.8 && x <= stop + 0.25);
+    if (!feuRouge || !procheStop) car.current.position.x = ((x + Math.min(delta, 0.05) * 3 + 60) % 120) - 60;
+  });
   return <group ref={car} position={[offset, 0, -10.5]}>
     <Bloc p={[0, 0.65, 0]} s={[3.6, 0.65, 1.7]} c={color} />
     <Bloc p={[-0.2, 1.16, 0]} s={[1.9, 0.55, 1.5]} c="#344b59" />
@@ -112,9 +132,33 @@ function Traffic({ offset, color, pause }: { offset: number; color: string; paus
     {[-0.55, 0.55].map(z => <Bloc key={z} p={[1.81, 0.7, z]} s={[0.05, 0.23, 0.4]} c="#fff0c3" />)}
   </group>;
 }
+function TrafficVertical({ x, offset, color, pause, inverse = false }: { x: number; offset: number; color: string; pause: boolean; inverse?: boolean }) {
+  const car = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (!car.current || pause) return;
+    const phase = _.clock.elapsedTime % 12;
+    const feuRouge = phase < 6;
+    const z = car.current.position.z;
+    const stops = inverse ? [-61, -5, 15] : [-71, -15, 5];
+    if (feuRouge && stops.some(stop => Math.abs(z - stop) < 0.8)) return;
+    const vitesse = Math.min(delta, 0.05) * (inverse ? -2.8 : 2.8);
+    car.current.position.z = ((car.current.position.z + vitesse + 120) % 240) - 120;
+  });
+  return <group ref={car} position={[x, 0, offset]} rotation={[0, Math.PI / 2, 0]}>
+    <Bloc p={[0, 0.62, 0]} s={[3.4, 0.62, 1.65]} c={color} />
+    <Bloc p={[-0.15, 1.12, 0]} s={[1.8, 0.52, 1.42]} c="#31505c" />
+    <Bloc p={[-0.15, 1.43, 0]} s={[1.9, 0.1, 1.52]} c={color} />
+    {[-1.05, 1.05].flatMap(px => [-0.84, 0.84].map(pz => <mesh key={`${px}-${pz}`} position={[px, 0.36, pz]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.36, 0.36, 0.2, 12]} /><meshStandardMaterial color="#20272b" /></mesh>))}
+  </group>;
+}
 function Bus({ pause }: { pause: boolean }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame((_, delta) => { if (ref.current && !pause) ref.current.position.x = ((ref.current.position.x + Math.min(delta, 0.05) * 2.1 + 118) % 236) - 118; });
+  useFrame(({ clock }, delta) => {
+    if (!ref.current || pause) return;
+    const x = ref.current.position.x;
+    const feuRouge = clock.elapsedTime % 12 >= 6;
+    if (!feuRouge || ![-58.5, 49.5].some(stop => Math.abs(x - stop) < 0.9)) ref.current.position.x = ((x + Math.min(delta, 0.05) * 2.1 + 118) % 236) - 118;
+  });
   return <group ref={ref} position={[-80, 0, -66]}><Bloc p={[0, 1.25, 0]} s={[6.5, 2.3, 2.2]} c="#e4b43d" /><Bloc p={[0.4, 1.6, 1.12]} s={[4.6, 0.75, 0.08]} c="#274957" />{[-2.1, 2.1].flatMap(x => [-1.12, 1.12].map(z => <mesh key={`${x}-${z}`} position={[x, 0.35, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.48, 0.48, 0.22, 12]} /><meshStandardMaterial color="#20272b" /></mesh>))}</group>;
 }
 function Bateau({ pause, offset }: { pause: boolean; offset: number }) {
@@ -129,6 +173,25 @@ function Oiseaux({ pause }: { pause: boolean }) {
 }
 function Fontaine() {
   return <group position={[0, 0, -66]}><mesh position={[0, 0.4, 0]}><cylinderGeometry args={[4.2, 4.5, 0.8, 32]} /><meshStandardMaterial color="#b5b4a5" /></mesh><mesh position={[0, 0.8, 0]}><cylinderGeometry args={[3.6, 3.6, 0.18, 32]} /><meshStandardMaterial color="#55a6b2" /></mesh>{[-1.8, 0, 1.8].map(x => <mesh key={x} position={[x, 2, 0]}><cylinderGeometry args={[0.08, 0.14, 2.5, 8]} /><meshStandardMaterial color="#9adbea" transparent opacity={0.75} /></mesh>)}</group>;
+}
+
+function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
+  const rouge = useRef<THREE.MeshStandardMaterial>(null);
+  const orange = useRef<THREE.MeshStandardMaterial>(null);
+  const vert = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(({ clock }) => {
+    const phase = clock.elapsedTime % 12;
+    const ouverture = axe === 'horizontal' ? phase < 6 : phase >= 6;
+    const transition = Math.abs(phase - 6) < 0.75 || phase > 11.25;
+    if (rouge.current) rouge.current.emissiveIntensity = !ouverture && !transition ? 2.2 : 0.08;
+    if (orange.current) orange.current.emissiveIntensity = transition ? 2.4 : 0.05;
+    if (vert.current) vert.current.emissiveIntensity = ouverture && !transition ? 2.2 : 0.08;
+  });
+  return <group position={p}>
+    <Bloc p={[0, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#2d393d" />
+    <Bloc p={[0, 2.9, 0]} s={[0.42, 1.05, 0.32]} c="#202a2e" />
+    {[[3.2, '#e95645', rouge], [2.9, '#eab83e', orange], [2.6, '#48b66f', vert]].map(([y, couleur, ref], i) => <mesh key={i} position={[0, y as number, 0.17]}><sphereGeometry args={[0.095, 10, 8]} /><meshStandardMaterial ref={ref as React.RefObject<THREE.MeshStandardMaterial>} color={couleur as string} emissive={couleur as string} emissiveIntensity={0.08} /></mesh>)}
+  </group>;
 }
 
 /** A pedestrian square, tree-lined boulevards and a lagoon promenade. */
@@ -146,6 +209,7 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
   }, []);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group onClick={sol}>
+    <EauLagune pause={pause} /><JardinsUrbains />
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -40]} receiveShadow><planeGeometry args={[300, 260]} /><meshStandardMaterial color="#829079" roughness={1} /></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><meshStandardMaterial color="#d4c7ad" map={texture} roughness={1} /></mesh>
     {[-66, -10, 10].map(z => <group key={z}>
@@ -154,6 +218,9 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
       {[-3.15, 3.15].map(o => <Bloc key={o} p={[0, 0.12, z + o]} s={[240, 0.2, 0.25]} c="#ede2c8" />)}
     </group>)}
     {[-54, 54].map(x => <Bloc key={x} p={[x, 0.075, -40]} s={[6, 0.035, 176]} c="#555d60" />)}
+    {/* Passages piétons et marquages d'intersection : donnent une vraie échelle routière. */}
+    {[-54, 54].flatMap(x => [-66, -10, 10].flatMap(z => Array.from({ length: 6 }, (_, i) => <Bloc key={`${x}-${z}-${i}`} p={[x + (i - 2.5) * 0.65, 0.15, z]} s={[0.38, 0.025, 4.2]} c="#eee8d7" />)))}
+    {[-66, -10, 10].flatMap(z => [-54, 54].map(x => <FeuTricolore key={`signal-${x}-${z}`} p={[x + 3.8, 0, z + 3.8]} axe={x < 0 ? 'horizontal' : 'vertical'} />))}
     {QUARTIERS.slice(1).map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.13, 0]}><circleGeometry args={[6, 32]} /><meshStandardMaterial color="#a8b292" /></mesh>
       <Billboard position={[0, 5.5, 0]}><Text fontSize={0.8} color="#183c3d" outlineColor="#fff0d3" outlineWidth={0.07}>{q.nom}</Text></Billboard>
@@ -161,6 +228,9 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
     </group>)}
     {[-108, -72, 72, 108].flatMap(x => [-55, -110].map(z => <Palmier key={`${x}-${z}`} p={[x, 0, z]} />))}
     {[-86, 86].map(x => <ArretBus key={x} p={[x, 0.1, -61]} />)}
+    <PanneauRue p={[-48, 0, -4]} texte="PLATEAU" /><PanneauRue p={[48, 0, 16]} texte="LAGUNE" />
+    <VoitureStationnee p={[-36, 0, -13]} c="#7e2831" /><VoitureStationnee p={[-27, 0, 7]} r={Math.PI} c="#d5c9aa" />
+    <VoitureStationnee p={[25, 0, -63]} c="#416f84" /><VoitureStationnee p={[38, 0, -69]} r={Math.PI} c="#b88735" />
     {/* The square is pedestrian-only; road markings never cut across it. */}
     <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[5.8, 64]} /><meshStandardMaterial color="#b99471" /></mesh>
     <mesh position={[0, 0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[5.3, 5.5, 64]} /><meshStandardMaterial color="#eee2c3" /></mesh>
@@ -190,6 +260,10 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
     {/* Skyline gives the playable district a wider urban context. */}
     {Array.from({ length: 12 }, (_, i) => <ArchitectureBlock key={i} i={i} />)}
     <Traffic offset={0} color="#cc8b42" pause={pause} /><Traffic offset={35} color="#a45340" pause={pause} /><Traffic offset={-35} color="#e0d8c4" pause={pause} />
+    <TrafficVertical x={-52.5} offset={-95} color="#d5a42d" pause={pause} />
+    <TrafficVertical x={-55.5} offset={-25} color="#577e97" pause={pause} inverse />
+    <TrafficVertical x={52.5} offset={-65} color="#f0ece0" pause={pause} />
+    <TrafficVertical x={55.5} offset={20} color="#b65d45" pause={pause} inverse />
   </group>;
 }
 function ArchitectureBlock({ i }: { i: number }) {

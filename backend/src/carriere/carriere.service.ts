@@ -19,9 +19,12 @@ export function nettoyerEtatMonde(brut: Record<string, unknown>) {
   const position = (brut.position && typeof brut.position === 'object' ? brut.position : {}) as Record<string, unknown>;
   const relationsBrutes = (brut.relations && typeof brut.relations === 'object' ? brut.relations : {}) as Record<string, unknown>;
   const relations = Object.fromEntries(Object.entries(relationsBrutes).slice(0, 50).map(([nom, valeur]) => [nom.slice(0, 40), Math.round(nombreBorne(valeur, 0, 100))]));
+  const decouvertes = Array.isArray(brut.decouvertes) ? [...new Set(brut.decouvertes.filter((v): v is string => typeof v === 'string').map((v) => v.slice(0, 60)))].slice(0, 100) : [];
+  const recordsBruts = (brut.records && typeof brut.records === 'object' ? brut.records : {}) as Record<string, unknown>;
+  const records = Object.fromEntries(Object.entries(recordsBruts).filter(([cle]) => MODES_MONDE.has(cle)).map(([cle, valeur]) => [cle, Math.round(nombreBorne(valeur, 0, 1_000_000))]));
   const mode = typeof brut.mode === 'string' && MODES_MONDE.has(brut.mode) ? brut.mode : 'libre';
   return {
-    version: 3,
+    version: 4,
     position: { x: nombreBorne(position.x, -118, 118), z: nombreBorne(position.z, -120, 66) },
     quartier: typeof brut.quartier === 'string' ? brut.quartier.slice(0, 60) : 'Les Palmiers',
     relations,
@@ -30,7 +33,10 @@ export function nettoyerEtatMonde(brut: Record<string, unknown>) {
     score: Math.round(nombreBorne(brut.score, 0, 1_000_000)),
     secondes: brut.secondes === null ? null : Math.round(nombreBorne(brut.secondes, 0, 3600)),
     heure: nombreBorne(brut.heure, 0, 23.999, 16),
+    heureCalculeeLe: typeof brut.heureCalculeeLe === 'string' && Number.isFinite(Date.parse(brut.heureCalculeeLe)) ? brut.heureCalculeeLe : undefined,
     pause: brut.pause === true,
+    decouvertes,
+    records,
     sauvegardeLe: typeof brut.sauvegardeLe === 'string' && Number.isFinite(Date.parse(brut.sauvegardeLe)) ? brut.sauvegardeLe : null,
   };
 }

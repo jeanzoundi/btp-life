@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
 import { Quartier3D } from '@/components/app/quartier-3d';
 import { useAuthStore } from '@/lib/auth-store';
+import { useModeExperienceStore } from '@/lib/mode-experience-store';
 
 interface Lieu {
   id: string;
@@ -61,6 +62,8 @@ const LIEUX_DE_VIE = [
 
 export default function MondePage() {
   const user = useAuthStore((s) => s.user);
+  const modeExperience = useModeExperienceStore((s) => s.mode);
+  const immersif = modeExperience === 'monde';
   const { data, isLoading } = useQuery({
     queryKey: ['catalog', 'lieux'],
     queryFn: () => api.get<{ items: Lieu[] }>('/catalog/lieux?pageSize=20'),
@@ -71,28 +74,29 @@ export default function MondePage() {
   });
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
+    <div className={immersif ? 'h-[100dvh] w-full overflow-hidden' : 'space-y-4 sm:space-y-6'}>
+      {!immersif && <div>
         <h1 className="font-display text-xl font-bold text-graphite sm:text-2xl">🗺️ Le quartier BTP Life</h1>
         <p className="text-sm text-graphite/60">
           Ton monde à explorer en 3D — utilise ZQSD, WASD, les flèches ou les commandes tactiles, puis sélectionne un bâtiment pour y entrer.
         </p>
-      </div>
+      </div>}
 
       {/* La carte est le vrai cœur de la page : plein cadre, immersive, pas une simple vignette. */}
       {isLoading ? (
-        <Skeleton className="h-[58vh] min-h-[400px] w-full sm:h-[68vh]" />
+        <Skeleton className={immersif ? 'h-[100dvh] min-h-[620px] w-full rounded-none' : 'h-[58vh] min-h-[400px] w-full sm:h-[68vh]'} />
       ) : (
-        <div className="-mx-3 sm:-mx-4 md:-mx-6">
+        <div className={immersif ? 'h-full w-full' : '-mx-3 sm:-mx-4 md:-mx-6'}>
           <Quartier3D
             nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
             besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
+            immersif={immersif}
           />
         </div>
       )}
 
       {/* Lieux de vie — restaurent les besoins (façon jeu de simulation) */}
-      <div>
+      {!immersif && <div>
         <h2 className="mb-2 font-display text-base font-bold text-graphite sm:text-lg">🌇 Lieux de vie</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {LIEUX_DE_VIE.map((l) => (
@@ -109,10 +113,10 @@ export default function MondePage() {
             </Link>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Accès rapides (liste accessible, même contenu que la carte) */}
-      <div>
+      {!immersif && <div>
         <h2 className="mb-2 font-display text-base font-bold text-graphite sm:text-lg">🏙️ Les lieux du métier</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {(data?.items ?? []).map((l) => (
@@ -129,7 +133,7 @@ export default function MondePage() {
             </Link>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -24,7 +24,7 @@ export default function MissionsPage() {
   const [typeFiltre, setTypeFiltre] = useState('TOUS');
   const [statutFiltre, setStatutFiltre] = useState<'TOUS' | 'A_FAIRE' | 'REUSSIES'>('TOUS');
 
-  const { data: missions, isLoading } = useQuery({
+  const { data: missions, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['missions', 'list'],
     queryFn: () => api.get<Mission[]>('/missions?niveauMax=99'),
   });
@@ -108,7 +108,17 @@ export default function MissionsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {isError && (
+        <section role="alert" className="rounded-2xl border border-terracotta/25 bg-terracotta/10 p-6 text-center">
+          <p className="font-display text-lg font-bold text-graphite">Les missions n’ont pas pu être synchronisées</p>
+          <p className="mt-1 text-sm text-graphite/60">Ta progression n’est pas perdue. Vérifie ta connexion puis relance le chargement.</p>
+          <button type="button" disabled={isFetching} onClick={() => void refetch()} className="mt-4 rounded-full bg-graphite px-5 py-2 text-sm font-semibold text-ivoire disabled:opacity-50">
+            {isFetching ? 'Synchronisation…' : 'Réessayer'}
+          </button>
+        </section>
+      )}
+
+      {!isError && <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtrees.map((m) => {
           const reussie = m.userStatut === 'REUSSIE';
           const echouee = m.userStatut === 'ECHOUEE';
@@ -180,9 +190,9 @@ export default function MissionsPage() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
-      {!isLoading && !filtrees.length && (
+      {!isLoading && !isError && !filtrees.length && (
         <p className="rounded-2xl border border-dashed border-pierre p-8 text-center text-sm text-graphite/60">
           Aucune mission ne correspond à ces filtres.
         </p>

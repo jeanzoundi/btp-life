@@ -13,6 +13,8 @@ import { BesoinsMini } from './besoins';
 import { NotificationsBell } from './notifications-bell';
 import { IndicateurHorsLigne } from './indicateur-hors-ligne';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
+import { useModeExperienceStore } from '@/lib/mode-experience-store';
+import { SelecteurModeExperience } from './selecteur-mode-experience';
 
 interface CarriereMe {
   niveau: number;
@@ -84,6 +86,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const modeExperience = useModeExperienceStore((s) => s.mode);
+  const modeHydrate = useModeExperienceStore((s) => s.hasHydrated);
 
   const { data: carriere } = useQuery({
     queryKey: ['carriere', 'me'],
@@ -103,6 +107,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMenuOuvert(false);
   }, [pathname]);
+
+  // /app est le portail d'entrée commun : en mode Monde vivant, la ville prend
+  // immédiatement le relais. Le choix persisté évite de le redemander à chaque visite.
+  useEffect(() => {
+    if (modeHydrate && modeExperience === 'monde' && pathname === '/app') {
+      router.replace('/app/monde');
+    }
+  }, [modeExperience, modeHydrate, pathname, router]);
 
   // Bloquer le défilement de fond pendant que le tiroir est ouvert.
   useEffect(() => {
@@ -141,6 +153,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push('/');
   }
 
+  const mondeImmersif = modeExperience === 'monde' && pathname === '/app/monde';
+
+  if (mondeImmersif) {
+    return (
+      <div className="relative h-[100dvh] min-h-[620px] overflow-hidden bg-[#07191d]">
+        <IndicateurHorsLigne />
+        <main className="absolute inset-0">{children}</main>
+
+        <div className="absolute left-3 top-3 z-40 sm:left-4 sm:top-4">
+          <SelecteurModeExperience compact />
+        </div>
+
+        <nav aria-label="Centre de commande" className="absolute bottom-4 right-3 z-40 flex max-w-[calc(100%-180px)] items-center gap-1 overflow-x-auto rounded-2xl border border-white/20 bg-[#10262b]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl sm:bottom-24 sm:left-1/2 sm:right-auto sm:max-w-[calc(100%-24px)] sm:-translate-x-1/2 sm:gap-2 sm:p-2">
+          {[
+            { href: '/app/missions', icon: '🎯', label: 'Missions' },
+            { href: '/app/chantiers', icon: '🏗️', label: 'Chantiers' },
+            { href: '/app/academie', icon: '📚', label: 'Académie' },
+            { href: '/app/messages', icon: '💬', label: 'Social' },
+            { href: '/app/profil', icon: '👤', label: 'Profil' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} title={item.label} aria-label={item.label} className="flex h-10 w-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white sm:h-auto sm:w-16 sm:flex-col sm:px-2 sm:py-1.5 sm:text-[10px] sm:font-semibold">
+              <span className="text-lg sm:text-xl">{item.icon}</span>
+              <span className="hidden sm:inline">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-ivoire md:flex-row">
       {/* Sidebar desktop — sticky avec défilement interne du menu */}
@@ -148,6 +190,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/app" className="border-b border-pierre px-6 py-5 font-display text-xl font-bold text-graphite">
           BTP <span className="text-terracotta">Life</span>
         </Link>
+        <div className="border-b border-pierre p-3"><SelecteurModeExperience /></div>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {SECTIONS_NAV.map((section) => (
             <div key={section.titre} className="mb-4">
@@ -325,6 +368,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
             </Link>
+
+            <div className="mx-5 mt-3">
+              <SelecteurModeExperience />
+            </div>
 
             <nav className="px-3 py-4">
               {SECTIONS_NAV.map((section) => (

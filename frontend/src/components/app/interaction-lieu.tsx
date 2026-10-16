@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { lieuParSlug, type ActionLieu } from '@/lib/lieux';
 import type { BesoinsJoueur } from './quartier-3d';
+import { useState } from 'react';
+import { InterieurLieu3D } from './interieur-lieu-3d';
 
 type ActionBesoin = Extract<ActionLieu, { type: 'besoin' }>;
 export function InteractionLieu({ slug, nom, href, demo, onDemo, onClose }: {
@@ -12,6 +14,7 @@ export function InteractionLieu({ slug, nom, href, demo, onDemo, onClose }: {
   onDemo: (action: ActionBesoin) => void; onClose: () => void;
 }) {
   const client = useQueryClient();
+  const [visite, setVisite] = useState(false);
   const alias: Record<string, string> = { 'jardins-residence': 'residence', marche: 'maquis' };
   const lieu = lieuParSlug(alias[slug] ?? slug);
   const agir = useMutation({
@@ -26,6 +29,8 @@ export function InteractionLieu({ slug, nom, href, demo, onDemo, onClose }: {
     <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.2em] text-amber-200">Lieu sélectionné</p><h2 className="mt-1 text-xl font-bold">{nom}</h2></div><button aria-label="Fermer les interactions" onClick={onClose} className="rounded-lg bg-white/10 px-3 py-2">✕</button></div>
     <p className="mt-2 text-sm text-white/70">{lieu?.role ?? roles[slug]}</p>
     <p className="mt-3 text-xs leading-relaxed text-white/60">{lieu?.intro ?? 'Ouvrez cet établissement pour retrouver les activités de votre carrière.'}</p>
+    <button type="button" onClick={() => setVisite(v => !v)} aria-expanded={visite} className="mt-3 w-full rounded-xl border border-amber-200/30 bg-white/5 p-3 text-left text-sm font-semibold hover:bg-white/10">{visite ? '▾ Fermer la visite intérieure' : '▸ Visiter l’intérieur en 3D'}</button>
+    {visite && <InterieurLieu3D slug={slug} nom={nom} />}
     <div className="mt-4 space-y-2">{lieu?.actions.filter((a): a is ActionBesoin => a.type === 'besoin').map(action => <button key={action.besoin} disabled={agir.isPending} onClick={() => demo ? onDemo(action) : agir.mutate(action)} className="w-full rounded-xl bg-[#e7c17b] p-3 text-left text-sm font-bold text-[#182e32] transition hover:bg-amber-100 disabled:opacity-50">
       {action.icone} {agir.isPending ? 'Action en cours…' : action.label}<span className="mt-1 block text-xs font-normal">{demo ? 'Essai gratuit · non sauvegardé' : action.cout ? `${action.cout.toLocaleString('fr-FR')} FCFA virtuels` : 'Gratuit'}</span>
     </button>)}</div>

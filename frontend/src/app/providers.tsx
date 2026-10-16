@@ -126,10 +126,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       persistOptions={{
         persister: queryPersister,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 jours
-        buster: 'v2-finances', // invalide les anciens soldes persistés avant la synchro financière
+        buster: 'v3-monde-frais', // Élimine aussi les anciennes sauvegardes du monde mises en cache.
         dehydrateOptions: {
           shouldDehydrateQuery: (q) =>
-            q.state.status === 'success' && !NE_PAS_PERSISTER.has(String(q.queryKey?.[0])),
+            q.state.status === 'success' && !q.queryKey.some(key => NE_PAS_PERSISTER.has(String(key))),
         },
       }}
       onSuccess={() => {

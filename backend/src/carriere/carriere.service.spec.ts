@@ -27,12 +27,17 @@ function fakePrisma(overrides: Record<string, object> = {}) {
 }
 
 describe('nettoyerEtatMonde', () => {
+  it('préserve le repère de calcul de l’heure et rejette une date invalide', () => {
+    const date = '2026-10-14T18:00:00.750Z';
+    expect(nettoyerEtatMonde({ heureCalculeeLe: date }).heureCalculeeLe).toBe(date);
+    expect(nettoyerEtatMonde({ heureCalculeeLe: 'invalide' }).heureCalculeeLe).toBeUndefined();
+  });
   it('borne la position et refuse les modes inconnus', () => {
     expect(nettoyerEtatMonde({ position: { x: 999, z: -999 }, mode: 'triche', score: -50 })).toEqual(expect.objectContaining({ position: { x: 118, z: -120 }, mode: 'libre', score: 0 }));
   });
 
   it('conserve une progression et limite les affinités', () => {
-    expect(nettoyerEtatMonde({ relations: { Awa: 145, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90 })).toEqual(expect.objectContaining({ relations: { Awa: 100, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90 }));
+    expect(nettoyerEtatMonde({ relations: { Awa: 145, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90, decouvertes: ['marina', 'marina', 'plage'], records: { urgence: 850, triche: 999999 } })).toEqual(expect.objectContaining({ relations: { Awa: 100, Yao: 3 }, mode: 'urgence', etapeMode: 2, score: 500, secondes: 90, decouvertes: ['marina', 'plage'], records: { urgence: 850 } }));
   });
 });
 

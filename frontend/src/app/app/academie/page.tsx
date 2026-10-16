@@ -41,7 +41,7 @@ function AcademieContent() {
   const [moduleOuvert, setModuleOuvert] = useState<string | null>(null);
   const [coursEnLecture, setCoursEnLecture] = useState<(Cours & { module: string; domaine?: string }) | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['catalog', 'modules-academie'],
     queryFn: () => api.get<{ items: ModuleAcademie[] }>('/catalog/modules-academie?pageSize=50'),
   });
@@ -172,7 +172,18 @@ function AcademieContent() {
         </div>
       )}
 
-      <div className="space-y-2 sm:space-y-3">
+
+      {isError && (
+        <section role="alert" className="rounded-2xl border border-terracotta/25 bg-terracotta/10 p-6 text-center">
+          <p className="font-display text-lg font-bold text-graphite">L’académie n’a pas pu être synchronisée</p>
+          <p className="mt-1 text-sm text-graphite/60">Les cours restent enregistrés sur le serveur. Relance le chargement sans quitter ta partie.</p>
+          <button type="button" disabled={isFetching} onClick={() => void refetch()} className="mt-4 rounded-full bg-graphite px-5 py-2 text-sm font-semibold text-ivoire disabled:opacity-50">
+            {isFetching ? 'Synchronisation…' : 'Réessayer'}
+          </button>
+        </section>
+      )}
+
+      {!isError && <div className="space-y-2 sm:space-y-3">
         {modules.map((m, index) => {
           const ouvert = moduleOuvert === m.id;
           const nbValidables = m.cours.filter((c) => c.missionPratiqueId).length;
@@ -244,9 +255,9 @@ function AcademieContent() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
-      {!isLoading && !modules.length && (
+      {!isLoading && !isError && !modules.length && (
         <p className="rounded-2xl border border-dashed border-pierre p-8 text-center text-sm text-graphite/60">
           Les modules apparaîtront une fois la base seedée.
         </p>

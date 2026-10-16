@@ -1,0 +1,21 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const production = require('dotenv').config({ path: '.env.restore.local' }).parsed;
+const raw = production?.DIRECT_URL || production?.DATABASE_URL;
+if (!raw) throw new Error('Connexion production indisponible');
+const url = new URL(raw);
+if (!url.hostname.endsWith('.supabase.com')) throw new Error('Hôte inattendu');
+const dir = path.resolve('.vercel/restauration');
+fs.mkdirSync(dir, { recursive: true });
+const file = path.join(dir, `avant-restauration-${Date.now()}.dump`);
+const env = { ...process.env, PGCONNECT_TIMEOUT: '15', PGHOST: url.hostname, PGPORT: '5432', PGUSER: decodeURIComponent(url.username), PGPASSWORD: decodeURIComponent(url.password), PGDATABASE: url.pathname.slice(1), PGSSLMODE: 'require' };
+const bin = 'C:/Program Files/PostgreSQL/17/bin/';
+const dump = spawnSync(bin + 'pg_dump.exe', ['--format=custom', '--no-owner', '--no-acl', '--file', file], { env, encoding: 'utf8', timeout: 180000, windowsHide: true });
+if (dump.status !== 0) { console.error('Sauvegarde échouée', dump.stderr); process.exit(1); }
+const check = spawnSync(bin + 'pg_restore.exe', ['--list', file], { encoding: 'utf8', windowsHide: true });
+if (check.status !== 0 || !check.stdout.includes('TABLE DATA public')) throw new Error('Archive non vérifiable');
+const proof = { file, bytes: fs.statSync(file).size, sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex'), verifiedAt: new Date().toISOString() };
+fs.writeFileSync(path.join(dir, 'backup-verifie.json'), JSON.stringify(proof, null, 2));
+console.log(JSON.stringify(proof));

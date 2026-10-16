@@ -1,9 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { appliquerTempsEcoule, choisirEtatMondeRecent, cleSauvegardeMonde, type EtatMonde } from './sauvegarde-monde';
+import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, choisirEtatMondeRecent, cleSauvegardeMonde, type EtatMonde } from './sauvegarde-monde';
 
-const base: EtatMonde = { version: 3, position: { x: 0, z: 0 }, quartier: 'Centre', relations: {}, mode: 'libre', etapeMode: 0, score: 0, secondes: null, heure: 16, pause: false };
+const base: EtatMonde = { version: 4, position: { x: 0, z: 0 }, quartier: 'Centre', relations: {}, mode: 'libre', etapeMode: 0, score: 0, secondes: null, heure: 16, pause: false, decouvertes: [], records: {} };
 
 describe('sauvegarde du monde', () => {
+  it('attend une réponse fraîche réussie et ignore le cache initial', () => {
+    expect(peutRestaurerMonde(false, false, false)).toBe(false);
+    expect(peutRestaurerMonde(true, true, false)).toBe(false);
+    expect(peutRestaurerMonde(true, false, true)).toBe(false);
+    expect(peutRestaurerMonde(true, false, true, true)).toBe(true);
+    expect(peutRestaurerMonde(true, false, false)).toBe(true);
+  });
+
+  it('conserve les fractions de seconde entre sauvegardes fréquentes', () => {
+    let horloge = { heure: 16, instant: 1000, pause: false };
+    for (let i = 1; i <= 20; i++) horloge = avancerHorloge(horloge, 1000 + i * 750);
+    expect(horloge.heure).toBeCloseTo(16.25, 10);
+  });
+
+  it('rattrape un onglet suspendu et passe minuit', () => {
+    expect(avancerHorloge({ heure: 23.5, instant: 1000, pause: false }, 61000).heure).toBe(0.5);
+    expect(avancerHorloge({ heure: 16, instant: 1000, pause: true }, 61000).heure).toBe(16);
+  });
+
+  it('recharge sans perdre le délai de transport de la sauvegarde serveur', () => {
+    const etat = { ...base, heureCalculeeLe: '2026-10-13T10:00:00.000Z', sauvegardeLe: '2026-10-13T10:00:02.000Z' };
+    expect(appliquerTempsEcoule(etat, Date.parse('2026-10-13T10:00:15.750Z')).heure).toBeCloseTo(16.2625);
+  });
   it('isole la sauvegarde de chaque joueur', () => {
     expect(cleSauvegardeMonde('u1')).not.toBe(cleSauvegardeMonde('u2'));
   });
