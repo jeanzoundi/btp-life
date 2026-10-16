@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { destinationUniversite, itineraireUniversite, POINTS_UNIVERSITE } from './plan-universite';
 
 describe('université à deux niveaux', () => {
-  it('expose les six espaces avec deux niveaux', () => {
-    expect(POINTS_UNIVERSITE).toHaveLength(6);
+  it('expose dix espaces avec deux niveaux', () => {
+    expect(POINTS_UNIVERSITE).toHaveLength(10);
     expect(new Set(POINTS_UNIVERSITE.map(p => p.etage))).toEqual(new Set([0, 1]));
-    expect(new Set(POINTS_UNIVERSITE.map(p => p.id)).size).toBe(6);
+    expect(new Set(POINTS_UNIVERSITE.map(p => p.id)).size).toBe(10);
   });
   it('passe obligatoirement par l’escalier pour changer de niveau', () => {
     for (const cible of POINTS_UNIVERSITE.filter(p => p.etage === 1)) {

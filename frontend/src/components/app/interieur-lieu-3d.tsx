@@ -13,6 +13,7 @@ import { FichePosteBureau } from './fiche-poste-bureau';
 import { AutresLieuxRealistes, familleLieu, stationsLieu } from './autres-lieux-realistes';
 import { UniversiteRealiste } from './universite-realiste';
 import { POINTS_UNIVERSITE } from '@/lib/plan-universite';
+import { ACTIVITES_UNIVERSITE, ETAT_CAMPUS_INITIAL, realiserActivite } from '@/lib/activites-universite';
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type Theme = { sol: string; mur: string; accent: string; objets: 'bureau' | 'chantier' | 'detente' | 'commerce' };
@@ -98,6 +99,7 @@ export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: strin
   const autreFamille = familleLieu(slug);
   const points = universite ? POINTS_UNIVERSITE : bureau ? STATIONS_BUREAUX[bureau] : autreFamille ? stationsLieu(autreFamille) : POINTS_RESIDENCE;
   const [fiche, setFiche] = useState(false);
+  const [etatCampus, setEtatCampus] = useState(ETAT_CAMPUS_INITIAL);
   const [destination, setDestination] = useState<number | null>(null);
   const [description, setDescription] = useState('Choisissez une pièce pour vous y rendre.');
   const stationArrivee = (universite || bureau || autreFamille) ? points.find(p => p.detail === description) : undefined;
@@ -124,8 +126,13 @@ export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: strin
       <p className="text-xs font-bold uppercase tracking-widest text-amber-200">{universite ? 'Campus · 2 niveaux' : bureau ? 'Espaces de travail' : autreFamille ? 'Espaces du bâtiment' : 'Votre appartement'}</p>
       <div className="mt-2 grid grid-cols-2 gap-2">{points.map((piece, index) => <button key={piece.id} className="rounded-lg bg-white/10 px-3 py-2 text-left text-sm hover:bg-white/20" onClick={() => { directions.clear(); setFiche(false); setDestination(v => v === null ? index : (Math.floor(v / points.length) + 1) * points.length + index); setDescription(`En route vers : ${piece.label.toLowerCase()}…`); }}>{piece.label}</button>)}</div>
       <p role="status" className="mt-2 text-xs leading-relaxed text-white/65">{description}</p>
-      {stationArrivee && !fiche && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950" onClick={() => setFiche(true)}>Consulter la fiche du poste</button>}
-      {stationArrivee && fiche && <FichePosteBureau key={stationArrivee.id} station={stationArrivee.id} onFermer={() => setFiche(false)} />}
+      {universite && <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+        <div className="grid grid-cols-3 gap-2 text-center text-[10px]"><span>XP<br/><b className="text-amber-200">{etatCampus.xp}</b></span><span>Focus<br/><b className="text-emerald-300">{etatCampus.concentration}%</b></span><span>Social<br/><b className="text-sky-300">{etatCampus.social}%</b></span></div>
+        <p className="mt-2 text-[11px] leading-relaxed text-white/70">{etatCampus.derniereAction}</p>
+      </div>}
+      {universite && stationArrivee && ACTIVITES_UNIVERSITE[stationArrivee.id] && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950 hover:bg-amber-300" onClick={() => setEtatCampus(etat => realiserActivite(etat, stationArrivee.id))}>{ACTIVITES_UNIVERSITE[stationArrivee.id].label}</button>}
+      {!universite && stationArrivee && !fiche && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950" onClick={() => setFiche(true)}>Consulter la fiche du poste</button>}
+      {!universite && stationArrivee && fiche && <FichePosteBureau key={stationArrivee.id} station={stationArrivee.id} onFermer={() => setFiche(false)} />}
     </div>}
     <p className="pointer-events-none absolute bottom-5 right-5 hidden rounded-full bg-slate-950/70 px-4 py-2 text-xs text-white/70 sm:block">ZQSD / flèches · Échap pour sortir</p>
   </section>;
