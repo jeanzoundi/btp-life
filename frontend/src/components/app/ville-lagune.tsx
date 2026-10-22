@@ -1,15 +1,16 @@
 'use client';
 
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { EauLagune, JardinsUrbains } from './ambiance-lagune';
-import { SurfaceBloc, MateriauPBR } from './materiaux-monde';
+import { SurfaceBloc } from './materiaux-monde';
 import { VoitureMonde } from './vehicule-monde';
 import { phaseSignal } from '@/lib/itineraire-ville';
 import { ParcsMonde } from './parcs-monde';
+import { aDevanture, FacadeAbidjan } from './facades-abidjan';
 
 type V = [number, number, number];
 const ivoire = '#e8d9bd';
@@ -44,11 +45,52 @@ function PanneauAffichage({ p, titre, texte, r = 0, couleur = '#d89b3e' }: { p: 
 }
 function Palmier({ p, scale = 1 }: { p: V; scale?: number }) {
   return <group position={p} scale={scale}>
-    <mesh position={[0, 2.5, 0]} rotation={[0, 0, -0.08]} castShadow><cylinderGeometry args={[0.13, 0.28, 5, 7]} /><meshStandardMaterial color="#8b6242" /></mesh>
-    {Array.from({ length: 7 }, (_, i) => <group key={i} position={[0.2, 5, 0]} rotation={[0, i * Math.PI * 2 / 7, 0]}>
-      <mesh position={[0, -0.2, 1.25]} rotation={[0.2, 0, 0]} scale={[0.52, 0.14, 1.8]} castShadow><sphereGeometry args={[1, 7, 5]} /><meshStandardMaterial color={i % 2 ? '#496548' : '#65894e'} roughness={1} /></mesh>
-    </group>)}
+    <mesh position={[0, 2.5, 0]} rotation={[0, 0, -0.08]} castShadow><cylinderGeometry args={[0.13, 0.26, 5, 12]} /><meshStandardMaterial color="#887053" roughness={1} /></mesh>
+    <FeuillagePalmier />
+    {[-.17, .17].map(x => <mesh key={x} position={[x + .2, 4.8, .12]} castShadow><sphereGeometry args={[.18, 8, 6]} /><meshStandardMaterial color="#697341" roughness={1} /></mesh>)}
   </group>;
+}
+
+/** Feathered fronds, batched into one draw call per palm instead of solid paddles. */
+function FeuillagePalmier() {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([
+      0, 0, 0, -.11, -.04, .42, 0, .035, .55,
+      0, .035, .55, -.11, -.04, .42, 0, -.2, 1,
+      0, 0, 0, 0, .035, .55, .11, -.04, .42,
+      0, .035, .55, 0, -.2, 1, .11, -.04, .42,
+    ], 3));
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const m = new THREE.Object3D();
+    let index = 0;
+    for (let frond = 0; frond < 9; frond++) {
+      const angle = frond * Math.PI * 2 / 9;
+      for (let leaf = 0; leaf < 12; leaf++) {
+        const t = (leaf + .5) / 12, radius = t * 2.8;
+        for (const side of [-1, 1]) {
+          m.position.set(.2 + Math.sin(angle) * radius, 5.1 + Math.sin(t * Math.PI) * .55 - t * t * 1.2, Math.cos(angle) * radius);
+          m.rotation.set(.18 + t * .6, angle + side * .95, 0);
+          m.scale.setScalar(.9 * (1 - t * .65));
+          m.updateMatrix();
+          ref.current.setMatrixAt(index, m.matrix);
+          ref.current.setColorAt(index++, new THREE.Color(frond % 3 === 0 ? '#657b39' : '#3e6336'));
+        }
+      }
+    }
+    ref.current.instanceMatrix.needsUpdate = true;
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
+    ref.current.computeBoundingSphere();
+  }, []);
+  return <instancedMesh ref={ref} args={[geometry, undefined, 216]} castShadow receiveShadow>
+    <meshStandardMaterial roughness={.92} side={THREE.DoubleSide} />
+  </instancedMesh>;
 }
 function Banc({ p, r = 0 }: { p: V; r?: number }) {
   return <group position={p} rotation={[0, r, 0]}>
@@ -83,7 +125,7 @@ function Kiosque({ p }: { p: V }) {
 function Textile({ p }: { p: V }) { return <group position={p}>{[-1.5, -0.5, 0.5, 1.5].map((x, i) => <Bloc key={x} p={[x, 0, 0]} s={[1, 0.18, 0.9]} c={i % 2 ? '#efe3bf' : '#3e7666'} />)}</group>; }
 
 /** Original modular architecture: recessed glass, wraparound balconies and shopfronts. */
-export function Architecture({ width: w, height: h, depth: d, kind, color, nuit = false }: { width: number; height: number; depth: number; kind: string; color: string; nuit?: boolean }) {
+export function Architecture({ width: w, height: h, depth: d, kind, color, nuit = false, slug = '' }: { width: number; height: number; depth: number; kind: string; color: string; nuit?: boolean; slug?: string }) {
   if (kind === 'chantier') return <group>
     <Bloc p={[0, 0.18, 0]} s={[w, 0.36, d]} c="#a89980" />
     {[0, 3.3, 6.6].map(y => <group key={y}>
@@ -97,12 +139,14 @@ export function Architecture({ width: w, height: h, depth: d, kind, color, nuit 
   </group>;
   const floors = Math.max(1, Math.floor(h / 3));
   const commercial = kind === 'commerce';
+  const devanture = aDevanture(slug);
   return <group>
     <Bloc p={[0, h / 2, 0]} s={[w, h, d]} c={color} />
     <Bloc p={[0, 0.22, 0]} s={[w + 1.2, 0.44, d + 1.2]} c="#c7c0ad" />
     {Array.from({ length: floors }, (_, f) => <group key={f}>
       <Bloc p={[0, f * 3 + 0.35, 0]} s={[w + 0.6, 0.24, d + 0.6]} c={ivoire} />
       {[0, Math.PI / 2, Math.PI, -Math.PI / 2].map((r, side) => {
+        if (devanture && side === 0 && f === 0) return null;
         const span = side % 2 ? d : w;
         const offset = side % 2 ? w / 2 : d / 2;
         const count = Math.max(2, Math.floor(span / 2.5));
@@ -123,9 +167,9 @@ export function Architecture({ width: w, height: h, depth: d, kind, color, nuit 
     <Bloc p={[0, h + 0.1, 0]} s={[w + 0.8, 0.3, d + 0.8]} c={ivoire} />
     <Bloc p={[0, h + 0.4, 0]} s={[w - 0.8, 0.3, d - 0.8]} c="#697268" />
     <Bloc p={[w * 0.25, h + 0.9, 0]} s={[2, 0.7, 1.4]} c="#aeb6ae" />
-    <Bloc p={[0, 1.25, d / 2 + 0.18]} s={[2, 2.5, 0.25]} c="#233e45" />
+    {devanture ? <FacadeAbidjan slug={slug} largeur={w} profondeur={d} nuit={nuit} /> : <Bloc p={[0, 1.25, d / 2 + 0.18]} s={[2, 2.5, 0.25]} c="#233e45" />}
     {commercial && <>
-      {Array.from({ length: 10 }, (_, i) => <Bloc key={i} p={[(i - 4.5) * w / 10, 2.95, d / 2 + 1]} s={[w / 10, 0.18, 2]} c={i % 2 ? '#f6e7c6' : color} />)}
+      {Array.from({ length: 10 }, (_, i) => <Bloc key={i} p={[(i - 4.5) * w / 10, 3.72, d / 2 + .8]} s={[w / 10, 0.12, 1.4]} c={i % 2 ? '#f6e7c6' : '#355b51'} />)}
       <Parasol p={[-3, 0, d / 2 + 4]} c="#db9e54" /><Parasol p={[3, 0, d / 2 + 4]} c="#f1ddab" />
     </>}
     {kind === 'campus' && [-w * 0.35, w * 0.35].map(x => <Bloc key={x} p={[x, 1.7, d / 2 + 1]} s={[0.6, 3.4, 0.6]} c={ivoire} />)}
@@ -205,20 +249,27 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 export function PaysageLagune({ onDestination, pause = false }: { onDestination: (p: [number, number]) => void; pause?: boolean }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
   const texture = useMemo(() => {
-    const data = new Uint8Array(64 * 64 * 4);
-    for (let i = 0; i < 64 * 64; i++) {
-      const seam = i % 64 % 16 === 0 || Math.floor(i / 64) % 16 === 0;
-      const v = seam ? 145 : 190 + ((i * 73) % 17);
-      data.set([v, v, v, 255], i * 4);
+    const size = 256;
+    const data = new Uint8Array(size * size * 4);
+    for (let i = 0; i < size * size; i++) {
+      const y = Math.floor(i / size), row = Math.floor(y / 32);
+      const x = (i % size + (row % 2) * 32) % size;
+      const seam = x % 64 < 2 || y % 32 < 2;
+      const tile = (Math.floor(x / 64) * 19 + row * 13) % 15;
+      const v = seam ? 132 : 204 + tile + ((i * 73) % 9);
+      data.set([v, v - 9, v - 23, 255], i * 4);
     }
-    const t = new THREE.DataTexture(data, 64, 64); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(36, 33); t.needsUpdate = true;
+    const t = new THREE.DataTexture(data, size, size); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(60, 44); t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true; t.anisotropy = 4; t.needsUpdate = true;
     return t;
   }, []);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group onClick={sol}>
     <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -40]} receiveShadow><planeGeometry args={[300, 260]} /><meshStandardMaterial color="#829079" roughness={1} /></mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><MateriauPBR repeat={64} couleur="#d1cab9"/></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><meshStandardMaterial map={texture} roughness={.94}/></mesh>
     {[-66, -10, 10].map(z => <group key={z}>
       <Bloc p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />
       {Array.from({ length: 56 }, (_, i) => <Bloc key={i} p={[(i - 27.5) * 4.3, 0.08, z]} s={[2, 0.015, 0.1]} c="#e6dcbf" />)}

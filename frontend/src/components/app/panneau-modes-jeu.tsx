@@ -9,7 +9,7 @@ export function PanneauModesJeu({ ouvert, mode, etape, score, secondes, record, 
   const actif = MODES_JEU.find(m => m.id === mode)!;
   const objectif = actif.etapes[etape];
   const fini = actif.etapes.length > 0 && etape >= actif.etapes.length;
-  return <div className="absolute left-3 top-[250px] z-10 w-[min(290px,calc(100%-24px))] text-white sm:top-[210px]">
+  return <div className="absolute left-3 top-36 z-10 w-[min(290px,calc(100%-24px))] text-white">
     <button onClick={onToggle} aria-expanded={ouvert} className="rounded-xl border border-white/20 bg-[#152b30]/95 px-4 py-3 text-left text-sm shadow-xl backdrop-blur">
       <span className="mr-2">{actif.icone}</span><strong>{actif.nom}</strong>{secondes !== null && <span className="ml-3 font-mono text-amber-200">{Math.floor(secondes / 60)}:{String(secondes % 60).padStart(2, '0')}</span>}
     </button>

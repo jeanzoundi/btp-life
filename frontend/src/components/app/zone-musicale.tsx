@@ -37,9 +37,12 @@ export function ControleZoneMusicale({ position, interieur }: { position: [numbe
     audio.current = { contexte, gain, timer }; setActive(zone.id);
   };
   if (!zone) return null;
-  return <aside aria-label={`Zone musicale : ${zone.nom}`} className="absolute right-3 top-56 z-[8] w-44 sm:w-52 rounded-xl border border-fuchsia-200/25 bg-slate-950/90 p-3 text-white shadow-xl backdrop-blur">
+  return <details aria-label={`Zone musicale : ${zone.nom}`} className="absolute right-3 bottom-20 z-[8] max-w-52 rounded-xl bg-slate-950/85 p-3 text-white backdrop-blur">
+    <summary className="cursor-pointer py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">♫ Musique{active ? ' · En écoute' : ''}</summary>
+    <div className="mt-3 border-t border-white/10 pt-3">
     <p className="text-[10px] font-bold uppercase tracking-widest text-fuchsia-200">♫ Zone musicale</p><strong className="mt-1 block text-sm">{zone.nom}</strong><span className="text-[10px] text-white/60">{zone.style}</span>
     <button onClick={active ? arreter : demarrer} className="mt-2 w-full rounded-lg bg-fuchsia-200 px-3 py-2 text-xs font-bold text-slate-950">{active ? '■ Arrêter' : '▶ Écouter'}</button>
     {active && <label className="mt-2 block text-[10px] text-white/70">Volume<input aria-label="Volume de la zone musicale" className="mt-1 w-full accent-fuchsia-300" type="range" min="0" max="0.3" step="0.02" value={volume} onChange={e => setVolume(Number(e.target.value))} /></label>}
-  </aside>;
+    </div>
+  </details>;
 }

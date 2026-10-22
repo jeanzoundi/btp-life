@@ -88,8 +88,8 @@ const TOUCHES: Record<string, Direction | undefined> = {
 
 function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batiment3D; selectionne: boolean; nuit: boolean; onSelect: (b: Batiment3D) => void }) {
   return <group position={[batiment.position[0], 0, batiment.position[2]]} onClick={(e) => { e.stopPropagation(); if (e.delta < 5) onSelect(batiment); }}>
-    <Architecture width={batiment.taille[0]} height={batiment.taille[1]} depth={batiment.taille[2]} color={batiment.couleur} kind={batiment.type} nuit={nuit} />
-    {batiment.type !== 'chantier' && <group position={[0, Math.min(2.25, batiment.taille[1] * 0.35), batiment.taille[2] / 2 + 0.28]}>
+    <Architecture width={batiment.taille[0]} height={batiment.taille[1]} depth={batiment.taille[2]} color={batiment.couleur} kind={batiment.type} nuit={nuit} slug={batiment.slug} />
+    {batiment.type !== 'chantier' && <group position={[0, Math.min(4.15, batiment.taille[1] - .4), batiment.taille[2] / 2 + 0.48]}>
       <mesh><boxGeometry args={[Math.min(batiment.taille[0] - 1, Math.max(4.8, batiment.nom.length * 0.32)), 0.78, 0.14]} /><meshStandardMaterial color="#18363b" roughness={0.5} /></mesh>
       <Text position={[0, 0, 0.09]} fontSize={0.28} maxWidth={batiment.taille[0] - 1.5} color="#fff0ce" anchorX="center" anchorY="middle">{batiment.nom}</Text>
     </group>}
@@ -236,12 +236,12 @@ function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> 
   const cible = useMemo(() => new THREE.Vector3(), []);
   const camera = useThree(s => s.camera);
   useEffect(()=>{const basculer=()=>setProche(v=>!v);window.addEventListener('btp-camera',basculer);return()=>window.removeEventListener('btp-camera',basculer);},[]);
-  useEffect(()=>{camera.position.set(joueur.current.x+(proche?5:20),proche?3.8:22,joueur.current.z+(proche?7:30));controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[proche,camera,joueur]);
+  useEffect(()=>{camera.position.set(joueur.current.x+(proche?8:5),proche?13:3.8,joueur.current.z+(proche?14:7));controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[proche,camera,joueur]);
   useEffect(() => {
     const recentrer = (event: KeyboardEvent) => {
       if (event.code !== 'KeyR' || (event.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return;
       const position = joueur.current;
-      camera.position.set(position.x+(proche?5:20),proche?3.8:22,position.z+(proche?7:30));
+      camera.position.set(position.x+(proche?8:5),proche?13:3.8,position.z+(proche?14:7));
       controles.current?.target.set(position.x, 1, position.z);
       controles.current?.update();
     };
@@ -254,7 +254,7 @@ function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> 
     cible.sub(controles.current.target).multiplyScalar(1 - Math.exp(-6 * delta));
     camera.position.add(cible); controles.current.target.add(cible); controles.current.update();
   });
-  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} minDistance={3} maxDistance={95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
+  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?16:3} maxDistance={proche?48:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
 }
 
 
@@ -498,19 +498,23 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     <Canvas frameloop={interieur ? 'never' : 'always'} shadows={qualite === 'elevee' ? { type: THREE.PCFSoftShadowMap } : false} dpr={qualite === 'elevee' ? [1, 1.75] : 1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
       <Scene nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
     </Canvas>
-    <div className={`pointer-events-none absolute left-3 max-w-[175px] rounded-2xl border border-white/20 bg-[#182e32]/90 p-3 text-white shadow-xl backdrop-blur sm:max-w-[250px] ${immersif ? 'top-20' : 'top-3'}`}>
-      <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#e2bf76]">BTP LIFE · EXPLORATION</span>
-      <strong className="mt-1 block font-display text-lg leading-tight sm:text-2xl">Les Rives d’Abidjan</strong>
-      <span className="mt-1 block text-xs text-white/60">{quartierActuel.nom} · Côte d’Ivoire</span>
-      <div className="mt-3 hidden border-t border-white/15 pt-3 text-[10px] leading-relaxed text-white/70 sm:block">Sol : marcher · Bâtiment : rejoindre<br />Glisser : tourner · Molette : vue proche / ville<br />ZQSD / flèches : marcher · R : recentrer · Échap : fermer</div>
+    <div className={`pointer-events-none absolute left-3 max-w-[190px] rounded-xl bg-slate-950/65 px-3 py-2 text-white backdrop-blur ${immersif ? 'top-20' : 'top-3'}`}>
+      <strong className="block text-sm font-medium">Les Rives d’Abidjan</strong>
+      <span className="block text-[11px] text-white/65">{quartierActuel.nom}</span>
     </div>
     <PanneauModesJeu ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
-    <div role="status" className={`pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[10px] font-bold shadow-lg backdrop-blur sm:hidden ${etatSauvegarde === 'erreur' ? 'border-amber-300/40 bg-amber-950/90 text-amber-100' : 'border-white/20 bg-[#182e32]/90 text-emerald-100'}`}>{libelleSauvegarde}</div>
+    <div role="status" className={`pointer-events-none absolute bottom-3 right-3 max-w-[55%] rounded-lg px-2 py-1 text-right text-[10px] backdrop-blur ${etatSauvegarde === 'erreur' ? 'bg-amber-950/95 text-amber-100' : 'bg-slate-950/65 text-white/70'}`}>{libelleSauvegarde}</div>
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
     <button onClick={() => { setPlan(v => !v); setSelection(null); }} aria-expanded={plan} className="absolute right-3 top-16 rounded-xl border border-white/20 bg-[#182e32]/95 px-4 py-3 text-sm text-amber-100">Plan & lieux</button>
-    <button type="button" onClick={() => { const choix = qualite === 'elevee' ? 'fluide' : 'elevee'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="absolute right-3 top-32 rounded-xl border border-white/20 bg-[#182e32]/95 px-3 py-2 text-xs text-white" aria-label="Changer la qualité graphique">{qualite === 'elevee' ? '✦ Qualité élevée' : '⚡ Mode fluide'}</button>
-    {!plan&&<button className="absolute right-3 top-44 rounded-xl border border-amber-200/30 bg-[#182e32]/95 px-3 py-2 text-xs text-amber-100" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Vue ville ↗':'Vue promenade ↘'}</button>}
+    {!plan && <details className="absolute right-3 top-32 z-10 max-w-[250px] rounded-xl bg-slate-950/85 p-2 text-xs text-white backdrop-blur">
+      <summary className="cursor-pointer rounded-lg px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Options</summary>
+      <div className="mt-2 grid gap-2 border-t border-white/10 pt-2">
+        <button type="button" onClick={() => { const choix = qualite === 'elevee' ? 'fluide' : 'elevee'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la qualité graphique">{qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
+        <button className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir en vue cinéma'}</button>
+        <p className="max-w-52 px-2 py-2 leading-relaxed text-white/60">Sol : marcher · Bâtiment : rejoindre<br />{cameraProche ? 'Vue cinéma : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
+      </div>
+    </details>}
     {plan && <nav aria-label="Lieux du quartier" className="absolute right-3 top-32 z-10 max-h-[55%] w-72 max-w-[calc(100%_-_24px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#182e32]/95 p-3 text-white shadow-xl">
       <h2 className="px-2 py-2 text-xs uppercase tracking-widest text-amber-200">5 quartiers · {BATIMENTS.length} lieux</h2>
       <section className="mb-3 rounded-xl border border-amber-200/20 bg-white/5 p-3" aria-label="Carnet d’exploration">
@@ -537,9 +541,11 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     {message && <p role="status" className="absolute bottom-16 left-3 right-3 rounded-xl bg-emerald-950/95 p-3 text-center text-xs text-emerald-100">{message}</p>}
     <button type="button" onClick={() => setPause((v) => !v)} className="absolute right-3 top-3 rounded-xl border border-white/20 bg-graphite/85 px-3 py-2 text-sm font-bold text-white shadow backdrop-blur" aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'}>{pause ? '▶' : 'Ⅱ'} {affichageHeure}</button>
     <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
-    <div className="absolute bottom-3 left-3 right-3 hidden gap-3 rounded-xl border border-white/15 bg-graphite/85 p-3 shadow-xl backdrop-blur sm:flex">
+    <details className="absolute bottom-28 left-3 z-10 w-48 rounded-xl bg-slate-950/85 p-3 text-xs text-white backdrop-blur sm:bottom-3 sm:w-64">
+      <summary className="cursor-pointer py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Besoins {Math.min(stats.energie, stats.moral, stats.faim, stats.social) < 25 && <span className="ml-2 text-amber-200">· À surveiller</span>}</summary>
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/10 pt-3">
       <JaugeBesoin label="Énergie" valeur={stats.energie} couleur="#60a5fa" /><JaugeBesoin label="Moral" valeur={stats.moral} couleur="#f4c430" /><JaugeBesoin label="Faim" valeur={stats.faim} couleur="#fb923c" /><JaugeBesoin label="Social" valeur={stats.social} couleur="#a78bfa" />
-      <div className="border-l border-white/20 pl-3 text-right text-[10px] text-white/70"><strong className="block text-xs text-white">5 voisins</strong>{libelleSauvegarde}</div>
-    </div>
+      </div>
+    </details>
   </div>;
 }
