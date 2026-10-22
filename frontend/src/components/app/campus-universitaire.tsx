@@ -1,4 +1,5 @@
 'use client';
+import { FluiditeMonde } from './fluidite-monde';
 import { Canvas } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
@@ -26,7 +27,8 @@ export function CampusUniversitaire({onSortir,children}:{onSortir:()=>void;child
   },[directions,interagir,plan,onSortir,lieu,vue,services]);
   const bouton='rounded-xl border border-white/20 bg-slate-950/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-slate-700';
   return <section className="fixed inset-0 z-[100] bg-[#b6c6c7]" aria-label="Campus universitaire navigable">
-    <Canvas shadows dpr={[1,1.5]} camera={{position:[0,4,16],fov:58,near:.1,far:180}} gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1}}>
+    <Canvas shadows dpr={1} camera={{position:[0,4,16],fov:58,near:.1,far:180}} gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1}}>
+      <FluiditeMonde qualite="auto" actif />
       <CampusScene directions={directions} destination={destination} vue={vue} angle={angle} niveauPlan={niveauPlan} onPosition={setPosition} onProximite={changerProximite} onMessage={setMessage} selectionner={selectionner}/>
     </Canvas>
     <header className="pointer-events-none absolute inset-x-0 top-0 flex justify-between gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-4 pb-12 text-white">

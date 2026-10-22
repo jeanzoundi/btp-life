@@ -4,6 +4,8 @@ import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, MapControls, Text } from '@react-three/drei';
 import { EclairageMonde } from './eclairage-monde';
 import { HumainMonde } from './humain-monde';
+import { FluiditeMonde, StatistiquesRendu } from './fluidite-monde';
+import { orienterProgressivement, type QualiteMonde } from '@/lib/fluidite-monde';
 import { itineraireVille } from '@/lib/itineraire-ville';
 import { useQuery } from '@tanstack/react-query';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -152,6 +154,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   const ref = useRef<THREE.Group>(null);
   const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null);
   const delaiSignal = useRef(0);
+  const vecteurs = useMemo(() => ({ mouvement: new THREE.Vector3(), avant: new THREE.Vector3(), droite: new THREE.Vector3(), prochain: new THREE.Vector3() }), []);
   const [marche, setMarche] = useState(false);
   const camera = useThree((s) => s.camera);
   useEffect(() => {
@@ -162,10 +165,11 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   useFrame((_, delta) => {
     if (!ref.current) return;
     if (pause) { if (marche) setMarche(false); return; }
-    const mouvement = new THREE.Vector3();
+    const { mouvement, avant, droite, prochain } = vecteurs;
+    mouvement.set(0, 0, 0);
     if (directions.size) {
-      const avant = new THREE.Vector3(); camera.getWorldDirection(avant); avant.y = 0; avant.normalize();
-      const droite = new THREE.Vector3(-avant.z, 0, avant.x);
+      camera.getWorldDirection(avant); avant.y = 0; avant.normalize();
+      droite.set(-avant.z, 0, avant.x);
       mouvement.addScaledVector(avant, Number(directions.has('avant')) - Number(directions.has('arriere')));
       mouvement.addScaledVector(droite, Number(directions.has('droite')) - Number(directions.has('gauche')));
       destination.current = null;
@@ -179,7 +183,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
     const actif = mouvement.lengthSq() > 0.001;
     if (actif) {
       const distance=Math.min(mouvement.length(),4.5*Math.min(delta,.05));mouvement.normalize();
-      const prochain = ref.current.position.clone().addScaledVector(mouvement, distance);
+      prochain.copy(ref.current.position).addScaledVector(mouvement, distance);
       const bloque = BATIMENTS.some(b => Math.abs(prochain.x - b.position[0]) < b.taille[0] / 2 + 0.7 && Math.abs(prochain.z - b.position[2]) < b.taille[2] / 2 + 0.7);
       if (!bloque) ref.current.position.copy(prochain);
       else {
@@ -190,7 +194,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
       }
       ref.current.position.x = THREE.MathUtils.clamp(ref.current.position.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX);
       ref.current.position.z = THREE.MathUtils.clamp(ref.current.position.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ);
-      ref.current.rotation.y = Math.atan2(mouvement.x, mouvement.z);
+      ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta);
     }
     positionRef.current.copy(ref.current.position);
     delaiSignal.current += delta;
@@ -205,16 +209,19 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
   const index = useRef(depart % route.length);
   const approche = useRef(false);
   const [attend, setAttend] = useState(false);
+  const mouvement = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, delta) => {
-    if (!ref.current || pause) return;
+    if (!ref.current) return;
+    if (pause || approche.current) ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(joueur.current.x-ref.current.position.x,joueur.current.z-ref.current.position.z), delta);
+    if (pause) return;
     if (approche.current) {
       if (ref.current.position.distanceTo(joueur.current) <= 4) { approche.current = false; setAttend(false); destination.current = null; onParler(nom); }
       return;
     }
     const cible = route[index.current];
-    const mouvement = new THREE.Vector3(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
+    mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
     if (mouvement.lengthSq() < 0.18) index.current = (index.current + 1) % route.length;
-    else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05)); ref.current.rotation.y = Math.atan2(mouvement.x, mouvement.z); }
+    else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05)); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
   });
   const point = route[depart % route.length];
   return <group ref={ref} position={[point[0], 0, point[1]]} onClick={e => {
@@ -225,7 +232,8 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
 }
 function Passant({ route, depart, pause, couleur }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string }) {
   const ref = useRef<THREE.Group>(null); const index = useRef(depart % route.length);
-  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; const mouvement = new THREE.Vector3(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05)); ref.current.rotation.y = Math.atan2(mouvement.x, mouvement.z); } });
+  const mouvement = useMemo(() => new THREE.Vector3(), []);
+  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05)); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
   const point = route[depart % route.length];
   return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={depart % 3 === 0} variante={depart + Math.round(point[0])} /></group>;
 }
@@ -313,9 +321,9 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
   const [heure, setHeure] = useState(16);
-  const [qualite, setQualite] = useState<'fluide' | 'elevee'>('elevee');
+  const [qualite, setQualite] = useState<QualiteMonde>('auto');
   useEffect(() => {
-    try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee') setQualite(choix); } catch { /* Stockage facultatif. */ }
+    try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') setQualite(choix); } catch { /* Stockage facultatif. */ }
   }, []);
   const [pause, setPause] = useState(false);
   const [selection, setSelection] = useState<Batiment3D | null>(null);
@@ -495,7 +503,8 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const stats = demo ? demoStats : besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 };
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
   return <div className={`relative w-full overflow-hidden border border-white/20 bg-slate-900 shadow-2xl ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl'}`} data-testid="quartier-3d">
-    <Canvas frameloop={interieur ? 'never' : 'always'} shadows={qualite === 'elevee' ? { type: THREE.PCFSoftShadowMap } : false} dpr={qualite === 'elevee' ? [1, 1.75] : 1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
+    <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
+      <FluiditeMonde qualite={qualite} actif={!interieur} />
       <Scene nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
     </Canvas>
     <div className={`pointer-events-none absolute left-3 max-w-[190px] rounded-xl bg-slate-950/65 px-3 py-2 text-white backdrop-blur ${immersif ? 'top-20' : 'top-3'}`}>
@@ -510,7 +519,8 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     {!plan && <details className="absolute right-3 top-32 z-10 max-w-[250px] rounded-xl bg-slate-950/85 p-2 text-xs text-white backdrop-blur">
       <summary className="cursor-pointer rounded-lg px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Options</summary>
       <div className="mt-2 grid gap-2 border-t border-white/10 pt-2">
-        <button type="button" onClick={() => { const choix = qualite === 'elevee' ? 'fluide' : 'elevee'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la qualité graphique">{qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
+        <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
+        <StatistiquesRendu />
         <button className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir en vue cinéma'}</button>
         <p className="max-w-52 px-2 py-2 leading-relaxed text-white/60">Sol : marcher · Bâtiment : rejoindre<br />{cameraProche ? 'Vue cinéma : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
       </div>
