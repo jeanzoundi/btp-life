@@ -145,7 +145,7 @@ export const Architecture = memo(function Architecture({ width: w, height: h, de
   </group>;
 });
 
-function Traffic({ offset, color, pause }: { offset: number; color: string; pause: boolean }) {
+function Traffic({ offset, color, pause, rythme = 1 }: { offset: number; color: string; pause: boolean; rythme?: number }) {
   const car = useRef<THREE.Group>(null);
   const vitesse = useRef(3);
   useFrame(({ clock }, delta) => {
@@ -154,7 +154,7 @@ function Traffic({ offset, color, pause }: { offset: number; color: string; paus
     const feuRouge = phaseSignal(clock.elapsedTime,'horizontal')!=='vert';
     const x = car.current.position.x;
     const distance = Math.min(...[-58.5, 49.5].map(stop => stop-x).filter(d => d >= -.001), Infinity);
-    const mouvement = avancerTrafic(vitesse.current, distance, feuRouge, delta);
+    const mouvement = avancerTrafic(vitesse.current, distance, feuRouge, delta * rythme);
     vitesse.current = mouvement.vitesse;
     car.current.position.x = ((x + mouvement.deplacement + 60) % 120) - 60;
   });
@@ -162,7 +162,7 @@ function Traffic({ offset, color, pause }: { offset: number; color: string; paus
     <VoitureMonde couleur={color} roulage={vitesse}/>
   </group>;
 }
-function TrafficVertical({ x, offset, color, pause, inverse = false }: { x: number; offset: number; color: string; pause: boolean; inverse?: boolean }) {
+function TrafficVertical({ x, offset, color, pause, inverse = false, rythme = 1 }: { x: number; offset: number; color: string; pause: boolean; inverse?: boolean; rythme?: number }) {
   const car = useRef<THREE.Group>(null);
   const vitesse = useRef(2.8);
   useFrame((_, delta) => {
@@ -173,7 +173,7 @@ function TrafficVertical({ x, offset, color, pause, inverse = false }: { x: numb
     const stops = inverse ? [-61, -5, 15] : [-71, -15, 5];
     const sens = inverse ? -1 : 1;
     const distance = Math.min(...stops.map(stop => (stop-z)*sens).filter(d => d >= -.001), Infinity);
-    const mouvement = avancerTrafic(vitesse.current, distance, feuRouge, delta, 2.8);
+    const mouvement = avancerTrafic(vitesse.current, distance, feuRouge, delta * rythme, 2.8);
     vitesse.current = mouvement.vitesse;
     car.current.position.z = ((z + mouvement.deplacement * sens + 120) % 240) - 120;
   });
@@ -181,19 +181,19 @@ function TrafficVertical({ x, offset, color, pause, inverse = false }: { x: numb
     <VoitureMonde couleur={color} roulage={vitesse}/>
   </group>;
 }
-function Bus({ pause }: { pause: boolean }) {
+function Bus({ pause, rythme = 1 }: { pause: boolean; rythme?: number }) {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }, delta) => {
     if (!ref.current || pause) return;
     const x = ref.current.position.x;
     const feuRouge = phaseSignal(clock.elapsedTime,'horizontal')!=='vert';
-    if (!feuRouge || ![-58.5, 49.5].some(stop => Math.abs(x - stop) < 0.9)) ref.current.position.x = ((x + Math.min(delta, 0.05) * 2.1 + 118) % 236) - 118;
+    if (!feuRouge || ![-58.5, 49.5].some(stop => Math.abs(x - stop) < 0.9)) ref.current.position.x = ((x + Math.min(delta, 0.05) * 2.1 * rythme + 118) % 236) - 118;
   });
   return <group ref={ref} position={[-80, 0, -66]}><Bloc p={[0, 1.25, 0]} s={[6.5, 2.3, 2.2]} c="#e4b43d" /><Bloc p={[0.4, 1.6, 1.12]} s={[4.6, 0.75, 0.08]} c="#274957" />{[-2.1, 2.1].flatMap(x => [-1.12, 1.12].map(z => <mesh key={`${x}-${z}`} position={[x, 0.35, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.48, 0.48, 0.22, 12]} /><meshStandardMaterial color="#20272b" /></mesh>))}</group>;
 }
-function Bateau({ pause, offset }: { pause: boolean; offset: number }) {
+function Bateau({ pause, offset, rythme = 1 }: { pause: boolean; offset: number; rythme?: number }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame((_, delta) => { if (ref.current && !pause) ref.current.position.x = ((ref.current.position.x + Math.min(delta, 0.05) * 1.5 + 130) % 260) - 130; });
+  useFrame((_, delta) => { if (ref.current && !pause) ref.current.position.x = ((ref.current.position.x + Math.min(delta, 0.05) * 1.5 * rythme + 130) % 260) - 130; });
   return <group ref={ref} position={[offset, 0.3, 82]}><mesh rotation={[Math.PI / 2, 0, Math.PI / 2]}><coneGeometry args={[1.6, 6, 4]} /><meshStandardMaterial color="#f3eee0" /></mesh><Bloc p={[0, 1, 0]} s={[2.8, 1.2, 1.8]} c="#3e7781" /><Bloc p={[0, 2.6, 0]} s={[0.12, 4, 0.12]} c="#614d3e" /><mesh position={[0, 3.2, 0.05]}><planeGeometry args={[3.4, 2.4]} /><meshStandardMaterial color="#f0dba7" side={THREE.DoubleSide} /></mesh></group>;
 }
 function Oiseaux({ pause }: { pause: boolean }) {
@@ -223,7 +223,8 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 }
 
 /** A pedestrian square, tree-lined boulevards and a lagoon promenade. */
-export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false }: { onDestination: (p: [number, number]) => void; pause?: boolean }) {
+/** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
+export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1 }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
   const texture = useMemo(() => {
     const size = 256;
@@ -298,14 +299,14 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     {[-70, -50, -30, -10, 10, 30, 50, 70].map((x, i) => <group key={x}><Parasol p={[x, 0.1, 57]} c={i % 2 ? '#d4664f' : '#f1d471'} /><Bloc p={[x + 2.2, 0.18, 59]} s={[2.4, 0.18, 0.75]} c="#55a1a2" r={-0.15} /></group>)}
     <group position={[0, 0.1, 57]}><Bloc p={[0, 0.08, 0]} s={[12, 0.12, 7]} c="#e8d5a4" />{[-6, 6].map(x => <Bloc key={x} p={[x, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#e8ece5" />)}<Bloc p={[0, 2.75, 0]} s={[12, 0.12, 0.12]} c="#e8ece5" /></group>
     <group position={[-93, 0, 60]}>{[-7, 0, 7].map((x, i) => <group key={x} position={[x, 0, 0]}><Kiosque p={[0, 0, 0]} />{i < 2 && <Parasol p={[3.3, 0, 2]} c="#efcf78" />}</group>)}</group>
-    <Fontaine /><Bus pause={pause} /><Bateau pause={pause} offset={-60} /><Bateau pause={pause} offset={30} /><Oiseaux pause={pause} />
+    <Fontaine /><Bus pause={pause} rythme={rythme} /><Bateau pause={pause} offset={-60} rythme={rythme} /><Bateau pause={pause} offset={30} rythme={rythme} /><Oiseaux pause={pause} />
     {/* Skyline gives the playable district a wider urban context. */}
     {Array.from({ length: 12 }, (_, i) => <ArchitectureBlock key={i} i={i} />)}
-    <Traffic offset={0} color="#cc8b42" pause={pause} /><Traffic offset={35} color="#a45340" pause={pause} /><Traffic offset={-35} color="#e0d8c4" pause={pause} />
-    <TrafficVertical x={-52.5} offset={-95} color="#d5a42d" pause={pause} />
-    <TrafficVertical x={-55.5} offset={-25} color="#577e97" pause={pause} inverse />
-    <TrafficVertical x={52.5} offset={-65} color="#f0ece0" pause={pause} />
-    <TrafficVertical x={55.5} offset={20} color="#b65d45" pause={pause} inverse />
+    <Traffic offset={0} color="#cc8b42" pause={pause} rythme={rythme} /><Traffic offset={35} color="#a45340" pause={pause} rythme={rythme} /><Traffic offset={-35} color="#e0d8c4" pause={pause} rythme={rythme} />
+    <TrafficVertical x={-52.5} offset={-95} color="#d5a42d" pause={pause} rythme={rythme} />
+    <TrafficVertical x={-55.5} offset={-25} color="#577e97" pause={pause} inverse rythme={rythme} />
+    <TrafficVertical x={52.5} offset={-65} color="#f0ece0" pause={pause} rythme={rythme} />
+    <TrafficVertical x={55.5} offset={20} color="#b65d45" pause={pause} inverse rythme={rythme} />
   </group>;
 });
 function ArchitectureBlock({ i }: { i: number }) {

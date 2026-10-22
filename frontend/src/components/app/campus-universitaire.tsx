@@ -1,5 +1,6 @@
 'use client';
 import { FluiditeMonde } from './fluidite-monde';
+import { qualiteMemorisee } from '@/lib/fluidite-monde';
 import { Canvas } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
@@ -14,6 +15,7 @@ export function CampusUniversitaire({onSortir,children}:{onSortir:()=>void;child
   const [position,setPosition]=useState<PositionCampus>({x:0,z:10,y:0,etage:0});
   const [proximite,setProximite]=useState<string|null>(null),[destination,setDestination]=useState<{id:string;serie:number}|null>(null);
   const [message,setMessage]=useState('Bienvenue. Marchez vers les portes ou utilisez le plan du campus.');
+  const [qualite]=useState(qualiteMemorisee);
   const [reussites,setReussites]=useState<string[]>([]);
   const lieu=SALLES_CAMPUS.find(s=>s.id===proximite);
   const selectionner=useCallback((id:string)=>{directions.clear();setDestination(v=>({id,serie:(v?.serie??0)+1}));setPlan(false);setVue('joueur');setInteragir(false);},[directions]);
@@ -28,7 +30,7 @@ export function CampusUniversitaire({onSortir,children}:{onSortir:()=>void;child
   const bouton='rounded-xl border border-white/20 bg-slate-950/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-slate-700';
   return <section className="fixed inset-0 z-[100] bg-[#b6c6c7]" aria-label="Campus universitaire navigable">
     <Canvas shadows dpr={1} camera={{position:[0,4,16],fov:58,near:.1,far:180}} gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1}}>
-      <FluiditeMonde qualite="auto" actif />
+      <FluiditeMonde qualite={qualite} actif rayonOcclusion={.45} />
       <CampusScene directions={directions} destination={destination} vue={vue} angle={angle} niveauPlan={niveauPlan} onPosition={setPosition} onProximite={changerProximite} onMessage={setMessage} selectionner={selectionner}/>
     </Canvas>
     <header className="pointer-events-none absolute inset-x-0 top-0 flex justify-between gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-4 pb-12 text-white">

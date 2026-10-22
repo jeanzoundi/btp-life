@@ -22,6 +22,14 @@ import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
 import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
+import { besoinCritique, humeurDepuisBesoins, type Humeur } from './besoins';
+import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
+import { Pluie } from './meteo-monde';
+import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from '@/lib/meteo-monde';
+import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
+
+type Critique = { icone: string; label: string } | null;
+const VITESSES = [1, 2, 3] as const;
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type PointMonde = [number, number];
@@ -150,8 +158,9 @@ function PersonnageAncien({ nom, couleur = '#c1502e', marche = false, casque = f
   </group>;
 }
 
-function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void }) {
+function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition, humeur, critique, contexte, bulles }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; humeur: Humeur; critique: Critique; contexte: ContextePensee; bulles: boolean }) {
   const ref = useRef<THREE.Group>(null);
+  const pensee = usePenseePeriodique(graine => penseeJoueur(critique, contexte, graine), bulles, 3, critique ? 11 : 26);
   const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null);
   const delaiSignal = useRef(0);
   const vecteurs = useMemo(() => ({ mouvement: new THREE.Vector3(), avant: new THREE.Vector3(), droite: new THREE.Vector3(), prochain: new THREE.Vector3() }), []);
@@ -201,15 +210,17 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
     if (actif && delaiSignal.current >= 1.5) { delaiSignal.current = 0; onPosition?.([ref.current.position.x, ref.current.position.z]); }
     if (actif !== marche) { if (!actif) onPosition?.([ref.current.position.x, ref.current.position.z]); setMarche(actif); }
   });
-  return <group ref={ref}><Personnage nom={nom} marche={marche} casque variante={1} /></group>;
+  return <group ref={ref}><Personnage nom={nom} marche={marche} casque variante={1} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} /></group>;
 }
 
-function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, onParler }: { nom: string; couleur: string; route: PointMonde[]; depart: number; pause: boolean; joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void }) {
+function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, onParler, rythme, contexte, bulles }: { nom: string; couleur: string; route: PointMonde[]; depart: number; pause: boolean; joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void; rythme: number; contexte: ContextePensee; bulles: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const index = useRef(depart % route.length);
   const approche = useRef(false);
   const [attend, setAttend] = useState(false);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
+  const pensee = usePenseePeriodique(graine => penseePnj(nom, contexte, graine + depart), bulles && !pause, 6 + depart * 3.7, 20,
+    () => Boolean(ref.current && ref.current.position.distanceTo(joueur.current) < 34));
   useFrame((_, delta) => {
     if (!ref.current) return;
     if (pause || approche.current) ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(joueur.current.x-ref.current.position.x,joueur.current.z-ref.current.position.z), delta);
@@ -221,19 +232,19 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
     const cible = route[index.current];
     mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
     if (mouvement.lengthSq() < 0.18) index.current = (index.current + 1) % route.length;
-    else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05)); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
+    else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
   });
   const point = route[depart % route.length];
   return <group ref={ref} position={[point[0], 0, point[1]]} onClick={e => {
     e.stopPropagation(); if (e.delta >= 5 || !ref.current) return;
     if (ref.current.position.distanceTo(joueur.current) <= 4) onParler(nom);
     else { approche.current = true; setAttend(true); destination.current = [ref.current.position.x, ref.current.position.z]; }
-  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} /></group>;
+  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
 }
-function Passant({ route, depart, pause, couleur }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string }) {
+function Passant({ route, depart, pause, couleur, rythme }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string; rythme: number }) {
   const ref = useRef<THREE.Group>(null); const index = useRef(depart % route.length);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
-  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05)); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
+  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
   const point = route[depart % route.length];
   return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={depart % 3 === 0} variante={depart + Math.round(point[0])} /></group>;
 }
@@ -285,23 +296,27 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte }: { nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void }) {
+function Scene({ nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
   const joueur = useRef(new THREE.Vector3());
   const nuit = heure >= 19 || heure < 6;
+  const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
+  const pluie = ambianceMeteo(meteo).pluie;
+  const contexte = useMemo<ContextePensee>(() => ({ meteo, heure }), [meteo, heure]);
   const noms = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
   const choisirDestination = useCallback((point: PointMonde) => { destination.current = point; }, [destination]);
   return <>
-    <EclairageMonde heure={heure} />
-    {nuit && [[-42, 4, -15], [0, 4, -15], [42, 4, -15], [-42, 4, 15], [0, 4, 15], [42, 4, 15], [0, 4, 47]].map((p, i) => <pointLight key={i} position={p as [number, number, number]} color="#ffd778" intensity={7} distance={18} decay={2} />)}
-    <PaysageLagune pause={pause} onDestination={choisirDestination} /><MarqueurDestination destination={destination} />
+    <EclairageMonde heure={heure} meteo={meteo} />
+    {sombre && [[-42, 4, -15], [0, 4, -15], [42, 4, -15], [-42, 4, 15], [0, 4, 15], [42, 4, 15], [0, 4, 47]].map((p, i) => <pointLight key={i} position={p as [number, number, number]} color="#ffd778" intensity={nuit ? 7 : 4} distance={18} decay={2} />)}
+    {pluie > 0 && <Pluie intensite={pluie} pause={pause} />}
+    <PaysageLagune pause={pause} rythme={rythme} onDestination={choisirDestination} /><MarqueurDestination destination={destination} />
     {POINTS_DECOUVERTE.map(point => <PointDecouverte key={point.id} point={point} trouve={decouvertes.includes(point.id)} onTrouver={(id, nom) => {
       if (Math.hypot(joueur.current.x - point.position[0], joueur.current.z - point.position[1]) <= 6) onDecouverte(id, nom);
       else destination.current = point.position;
     }} />)}
     {BATIMENTS.map((b) => <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
-    <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} />
-    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} />)}
-    {ROUTES_PASSANTS.flatMap((route, i) => [0, 2].map((depart, j) => <Passant key={`passant-${i}-${j}`} route={route} depart={depart} pause={pause} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} />))}
+    <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} />
+    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} />)}
+    {ROUTES_PASSANTS.flatMap((route, i) => [0, 2].map((depart, j) => <Passant key={`passant-${i}-${j}`} route={route} depart={depart} pause={pause} rythme={rythme} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} />))}
     <CameraSims joueur={joueur} />
   </>;
 }
@@ -326,6 +341,10 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') setQualite(choix); } catch { /* Stockage facultatif. */ }
   }, []);
   const [pause, setPause] = useState(false);
+  // Vitesse et météo forcée restent propres à la session : le format de sauvegarde ne change pas.
+  const [vitesse, setVitesse] = useState<(typeof VITESSES)[number]>(1);
+  const vitesseRef = useRef(1);
+  const [meteoForcee, setMeteoForcee] = useState<Meteo | null>(null);
   const [selection, setSelection] = useState<Batiment3D | null>(null);
   const [interieur, setInterieur] = useState<Batiment3D | null>(null);
   const lieuEnApproche = useRef<Batiment3D | null>(null);
@@ -422,7 +441,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     if (hydratationRef.current) { hydratationRef.current = false; return; }
     const quartier = [...QUARTIERS].sort((a, b) => Math.hypot(positionCourante[0] - a.x, positionCourante[1] - a.z) - Math.hypot(positionCourante[0] - b.x, positionCourante[1] - b.z))[0]?.nom ?? 'Les Palmiers';
     const maintenant = Date.now();
-    horlogeRef.current = { ...avancerHorloge(horlogeRef.current, maintenant), pause };
+    horlogeRef.current = { ...avancerHorloge(horlogeRef.current, maintenant, vitesseRef.current), pause };
     const etat: EtatMonde = { version: 4, position: { x: positionCourante[0], z: positionCourante[1] }, quartier, relations, mode, etapeMode, score, secondes, heure: horlogeRef.current.heure, heureCalculeeLe: new Date(maintenant).toISOString(), pause, decouvertes, records, sauvegardeLe: new Date(maintenant).toISOString() };
     etatRef.current = etat;
     if (pretRef.current && !demo) {
@@ -477,11 +496,19 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   }, [demo, userId]);
   useEffect(() => {
     if (pause) return;
+    // Toujours cinq minutes de jeu par pas, quelle que soit la vitesse : le soleil avance sans à-coups visibles.
     const timer = window.setInterval(() => {
-      if (pretRef.current) setHeure(avancerHorloge(horlogeRef.current, Date.now()).heure);
-    }, 5000);
+      if (pretRef.current) setHeure(avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure);
+    }, 5000 / vitesse);
     return () => window.clearInterval(timer);
-  }, [pause]);
+  }, [pause, vitesse]);
+  const changerVitesse = useCallback((nouvelle: (typeof VITESSES)[number]) => {
+    // Recale l'horloge à l'ancienne vitesse avant de changer, pour ne pas réécrire le temps déjà écoulé.
+    const maintenant = Date.now();
+    horlogeRef.current = { ...avancerHorloge(horlogeRef.current, maintenant, vitesseRef.current), pause: false };
+    vitesseRef.current = nouvelle;
+    setVitesse(nouvelle); setPause(false); setHeure(horlogeRef.current.heure);
+  }, []);
   useEffect(() => {
     if (pause || secondes === null || secondes <= 0 || etapeMode >= modeActif.etapes.length) return;
     const timer = window.setInterval(() => setSecondes(s => s === null ? null : Math.max(0, s - 1)), 1000);
@@ -501,15 +528,22 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
   const stats = demo ? demoStats : besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 };
+  const humeur = humeurDepuisBesoins(stats);
+  const critique = besoinCritique(stats);
+  const meteo = meteoForcee ?? meteoDuMoment(new Date(), heure);
+  const nuit = heure >= 19 || heure < 6;
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
   return <div className={`relative w-full overflow-hidden border border-white/20 bg-slate-900 shadow-2xl ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl'}`} data-testid="quartier-3d">
+    {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
+    <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
-      <FluiditeMonde qualite={qualite} actif={!interieur} />
-      <Scene nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
+      <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
+      <Scene meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
     </Canvas>
-    <div className={`pointer-events-none absolute left-3 max-w-[190px] rounded-xl bg-slate-950/65 px-3 py-2 text-white backdrop-blur ${immersif ? 'top-20' : 'top-3'}`}>
+    </div>
+    <div className={`pointer-events-none absolute left-3 max-w-[160px] rounded-xl bg-slate-950/65 px-3 py-2 text-white backdrop-blur sm:max-w-[190px] ${immersif ? 'top-20' : 'top-16 sm:top-3'}`}>
       <strong className="block text-sm font-medium">Les Rives d’Abidjan</strong>
-      <span className="block text-[11px] text-white/65">{quartierActuel.nom}</span>
+      <span className="block text-[11px] text-white/65">{quartierActuel.nom} · <span data-testid="meteo-monde">{LIBELLES_METEO[meteo].icone} {LIBELLES_METEO[meteo].nom}</span></span>
     </div>
     <PanneauModesJeu ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
@@ -521,6 +555,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
       <div className="mt-2 grid gap-2 border-t border-white/10 pt-2">
         <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
         <StatistiquesRendu />
+        <button type="button" className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
         <button className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir en vue cinéma'}</button>
         <p className="max-w-52 px-2 py-2 leading-relaxed text-white/60">Sol : marcher · Bâtiment : rejoindre<br />{cameraProche ? 'Vue cinéma : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
       </div>
@@ -549,7 +584,11 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
       }} />
     </InterieurLieu3D>}
     {message && <p role="status" className="absolute bottom-16 left-3 right-3 rounded-xl bg-emerald-950/95 p-3 text-center text-xs text-emerald-100">{message}</p>}
-    <button type="button" onClick={() => setPause((v) => !v)} className="absolute right-3 top-3 rounded-xl border border-white/20 bg-graphite/85 px-3 py-2 text-sm font-bold text-white shadow backdrop-blur" aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'}>{pause ? '▶' : 'Ⅱ'} {affichageHeure}</button>
+    <div role="group" aria-label="Vitesse du temps" className="absolute right-3 top-3 flex items-center gap-0.5 rounded-xl border border-white/20 bg-graphite/85 p-1 text-white shadow backdrop-blur">
+      <button type="button" onClick={() => setPause((v) => !v)} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`h-8 w-8 rounded-lg text-xs font-bold ${pause ? 'bg-amber-300 text-slate-900' : 'hover:bg-white/15'}`}>Ⅱ</button>
+      {VITESSES.map(v => <button key={v} type="button" onClick={() => changerVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`h-8 min-w-8 rounded-lg px-1 text-[10px] font-bold tracking-tighter ${!pause && vitesse === v ? 'bg-emerald-400 text-slate-900' : 'hover:bg-white/15'}`}>{'▶'.repeat(v)}</button>)}
+      <span className="px-1.5 text-sm font-bold tabular-nums">{affichageHeure}</span>
+    </div>
     <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
     <details className="absolute bottom-28 left-3 z-10 w-48 rounded-xl bg-slate-950/85 p-3 text-xs text-white backdrop-blur sm:bottom-3 sm:w-64">
       <summary className="cursor-pointer py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Besoins {Math.min(stats.energie, stats.moral, stats.faim, stats.social) < 25 && <span className="ml-2 text-amber-200">· À surveiller</span>}</summary>

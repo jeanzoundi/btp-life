@@ -233,6 +233,12 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   50% { transform: scaleX(0.25); }
 }
 .plumbob-bob { animation: plumbob-bob 1.6s ease-in-out infinite; }
+/* Bulle de pensée du monde 3D : apparition souple, sans recalcul de la scène */
+@keyframes bulle-pensee {
+  from { opacity: 0; transform: translateY(8px) scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+.bulle-pensee { animation: bulle-pensee 0.35s ease-out both; }
 .plumbob-spin { animation: plumbob-spin 1.6s linear infinite; transform-origin: center; }
 
 /* Nuages qui dérivent lentement */
@@ -400,7 +406,7 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .cours-pop { animation: cours-pop 0.35s ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  .plumbob-bob, .plumbob-spin, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway, .pnj-marche,
+  .plumbob-bob, .plumbob-spin, .bulle-pensee, .nuage-drift, .nuage-drift-lent, .avatar-marche, .anim-sway, .pnj-marche,
   .avatar-anim-repos, .avatar-anim-marche, .avatar-anim-lecture-plan, .avatar-anim-tablette, .avatar-anim-celebration { animation: none; }
   .batiment-iso { transition: none; }
 }

@@ -48,8 +48,9 @@ export function appliquerTempsEcoule(etat: EtatMonde, maintenant = Date.now()): 
   };
 }
 
-export function avancerHorloge(origine: { heure: number; instant: number; pause: boolean }, maintenant: number) {
-  return { heure: (origine.heure + (origine.pause ? 0 : Math.max(0, maintenant - origine.instant) / 60000)) % 24, instant: maintenant, pause: origine.pause };
+/** `vitesse` (1, 2 ou 3) accélère seulement la session ouverte : le temps hors ligne reste rejoué à 1x. */
+export function avancerHorloge(origine: { heure: number; instant: number; pause: boolean }, maintenant: number, vitesse = 1) {
+  return { heure: (origine.heure + (origine.pause ? 0 : Math.max(0, maintenant - origine.instant) / 60000 * vitesse)) % 24, instant: maintenant, pause: origine.pause };
 }
 
 export function peutRestaurerMonde(fetched: boolean, fetching: boolean, error: boolean, localDisponible = false) {

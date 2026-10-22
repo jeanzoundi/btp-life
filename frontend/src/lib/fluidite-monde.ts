@@ -1,5 +1,14 @@
 export type QualiteMonde = 'auto' | 'elevee' | 'fluide';
 
+/** Le choix fait dans la ville s'applique aussi aux intérieurs et au campus. */
+export function qualiteMemorisee(): QualiteMonde {
+  try {
+    const choix = window.localStorage.getItem('btp-life-qualite');
+    if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') return choix;
+  } catch { /* Stockage facultatif. */ }
+  return 'auto';
+}
+
 /** Hysteresis avoids oscillating between resolutions near the same frame rate. */
 export function ajusterResolution(dpr: number, fps: number, plafond: number) {
   if (!Number.isFinite(fps) || fps <= 0) return dpr;

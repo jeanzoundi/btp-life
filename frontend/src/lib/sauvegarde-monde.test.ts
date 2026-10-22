@@ -23,6 +23,12 @@ describe('sauvegarde du monde', () => {
     expect(avancerHorloge({ heure: 16, instant: 1000, pause: true }, 61000).heure).toBe(16);
   });
 
+  it('accélère le temps en 2x et 3x, sans effet en pause', () => {
+    expect(avancerHorloge({ heure: 10, instant: 0, pause: false }, 60000, 2).heure).toBe(12);
+    expect(avancerHorloge({ heure: 10, instant: 0, pause: false }, 60000, 3).heure).toBe(13);
+    expect(avancerHorloge({ heure: 10, instant: 0, pause: true }, 60000, 3).heure).toBe(10);
+  });
+
   it('recharge sans perdre le délai de transport de la sauvegarde serveur', () => {
     const etat = { ...base, heureCalculeeLe: '2026-10-13T10:00:00.000Z', sauvegardeLe: '2026-10-13T10:00:02.000Z' };
     expect(appliquerTempsEcoule(etat, Date.parse('2026-10-13T10:00:15.750Z')).heure).toBeCloseTo(16.2625);
