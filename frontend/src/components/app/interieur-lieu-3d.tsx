@@ -13,6 +13,8 @@ import { FichePosteBureau } from './fiche-poste-bureau';
 import { AutresLieuxRealistes, familleLieu, stationsLieu } from './autres-lieux-realistes';
 import { UniversiteRealiste } from './universite-realiste';
 import { POINTS_UNIVERSITE } from '@/lib/plan-universite';
+import { AtelierCampus } from './atelier-campus';
+import { CampusUniversitaire } from './campus-universitaire';
 import { ACTIVITES_UNIVERSITE, ETAT_CAMPUS_INITIAL, realiserActivite } from '@/lib/activites-universite';
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
@@ -90,7 +92,12 @@ function Bouton({ d, symbole, directions }: { d: Direction; symbole: string; dir
   return <button aria-label={d} className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/25 bg-slate-950/75 text-xl font-bold text-white shadow-lg active:bg-amber-500" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); actualiser(v => v + 1); }} onPointerUp={() => { directions.delete(d); actualiser(v => v + 1); }} onPointerCancel={() => { directions.delete(d); actualiser(v => v + 1); }}>{symbole}</button>;
 }
 
-export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: string; nom: string; onSortir: () => void; children?: ReactNode }) {
+export function InterieurLieu3D(props: { slug: string; nom: string; onSortir: () => void; children?: ReactNode }) {
+  if(props.slug==='universite')return <CampusUniversitaire onSortir={props.onSortir}>{props.children}</CampusUniversitaire>;
+  return <InterieurStandard {...props}/>;
+}
+
+function InterieurStandard({ slug, nom, onSortir, children }: { slug: string; nom: string; onSortir: () => void; children?: ReactNode }) {
   const directions = useMemo(() => new Set<Direction>(), []);
   const [activites, setActivites] = useState(false);
   const residence = slug === 'residence' || slug === 'jardins-residence';
@@ -99,6 +106,7 @@ export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: strin
   const autreFamille = familleLieu(slug);
   const points = universite ? POINTS_UNIVERSITE : bureau ? STATIONS_BUREAUX[bureau] : autreFamille ? stationsLieu(autreFamille) : POINTS_RESIDENCE;
   const [fiche, setFiche] = useState(false);
+  const [cameraLibre, setCameraLibre] = useState(false);
   const [etatCampus, setEtatCampus] = useState(ETAT_CAMPUS_INITIAL);
   const [destination, setDestination] = useState<number | null>(null);
   const [description, setDescription] = useState('Choisissez une pièce pour vous y rendre.');
@@ -120,7 +128,7 @@ export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: strin
     <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-4 text-white sm:p-6"><div><span className="text-[10px] font-bold uppercase tracking-[.25em] text-amber-300">Intérieur visitable</span><h2 className="mt-1 font-display text-xl font-bold sm:text-3xl">{nom}</h2><p className="mt-1 text-xs text-white/65">Déplacez-vous librement dans le bâtiment</p></div><button onClick={onSortir} className="pointer-events-auto rounded-xl border border-white/20 bg-slate-950/75 px-4 py-3 text-sm font-bold shadow-xl hover:bg-amber-500 hover:text-slate-950">🚪 Sortir</button></header>
     <div className="absolute bottom-5 left-5 grid grid-cols-3 gap-1"><span /><Bouton d="avant" symbole="▲" directions={directions} /><span /><Bouton d="gauche" symbole="◀" directions={directions} /><Bouton d="arriere" symbole="▼" directions={directions} /><Bouton d="droite" symbole="▶" directions={directions} /></div>
     <button onClick={() => { directions.clear(); setActivites(v => !v); }} aria-expanded={activites} className="absolute right-4 top-28 rounded-xl bg-amber-200 px-4 py-3 font-bold text-slate-900">{activites ? 'Fermer les activités' : 'Services et activités'}</button>
-    {universite && <span data-testid="campus-levels" className="pointer-events-none absolute right-4 top-44 rounded-lg bg-slate-950/80 px-3 py-2 text-xs font-bold text-amber-200">Campus universitaire · RDC + étage</span>}
+    {universite && <button className="absolute right-4 top-44 rounded-lg bg-slate-950/90 px-3 py-3 text-sm text-amber-200" onClick={()=>{setCameraLibre(v=>!v);window.dispatchEvent(new Event('campus-camera'));}}>{cameraLibre ? 'Revenir au joueur' : 'Caméra libre · tourner / zoomer'}</button>}
     {activites && children}
     {!activites && <div className="absolute left-3 right-3 top-44 max-h-[calc(100dvh-20rem)] overflow-y-auto rounded-xl border border-white/15 bg-slate-950/85 p-3 text-white sm:left-5 sm:right-auto sm:top-28 sm:max-h-[calc(100dvh-16rem)] sm:w-64">
       <p className="text-xs font-bold uppercase tracking-widest text-amber-200">{universite ? 'Campus · 2 niveaux' : bureau ? 'Espaces de travail' : autreFamille ? 'Espaces du bâtiment' : 'Votre appartement'}</p>
@@ -130,7 +138,7 @@ export function InterieurLieu3D({ slug, nom, onSortir, children }: { slug: strin
         <div className="grid grid-cols-3 gap-2 text-center text-[10px]"><span>XP<br/><b className="text-amber-200">{etatCampus.xp}</b></span><span>Focus<br/><b className="text-emerald-300">{etatCampus.concentration}%</b></span><span>Social<br/><b className="text-sky-300">{etatCampus.social}%</b></span></div>
         <p className="mt-2 text-[11px] leading-relaxed text-white/70">{etatCampus.derniereAction}</p>
       </div>}
-      {universite && stationArrivee && ACTIVITES_UNIVERSITE[stationArrivee.id] && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950 hover:bg-amber-300" onClick={() => setEtatCampus(etat => realiserActivite(etat, stationArrivee.id))}>{ACTIVITES_UNIVERSITE[stationArrivee.id].label}</button>}
+      {universite && stationArrivee && <AtelierCampus key={stationArrivee.id} station={stationArrivee.id} onReussite={() => setEtatCampus(etat => ({...realiserActivite(etat, stationArrivee.id), derniereAction: 'Exercice réussi : réponse validée avec le responsable.'}))} />}
       {!universite && stationArrivee && !fiche && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950" onClick={() => setFiche(true)}>Consulter la fiche du poste</button>}
       {!universite && stationArrivee && fiche && <FichePosteBureau key={stationArrivee.id} station={stationArrivee.id} onFermer={() => setFiche(false)} />}
     </div>}

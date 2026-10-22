@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { RoundedBox, Text } from '@react-three/drei';
+import { OrbitControls, RoundedBox, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { destinationUniversite, ESCALIER_UNIVERSITE, itineraireUniversite, POINTS_UNIVERSITE } from '@/lib/plan-universite';
 
@@ -37,7 +37,7 @@ function PersonneUniversite({ p, professeur = false, index = 0, etage = 0 }: { p
 
 function Escalier() {
   return <group position={[ESCALIER_UNIVERSITE.x,0,ESCALIER_UNIVERSITE.z]}>
-    {Array.from({length:14},(_,i)=><Bloc key={i} p={[0,.14+i*.145,1.4-i*.2]} s={[1.65,.28,.28]} c={i%2?'#c4b79f':'#d0c4ad'} />)}
+    {Array.from({length:22},(_,i)=><Bloc key={i} p={[0,(i+1)*3.65/22-.08,2.2-i*.2]} s={[1.65,.16,.23]} c={i%2?'#c4b79f':'#d0c4ad'} />)}
     {[-.92,.92].map(x=><group key={x}><Bloc p={[x,1.15,.15]} s={[.06,2.3,.06]} c="#42545a" metal={.4} /><mesh position={[x,1.85,.15]} rotation={[Math.atan2(2.05,2.8),0,0]}><cylinderGeometry args={[.035,.035,3.5,10]} /><meshStandardMaterial color="#42545a" metalness={.5} roughness={.3} /></mesh></group>)}
     <Text position={[0,.25,2]} fontSize={.16} color="#344b52">ESCALIER · ÉTAGE 1</Text>
   </group>;
@@ -55,6 +55,14 @@ function CourCentrale(){return <group position={[0,0,3.9]}><Bloc p={[0,.03,0]} s
 function StudioProjets({y}:{y:number}){return <group position={[-6,y,3.7]}>{[-1.45,0,1.45].map((x,i)=><group key={x}><TableCours p={[x,0,0]} largeur={1.3}/><PersonneUniversite p={[x+.2,0,.55]} index={14+i} etage={1}/></group>)}<Bloc p={[0,1.4,-1.5]} s={[5.2,1.8,.08]} c="#7d725e"/>{[-1.7,0,1.7].map((x,i)=><Bloc key={x} p={[x,1.5,-1.44]} s={[1.15,.85,.03]} c={i===1?'#d1b66e':'#dbe1dd'}/>)}<Text position={[0,2.4,-1.48]} fontSize={.2} color="#33494f">STUDIO PROJETS · COWORKING</Text></group>}
 
 function JoueurUniversite({ directions, destination, onArrivee }: { directions:Set<string>; destination:number|null; onArrivee:(message:string)=>void }) {
+  const camera = useThree(s => s.camera);
+  const suivi = useRef(true);
+  const dernierLieu = useRef('');
+  useEffect(() => {
+    const changer = () => { suivi.current = !suivi.current; };
+    window.addEventListener('campus-camera', changer);
+    return () => window.removeEventListener('campus-camera', changer);
+  }, []);
   const ref = useRef<THREE.Group>(null), route = useRef<ReturnType<typeof itineraireUniversite>>([]), etage = useRef<0|1>(0), cibleRef = useRef<number|null>(null), bras = useRef<THREE.Group>(null);
   const [niveau, setNiveau] = useState(0);
   useEffect(()=>{ if(destination===null||!ref.current)return; cibleRef.current=destination; const cible=destinationUniversite(destination); route.current=itineraireUniversite(etage.current,cible); },[destination]);
@@ -63,7 +71,8 @@ function JoueurUniversite({ directions, destination, onArrivee }: { directions:S
     const p=ref.current.position;
     let dx=Number(directions.has('droite'))-Number(directions.has('gauche'));
     let dz=Number(directions.has('arriere'))-Number(directions.has('avant'));
-    if(dx||dz) route.current=[];
+    const manuel = Boolean(dx||dz);
+    if(manuel) { route.current=[]; cibleRef.current=null; }
     else if(route.current.length){const point=route.current[0];dx=point.x-p.x;dz=point.z-p.z;}
     const point=route.current[0];
     if(point?.escalier){
@@ -77,15 +86,32 @@ function JoueurUniversite({ directions, destination, onArrivee }: { directions:S
       if(point&&Math.hypot(point.x-p.x,point.z-p.z)<.08)route.current.shift();
     }
     if(!route.current.length&&cibleRef.current!==null){onArrivee(destinationUniversite(cibleRef.current).detail);cibleRef.current=null;}
+    // The stairs span the full storey: keyboard movement follows their height.
+    if (manuel && Math.abs(p.x)<.8 && p.z<=2.9 && p.z>=-1.65) {
+      p.y=THREE.MathUtils.clamp((2.9-p.z)/4.4,0,1)*3.65;
+      if (p.z< -1.45) {etage.current=1;setNiveau(1);p.y=3.65;}
+      else if(p.z>2.7) {etage.current=0;setNiveau(0);p.y=0;}
+    }
+    if (!route.current.length) {
+      const proche = POINTS_UNIVERSITE.find(lieu => lieu.etage === etage.current && Math.hypot(lieu.x-p.x,lieu.z-p.z)<1.8);
+      const id = proche?.id ?? '';
+      if (id !== dernierLieu.current) { dernierLieu.current=id; onArrivee(proche?.detail ?? 'Explorez le campus : approchez une salle pour accéder à ses activités.'); }
+    }
+    if (suivi.current) {
+      camera.position.lerp(new THREE.Vector3(p.x+3.5,p.y+3.1,p.z+5),1-Math.exp(-4*delta));
+      camera.lookAt(p.x,p.y+1.2,p.z);
+    }
   });
   return <group ref={ref} position={[0,0,5.8]}><mesh position={[0,1.2,0]} castShadow><capsuleGeometry args={[.28,.72,5,8]}/><meshStandardMaterial color="#c8a04f"/></mesh><mesh position={[0,2.05,0]}><sphereGeometry args={[.31,14,12]}/><meshStandardMaterial color="#8c583c"/></mesh><mesh position={[0,2.27,-.04]} scale={[1,.5,1]}><sphereGeometry args={[.32,12,8]}/><meshStandardMaterial color="#28201c"/></mesh><group ref={bras} position={[.37,1.5,0]}><mesh position={[0,-.35,0]}><capsuleGeometry args={[.1,.5,4,7]}/><meshStandardMaterial color="#8c583c"/></mesh></group>{[-.14,.14].map(x=><mesh key={x} position={[x,.48,0]}><capsuleGeometry args={[.12,.58,4,7]}/><meshStandardMaterial color="#304751"/></mesh>)}<Text position={[0,2.7,0]} fontSize={.18} color="#fff0c8" outlineColor="#26383c" outlineWidth={.03}>Joueur · niveau {niveau}</Text></group>;
 }
 
 export function UniversiteRealiste({ directions,destination,onArrivee }:{ directions:Set<string>;destination:number|null;onArrivee:(message:string)=>void }){
+  const [vueLibre,setVueLibre]=useState(false);
+  useEffect(()=>{ const basculer=()=>setVueLibre(v=>!v); window.addEventListener('campus-camera',basculer); return ()=>window.removeEventListener('campus-camera',basculer); },[]);
   const {camera,size}=useThree();
   useEffect(()=>{const portrait=Math.max(1,1.3/(size.width/size.height));camera.position.set(19*portrait,15*portrait,22*portrait);camera.lookAt(0,2.1,0);},[camera,size.width,size.height]);
   const y=3.65;
-  return <><color attach="background" args={['#26383c']}/><hemisphereLight args={['#eaf5fb','#685c4d',1.25]}/><ambientLight intensity={.5}/><directionalLight position={[-5,10,5]} intensity={2.8} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-9} shadow-camera-right={9} shadow-camera-top={9} shadow-camera-bottom={-9}/>
+  return <>{vueLibre && <OrbitControls makeDefault target={[0,2,0]} minDistance={3} maxDistance={45} maxPolarAngle={Math.PI*.49}/>}<color attach="background" args={['#26383c']}/><hemisphereLight args={['#eaf5fb','#685c4d',1.25]}/><ambientLight intensity={.5}/><directionalLight position={[-5,10,5]} intensity={2.8} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12}/>
     <Bloc p={[0,-.15,0]} s={[20,.3,13]} c="#aaa79e"/><Bloc p={[0,1.4,-6.35]} s={[20,2.8,.18]} c="#e7e0d2"/>{[-9.85,9.85].map(x=><Bloc key={x} p={[x,.7,0]} s={[.18,1.4,13]} c="#ddd8cc"/>)}
     <Accueil/><Amphitheatre/><AtelierMateriaux/><Administration/><Cafeteria/><CourCentrale/><Escalier/>
     <Bloc p={[-6,y-.13,0]} s={[8,.26,13]} c="#b7b2a7"/><Bloc p={[6,y-.13,0]} s={[8,.26,13]} c="#b7b2a7"/><Bloc p={[0,y-.13,-4.9]} s={[4,.26,3]} c="#b7b2a7"/><Bloc p={[0,y+1.4,-6.35]} s={[20,2.8,.18]} c="#e5dfd3"/>{[-9.85,9.85].map(x=><Bloc key={x} p={[x,y+.7,0]} s={[.18,1.4,13]} c="#ddd8cc"/>)}
