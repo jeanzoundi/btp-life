@@ -6,14 +6,21 @@ import * as THREE from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { EauLagune, JardinsUrbains } from './ambiance-lagune';
+import { SurfaceBloc, MateriauPBR } from './materiaux-monde';
+import { VoitureMonde } from './vehicule-monde';
+import { phaseSignal } from '@/lib/itineraire-ville';
+import { ParcsMonde } from './parcs-monde';
 
 type V = [number, number, number];
 const ivoire = '#e8d9bd';
 function Bloc({ p, s, c, r = 0, e }: { p: V; s: V; c: string; r?: number; e?: string }) {
-  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} /><meshStandardMaterial color={c} roughness={0.72} metalness={e ? 0.08 : 0.02} emissive={e} emissiveIntensity={e ? 0.65 : 0} /></mesh>;
+  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:<SurfaceBloc dimensions={s} couleur={c}/>}</mesh>;
 }
 
 function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
+  return <group position={p} rotation={[0,r,0]}><VoitureMonde couleur={c}/></group>;
+}
+function VoitureStationneeAncienne({ p, r = 0, c }: { p: V; r?: number; c: string }) {
   return <group position={p} rotation={[0, r, 0]}>
     <Bloc p={[0, 0.52, 0]} s={[3.5, 0.58, 1.65]} c={c} />
     <mesh position={[-0.25, 1.05, 0]} castShadow><boxGeometry args={[1.8, 0.55, 1.42]} /><meshPhysicalMaterial color="#28434d" roughness={0.18} metalness={0.2} clearcoat={0.7} /></mesh>
@@ -102,7 +109,7 @@ export function Architecture({ width: w, height: h, depth: d, kind, color, nuit 
         return <group key={side} rotation={[0, r, 0]}>
           {Array.from({ length: count }, (_, k) => <group key={k} position={[(k - (count - 1) / 2) * (span / count), f * 3 + 1.8, offset + 0.05]}>
             <Bloc p={[0, 0, 0]} s={[1.6, 2.1, 0.15]} c="#e9ddc5" />
-            <Bloc p={[0, 0, 0.09]} s={[1.35, 1.85, 0.1]} c={nuit && (k + f + side) % 3 !== 0 ? '#e6bb67' : kind === 'tour' ? '#345763' : '#41686a'} e={nuit && (k + f + side) % 3 !== 0 ? '#b66e28' : undefined} />
+            <mesh position={[0,0,.09]}><boxGeometry args={[1.35,1.85,.1]}/><meshPhysicalMaterial color={nuit&&(k+f+side)%3!==0?'#b39360':'#36515f'} metalness={.48} roughness={.16} clearcoat={1} emissive={nuit&&(k+f+side)%3!==0?'#b97736':'#000000'} emissiveIntensity={.65}/></mesh>
             <Bloc p={[0, 0, 0.16]} s={[0.065, 1.85, 0.05]} c="#bfc3b8" />
             {f > 0 && kind !== 'tour' && <>
               <Bloc p={[0, -1.12, 0.47]} s={[1.95, 0.16, 1.1]} c={ivoire} />
@@ -129,36 +136,28 @@ function Traffic({ offset, color, pause }: { offset: number; color: string; paus
   const car = useRef<THREE.Group>(null);
   useFrame(({ clock }, delta) => {
     if (!car.current || pause) return;
-    const feuRouge = clock.elapsedTime % 12 >= 6;
+    const feuRouge = phaseSignal(clock.elapsedTime,'horizontal')!=='vert';
     const x = car.current.position.x;
     const procheStop = [-58.5, 49.5].some(stop => x >= stop - 0.8 && x <= stop + 0.25);
     if (!feuRouge || !procheStop) car.current.position.x = ((x + Math.min(delta, 0.05) * 3 + 60) % 120) - 60;
   });
   return <group ref={car} position={[offset, 0, -10.5]}>
-    <Bloc p={[0, 0.65, 0]} s={[3.6, 0.65, 1.7]} c={color} />
-    <Bloc p={[-0.2, 1.16, 0]} s={[1.9, 0.55, 1.5]} c="#344b59" />
-    <Bloc p={[-0.2, 1.49, 0]} s={[2, 0.12, 1.6]} c={color} />
-    {[-1.1, 1.1].flatMap(x => [-0.86, 0.86].map(z => <mesh key={`${x}-${z}`} position={[x, 0.4, z]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[0.38, 0.38, 0.2, 12]} /><meshStandardMaterial color="#222b31" /></mesh>))}
-    {[-0.55, 0.55].map(z => <Bloc key={z} p={[1.81, 0.7, z]} s={[0.05, 0.23, 0.4]} c="#fff0c3" />)}
+    <VoitureMonde couleur={color}/>
   </group>;
 }
 function TrafficVertical({ x, offset, color, pause, inverse = false }: { x: number; offset: number; color: string; pause: boolean; inverse?: boolean }) {
   const car = useRef<THREE.Group>(null);
   useFrame((_, delta) => {
     if (!car.current || pause) return;
-    const phase = _.clock.elapsedTime % 12;
-    const feuRouge = phase < 6;
+    const feuRouge = phaseSignal(_.clock.elapsedTime,'vertical')!=='vert';
     const z = car.current.position.z;
     const stops = inverse ? [-61, -5, 15] : [-71, -15, 5];
     if (feuRouge && stops.some(stop => Math.abs(z - stop) < 0.8)) return;
     const vitesse = Math.min(delta, 0.05) * (inverse ? -2.8 : 2.8);
     car.current.position.z = ((car.current.position.z + vitesse + 120) % 240) - 120;
   });
-  return <group ref={car} position={[x, 0, offset]} rotation={[0, Math.PI / 2, 0]}>
-    <Bloc p={[0, 0.62, 0]} s={[3.4, 0.62, 1.65]} c={color} />
-    <Bloc p={[-0.15, 1.12, 0]} s={[1.8, 0.52, 1.42]} c="#31505c" />
-    <Bloc p={[-0.15, 1.43, 0]} s={[1.9, 0.1, 1.52]} c={color} />
-    {[-1.05, 1.05].flatMap(px => [-0.84, 0.84].map(pz => <mesh key={`${px}-${pz}`} position={[px, 0.36, pz]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.36, 0.36, 0.2, 12]} /><meshStandardMaterial color="#20272b" /></mesh>))}
+  return <group ref={car} position={[x, 0, offset]} rotation={[0, inverse?Math.PI/2:-Math.PI/2, 0]}>
+    <VoitureMonde couleur={color}/>
   </group>;
 }
 function Bus({ pause }: { pause: boolean }) {
@@ -166,7 +165,7 @@ function Bus({ pause }: { pause: boolean }) {
   useFrame(({ clock }, delta) => {
     if (!ref.current || pause) return;
     const x = ref.current.position.x;
-    const feuRouge = clock.elapsedTime % 12 >= 6;
+    const feuRouge = phaseSignal(clock.elapsedTime,'horizontal')!=='vert';
     if (!feuRouge || ![-58.5, 49.5].some(stop => Math.abs(x - stop) < 0.9)) ref.current.position.x = ((x + Math.min(delta, 0.05) * 2.1 + 118) % 236) - 118;
   });
   return <group ref={ref} position={[-80, 0, -66]}><Bloc p={[0, 1.25, 0]} s={[6.5, 2.3, 2.2]} c="#e4b43d" /><Bloc p={[0.4, 1.6, 1.12]} s={[4.6, 0.75, 0.08]} c="#274957" />{[-2.1, 2.1].flatMap(x => [-1.12, 1.12].map(z => <mesh key={`${x}-${z}`} position={[x, 0.35, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.48, 0.48, 0.22, 12]} /><meshStandardMaterial color="#20272b" /></mesh>))}</group>;
@@ -190,12 +189,10 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
   const orange = useRef<THREE.MeshStandardMaterial>(null);
   const vert = useRef<THREE.MeshStandardMaterial>(null);
   useFrame(({ clock }) => {
-    const phase = clock.elapsedTime % 12;
-    const ouverture = axe === 'horizontal' ? phase < 6 : phase >= 6;
-    const transition = Math.abs(phase - 6) < 0.75 || phase > 11.25;
-    if (rouge.current) rouge.current.emissiveIntensity = !ouverture && !transition ? 2.2 : 0.08;
-    if (orange.current) orange.current.emissiveIntensity = transition ? 2.4 : 0.05;
-    if (vert.current) vert.current.emissiveIntensity = ouverture && !transition ? 2.2 : 0.08;
+    const phase=phaseSignal(clock.elapsedTime,axe);
+    if(rouge.current)rouge.current.emissiveIntensity=phase==='rouge'?2.2:.08;
+    if(orange.current)orange.current.emissiveIntensity=phase==='orange'?2.4:.05;
+    if(vert.current)vert.current.emissiveIntensity=phase==='vert'?2.2:.08;
   });
   return <group position={p}>
     <Bloc p={[0, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#2d393d" />
@@ -219,9 +216,9 @@ export function PaysageLagune({ onDestination, pause = false }: { onDestination:
   }, []);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group onClick={sol}>
-    <EauLagune pause={pause} /><JardinsUrbains />
+    <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -40]} receiveShadow><planeGeometry args={[300, 260]} /><meshStandardMaterial color="#829079" roughness={1} /></mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><meshStandardMaterial color="#d4c7ad" map={texture} roughness={1} /></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><MateriauPBR repeat={64} couleur="#d1cab9"/></mesh>
     {[-66, -10, 10].map(z => <group key={z}>
       <Bloc p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />
       {Array.from({ length: 56 }, (_, i) => <Bloc key={i} p={[(i - 27.5) * 4.3, 0.08, z]} s={[2, 0.015, 0.1]} c="#e6dcbf" />)}

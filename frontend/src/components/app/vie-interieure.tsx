@@ -5,8 +5,14 @@ import { Billboard, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { positionsVieInterieure, PROFILS_INTERIEURS, type TypeVieInterieure } from '@/lib/vie-interieure';
+import { HumainMonde } from './humain-monde';
 
-function Figurante({ type, index, depart, role }: { type: TypeVieInterieure; index: number; depart: [number, number]; role: string }) {
+function Figurante({type,index,depart,role}:{type:TypeVieInterieure;index:number;depart:[number,number];role:string}){
+  const ref=useRef<THREE.Group>(null);
+  useFrame(({clock},dt)=>{if(!ref.current||index!==0)return;const x=depart[0]+Math.sin(clock.elapsedTime*.2)*.7;const dx=x-ref.current.position.x;ref.current.position.x+=THREE.MathUtils.clamp(dx,-dt*.45,dt*.45);ref.current.rotation.y=dx>=0?Math.PI/2:-Math.PI/2;});
+  return <group ref={ref} position={[depart[0],0,depart[1]]}><HumainMonde variante={index+2} couleur={PROFILS_INTERIEURS[type].couleur} marche={index===0} casque={type==='chantier'} prof={index>0} nom={role}/></group>;
+}
+function FiguranteAncienne({ type, index, depart, role }: { type: TypeVieInterieure; index: number; depart: [number, number]; role: string }) {
   const groupe = useRef<THREE.Group>(null), brasG = useRef<THREE.Group>(null), brasD = useRef<THREE.Group>(null);
   const profil = PROFILS_INTERIEURS[type];
   useFrame(({ clock }, delta) => {

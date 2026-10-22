@@ -3,6 +3,8 @@
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, MapControls, Text } from '@react-three/drei';
 import { EclairageMonde } from './eclairage-monde';
+import { HumainMonde } from './humain-monde';
+import { itineraireVille } from '@/lib/itineraire-ville';
 import { useQuery } from '@tanstack/react-query';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -52,6 +54,7 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'marina', nom: 'Marina BTP Life', href: '/app/lieu/cafe', position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
   { slug: 'sports', nom: 'Complexe sportif', href: '/app/recompenses', position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
+const EMPRISES=BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]}));
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
   { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
@@ -95,7 +98,10 @@ function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batimen
   </group>;
 }
 
-function Personnage({ nom, couleur = '#c1502e', marche = false, casque = false, variante = 0 }: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
+function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
+  return <HumainMonde {...props} scale={1.1}/>;
+}
+function PersonnageAncien({ nom, couleur = '#c1502e', marche = false, casque = false, variante = 0 }: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
   const corps = useRef<THREE.Group>(null);
   const brasG = useRef<THREE.Group>(null); const brasD = useRef<THREE.Group>(null);
   const jambeG = useRef<THREE.Group>(null); const jambeD = useRef<THREE.Group>(null);
@@ -144,6 +150,7 @@ function Personnage({ nom, couleur = '#c1502e', marche = false, casque = false, 
 
 function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void }) {
   const ref = useRef<THREE.Group>(null);
+  const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null);
   const delaiSignal = useRef(0);
   const [marche, setMarche] = useState(false);
   const camera = useThree((s) => s.camera);
@@ -162,14 +169,17 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
       mouvement.addScaledVector(avant, Number(directions.has('avant')) - Number(directions.has('arriere')));
       mouvement.addScaledVector(droite, Number(directions.has('droite')) - Number(directions.has('gauche')));
       destination.current = null;
+      route.current=[];cibleRoute.current=null;
     } else if (destination.current) {
-      mouvement.set(destination.current[0] - ref.current.position.x, 0, destination.current[1] - ref.current.position.z);
-      if (mouvement.lengthSq() < 0.08) { destination.current = null; mouvement.set(0, 0, 0); }
+      if(cibleRoute.current!==destination.current){cibleRoute.current=destination.current;route.current=itineraireVille([ref.current.position.x,ref.current.position.z],destination.current,EMPRISES);}
+      const point=route.current[0];
+      if(point){mouvement.set(point[0]-ref.current.position.x,0,point[1]-ref.current.position.z);if(mouvement.lengthSq()<.025){route.current.shift();mouvement.set(0,0,0);}}
+      if(!route.current.length){destination.current=null;cibleRoute.current=null;}
     }
     const actif = mouvement.lengthSq() > 0.001;
     if (actif) {
-      mouvement.normalize();
-      const prochain = ref.current.position.clone().addScaledVector(mouvement, 7 * Math.min(delta, 0.05));
+      const distance=Math.min(mouvement.length(),4.5*Math.min(delta,.05));mouvement.normalize();
+      const prochain = ref.current.position.clone().addScaledVector(mouvement, distance);
       const bloque = BATIMENTS.some(b => Math.abs(prochain.x - b.position[0]) < b.taille[0] / 2 + 0.7 && Math.abs(prochain.z - b.position[2]) < b.taille[2] / 2 + 0.7);
       if (!bloque) ref.current.position.copy(prochain);
       else {
@@ -221,27 +231,30 @@ function Passant({ route, depart, pause, couleur }: { route: PointMonde[]; depar
 }
 
 function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> }) {
+  const [proche,setProche]=useState(true);
   const controles = useRef<ComponentRef<typeof MapControls>>(null);
   const cible = useMemo(() => new THREE.Vector3(), []);
   const camera = useThree(s => s.camera);
+  useEffect(()=>{const basculer=()=>setProche(v=>!v);window.addEventListener('btp-camera',basculer);return()=>window.removeEventListener('btp-camera',basculer);},[]);
+  useEffect(()=>{camera.position.set(joueur.current.x+(proche?5:20),proche?3.8:22,joueur.current.z+(proche?7:30));controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[proche,camera,joueur]);
   useEffect(() => {
     const recentrer = (event: KeyboardEvent) => {
       if (event.code !== 'KeyR' || (event.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return;
       const position = joueur.current;
-      camera.position.set(position.x + 20, 22, position.z + 30);
+      camera.position.set(position.x+(proche?5:20),proche?3.8:22,position.z+(proche?7:30));
       controles.current?.target.set(position.x, 1, position.z);
       controles.current?.update();
     };
     window.addEventListener('keydown', recentrer);
     return () => window.removeEventListener('keydown', recentrer);
-  }, [camera, joueur]);
+  }, [camera, joueur, proche]);
   useFrame((_, delta) => {
     if (!controles.current) return;
     cible.set(joueur.current.x, 1, joueur.current.z);
     cible.sub(controles.current.target).multiplyScalar(1 - Math.exp(-6 * delta));
     camera.position.add(cible); controles.current.target.add(cible); controles.current.update();
   });
-  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} minDistance={5} maxDistance={95} minPolarAngle={0.3} maxPolarAngle={1.3} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
+  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} minDistance={3} maxDistance={95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
 }
 
 
@@ -312,6 +325,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const [relations, setRelations] = useState<Record<string, number>>({});
   const parler = useCallback((nom: string) => { setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
   const [plan, setPlan] = useState(false);
+  const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
   const [message, setMessage] = useState('');
@@ -496,6 +510,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
     <button onClick={() => { setPlan(v => !v); setSelection(null); }} aria-expanded={plan} className="absolute right-3 top-16 rounded-xl border border-white/20 bg-[#182e32]/95 px-4 py-3 text-sm text-amber-100">Plan & lieux</button>
     <button type="button" onClick={() => { const choix = qualite === 'elevee' ? 'fluide' : 'elevee'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="absolute right-3 top-32 rounded-xl border border-white/20 bg-[#182e32]/95 px-3 py-2 text-xs text-white" aria-label="Changer la qualité graphique">{qualite === 'elevee' ? '✦ Qualité élevée' : '⚡ Mode fluide'}</button>
+    {!plan&&<button className="absolute right-3 top-44 rounded-xl border border-amber-200/30 bg-[#182e32]/95 px-3 py-2 text-xs text-amber-100" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Vue ville ↗':'Vue promenade ↘'}</button>}
     {plan && <nav aria-label="Lieux du quartier" className="absolute right-3 top-32 z-10 max-h-[55%] w-72 max-w-[calc(100%_-_24px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#182e32]/95 p-3 text-white shadow-xl">
       <h2 className="px-2 py-2 text-xs uppercase tracking-widest text-amber-200">5 quartiers · {BATIMENTS.length} lieux</h2>
       <section className="mb-3 rounded-xl border border-amber-200/20 bg-white/5 p-3" aria-label="Carnet d’exploration">

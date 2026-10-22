@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { avancerResidence, cheminResidence, PLAN_RESIDENCE as PLAN, POINTS_RESIDENCE } from '@/lib/plan-residence';
 import type { PointInterieur } from '@/lib/navigation-interieur';
 import { VieInterieure } from './vie-interieure';
+import { SurfaceBloc } from './materiaux-monde';
+import { HumainMonde } from './humain-monde';
 
 type V3 = [number, number, number];
 function Bloc({ p, s, c, doux = false, metal = 0 }: { p: V3; s: V3; c: string; doux?: boolean; metal?: number }) {
-  const material = <meshStandardMaterial color={c} roughness={metal ? .25 : .82} metalness={metal} />;
+  const material = <SurfaceBloc dimensions={s} couleur={c} metal={metal}/>;
   return doux ? <RoundedBox position={p} args={s} radius={.04} smoothness={2} castShadow receiveShadow>{material}</RoundedBox> :
     <mesh position={p} castShadow receiveShadow><boxGeometry args={s} />{material}</mesh>;
 }
@@ -128,6 +130,7 @@ function Appartement() {
 }
 
 export function Habitant({ directions, destination, onArrivee, points = POINTS_RESIDENCE, avancer = avancerResidence, calculerChemin = cheminResidence }: { directions: Set<string>; destination: number | null; onArrivee: (message: string) => void; points?: readonly (PointInterieur & { detail: string })[]; avancer?: typeof avancerResidence; calculerChemin?: typeof cheminResidence }) {
+  const [marche,setMarche]=useState(false);
   const groupe = useRef<THREE.Group>(null);
   const jambes = useRef<THREE.Group>(null), bras = useRef<THREE.Group>(null);
   const chemin = useRef<PointInterieur[]>([]);
@@ -158,6 +161,7 @@ export function Habitant({ directions, destination, onArrivee, points = POINTS_R
     const prochain = avancer(p, dx, dz, delta);
     if (!directions.size) marcheManuelle.current = false;
     const bouge = Math.hypot(prochain.x - p.x, prochain.z - p.z) > .001;
+    if(bouge!==marche)setMarche(bouge);
     p.set(prochain.x, 0, prochain.z);
     if (bouge) groupe.current.rotation.y = Math.atan2(dx, dz);
     temps.current += Math.min(delta, .05) * 8;
@@ -166,13 +170,7 @@ export function Habitant({ directions, destination, onArrivee, points = POINTS_R
     bras.current?.children.forEach((bras, i) => { bras.rotation.x = balancement * (i ? 1 : -1); });
   });
   return <group ref={groupe} position={[0, 0, 3.8]}>
-    <Bloc p={[0, 1.17, 0]} s={[.4, .52, .24]} c="#c5a363" doux />
-    <Tube p={[0, 1.5, 0]} r={.075} h={.13} c="#8b5a3c" />
-    <mesh position={[0, 1.67, 0]} scale={[.85, 1.1, .9]} castShadow><sphereGeometry args={[.16, 20, 16]} /><meshStandardMaterial color="#925f41" roughness={.85} /></mesh>
-    <mesh position={[0, 1.79, -.015]} scale={[1, .5, 1]} castShadow><sphereGeometry args={[.15, 16, 12]} /><meshStandardMaterial color="#29231e" /></mesh>
-    {[-.055, .055].map(x => <mesh key={x} position={[x, 1.69, .13]}><sphereGeometry args={[.015, 8, 8]} /><meshStandardMaterial color="#29231e" /></mesh>)}
-    <group ref={jambes}>{[-.11, .11].map(x => <group key={x} position={[x, .94, 0]}><Bloc p={[0, -.4, 0]} s={[.16, .77, .18]} c="#38494b" doux /><Bloc p={[0, -.86, .05]} s={[.18, .12, .3]} c="#42392e" doux /></group>)}</group>
-    <group ref={bras}>{[-.27, .27].map(x => <group key={x} position={[x, 1.4, 0]}><Bloc p={[0, -.14, 0]} s={[.14, .3, .17]} c="#c5a363" doux /><Bloc p={[0, -.41, 0]} s={[.105, .28, .12]} c="#925f41" doux /></group>)}</group>
+    <HumainMonde variante={1} couleur="#b3996b" marche={marche}/>
   </group>;
 }
 

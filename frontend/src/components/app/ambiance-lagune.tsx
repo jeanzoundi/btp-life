@@ -1,27 +1,28 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 /** Une seule géométrie animée pour toute la lagune, sans lumières supplémentaires. */
 export function EauLagune({ pause }: { pause: boolean }) {
-  const mesh = useRef<THREE.Mesh>(null);
-  const temps = useRef(0);
-  useFrame((_, delta) => {
-    if (!mesh.current || pause) return;
-    temps.current += Math.min(delta, 0.1);
-    const positions = mesh.current.geometry.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i), y = positions.getY(i);
-      positions.setZ(i, Math.sin(x * 0.18 + temps.current * 1.2) * 0.13 + Math.cos(y * 0.65 + temps.current) * 0.07);
-    }
-    positions.needsUpdate = true;
-    mesh.current.geometry.computeVertexNormals();
-  });
-  return <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 82]} receiveShadow>
-    <planeGeometry args={[300, 30, 90, 12]} />
-    <meshStandardMaterial color="#367e88" metalness={0.45} roughness={0.23} />
+  const temps=useMemo(()=>({value:0}),[]);
+  const material=useMemo(()=>{
+    const m=new THREE.MeshPhysicalMaterial({color:'#246771',metalness:.25,roughness:.18,clearcoat:1,clearcoatRoughness:.1});
+    m.onBeforeCompile=shader=>{
+      shader.uniforms.uWaterTime=temps;
+      shader.vertexShader='uniform float uWaterTime;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+        transformed.z += sin(position.x*.7+uWaterTime)*.09 + cos(position.y*1.5+uWaterTime*.7)*.045;`);
+      shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
+        objectNormal=normalize(vec3(-.063*cos(position.x*.7+uWaterTime),.0675*sin(position.y*1.5+uWaterTime*.7),1.));`);
+    };
+    return m;
+  },[temps]);
+  useEffect(()=>()=>material.dispose(),[material]);
+  useFrame((_,delta)=>{if(!pause)temps.value+=Math.min(delta,.1);});
+  return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 82]} receiveShadow material={material}>
+    <planeGeometry args={[300, 30, 180, 30]} />
   </mesh>;
 }
 

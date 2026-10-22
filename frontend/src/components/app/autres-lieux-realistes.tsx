@@ -6,10 +6,11 @@ import { RoundedBox, Text } from '@react-three/drei';
 import { Habitant } from './residence-realiste';
 import { familleLieu, navigationLieu, OBSTACLES_LIEU, stationsLieu, type FamilleLieu } from '@/lib/plan-autres-lieux';
 import { VieInterieure } from './vie-interieure';
+import { SurfaceBloc } from './materiaux-monde';
 
 type V = [number, number, number];
 function Bloc({ p, s, c, rond = false, metal = 0 }: { p: V; s: V; c: string; rond?: boolean; metal?: number }) {
-  const mat = <meshStandardMaterial color={c} roughness={metal ? .3 : .75} metalness={metal} />;
+  const mat = <SurfaceBloc dimensions={s} couleur={c} metal={metal}/>;
   return rond ? <RoundedBox args={s} position={p} radius={.04} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox> : <mesh position={p} castShadow receiveShadow><boxGeometry args={s} />{mat}</mesh>;
 }
 function Cyl({ p, r, h, c }: { p: V; r: number; h: number; c: string }) { return <mesh position={p} castShadow><cylinderGeometry args={[r, r, h, 16]} /><meshStandardMaterial color={c} roughness={.7} /></mesh>; }

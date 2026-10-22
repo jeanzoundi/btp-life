@@ -6,10 +6,11 @@ import { RoundedBox, Text } from '@react-three/drei';
 import { Habitant } from './residence-realiste';
 import { MOBILIER_BUREAUX, STATIONS_BUREAUX, navigationBureau, type TypeBureau, type MobilierBureau } from '@/lib/plan-bureaux';
 import { VieInterieure } from './vie-interieure';
+import { SurfaceBloc } from './materiaux-monde';
 
 type V3 = [number, number, number];
 function Bloc({ p, s, c, arrondi = false }: { p: V3; s: V3; c: string; arrondi?: boolean }) {
-  const mat = <meshStandardMaterial color={c} roughness={.72} />;
+  const mat = <SurfaceBloc dimensions={s} couleur={c}/>;
   return arrondi ? <RoundedBox args={s} position={p} radius={.035} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox> : <mesh position={p} castShadow receiveShadow><boxGeometry args={s} />{mat}</mesh>;
 }
 function Pied({ x, z, h = .72 }: { x: number; z: number; h?: number }) {

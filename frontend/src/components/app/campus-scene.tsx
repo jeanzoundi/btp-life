@@ -3,13 +3,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { HumainMonde } from './humain-monde';
+import { SurfaceBloc } from './materiaux-monde';
+import { RefletsMonde } from './reflets-monde';
 import { HAUTEUR_CAMPUS as H, SALLES_CAMPUS, MURS_CAMPUS, mobilierCampus, libreCampus, hauteurEscalier, trajetCampus, type SalleCampus, type PointCampus, type NiveauCampus, type MeubleCampus } from '@/lib/campus-universitaire';
 
 type V=[number,number,number];
-function Box({p,s,c='#e5e0d5',metal=0}:{p:V;s:V;c?:string;metal?:number}){return <mesh position={p} castShadow receiveShadow><boxGeometry args={s}/><meshStandardMaterial color={c} roughness={metal?.4:.85} metalness={metal}/></mesh>;}
+function Box({p,s,c='#e5e0d5',metal=0}:{p:V;s:V;c?:string;metal?:number}){return <mesh position={p} castShadow receiveShadow><boxGeometry args={s}/><SurfaceBloc dimensions={s} couleur={c} metal={metal}/></mesh>;}
 function Inscription({p,texte,taille=.3,c='#284851'}:{p:V;texte:string;taille?:number;c?:string}){return <Text position={p} fontSize={taille} color={c} maxWidth={9} textAlign="center" anchorY="middle">{texte}</Text>;}
 
 function Personne({p,index=0,prof=false,assis=false,marche=false,rotation=0,onClick}:{p:V;index?:number;prof?:boolean;assis?:boolean;marche?:boolean;rotation?:number;onClick?:()=>void}){
+  return <group position={p} rotation={[0,rotation,0]} onClick={e=>{if(onClick){e.stopPropagation();onClick();}}}><HumainMonde variante={index} prof={prof} assis={assis} marche={marche} couleur={prof?'#c5c7bb':['#556a76','#8c6754','#65745f','#a5987c'][index%4]}/></group>;
+}
+function PersonneAncienne({p,index=0,prof=false,assis=false,marche=false,rotation=0,onClick}:{p:V;index?:number;prof?:boolean;assis?:boolean;marche?:boolean;rotation?:number;onClick?:()=>void}){
   const bras=useRef<THREE.Group>(null),jambes=useRef<THREE.Group>(null);
   useFrame(({clock})=>{const t=clock.elapsedTime*3+index;if(bras.current)bras.current.rotation.x=prof?-.45+Math.sin(t)*.14:marche?Math.sin(t*2)*.45:Math.sin(t)*.05;if(jambes.current)jambes.current.rotation.x=marche?-Math.sin(t*2)*.35:0;});
   const peau=['#81533d','#593829','#aa7755','#6e4736'][index%4],chemise=prof?'#e5ddd1':['#567b91','#b1755e','#698470','#b0a17a','#676d94'][index%5];
@@ -110,8 +116,9 @@ export function CampusScene(props:SceneProps){
   const recevoir=(p:PositionCampus)=>{setPosition(p);props.onPosition(p);};
   useEffect(()=>{if(props.vue==='plan'){const ratio=Math.max(1,1.25/(size.width/size.height));camera.position.set(35*ratio,48*ratio,52*ratio);camera.lookAt(0,props.niveauPlan*H,6);}},[props.vue,props.niveauPlan,camera,size.width,size.height]);
   return <>
+    <RefletsMonde/>
     <color attach="background" args={['#b6c6c7']}/><fog attach="fog" args={['#b6c6c7',65,150]}/>
-    <hemisphereLight args={['#fff8e5','#7c8b82',1.8]}/><ambientLight intensity={.5}/>
+    <hemisphereLight args={['#e3eff2','#7c8b82',.9]}/><ambientLight intensity={.2}/>
     <directionalLight position={[15,28,18]} intensity={2.4} castShadow shadow-mapSize={[2048,2048]} shadow-camera-left={-34} shadow-camera-right={34} shadow-camera-top={40} shadow-camera-bottom={-30} shadow-bias={-.0003}/>
     <Box p={[0,-.5,7]} s={[62,.5,67]} c="#899e7f"/>
     {([0,1] as const).map(n=><group key={n} position={[0,n*H,0]} visible={n<=niveau}>
