@@ -1,40 +1,17 @@
-// Journée de travail au Grand chantier avec Yao : étapes, situations de terrain, bilan, et avancement du chantier.
+// Journée de travail au Grand chantier avec Yao : les tâches du jour suivent l'étape du programme
+// (recrutement, implantation, fouilles… réception), puis le bilan fait avancer le chantier d'une journée.
+import {
+  PROGRAMME, SITUATION_EPI, TOTAL_JOURS, etapeAuJour, etapeDepuisNom, etatVisuel, lireOuvrier, metiersManquants, situation,
+  type ChargementLivraison, type EtatVisuel, type IdEtape, type Metier, type Ouvrier, type ZoneChantier,
+} from './programme-chantier';
 
-export type PhaseVisuelle = 'terrain' | 'fondations' | 'elevation' | 'toiture' | 'finitions' | 'livre';
-
-export const PHASES_VISUELLES: readonly { id: PhaseVisuelle; nom: string; debut: number }[] = [
-  { id: 'terrain', nom: 'Implantation et terrassement', debut: 0 },
-  { id: 'fondations', nom: 'Fondations', debut: 15 },
-  { id: 'elevation', nom: 'Élévation des murs', debut: 35 },
-  { id: 'toiture', nom: 'Toiture', debut: 70 },
-  { id: 'finitions', nom: 'Finitions', debut: 85 },
-  { id: 'livre', nom: 'Ouvrage livré', debut: 100 },
-];
-
-export interface EtatVisuel { phase: PhaseVisuelle; nom: string; progression: number; avancement: number }
+export type { Choix, SituationTerrain, EtatVisuel, ZoneChantier } from './programme-chantier';
+export { SITUATION_EPI, situation, etatVisuel } from './programme-chantier';
 
 const borne = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
+const GROS_OEUVRE: Metier[] = ['Chef d’équipe', 'Maçon', 'Manœuvre', 'Ferrailleur', 'Coffreur'];
 
-/** Phase à montrer en 3D et avancement à l'intérieur de cette phase (0 à 1), d'après l'avancement global. */
-export function etatVisuel(avancement: number): EtatVisuel {
-  const a = borne(avancement, 0, 100);
-  let i = PHASES_VISUELLES.length - 1;
-  while (i > 0 && a < PHASES_VISUELLES[i].debut) i--;
-  const debut = PHASES_VISUELLES[i].debut, fin = PHASES_VISUELLES[i + 1]?.debut ?? 100;
-  return { phase: PHASES_VISUELLES[i].id, nom: PHASES_VISUELLES[i].nom, progression: fin > debut ? (a - debut) / (fin - debut) : 1, avancement: a };
-}
-
-/** Rapproche un nom de phase du simulateur (« Terrassement », « Gros œuvre »…) de sa représentation 3D. */
-export function phaseDepuisNom(nom: string): PhaseVisuelle | null {
-  // « œ » n'est pas décomposé par NFD : on le développe à la main (gros œuvre, second œuvre).
-  const n = nom.toLowerCase().replace(/œ/g, 'oe').normalize('NFD').replace(/[̀-ͯ]/g, '');
-  if (/terrass|implant|prepar|install|demol|decap/.test(n)) return 'terrain';
-  if (/fondation|semelle|longrine|soubassement|radier/.test(n)) return 'fondations';
-  if (/toit|charpente|couverture|etanch/.test(n)) return 'toiture';
-  if (/elevation|gros.?oeuvre|maconnerie|structure|poteau|dalle|beton|mur/.test(n)) return 'elevation';
-  if (/finition|second.?oeuvre|peinture|electri|plomberie|menuiserie|carrelage|enduit|vrd|amenag|livraison/.test(n)) return 'finitions';
-  return null;
-}
+// ─── Chantier du simulateur ───
 
 /** Chantier du simulateur, tel que renvoyé par GET /chantiers/mine (champs utiles au monde 3D). */
 export interface ChantierSimulateur {
@@ -43,13 +20,21 @@ export interface ChantierSimulateur {
   evenementsLog?: { jour: number; type: string; texte: string }[] | null;
 }
 
-/** État visuel d'un chantier du simulateur : la phase en cours si son nom est reconnu, sinon l'avancement global. */
+/** Étape du programme qui correspond à la phase en cours du simulateur, et le jour à l'intérieur de cette étape. */
+export function etapeSimulateur(c: ChantierSimulateur): { etape: IdEtape; jourEtape: number; joursEtape: number; progression: number } {
+  const nomPhase = c.chantier.phases[c.phaseCourante]?.nom ?? '';
+  const progression = borne((c.avancementPhases?.[String(c.phaseCourante)] ?? 0) / 100, 0, .999);
+  const id = etapeDepuisNom(nomPhase) ?? etapeAuJour(Math.floor(borne(c.avancementPct, 0, 99) / 100 * TOTAL_JOURS))?.etape.id ?? 'elevation';
+  const etape = PROGRAMME.find(e => e.id === id)!;
+  return { etape: id, jourEtape: 1 + Math.floor(progression * etape.jours), joursEtape: etape.jours, progression };
+}
+
+/** État visuel d'un chantier du simulateur : l'étape reconnue d'après le nom de la phase, et sa progression. */
 export function etatVisuelSimulateur(c: ChantierSimulateur): EtatVisuel {
-  if (c.statut !== 'en_cours') return etatVisuel(100);
+  if (c.statut !== 'en_cours') return etatVisuel(TOTAL_JOURS);
+  const { etape, progression } = etapeSimulateur(c);
   const nomPhase = c.chantier.phases[c.phaseCourante]?.nom;
-  const reconnue = nomPhase ? phaseDepuisNom(nomPhase) : null;
-  if (!reconnue || !nomPhase) return { ...etatVisuel(c.avancementPct), ...(nomPhase ? { nom: nomPhase } : {}) };
-  return { phase: reconnue, nom: nomPhase, progression: borne((c.avancementPhases?.[String(c.phaseCourante)] ?? 0) / 100, 0, 1), avancement: borne(c.avancementPct, 0, 100) };
+  return { etape, nom: nomPhase ?? PROGRAMME.find(e => e.id === etape)!.nom, progression, avancement: borne(c.avancementPct, 0, 100), jour: c.phaseCourante, total: c.chantier.phases.length };
 }
 
 /** Événements de la dernière journée jouée, dans le journal renvoyé par le simulateur. */
@@ -59,155 +44,124 @@ export function evenementsDuJour(c: Pick<ChantierSimulateur, 'evenementsLog'>) {
   return journal.filter(e => e.jour === jour);
 }
 
-// ─── Situations de terrain ───
-
-export interface Choix { texte: string; correct: boolean; retour: string }
-export interface SituationTerrain { id: string; titre: string; situation: string; choix: readonly Choix[] }
-
-export const SITUATION_EPI: SituationTerrain = {
-  id: 'epi', titre: 'Avant d’entrer sur le chantier',
-  situation: 'Il fait déjà chaud ce matin. Le bungalow met à disposition casques, chaussures de sécurité et gilets haute visibilité.',
-  choix: [
-    { texte: 'Casque, chaussures de sécurité et gilet haute visibilité', correct: true, retour: 'C’est la tenue minimale sur un chantier, même pour une simple visite.' },
-    { texte: 'Juste le casque, il fait trop chaud pour le reste', correct: false, retour: 'Un clou ou une charge qui tombe ne regarde pas la météo : chaussures et gilet sont obligatoires.' },
-    { texte: 'Rien : je ne fais que passer', correct: false, retour: 'Personne n’entre sans équipement, pas même le chef. C’est la première règle du chantier.' },
-  ],
-};
-
-export const SITUATIONS_SECURITE: readonly SituationTerrain[] = [
-  { id: 'echafaudage', titre: 'Échafaudage', situation: 'Au deuxième niveau de l’échafaudage, un garde-corps manque côté rue. Un maçon y travaille.', choix: [
-    { texte: 'Je fais arrêter le travail en hauteur et poser le garde-corps', correct: true, retour: 'Une chute de hauteur est l’accident le plus grave du BTP : on sécurise d’abord, on reprend ensuite.' },
-    { texte: 'Je lui demande de faire attention', correct: false, retour: 'La vigilance ne remplace pas une protection collective. Il faut arrêter et poser le garde-corps.' },
-    { texte: 'Je le note pour la semaine prochaine', correct: false, retour: 'Le risque est immédiat : on ne reporte jamais une protection contre les chutes.' },
-  ] },
-  { id: 'fouille', titre: 'Fouille', situation: 'La tranchée des réseaux n’est pas balisée et coupe le passage des ouvriers.', choix: [
-    { texte: 'Je fais poser un balisage et une passerelle', correct: true, retour: 'Une fouille doit être signalée et franchissable en sécurité.' },
-    { texte: 'Je la contourne et je continue', correct: false, retour: 'Les autres, eux, risquent d’y tomber. Un danger repéré doit être traité.' },
-    { texte: 'Ce n’est pas mon rôle', correct: false, retour: 'La sécurité est l’affaire de tous : on signale et on fait corriger.' },
-  ] },
-  { id: 'rallonge', titre: 'Électricité', situation: 'Une rallonge électrique traverse une flaque d’eau près de la bétonnière.', choix: [
-    { texte: 'Je fais couper le courant et déplacer la rallonge', correct: true, retour: 'Eau et électricité : on coupe d’abord, puis on fait passer le câble en hauteur ou à l’abri.' },
-    { texte: 'Je l’enjambe avec précaution', correct: false, retour: 'Le risque d’électrocution reste là pour les autres. Il faut couper et déplacer.' },
-    { texte: 'J’attends que la flaque sèche', correct: false, retour: 'En attendant, n’importe qui peut s’électrocuter. On agit tout de suite.' },
-  ] },
-  { id: 'charge', titre: 'Levage', situation: 'La grue déplace une palette de parpaings. Deux ouvriers discutent juste sous la charge.', choix: [
-    { texte: 'Je les fais sortir de la zone et je préviens le grutier', correct: true, retour: 'Personne ne stationne sous une charge suspendue, jamais.' },
-    { texte: 'Je les laisse, la palette est bien sanglée', correct: false, retour: 'Une élingue peut lâcher. La zone sous la charge doit rester vide.' },
-    { texte: 'Je fais signe au grutier d’aller plus vite', correct: false, retour: 'Accélérer augmente le balancement. On dégage d’abord la zone.' },
-  ] },
-  { id: 'stockage', titre: 'Stockage', situation: 'Des parpaings sont empilés sur la dalle, au bord du vide, sur plus d’un mètre.', choix: [
-    { texte: 'Je fais reculer et abaisser la pile', correct: true, retour: 'Un stock au bord du vide peut tomber sur ceux qui travaillent en dessous.' },
-    { texte: 'Je laisse, on va les utiliser vite', correct: false, retour: 'Il suffit d’un choc pour qu’un bloc tombe. On stocke loin du bord.' },
-    { texte: 'Je fais monter encore plus de parpaings', correct: false, retour: 'Surcharger une dalle au bord du vide aggrave le danger.' },
-  ] },
-  { id: 'decoupe', titre: 'Découpe', situation: 'Un ouvrier découpe des parpaings à la disqueuse, sans lunettes ni gants.', choix: [
-    { texte: 'Je l’arrête et lui fais mettre lunettes, gants et masque', correct: true, retour: 'Éclats et poussière de silice : la découpe exige lunettes, gants et masque.' },
-    { texte: 'Je le laisse finir, ce sera rapide', correct: false, retour: 'Un éclat dans l’œil ne prend qu’une seconde. On s’équipe avant de couper.' },
-    { texte: 'Je lui prête mes lunettes de soleil', correct: false, retour: 'Des lunettes de soleil ne protègent pas des éclats : il faut des lunettes de protection.' },
-  ] },
-];
-
-export const SITUATIONS_LIVRAISON: readonly SituationTerrain[] = [
-  { id: 'ciment', titre: 'Livraison de ciment', situation: 'Bon de livraison : 40 sacs de ciment CPJ 45. Tu comptes 36 sacs, dont 2 déchirés.', choix: [
-    { texte: 'J’accepte en notant mes réserves sur le bon : 34 sacs conformes', correct: true, retour: 'Les réserves écrites protègent l’entreprise : on ne paiera que ce qui est livré en bon état.' },
-    { texte: 'Je signe sans rien dire, le chauffeur est pressé', correct: false, retour: 'Une signature sans réserve vaut acceptation : l’entreprise paierait 40 sacs.' },
-    { texte: 'Je refuse toute la livraison', correct: false, retour: 'Refuser tout bloque le chantier. On accepte ce qui est conforme et on note le reste.' },
-  ] },
-  { id: 'fers', titre: 'Livraison d’aciers', situation: 'Commande : barres HA12 pour les poteaux. Le camion apporte des barres HA10.', choix: [
-    { texte: 'Je refuse ces barres et je préviens le conducteur de travaux', correct: true, retour: 'Un diamètre plus faible ne tient pas les charges calculées : la livraison n’est pas conforme.' },
-    { texte: 'J’accepte, la différence est minime', correct: false, retour: 'Deux millimètres de moins, c’est environ 30 % d’acier en moins dans le poteau.' },
-    { texte: 'Je les fais poser en doublant les barres', correct: false, retour: 'On ne modifie jamais un ferraillage sans l’accord du bureau d’études.' },
-  ] },
-  { id: 'parpaings', titre: 'Livraison de parpaings', situation: 'Une palette de parpaings arrive avec une dizaine de blocs cassés.', choix: [
-    { texte: 'J’accepte en notant les blocs cassés sur le bon', correct: true, retour: 'Les blocs abîmés seront remplacés ou déduits de la facture.' },
-    { texte: 'Je fais poser les blocs cassés quand même', correct: false, retour: 'Des blocs fissurés affaiblissent le mur. On les écarte.' },
-    { texte: 'Je jette les blocs cassés sans rien noter', correct: false, retour: 'Sans réserve écrite, l’entreprise paie des blocs inutilisables.' },
-  ] },
-];
-
-const TOUTES = [SITUATION_EPI, ...SITUATIONS_SECURITE, ...SITUATIONS_LIVRAISON];
-export const situation = (id: string) => TOUTES.find(s => s.id === id);
-
 // ─── Déroulé de la journée ───
 
-export type EtapeJournee = 'epi' | 'securite' | 'livraison' | 'bilan';
-export type PosteChantier = 'bungalow' | 'securite-0' | 'securite-1' | 'securite-2' | 'livraison';
+export type TypeTache = 'epi' | 'recrutement' | 'travail' | 'securite' | 'livraison';
+export interface TacheJour { id: string; type: TypeTache; zone: ZoneChantier; titre: string }
 
-export interface Journee { numero: number; etape: EtapeJournee; securite: [string, string, string]; livraison: string; reponses: Record<string, number> }
-
-/** Prépare la journée : trois points de sécurité et une livraison qui changent d'une journée à l'autre. */
-export function nouvelleJournee(numero: number): Journee {
-  const n = SITUATIONS_SECURITE.length, k = Math.abs(Math.floor(numero));
-  const securite = [0, 1, 2].map(i => SITUATIONS_SECURITE[(k + i * 2) % n].id) as [string, string, string];
-  return { numero: k, etape: 'epi', securite, livraison: SITUATIONS_LIVRAISON[k % SITUATIONS_LIVRAISON.length].id, reponses: {} };
+export interface Journee {
+  /** Jour du programme (0 = recrutement du premier jour). */
+  numero: number;
+  etape: IdEtape; jourEtape: number; joursEtape: number;
+  taches: TacheJour[];
+  /** Choix par situation ; pour le recrutement, la note de l'équipe sur 100. */
+  reponses: Record<string, number>;
+  /** Métiers à recruter aujourd'hui avant de pouvoir travailler (vide sinon). */
+  recrutement: Metier[];
+  livraison: ChargementLivraison | null;
 }
 
-/** Situation attendue à un poste, ou null si ce n'est pas (ou plus) le moment d'y aller. */
-export function situationAuPoste(j: Journee, poste: PosteChantier): SituationTerrain | null {
-  if (poste === 'bungalow') return j.etape === 'epi' ? SITUATION_EPI : null;
-  if (poste === 'livraison') return j.etape === 'livraison' ? situation(j.livraison) ?? null : null;
-  const id = j.securite[Number(poste.slice(-1))];
-  return j.etape === 'securite' && j.reponses[id] === undefined ? situation(id) ?? null : null;
-}
+export type PhaseJournee = 'epi' | 'recrutement' | 'travaux' | 'bilan';
 
-/** Postes où le joueur doit encore se rendre pour l'étape en cours. */
-export function postesRestants(j: Journee): PosteChantier[] {
-  if (j.etape === 'epi') return ['bungalow'];
-  if (j.etape === 'livraison') return ['livraison'];
-  if (j.etape === 'securite') return (['securite-0', 'securite-1', 'securite-2'] as const).filter((_, i) => j.reponses[j.securite[i]] === undefined);
-  return [];
-}
-
-/** Enregistre une réponse (une seule fois par situation) et passe à l'étape suivante quand celle-ci est complète. */
-export function repondre(j: Journee, id: string, choix: number): Journee {
-  if (j.reponses[id] !== undefined) return j;
-  const reponses = { ...j.reponses, [id]: choix };
-  let etape = j.etape;
-  if (j.etape === 'epi' && id === SITUATION_EPI.id) etape = 'securite';
-  else if (j.etape === 'securite' && j.securite.every(s => reponses[s] !== undefined)) etape = 'livraison';
-  else if (j.etape === 'livraison' && id === j.livraison) etape = 'bilan';
-  return { ...j, reponses, etape };
-}
-
-export const TITRES_ETAPES: Record<EtapeJournee, string> = {
-  epi: 'Équipe-toi au bungalow',
-  securite: 'Fais le tour de sécurité',
-  livraison: 'Réceptionne la livraison',
+export const TITRES_PHASES: Record<PhaseJournee, string> = {
+  epi: 'Équipe-toi au vestiaire',
+  recrutement: 'Recrute l’équipe au bureau',
+  travaux: 'Travaux du jour',
   bilan: 'Fais le point avec Yao',
 };
 
-export interface BilanJournee { bonnes: number; total: number; note: number; avancement: number; paie: number; xp: number; mention: string }
+/** Jour du programme par lequel commence la prochaine journée : après une livraison, un nouvel ouvrage démarre
+ * (directement à l'implantation si l'équipe de gros œuvre est déjà au complet). */
+export function prochainJour(c: Pick<ChantierQuartier, 'jours' | 'equipe'>) {
+  if (c.jours < TOTAL_JOURS) return Math.max(0, Math.floor(c.jours));
+  return metiersManquants(c.equipe, GROS_OEUVRE).length ? 0 : 1;
+}
 
-/** Note sur 100 (présence 10, équipement 20, chaque point de sécurité 15, livraison 25) et récompenses qui en découlent. « Journée exemplaire » est réservée au sans-faute. */
+/** Prépare la journée d'après l'étape du programme : équipement, recrutement des métiers manquants, deux ou trois
+ * travaux de l'étape (différents d'un jour à l'autre), un point de sécurité, et la livraison du premier jour.
+ * `simulateur` : étape imposée par le vrai chantier, dont l'équipe se gère dans le simulateur. */
+export function nouvelleJournee(c: Pick<ChantierQuartier, 'jours' | 'equipe'>, simulateur?: { etape: IdEtape; jourEtape: number; joursEtape: number }): Journee {
+  const numero = prochainJour(c);
+  const courant = simulateur ? { etape: PROGRAMME.find(e => e.id === simulateur.etape)!, jourEtape: simulateur.jourEtape } : etapeAuJour(numero)!;
+  const etape = courant.etape, d = courant.jourEtape;
+  const recrutement = simulateur ? [] : metiersManquants(c.equipe, etape.id === 'recrutement' ? GROS_OEUVRE : etape.metiers);
+  const taches: TacheJour[] = [{ id: SITUATION_EPI.id, type: 'epi', zone: 'vestiaire', titre: TITRES_PHASES.epi }];
+  if (recrutement.length) taches.push({ id: 'recrutement', type: 'recrutement', zone: 'bureau', titre: `Recruter : ${recrutement.join(', ')}` });
+  const n = etape.travaux.length, combien = etape.jours === 1 ? Math.min(n, 3) : Math.min(n, 2);
+  for (let i = 0; i < combien; i++) {
+    const tache = etape.travaux[((d - 1) * combien + i) % n];
+    if (!taches.some(x => x.id === tache.situation.id)) taches.push({ id: tache.situation.id, type: 'travail', zone: tache.zone, titre: tache.situation.titre });
+  }
+  if (etape.securite.length) {
+    const tache = etape.securite[(d - 1) % etape.securite.length];
+    taches.push({ id: tache.situation.id, type: 'securite', zone: tache.zone, titre: tache.situation.titre });
+  }
+  const livraison = etape.livraison && d === 1 ? etape.livraison : null;
+  if (livraison) taches.push({ id: livraison.situation.id, type: 'livraison', zone: 'portail', titre: livraison.situation.titre });
+  return { numero, etape: etape.id, jourEtape: d, joursEtape: simulateur?.joursEtape ?? etape.jours, taches, reponses: {}, recrutement, livraison: livraison?.chargement ?? null };
+}
+
+/** Où en est la journée : l'équipement d'abord, puis le recrutement s'il manque des métiers, puis les travaux, puis le bilan. */
+export function phaseJournee(j: Journee): PhaseJournee {
+  if (j.reponses[SITUATION_EPI.id] === undefined) return 'epi';
+  if (j.recrutement.length && j.reponses.recrutement === undefined) return 'recrutement';
+  if (j.taches.some(t => (t.type === 'travail' || t.type === 'securite' || t.type === 'livraison') && j.reponses[t.id] === undefined)) return 'travaux';
+  return 'bilan';
+}
+
+/** Tâches à faire maintenant (dans n'importe quel ordre pendant les travaux). */
+export function tachesDisponibles(j: Journee): TacheJour[] {
+  const phase = phaseJournee(j);
+  if (phase === 'bilan') return [];
+  return j.taches.filter(t => j.reponses[t.id] === undefined && (phase === 'travaux' ? t.type !== 'epi' && t.type !== 'recrutement' : t.type === phase));
+}
+
+/** Tâche disponible à une zone du chantier, ou null si ce n'est pas (ou plus) le moment d'y aller. */
+export function tacheALaZone(j: Journee, zone: ZoneChantier) {
+  return tachesDisponibles(j).find(t => t.zone === zone) ?? null;
+}
+
+/** Enregistre une réponse (une seule fois par situation). */
+export function repondre(j: Journee, id: string, choix: number): Journee {
+  if (j.reponses[id] !== undefined) return j;
+  return { ...j, reponses: { ...j.reponses, [id]: choix } };
+}
+
+/** Enregistre le recrutement du jour avec la note de l'équipe constituée (0 à 1). */
+export function enregistrerRecrutement(j: Journee, note: number): Journee {
+  return repondre(j, 'recrutement', Math.round(borne(note, 0, 1) * 100));
+}
+
+export interface BilanJournee { bonnes: number; total: number; note: number; compte: boolean; paie: number; xp: number; mention: string }
+
+/** Note sur 100 : présence 10, équipement 20, puis 70 points partagés entre les autres tâches (le recrutement compte
+ * selon la note de l'équipe, la meilleure équipe possible valant la totalité). Sous 40, la journée est à refaire. */
 export function bilanJournee(j: Journee): BilanJournee {
-  const juste = (id: string) => { const choix = j.reponses[id]; return choix !== undefined && Boolean(situation(id)?.choix[choix]?.correct); };
-  const ids = [SITUATION_EPI.id, ...j.securite, j.livraison];
-  const note = 10 + (juste(SITUATION_EPI.id) ? 20 : 0) + j.securite.filter(juste).length * 15 + (juste(j.livraison) ? 25 : 0);
+  const score = (t: TacheJour) => {
+    if (t.type === 'recrutement') return Math.min(1, (j.reponses.recrutement ?? 0) / 95);
+    const choix = j.reponses[t.id];
+    return choix !== undefined && situation(t.id)?.choix[choix]?.correct ? 1 : 0;
+  };
+  const autres = j.taches.filter(t => t.type !== 'epi');
+  const epi = score(j.taches[0]);
+  const note = Math.round(10 + epi * 20 + (autres.length ? 70 * autres.reduce((n, t) => n + score(t), 0) / autres.length : 70));
   return {
-    bonnes: ids.filter(juste).length, total: ids.length, note,
-    avancement: Math.round(8 + note * .12),
+    bonnes: j.taches.filter(t => score(t) >= .8).length, total: j.taches.length, note, compte: note >= 40,
     paie: 3000 + note * 40,
     xp: 20 + Math.round(note * .6),
     mention: note === 100 ? 'Journée exemplaire' : note >= 60 ? 'Bonne journée' : note >= 40 ? 'Journée correcte' : 'Journée à revoir',
   };
 }
 
-// ─── Postes autour de la palissade ───
+// ─── Abords du chantier dans la ville ───
 
 export type PointPlan = [number, number];
+export type PosteVille = 'yao' | 'entree';
 
-/** Postes de la journée, hors de l'emprise du chantier (le joueur ne marche pas dans la fouille) : Yao et le camion
- * devant le portail sud, le bungalow à l'angle sud-est, les trois points de sécurité le long de la palissade. */
-export function postesChantier(centre: PointPlan, largeur: number, profondeur: number): Record<PosteChantier | 'yao', PointPlan> {
-  const [x, z] = centre, hx = largeur / 2, hz = profondeur / 2;
-  return {
-    yao: [x - 3.4, z + hz + 2.6],
-    bungalow: [x + hx + 3.7, z + hz + 1.8],
-    'securite-0': [x - hx - 2.2, z + 1.5],
-    'securite-1': [x + 2.5, z - hz - 1.2],
-    'securite-2': [x + hx + 2.2, z - 2.5],
-    livraison: [x + 4.2, z + hz + 2.6],
-  };
+/** Postes devant le portail sud, hors de l'emprise : Yao, et l'entrée du chantier pendant la journée. */
+export function postesChantier(centre: PointPlan, _largeur: number, profondeur: number): Record<PosteVille, PointPlan> {
+  const [x, z] = centre, hz = profondeur / 2;
+  return { yao: [x - 3.4, z + hz + 2.6], entree: [x + .8, z + hz + 2.2] };
 }
 
 /** Bungalow de chantier, posé à l'angle sud-est, à l'extérieur de la palissade : centre et taille (repère monde). */
@@ -222,34 +176,38 @@ export const OUVERTURE_CHANTIER = 6, FERMETURE_CHANTIER = 18, FIN_DE_JOURNEE = 1
 export const chantierOuvert = (heure: number) => heure >= OUVERTURE_CHANTIER && heure < FERMETURE_CHANTIER;
 
 /** Chantier du quartier, sans compte ou sans chantier du simulateur : gardé dans le navigateur. */
-export interface ChantierQuartier { avancement: number; journees: number; livraisons: number; repos: { heure: number; le: number } | null }
-export const CHANTIER_QUARTIER_INITIAL: ChantierQuartier = { avancement: 24, journees: 0, livraisons: 0, repos: null };
+export interface ChantierQuartier {
+  version: 2;
+  /** Journées comptées dans le programme (0 à TOTAL_JOURS). */
+  jours: number; journees: number; livraisons: number; repos: { heure: number; le: number } | null;
+  equipe: Ouvrier[];
+}
+export const CHANTIER_QUARTIER_INITIAL: ChantierQuartier = { version: 2, jours: 0, journees: 0, livraisons: 0, repos: null, equipe: [] };
 
 /** Après une journée, on se repose jusqu'au lendemain : l'horloge a repassé minuit, ou une journée de jeu entière s'est écoulée. */
-export function enRepos(c: ChantierQuartier, heure: number, maintenant: number) {
+export function enRepos(c: Pick<ChantierQuartier, 'repos'>, heure: number, maintenant: number) {
   if (!c.repos) return false;
   return !(heure < c.repos.heure || maintenant - c.repos.le > 30 * 60_000);
 }
 
-export function journeeDisponible(c: ChantierQuartier, heure: number, maintenant: number) {
+export function journeeDisponible(c: Pick<ChantierQuartier, 'repos'>, heure: number, maintenant: number) {
   return chantierOuvert(heure) && !enRepos(c, heure, maintenant);
 }
 
-/** Applique une journée au chantier du quartier. Un ouvrage livré laisse place au suivant le lendemain. */
-export function appliquerJournee(c: ChantierQuartier, avancementGagne: number, heureFin: number, maintenant: number): ChantierQuartier {
-  const depart = c.avancement >= 100 ? 0 : c.avancement;
-  const avancement = Math.min(100, depart + Math.max(0, avancementGagne));
-  return { avancement, journees: c.journees + 1, livraisons: c.livraisons + (avancement >= 100 ? 1 : 0), repos: { heure: heureFin, le: maintenant } };
+/** Applique une journée : elle compte dans le programme si elle n'est pas à refaire, et les recrues rejoignent l'équipe. */
+export function appliquerJournee(c: ChantierQuartier, j: Journee, bilan: Pick<BilanJournee, 'compte'>, recrues: readonly Ouvrier[], heureFin: number, maintenant: number): ChantierQuartier {
+  const jours = Math.min(TOTAL_JOURS, j.numero + (bilan.compte ? 1 : 0));
+  const equipe = [...c.equipe.filter(o => !recrues.some(r => r.metier === o.metier)), ...recrues];
+  return { ...c, jours, journees: c.journees + 1, livraisons: c.livraisons + (jours >= TOTAL_JOURS && j.numero < TOTAL_JOURS ? 1 : 0), repos: { heure: heureFin, le: maintenant }, equipe };
 }
 
-/** Lecture tolérante d'une sauvegarde locale (absente, ancienne ou abîmée). */
+/** Lecture tolérante d'une sauvegarde locale (absente, ancienne ou abîmée). Une sauvegarde de l'ancienne journée
+ * (avancement en pourcentage, sans équipe) repart au début du programme, en gardant ses compteurs et son repos. */
 export function lireChantierQuartier(brut: unknown): ChantierQuartier {
   const c = (brut && typeof brut === 'object' ? brut : {}) as Partial<ChantierQuartier>;
   const repos = c.repos && typeof c.repos === 'object' && Number.isFinite(c.repos.heure) && Number.isFinite(c.repos.le) ? { heure: c.repos.heure, le: c.repos.le } : null;
-  return {
-    avancement: borne(Number(c.avancement ?? CHANTIER_QUARTIER_INITIAL.avancement), 0, 100),
-    journees: Math.max(0, Math.floor(Number(c.journees) || 0)),
-    livraisons: Math.max(0, Math.floor(Number(c.livraisons) || 0)),
-    repos,
-  };
+  const compteurs = { journees: Math.max(0, Math.floor(Number(c.journees) || 0)), livraisons: Math.max(0, Math.floor(Number(c.livraisons) || 0)), repos };
+  if (c.version !== 2) return { ...CHANTIER_QUARTIER_INITIAL, ...compteurs };
+  const equipe = (Array.isArray(c.equipe) ? c.equipe : []).map(lireOuvrier).filter((o): o is Ouvrier => o !== null);
+  return { version: 2, jours: borne(Math.floor(Number(c.jours)), 0, TOTAL_JOURS), ...compteurs, equipe };
 }

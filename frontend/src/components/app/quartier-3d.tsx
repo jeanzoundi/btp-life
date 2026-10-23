@@ -34,12 +34,15 @@ import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif
 import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, type NotificationMonde, type TypeNotification } from './hud-monde';
 import { Minicarte } from './minicarte';
 import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
-import { PanneauJourneeChantier, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
+import { InterieurChantier3D } from './interieur-chantier-3d';
+import { PanneauJourneeChantier, PanneauPlanning, PanneauRecrutement, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
 import {
-  appliquerJournee, bilanJournee, bungalowChantier, CHANTIER_QUARTIER_INITIAL, chantierOuvert, enRepos, etatVisuel, etatVisuelSimulateur, evenementsDuJour,
-  FIN_DE_JOURNEE, journeeDisponible, lireChantierQuartier, nouvelleJournee, postesChantier, postesRestants, repondre, situationAuPoste, TITRES_ETAPES,
-  type ChantierQuartier, type ChantierSimulateur, type EtapeJournee, type EtatVisuel, type Journee, type PosteChantier, type SituationTerrain,
+  appliquerJournee, bilanJournee, bungalowChantier, CHANTIER_QUARTIER_INITIAL, chantierOuvert, enRepos, enregistrerRecrutement, etapeSimulateur, etatVisuel, etatVisuelSimulateur,
+  evenementsDuJour, FIN_DE_JOURNEE, journeeDisponible, lireChantierQuartier, nouvelleJournee, phaseJournee, postesChantier, repondre, situation, tacheALaZone, tachesDisponibles,
+  TITRES_PHASES, type ChantierQuartier, type ChantierSimulateur, type EtatVisuel, type Journee, type PhaseJournee, type PosteVille, type SituationTerrain, type TacheJour,
 } from '@/lib/journee-chantier';
+import { budgetRecrutement, candidats, PROGRAMME, TOTAL_JOURS, type EvaluationEquipe, type Metier, type Ouvrier } from '@/lib/programme-chantier';
+import { LIBELLES_STATIONS, type StationChantier } from '@/lib/interieur-chantier';
 import { appliquerEffet } from '@/lib/objets-interieurs';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
@@ -87,14 +90,19 @@ const BATIMENTS: Batiment3D[] = [
 const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
 const POSTES_CHANTIER = postesChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2]);
-const LIBELLES_POSTES: Record<PosteChantier | 'yao', string> = { yao: 'Yao', bungalow: 'Bungalow · EPI', 'securite-0': 'Point sécurité', 'securite-1': 'Point sécurité', 'securite-2': 'Point sécurité', livraison: 'Livraison' };
-const ANNONCES_ETAPES: Record<EtapeJournee, string> = { epi: 'Équipe-toi au bungalow.', securite: 'Équipé ! Fais maintenant le tour de sécurité : trois points le long de la palissade.', livraison: 'Tour terminé. Le camion de livraison attend à l’entrée.', bilan: 'Livraison réceptionnée. Retourne voir Yao pour le bilan.' };
-/** Libellé de la tâche à un poste, figé à l'ouverture (l'étape peut avancer pendant que le retour s'affiche). */
-function tacheAuPoste(poste: PosteChantier, journee: Journee) {
-  const situation = situationAuPoste(journee, poste);
-  if (!situation) return null;
-  return { poste, situation, etape: poste === 'bungalow' ? 'Équipement' : poste === 'livraison' ? 'Réception' : `Tour de sécurité · point ${4 - postesRestants(journee).length}/3` };
-}
+const LIBELLES_POSTES: Record<PosteVille, string> = { yao: 'Yao', entree: 'Entrer sur le chantier' };
+const ANNONCES_PHASES: Record<PhaseJournee, string> = {
+  epi: 'Passe au vestiaire pour t’équiper.',
+  recrutement: 'Équipé ! Passe au bureau de chantier pour recruter l’équipe.',
+  travaux: 'Au travail : les balises dorées montrent les tâches du jour.',
+  bilan: 'Tout est fait. Retourne voir Yao, devant la base vie, pour le bilan.',
+};
+/** Libellé d'une tâche, figé à l'ouverture (la journée peut avancer pendant que le retour s'affiche). */
+const libelleTache = (t: TacheJour, journee: Journee) => t.type === 'epi' ? 'Équipement' : t.type === 'livraison' ? 'Réception' : t.type === 'securite' ? 'Sécurité' : `${PROGRAMME.find(e => e.id === journee.etape)?.nom ?? 'Travaux'} · jour ${journee.jourEtape}/${journee.joursEtape}`;
+const GROS_OEUVRE: Metier[] = ['Chef d’équipe', 'Maçon', 'Manœuvre', 'Ferrailleur', 'Coffreur'];
+/** Équipe du Chantier du Plateau, qu'on visite sans y travailler. */
+const EQUIPE_VISITE: Ouvrier[] = candidats(7, GROS_OEUVRE).filter(o => o.id.endsWith('-q'));
+const ETAT_VISITE = etatVisuel(11);
 const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
@@ -338,7 +346,7 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ joueur, vue, suiviPnj, chantier, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteChantier | 'yao'; position: PointMonde; libelle: string }[] }; onPoste: (poste: PosteChantier | 'yao') => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
+function Scene({ joueur, vue, suiviPnj, chantier, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -418,9 +426,12 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const enregistrerChantier = useCallback((c: ChantierQuartier) => { setChantierQuartier(c); try { localStorage.setItem(cleChantier, JSON.stringify(c)); } catch { /* Stockage facultatif. */ } }, [cleChantier]);
   const [journee, setJournee] = useState<Journee | null>(null);
   const [resultatJournee, setResultatJournee] = useState<ResultatJournee | null>(null);
-  const [tache, setTache] = useState<{ poste: PosteChantier; situation: SituationTerrain; etape: string } | null>(null);
+  const [tache, setTache] = useState<{ id: string; situation: SituationTerrain; etape: string } | null>(null);
+  const [recrutementOuvert, setRecrutementOuvert] = useState(false);
+  const [recrues, setRecrues] = useState<Ouvrier[]>([]);
+  const [planningOuvert, setPlanningOuvert] = useState(false);
   const [dialogueLibre, setDialogueLibre] = useState(false);
-  const posteEnApproche = useRef<PosteChantier | 'yao' | null>(null);
+  const posteEnApproche = useRef<PosteVille | null>(null);
   const [progresDemo, setProgresDemo] = useState({ argent: 150_000, xp: 760 });
   const { data: chantiersSimulateur } = useQuery({ queryKey: ['chantiers', 'mine'], queryFn: () => api.get<ChantierSimulateur[]>('/chantiers/mine'), enabled: !demo, staleTime: 60_000 });
   const chantierActif = chantiersSimulateur?.find(c => c.statut === 'en_cours');
@@ -477,7 +488,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     const poste = posteEnApproche.current;
     if (poste && Math.hypot(positionCourante[0] - POSTES_CHANTIER[poste][0], positionCourante[1] - POSTES_CHANTIER[poste][1]) <= 4.5) {
       posteEnApproche.current = null;
-      if (poste === 'yao') parler('Yao'); else if (journee) setTache(tacheAuPoste(poste, journee));
+      if (poste === 'yao') parler('Yao'); else { setInterieur(BATIMENT_CHANTIER); setSelection(null); destination.current = null; }
     }
     const lieu = lieuEnApproche.current;
     if (!lieu) return;
@@ -620,10 +631,12 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const etapeEnCours = mode !== 'libre' ? modeActif.etapes[etapeMode] : undefined;
   const objectifVie = objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
   const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && journeeDisponible(chantierQuartier, heure, Date.now());
-  const restantsSecurite = journee?.etape === 'securite' ? postesRestants(journee).length : 0;
+  const phase = journee ? phaseJournee(journee) : null;
+  const surLeChantier = interieur?.slug === 'chantier';
+  const travauxDuJour = journee ? journee.taches.filter(t => t.type !== 'epi' && t.type !== 'recrutement') : [];
   const objectif: { texte: string; etiquette?: string; lieu?: string } = etapeEnCours
     ? { texte: etapeEnCours.titre, etiquette: secondes !== null ? `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}` : `${etapeMode + 1}/${modeActif.etapes.length}` }
-    : journee ? { texte: TITRES_ETAPES[journee.etape], etiquette: journee.etape === 'securite' ? `${3 - restantsSecurite}/3` : undefined, lieu: 'chantier' }
+    : journee && phase ? (surLeChantier ? { texte: TITRES_PHASES[phase], etiquette: phase === 'travaux' ? `${travauxDuJour.filter(t => journee.reponses[t.id] !== undefined).length}/${travauxDuJour.length}` : undefined, lieu: 'chantier' } : { texte: 'Retourne sur le chantier', lieu: 'chantier' })
     : travailPropose ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
     : objectifVie;
   const argent = profil?.argent ?? (demo ? progresDemo.argent : undefined);
@@ -637,48 +650,73 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
   const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
   const repereProche = useMemo(() => POINTS_DECOUVERTE.filter(p => !decouvertes.includes(p.id)).sort((a, b) => distanceEntre(a.position, positionCourante) - distanceEntre(b.position, positionCourante))[0], [decouvertes, positionCourante]);
-  // Pendant la journée, la flèche vise le poste restant le plus proche, puis Yao pour le bilan.
-  const posteCible: PosteChantier | 'yao' | null = journee ? (journee.etape === 'bilan' ? 'yao' : [...postesRestants(journee)].sort((a, b) => distanceEntre(POSTES_CHANTIER[a], positionCourante) - distanceEntre(POSTES_CHANTIER[b], positionCourante))[0] ?? null) : travailPropose ? 'yao' : null;
+  // Pendant la journée, la flèche ramène à l'entrée du chantier ; avant, elle vise Yao.
+  const posteCible: PosteVille | null = journee ? 'entree' : travailPropose ? 'yao' : null;
   const cibleObjectif: PointMonde | null = posteCible ? POSTES_CHANTIER[posteCible]
     : batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
     : !etapeEnCours && objectif.texte === 'Trouve les repères' && repereProche ? repereProche.position : null;
-  const etatChantier = useMemo(() => chantierActif ? etatVisuelSimulateur(chantierActif) : etatVisuel(chantierQuartier.avancement), [chantierActif, chantierQuartier.avancement]);
+  // Pendant une journée, le chantier montre le jour joué (un nouvel ouvrage peut démarrer après une livraison).
+  const etatChantier = useMemo(() => chantierActif ? etatVisuelSimulateur(chantierActif) : etatVisuel(journee ? journee.numero : chantierQuartier.jours), [chantierActif, journee?.numero, chantierQuartier.jours]); // eslint-disable-line react-hooks/exhaustive-deps
   const nomChantier = chantierActif?.chantier.nom ?? 'Résidence Lagune II';
-  const statutJournee: StatutJournee = resultatJournee ? 'resultat' : journee ? (journee.etape === 'bilan' ? 'bilan' : 'en_cours') : !chantierOuvert(heure) ? 'ferme' : enRepos(chantierQuartier, heure, Date.now()) ? 'repos' : 'disponible';
-  const postesVisibles = journee ? (journee.etape === 'bilan' ? ['yao' as const] : postesRestants(journee)) : statutJournee === 'disponible' ? ['yao' as const] : [];
+  const statutJournee: StatutJournee = resultatJournee ? 'resultat' : journee ? (phase === 'bilan' ? 'bilan' : 'en_cours') : !chantierOuvert(heure) ? 'ferme' : enRepos(chantierQuartier, heure, Date.now()) ? 'repos' : 'disponible';
+  const tacheLivraison = journee?.taches.find(t => t.type === 'livraison');
+  const livraisonEnCours = journee && phase === 'travaux' && tacheLivraison && journee.reponses[tacheLivraison.id] === undefined ? journee.livraison : null;
+  const postesVisibles: PosteVille[] = journee ? ['entree'] : statutJournee === 'disponible' ? ['yao'] : [];
+  const postesInterieur = useMemo<StationChantier[]>(() => journee ? (phase === 'bilan' ? ['yao'] : [...new Set(tachesDisponibles(journee).map(t => t.zone))]) : statutJournee === 'disponible' ? ['yao'] : [], [journee, phase, statutJournee]);
+  // L'équipe visible sur le chantier : celle du quartier, plus les recrues du jour (elles signent au bilan).
+  const equipeChantier = useMemo(() => chantierActif ? [] : [...chantierQuartier.equipe.filter(o => !recrues.some(r => r.metier === o.metier)), ...recrues], [chantierActif, chantierQuartier.equipe, recrues]);
   const chantierScene = useMemo(() => ({
-    etat: etatChantier, nom: nomChantier,
-    livraison: journee?.etape === 'livraison' ? journee.livraison as ChargementLivraison : null,
+    etat: etatChantier, nom: nomChantier, livraison: livraisonEnCours,
     postes: postesVisibles.map(id => ({ id, position: POSTES_CHANTIER[id], libelle: LIBELLES_POSTES[id] })),
-  }), [etatChantier, nomChantier, journee, postesVisibles.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  /** Balise touchée : on y va, ou on ouvre la tâche si l'on est déjà sur place. */
-  const surPoste = (poste: PosteChantier | 'yao') => {
+  }), [etatChantier, nomChantier, livraisonEnCours, postesVisibles.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const entrerSurLeChantier = () => { setInterieur(BATIMENT_CHANTIER); setSelection(null); directionsRef.current.clear(); destination.current = null; };
+  /** Balise de la ville touchée : on y va, puis on parle à Yao ou l'on entre sur le chantier. */
+  const surPoste = (poste: PosteVille) => {
     const point = POSTES_CHANTIER[poste];
     if (Math.hypot(joueurRef.current.x - point[0], joueurRef.current.z - point[1]) > 4.5) {
       posteEnApproche.current = poste; lieuEnApproche.current = null; setSelection(null); destination.current = point;
-      notifier(poste === 'yao' ? 'En route pour retrouver Yao.' : `En route : ${LIBELLES_POSTES[poste].toLowerCase()}.`, 'trajet');
+      notifier(poste === 'yao' ? 'En route pour retrouver Yao.' : 'En route vers l’entrée du chantier.', 'trajet');
       return;
     }
-    if (poste === 'yao') { parler('Yao'); return; }
-    if (journee && situationAuPoste(journee, poste)) setTache(tacheAuPoste(poste, journee));
-    else if (journee) notifier(`Pas encore : ${TITRES_ETAPES[journee.etape].toLowerCase()} d’abord.`, 'info');
+    if (poste === 'yao') parler('Yao'); else entrerSurLeChantier();
   };
   const commencerJournee = () => {
-    setJournee(nouvelleJournee(chantierQuartier.journees)); setInterlocuteur(null);
-    posteEnApproche.current = 'bungalow'; destination.current = POSTES_CHANTIER.bungalow;
-    notifier('Journée commencée : direction le bungalow pour t’équiper.', 'trajet');
+    setJournee(nouvelleJournee(chantierQuartier, chantierActif ? etapeSimulateur(chantierActif) : undefined));
+    setRecrues([]); setResultatJournee(null); setInterlocuteur(null);
+    if (!surLeChantier) entrerSurLeChantier();
+    notifier('Journée commencée : passe d’abord au vestiaire pour t’équiper.', 'trajet');
+  };
+  /** Poste du chantier atteint : la tâche qui s'y fait maintenant, le recrutement, ou Yao. */
+  const surStation = (station: StationChantier) => {
+    if (station === 'yao') { parler('Yao'); return; }
+    if (!journee || !phase) { notifier(`${LIBELLES_STATIONS[station]} : rien à faire ici pour l’instant.`, 'info'); return; }
+    const t = tacheALaZone(journee, station);
+    if (!t) { notifier(phase === 'bilan' ? 'La journée est faite : va voir Yao pour le bilan.' : `Pas encore : ${TITRES_PHASES[phase].toLowerCase()} d’abord.`, 'info'); return; }
+    if (t.type === 'recrutement') { setRecrutementOuvert(true); return; }
+    const s = situation(t.id);
+    if (s) setTache({ id: t.id, situation: s, etape: libelleTache(t, journee) });
+  };
+  const annoncerSuite = (avant: Journee, apres: Journee) => {
+    const p = phaseJournee(apres);
+    if (p !== phaseJournee(avant)) notifier(ANNONCES_PHASES[p], p === 'bilan' ? 'succes' : 'trajet');
   };
   const repondreTache = (id: string, choix: number) => {
     if (!journee) return;
     const suivante = repondre(journee, id, choix);
-    setJournee(suivante);
-    if (suivante.etape !== journee.etape) notifier(ANNONCES_ETAPES[suivante.etape], suivante.etape === 'bilan' ? 'succes' : 'trajet');
+    setJournee(suivante); annoncerSuite(journee, suivante);
+  };
+  const validerRecrutement = (choisis: Ouvrier[], evaluation: EvaluationEquipe) => {
+    if (!journee) return;
+    setRecrues(r => [...r.filter(o => !choisis.some(c => c.metier === o.metier)), ...choisis]);
+    const suivante = enregistrerRecrutement(journee, evaluation.note);
+    setJournee(suivante); annoncerSuite(journee, suivante);
   };
   const faireLeBilan = () => {
     if (!journee) return;
-    const bilan = bilanJournee(journee), avant = etatChantier.avancement, heureFin = Math.max(heure, FIN_DE_JOURNEE), maintenant = Date.now();
+    const bilan = bilanJournee(journee), heureFin = Math.max(heure, FIN_DE_JOURNEE), maintenant = Date.now();
     if (chantierActif) {
       // Vrai chantier : la journée passe par le simulateur (salaires, matériaux, imprévus) ; on se repose ensuite jusqu'au lendemain.
+      const avant = etatChantier.avancement;
       enregistrerChantier({ ...chantierQuartier, journees: chantierQuartier.journees + 1, repos: { heure: heureFin, le: maintenant } });
       jouerJournee.mutate(chantierActif.id, {
         onSuccess: res => setResultatJournee({ bilan, avant, apres: res.statut === 'en_cours' ? res.avancementPct : 100, recompenses: 'simulateur', evenements: evenementsDuJour(res) }),
@@ -686,21 +724,36 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
       });
       return;
     }
-    const apres = appliquerJournee(chantierQuartier, bilan.avancement, heureFin, maintenant);
-    enregistrerChantier(apres);
+    const apres = appliquerJournee(chantierQuartier, journee, bilan, recrues, heureFin, maintenant);
+    enregistrerChantier(apres); setRecrues([]);
     if (demo) {
       setProgresDemo(p => ({ argent: p.argent + bilan.paie, xp: p.xp + bilan.xp }));
       setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 8), faim: Math.max(0, s.faim - 6) }));
     }
-    setResultatJournee({ bilan, avant: chantierQuartier.avancement >= 100 ? 0 : chantierQuartier.avancement, apres: apres.avancement, recompenses: demo ? 'demo' : 'apprentissage' });
+    setResultatJournee({
+      bilan, avant: Math.round(journee.numero / TOTAL_JOURS * 100), apres: Math.round(apres.jours / TOTAL_JOURS * 100), recompenses: demo ? 'demo' : 'apprentissage',
+      etapeAvant: PROGRAMME.find(e => e.id === journee.etape)?.nom, etapeApres: etatVisuel(apres.jours).nom,
+    });
   };
   const terminerJournee = () => {
-    const apres = resultatJournee?.apres;
-    setResultatJournee(null); setJournee(null); setInterlocuteur(null);
+    const r = resultatJournee;
+    setResultatJournee(null); setJournee(null); setRecrues([]); setInterlocuteur(null);
     // Fin de journée à 17 h, comme une vraie journée de chantier.
     if (horlogeRef.current.heure < FIN_DE_JOURNEE && horlogeRef.current.heure >= 6) { horlogeRef.current = { heure: FIN_DE_JOURNEE, instant: Date.now(), pause: horlogeRef.current.pause }; setHeure(FIN_DE_JOURNEE); }
-    if (apres !== undefined) notifier(apres >= 100 ? 'Ouvrage livré ! Un nouveau chantier commencera demain.' : `Journée terminée : le chantier est à ${Math.round(apres)} %.`, 'succes');
+    if (!r) return;
+    if (r.recompenses === 'simulateur') notifier(`Journée terminée : le chantier est à ${Math.round(r.apres)} %.`, 'succes');
+    else if (!r.bilan.compte) notifier('Journée à refaire : le chantier n’a pas avancé.', 'alerte');
+    else notifier(r.apres >= 100 ? 'Ouvrage livré ! Un nouvel ouvrage démarrera demain.' : `Journée terminée : chantier à ${Math.round(r.apres)} % · demain, ${r.etapeApres?.toLowerCase() ?? 'la suite'}.`, 'succes');
   };
+  /** Échap sur le chantier : ferme d'abord le panneau ouvert. */
+  const fermerPanneauChantier = () => {
+    if (tache) { setTache(null); return true; }
+    if (recrutementOuvert) { setRecrutementOuvert(false); return true; }
+    if (planningOuvert) { setPlanningOuvert(false); return true; }
+    if (interlocuteur) { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); return true; }
+    return false;
+  };
+  const sortirDuChantier = (nom: string) => { directions.clear(); setInterieur(null); setTache(null); setRecrutementOuvert(false); setPlanningOuvert(false); notifier(`Tu es sorti de ${nom}.`, 'info'); };
   const reperesCarte = useMemo(() => POINTS_DECOUVERTE.map(p => ({ id: p.id, position: p.position, trouve: decouvertes.includes(p.id) })), [decouvertes]);
   // Un besoin qui devient critique déclenche une alerte avec le trajet vers le bon lieu (une fois, jusqu'à remontée).
   const signalesRef = useRef(new Set<CleBesoin>());
@@ -718,6 +771,16 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     window.setTimeout(() => notifier(demo ? 'Bienvenue aux Palmiers ! Touche un bâtiment, le sol ou la minicarte pour te déplacer.' : `Content de te revoir${nomJoueur ? `, ${nomJoueur}` : ''} !`, 'info'), 1500);
   }, [demo, nomJoueur, notifier]);
   const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
+  // Panneaux de la journée : dans la ville devant le portail, ou par-dessus l'intérieur du chantier.
+  const panneauxChantier = <>
+    {interlocuteur === 'Yao' && !dialogueLibre && <PanneauJourneeChantier statut={statutJournee} nomJoueur={nomJoueur ?? 'Bâtisseur'} nomChantier={nomChantier} etat={etatChantier} simulateur={Boolean(chantierActif)} demo={demo} journee={journee} resultat={resultatJournee} enCours={jouerJournee.isPending}
+      onCommencer={commencerJournee} onBilan={faireLeBilan} onTerminer={terminerJournee} onAbandonner={() => { setJournee(null); setRecrues([]); setInterlocuteur(null); notifier('Journée interrompue. Yao te retrouvera au chantier.', 'info'); }}
+      onDiscuter={() => setDialogueLibre(true)} onPlanning={() => setPlanningOuvert(true)} onFermer={() => { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); }} />}
+    {tache && <TacheChantier key={tache.id} etape={tache.etape} situation={tache.situation} onRepondre={choix => repondreTache(tache.id, choix)} onFermer={() => setTache(null)} />}
+    {recrutementOuvert && journee && <PanneauRecrutement graine={journee.numero + chantierQuartier.journees * 31} metiers={journee.recrutement} budget={budgetRecrutement(journee.recrutement)} onValider={validerRecrutement} onFermer={() => setRecrutementOuvert(false)} />}
+    {planningOuvert && <PanneauPlanning etat={etatChantier} equipe={equipeChantier} onFermer={() => setPlanningOuvert(false)} />}
+    {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); setInterieur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
+  </>;
   return <div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
@@ -749,11 +812,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     </div>
     <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
-    {interlocuteur === 'Yao' && !dialogueLibre && <PanneauJourneeChantier statut={statutJournee} nomJoueur={nomJoueur ?? 'Bâtisseur'} nomChantier={nomChantier} etat={etatChantier} simulateur={Boolean(chantierActif)} demo={demo} journee={journee} resultat={resultatJournee} enCours={jouerJournee.isPending}
-      onCommencer={commencerJournee} onBilan={faireLeBilan} onTerminer={terminerJournee} onAbandonner={() => { setJournee(null); setInterlocuteur(null); notifier('Journée interrompue. Yao te retrouvera au chantier.', 'info'); }}
-      onDiscuter={() => setDialogueLibre(true)} onFermer={() => { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); }} />}
-    {tache && <TacheChantier key={`${tache.poste}-${tache.situation.id}`} etape={tache.etape} situation={tache.situation} onRepondre={choix => repondreTache(tache.situation.id, choix)} onFermer={() => setTache(null)} />}
-    {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
+    {!surLeChantier && panneauxChantier}
     {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />
@@ -785,7 +844,15 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
       {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/10 bg-white/[.03] p-2"><h3 className="text-sm font-bold text-jeu-or">{q.nom}</h3><p className="my-1 text-xs text-jeu-ivoire/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-semibold hover:bg-white/[.06]">{b.nom}<span className="hud-chiffre mt-0.5 block text-[10.5px] font-semibold text-jeu-ivoire/55">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
     {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); notifier(`${action.label} : besoin restauré (démo, non sauvegardé).`, 'succes'); }} />}
-    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
+    {/* Les deux chantiers ont un vrai intérieur de chantier ; on ne travaille qu'au Grand chantier, le Chantier du Plateau se visite. */}
+    {interieur && (interieur.slug === 'chantier' || interieur.slug === 'construction-nord') ? <InterieurChantier3D
+      nomChantier={interieur.slug === 'chantier' ? nomChantier : interieur.nom} etat={interieur.slug === 'chantier' ? etatChantier : ETAT_VISITE} equipe={interieur.slug === 'chantier' ? equipeChantier : EQUIPE_VISITE}
+      journee={interieur.slug === 'chantier' ? journee : null} statut={statutJournee} postes={interieur.slug === 'chantier' ? postesInterieur : []} livraison={interieur.slug === 'chantier' ? livraisonEnCours : null}
+      demo={demo} visite={interieur.slug !== 'chantier'} onPoste={surStation} onSortir={() => sortirDuChantier(interieur.nom)} onPlanning={() => setPlanningOuvert(true)} onEchap={fermerPanneauChantier}>
+      {interieur.slug === 'chantier' && panneauxChantier}
+      <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} /></div>
+    </InterieurChantier3D>
+    : interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
         const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
         setDemoStats(s => ({ ...s, [cible]: 100 }));

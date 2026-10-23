@@ -1,5 +1,50 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Chantier de A à Z : programme, recrutement et intérieur réaliste (23 octobre)
+
+Commité localement, pas encore déployé.
+
+- **Intérieur du Grand chantier** : « Entrer dans le bâtiment » ouvre la parcelle elle-même, à la place de la salle de bureau.
+  - Latérite compactée, palissade et portail, base vie (vestiaire et bureau de chantier, portes tournées vers la caméra), sanitaires, citerne, panneau des consignes.
+  - Zone de stockage (sable, gravier, ciment bâché, agglos, aciers sur chevrons, planches), atelier de ferraillage, grue, bétonnière.
+  - L'ouvrage au stade du jour, avec les engins et accessoires de l'étape : théodolite, mini-pelle, rubalise, brouette, auges, échelle, rouleaux d'étanchéité, pots de peinture.
+  - L'équipe recrutée travaille, chacun à son poste selon son métier et l'étape, avec son nom affiché.
+  - On se déplace en touchant le sol ou une balise, au clavier, ou depuis la liste du jour.
+  - Le Chantier du Plateau se visite de la même façon, sans journée de travail.
+- **Programme complet** : 18 journées en 11 étapes, chacune avec ses métiers et ses situations de terrain.
+  - Recrutement (1 jour), implantation (1), terrassement et fouilles (2), semelles (2), soubassement et dallage (1), élévation du rez-de-chaussée (2), dalle du plancher haut (2), élévation de l'étage (2), toiture-terrasse (1), finitions (3), réception (1).
+  - Chaque journée validée fait avancer le programme d'un jour, et l'ouvrage change à vue, dans la ville comme sur le chantier : chaises et cordeaux, tranchées et déblais, cages d'armatures puis semelles coulées, soubassement et dallage, murs sous échafaudage, dalle étayée, étage, acrotère et citerne, enduits et menuiseries.
+  - Sous 40/100, la journée est à refaire et le chantier n'avance pas. Un ouvrage livré laisse place au suivant.
+- **Journée** :
+  - Équipement au vestiaire, puis recrutement s'il manque un métier.
+  - Ensuite, deux ou trois travaux de l'étape et un point de sécurité, dans l'ordre qu'on veut, plus la livraison le premier jour de l'étape.
+  - Enfin, le bilan avec Yao, à la base vie.
+  - 47 situations à trois réponses, toutes expliquées : fond de fouille, enrobage des aciers, aplomb, étaiement, relevé d'étanchéité, essai de plomberie, procès-verbal de réception…
+- **Recrutement** : au bureau de chantier, on choisit un candidat par métier, dans le budget journalier de main-d'œuvre.
+  - Pour chaque métier, trois profils : qualifié, débutant moins cher, ou à risque (refus du casque, absences, malfaçons, travail en hauteur sans harnais). Pour le chef d'équipe, un quatrième : un expert trop cher pour tenir le budget avec les autres qualifiés.
+  - Les salaires du gros œuvre sont ceux du simulateur : manœuvre 8 000 F, maçon 15 000 F, ferrailleur et coffreur 18 000 F, chef d'équipe 28 000 F.
+  - Électricien, plombier, carreleur et peintre s'ajoutent au début des finitions.
+  - Seule une équipe complète, fiable et dans le budget est jugée bonne. La meilleure équipe possible vaut tous les points de la journée.
+- **Planning et équipe** : depuis Yao ou le chantier, les 18 jours avec l'étape en cours, et l'équipe avec sa masse salariale.
+- **Avec un compte et un chantier du simulateur** : la phase en cours est rapprochée d'une étape du programme, pour le visuel et les tâches. L'équipe et le bilan restent ceux du simulateur.
+- **Sauvegarde** : une sauvegarde de l'ancienne journée, en pourcentage, repart au début du programme, avec ses compteurs et son repos.
+- **Aucun changement côté serveur.**
+- **Vérifié** :
+  - TypeScript. Vitest 176/176 (38 fichiers), dont le programme, le recrutement, la journée, la géométrie de chaque étape et l'accès à chaque poste de l'intérieur.
+  - En jeu :
+    - Jour 1 complet : consigne de Yao, vestiaire, recrutement de cinq profils qualifiés pour 87 000 F sur 90 000 F (« Bonne équipe », 97/100), bilan 98/100, chantier à 6 %. Depuis, la meilleure équipe vaut tous les points.
+    - Passage à l'implantation, avec chaises et cordeaux.
+    - Fouilles, avec mini-pelle, tranchées et déblais.
+    - Semelles, vues depuis la ville : semelles coulées et attentes des poteaux.
+    - Élévation, avec échafaudage, planning complet et une tâche de maçonnerie du jour 9.
+    - Aucune erreur dans la console.
+  - Correctifs trouvés en jeu :
+    - Les cases du recrutement se plaçaient hors de leur carte : le bouton masqué était positionné par rapport au panneau.
+    - Les portes de la base vie tournaient le dos à la caméra, et le joueur disparaissait derrière.
+- **Non vérifié** :
+  - En jeu, les étapes dalle, étage, toiture, finitions et livraison : seuls les tests de géométrie les couvrent. La fenêtre de l'aperçu est passée en arrière-plan pendant la vérification.
+  - La vraie journée du simulateur avec un compte.
+
 ## Interface « Lagune » et nouvelles fonctions (23 octobre)
 
 La première interface copiait de trop près vie2babi.ci : mêmes polices, mêmes cartes crème, même disposition et même vue plongeante. Une deuxième version, « plan d'exécution », a été jugée trop faible. La version « Lagune » les remplace. Elle est commitée localement, pas encore déployée.
@@ -23,6 +68,8 @@ La première interface copiait de trop près vie2babi.ci : mêmes polices, même
   - Vue de trois quarts plus proche (24 m, inclinée de 42°) pour voir les personnages. Pas de flou « maquette ».
 
 ## Chantier vivant et journée de travail avec Yao (23 octobre)
+
+Commité localement (6a580b8). Le déroulé de la journée décrit ici a été remplacé le jour même par le programme complet, décrit plus haut.
 
 - **Chantier** : le Grand chantier évolue phase par phase.
   - Phases : implantation et terrassement, fondations, élévation des murs sous échafaudage, toiture-terrasse, finitions, ouvrage livré.

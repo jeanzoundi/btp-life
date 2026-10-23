@@ -5,42 +5,49 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { BlocArchitecture, V3 } from '@/lib/architecture-ville';
-import { bungalowChantier, type EtatVisuel, type PointPlan, type PosteChantier } from '@/lib/journee-chantier';
+import { bungalowChantier, type PointPlan, type PosteVille } from '@/lib/journee-chantier';
+import type { ChargementLivraison, EtatVisuel, EtapeVisuelle } from '@/lib/programme-chantier';
 import { planChantier } from '@/lib/plan-chantier';
 import { BlocsInstances } from './blocs-instances';
 import { HumainMonde } from './humain-monde';
 import { MateriauMonde } from './materiaux-monde';
 
-export type ChargementLivraison = 'ciment' | 'fers' | 'parpaings';
+export type { ChargementLivraison } from '@/lib/programme-chantier';
 
 const JAUNE_GRUE = '#E8B23A';
+const ORDRE: EtapeVisuelle[] = ['recrutement', 'implantation', 'fouilles', 'semelles', 'soubassement', 'elevation', 'dalle', 'etage', 'toiture', 'finitions', 'reception', 'livre'];
+/** Vrai si l'étape affichée est comprise entre deux étapes du programme (incluses). */
+export const entreEtapes = (etape: EtapeVisuelle, de: EtapeVisuelle, a: EtapeVisuelle) => ORDRE.indexOf(etape) >= ORDRE.indexOf(de) && ORDRE.indexOf(etape) <= ORDRE.indexOf(a);
 
-/** Le Grand chantier du quartier : palissade, bungalow, grue, bétonnière, matériaux, ouvriers, et l'ouvrage qui monte phase par phase. */
+/** Le Grand chantier vu de la ville : palissade, bungalow, engins de l'étape en cours, ouvriers, et l'ouvrage qui monte. */
 export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, profondeur, etat, nomChantier, livraison, postes, pause, rythme, nuit, selectionne, onPoste, onSelect }: {
   centre: PointPlan; largeur: number; profondeur: number; etat: EtatVisuel; nomChantier: string; livraison: ChargementLivraison | null;
-  postes: { id: PosteChantier | 'yao'; position: PointPlan; libelle: string }[]; pause: boolean; rythme: number; nuit: boolean; selectionne: boolean;
-  onPoste: (poste: PosteChantier | 'yao') => void; onSelect: () => void;
+  postes: { id: PosteVille; position: PointPlan; libelle: string }[]; pause: boolean; rythme: number; nuit: boolean; selectionne: boolean;
+  onPoste: (poste: PosteVille) => void; onSelect: () => void;
 }) {
   const hx = largeur / 2, hz = profondeur / 2;
   const plan = useMemo(() => planChantier(etat), [etat]);
   const decor = useMemo(() => decorChantier(hx, hz), [hx, hz]);
   const bungalow = bungalowChantier([0, 0], largeur, profondeur);
-  const livre = etat.phase === 'livre';
+  const etape = etat.etape, actif = etape !== 'livre' && etape !== 'recrutement';
   const clic = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onSelect(); };
   return <group position={[centre[0], 0, centre[1]]}>
     {/* Sol de la parcelle, cliquable pour rejoindre le portail. */}
-    <mesh position={[0, .05, 0]} receiveShadow onClick={clic}><boxGeometry args={[largeur, .1, profondeur]} /><meshStandardMaterial color="#9C8B72" roughness={1} /></mesh>
+    <mesh position={[0, .05, 0]} receiveShadow onClick={clic}><boxGeometry args={[largeur, .1, profondeur]} /><meshStandardMaterial color="#9C7A5C" roughness={1} /></mesh>
     <Palissade hx={hx} hz={hz} onClick={clic} />
     <PanneauChantier position={[-6.4, 1.35, hz + .09]} nom={nomChantier} etat={etat} />
     <Bungalow position={[bungalow.x, 0, bungalow.z]} taille={[bungalow.largeur, 2.5, bungalow.profondeur]} nuit={nuit} />
-    <BlocsInstances blocs={plan.structure} interactif={false} />
-    <BlocsInstances blocs={plan.echafaudage} interactif={false} />
-    <BlocsInstances blocs={plan.vitres} matiere="vitre" interactif={false} />
-    <BlocsInstances blocs={decor} interactif={false} />
-    {[[8.6, -5.2, 1.5, '#D7B98A'], [8.4, -2.2, 1.1, '#8E8C86']].map(([x, z, r, c]) => <mesh key={String(c)} position={[x as number, (r as number) * .45, z as number]} castShadow receiveShadow><coneGeometry args={[r as number, (r as number) * .9, 18]} /><meshStandardMaterial color={c as string} roughness={1} /></mesh>)}
-    {!livre && <Grue position={[-8.4, 0, -5.2]} hauteurCharge={plan.hauteurTravail} pause={pause} rythme={rythme} />}
-    {!livre && <Betonniere position={[6.2, 0, 4.3]} pause={pause} rythme={rythme} />}
-    {!livre && <>
+    <group position={[0, .1, 0]}>
+      <BlocsInstances blocs={plan.structure} interactif={false} />
+      <BlocsInstances blocs={plan.echafaudage} interactif={false} />
+      <BlocsInstances blocs={plan.vitres} matiere="vitre" interactif={false} />
+    </group>
+    {etape !== 'livre' && <BlocsInstances blocs={decor} interactif={false} />}
+    {entreEtapes(etape, 'semelles', 'finitions') && [[8.6, -5.2, 1.5, '#D7B98A'], [8.4, -2.2, 1.1, '#8E8C86']].map(([x, z, r, c]) => <mesh key={String(c)} position={[x as number, (r as number) * .45, z as number]} castShadow receiveShadow><coneGeometry args={[r as number, (r as number) * .9, 18]} /><meshStandardMaterial color={c as string} roughness={1} /></mesh>)}
+    {entreEtapes(etape, 'elevation', 'toiture') && <Grue position={[-8.4, 0, -5.2]} hauteurCharge={plan.hauteurTravail} pause={pause} rythme={rythme} />}
+    {entreEtapes(etape, 'semelles', 'finitions') && <Betonniere position={[6.2, 0, 4.3]} pause={pause} rythme={rythme} />}
+    {etape === 'fouilles' && <MiniPelle position={[1.5, 0, -2.4]} rotation={.6} pause={pause} rythme={rythme} />}
+    {actif && <>
       <OuvrierEnBoucle points={[[-6.6, 3.9], [-4.6, 2.4]]} depart={0} variante={0} porte pause={pause} rythme={rythme} />
       <OuvrierEnBoucle points={[[-3.6, 4.7], [5, 3.6]]} depart={1} variante={2} porte pause={pause} rythme={rythme} />
       <OuvrierPoste position={[6.7, 0, 3]} rotation={-1.2} variante={4} />
@@ -52,7 +59,7 @@ export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, pr
   </group>;
 });
 
-/** Matériaux stockés : palette de parpaings, sacs de ciment, botte d'aciers, et la bande de marquage de la sortie. */
+/** Matériaux stockés : palette d'agglos, sacs de ciment, botte d'aciers, et la bande de marquage de la sortie. */
 function decorChantier(hx: number, hz: number): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [];
   const bloc = (position: V3, taille: V3, couleur: string, rotation = 0) => blocs.push({ position, taille, couleur, rotation });
@@ -66,8 +73,8 @@ function decorChantier(hx: number, hz: number): BlocArchitecture[] {
   return blocs;
 }
 
-function Palissade({ hx, hz, onClick }: { hx: number; hz: number; onClick: (e: ThreeEvent<MouseEvent>) => void }) {
-  const portail = 2.6;
+/** Palissade en tôle ondulée au bandeau terre cuite, ouverte au sud par un portail à deux vantaux. */
+export function Palissade({ hx, hz, onClick, portail = 2.6 }: { hx: number; hz: number; onClick?: (e: ThreeEvent<MouseEvent>) => void; portail?: number }) {
   const panneaux: { p: V3; s: V3 }[] = [
     { p: [0, 1.1, -hz], s: [hx * 2, 2.2, .08] },
     { p: [-hx, 1.1, 0], s: [.08, 2.2, hz * 2] },
@@ -86,8 +93,8 @@ function Palissade({ hx, hz, onClick }: { hx: number; hz: number; onClick: (e: T
   </group>;
 }
 
-function PanneauChantier({ position, nom, etat }: { position: V3; nom: string; etat: EtatVisuel }) {
-  return <group position={position}>
+export function PanneauChantier({ position, nom, etat, rotation = 0 }: { position: V3; nom: string; etat: EtatVisuel; rotation?: number }) {
+  return <group position={position} rotation={[0, rotation, 0]}>
     <mesh castShadow><boxGeometry args={[4.4, 1.9, .08]} /><meshStandardMaterial color="#F7F2E8" roughness={.7} /></mesh>
     <mesh position={[0, .78, .05]}><planeGeometry args={[4.4, .34]} /><meshBasicMaterial color="#C1502E" /></mesh>
     <Text position={[0, .78, .06]} fontSize={.17} color="#FFFFFF" anchorX="center" anchorY="middle" letterSpacing={.08}>BTP LIFE · CHANTIER EN COURS</Text>
@@ -100,24 +107,24 @@ function PanneauChantier({ position, nom, etat }: { position: V3; nom: string; e
   </group>;
 }
 
-function Bungalow({ position, taille, nuit }: { position: V3; taille: V3; nuit: boolean }) {
+export function Bungalow({ position, taille, nuit, libelle = 'BUREAU DE CHANTIER · EPI', rotation = 0, casques = true }: { position: V3; taille: V3; nuit: boolean; libelle?: string; rotation?: number; casques?: boolean }) {
   const [l, h, p] = taille;
-  return <group position={position}>
+  return <group position={position} rotation={[0, rotation, 0]}>
     <mesh position={[0, h / 2 + .25, 0]} castShadow receiveShadow><boxGeometry args={[l, h, p]} /><meshStandardMaterial color="#E9E7DF" roughness={.7} /></mesh>
     <mesh position={[0, h + .3, 0]} castShadow><boxGeometry args={[l + .2, .12, p + .2]} /><meshStandardMaterial color="#5E6B70" /></mesh>
     {[-1, 1].map(x => <mesh key={x} position={[x * (l / 2 - .2), .12, 0]}><boxGeometry args={[.25, .25, p]} /><meshStandardMaterial color="#4B4F52" /></mesh>)}
     <mesh position={[-.9, 1.45, p / 2 + .01]}><planeGeometry args={[1.5, .8]} /><meshStandardMaterial color={nuit ? '#E8C27A' : '#3B5664'} emissive={nuit ? '#B97736' : '#000000'} emissiveIntensity={nuit ? .8 : 0} /></mesh>
     <mesh position={[1.05, 1.15, p / 2 + .01]}><planeGeometry args={[.9, 1.8]} /><meshStandardMaterial color="#5E6B70" /></mesh>
     <mesh position={[1.05, .2, p / 2 + .35]} receiveShadow><boxGeometry args={[1.1, .2, .6]} /><meshStandardMaterial color="#8E8C86" /></mesh>
-    <Text position={[0, h + .02, p / 2 + .02]} fontSize={.2} color="#2B2B2E" anchorX="center" anchorY="middle">BUREAU DE CHANTIER · EPI</Text>
+    <Text position={[0, h + .02, p / 2 + .02]} fontSize={.2} color="#2B2B2E" anchorX="center" anchorY="middle">{libelle}</Text>
     {/* Râtelier de casques à côté de la porte. */}
-    <mesh position={[2.15, .95, p / 2 + .25]}><boxGeometry args={[.5, .05, .4]} /><meshStandardMaterial color="#8B6A45" /></mesh>
-    {[-.12, .12].map((x, i) => <mesh key={x} position={[2.15 + x, 1.04, p / 2 + .25]} scale={[1, .7, 1]}><sphereGeometry args={[.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={i ? '#F2F0EA' : '#F4C430'} /></mesh>)}
+    {casques && <><mesh position={[l / 2 - .15, .95, p / 2 + .25]}><boxGeometry args={[.5, .05, .4]} /><meshStandardMaterial color="#8B6A45" /></mesh>
+    {[-.12, .12].map((x, i) => <mesh key={x} position={[l / 2 - .15 + x, 1.04, p / 2 + .25]} scale={[1, .7, 1]}><sphereGeometry args={[.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={i ? '#F2F0EA' : '#F4C430'} /></mesh>)}</>}
   </group>;
 }
 
 /** Grue à tour : la flèche tourne lentement, le chariot va et vient, la charge pend au bout du câble. */
-function Grue({ position, hauteurCharge, pause, rythme }: { position: V3; hauteurCharge: number; pause: boolean; rythme: number }) {
+export function Grue({ position, hauteurCharge, pause, rythme }: { position: V3; hauteurCharge: number; pause: boolean; rythme: number }) {
   const tete = useRef<THREE.Group>(null), chariot = useRef<THREE.Group>(null);
   const hauteur = 17;
   useFrame(({ clock }, delta) => {
@@ -146,10 +153,10 @@ function Grue({ position, hauteurCharge, pause, rythme }: { position: V3; hauteu
   </group>;
 }
 
-function Betonniere({ position, pause, rythme }: { position: V3; pause: boolean; rythme: number }) {
+export function Betonniere({ position, pause, rythme, rotation = -.5 }: { position: V3; pause: boolean; rythme: number; rotation?: number }) {
   const cuve = useRef<THREE.Mesh>(null);
   useFrame((_, delta) => { if (!pause && cuve.current) cuve.current.rotation.y += Math.min(delta, .05) * 2.2 * rythme; });
-  return <group position={position} rotation={[0, -.5, 0]}>
+  return <group position={position} rotation={[0, rotation, 0]}>
     <mesh position={[0, .45, 0]} castShadow><boxGeometry args={[1.1, .12, .7]} /><meshStandardMaterial color="#5E6B70" /></mesh>
     {[-1, 1].map(x => <mesh key={x} position={[x * .5, .22, 0]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.22, .22, .12, 14]} /><meshStandardMaterial color="#2B2B2E" /></mesh>)}
     <group position={[0, 1, 0]} rotation={[0, 0, .55]}>
@@ -158,19 +165,45 @@ function Betonniere({ position, pause, rythme }: { position: V3; pause: boolean;
   </group>;
 }
 
-function CamionLivraison({ position, chargement }: { position: V3; chargement: ChargementLivraison }) {
-  return <group position={position} rotation={[0, Math.PI, 0]}>
+/** Mini-pelle des fouilles : le bras plonge et remonte, le godet racle. */
+export function MiniPelle({ position, rotation = 0, pause, rythme }: { position: V3; rotation?: number; pause: boolean; rythme: number }) {
+  const bras = useRef<THREE.Group>(null), godet = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (pause || !bras.current || !godet.current) return;
+    const t = clock.elapsedTime * .9 * rythme;
+    bras.current.rotation.z = -.35 + Math.sin(t) * .35;
+    godet.current.rotation.z = .6 + Math.sin(t + 1.2) * .5;
+  });
+  return <group position={position} rotation={[0, rotation, 0]}>
+    {[-1, 1].map(z => <mesh key={z} position={[0, .22, z * .55]} castShadow><boxGeometry args={[1.9, .42, .32]} /><meshStandardMaterial color="#2B2B2E" roughness={.9} /></mesh>)}
+    <mesh position={[0, .62, 0]} castShadow><boxGeometry args={[1.5, .38, 1.2]} /><meshStandardMaterial color="#E8B23A" roughness={.5} /></mesh>
+    <mesh position={[-.25, 1.3, 0]} castShadow><boxGeometry args={[.9, 1, 1]} /><meshStandardMaterial color="#E8B23A" roughness={.5} /></mesh>
+    <mesh position={[-.18, 1.42, .505]}><planeGeometry args={[.7, .6]} /><meshStandardMaterial color="#2F3A40" metalness={.4} roughness={.2} /></mesh>
+    <group ref={bras} position={[.5, 1.05, 0]}>
+      <mesh position={[.9, .35, 0]} rotation={[0, 0, .45]} castShadow><boxGeometry args={[1.9, .18, .18]} /><meshStandardMaterial color="#E8B23A" /></mesh>
+      <group ref={godet} position={[1.75, .75, 0]}>
+        <mesh position={[.55, -.3, 0]} rotation={[0, 0, -.9]} castShadow><boxGeometry args={[1.3, .14, .14]} /><meshStandardMaterial color="#E8B23A" /></mesh>
+        <mesh position={[.95, -.85, 0]} castShadow><boxGeometry args={[.4, .3, .5]} /><meshStandardMaterial color="#4B4F52" /></mesh>
+      </group>
+    </group>
+  </group>;
+}
+
+const COULEURS_CHARGEMENT: Record<Exclude<ChargementLivraison, 'fers'>, string> = { ciment: '#DCCFB2', agglos: '#9E9A91', carrelage: '#C9B79A' };
+
+export function CamionLivraison({ position, chargement, rotation = Math.PI }: { position: V3; chargement: ChargementLivraison; rotation?: number }) {
+  return <group position={position} rotation={[0, rotation, 0]}>
     <mesh position={[2.5, 1.2, 0]} castShadow><boxGeometry args={[1.8, 1.9, 2.2]} /><meshStandardMaterial color="#F0EDE4" roughness={.5} /></mesh>
     <mesh position={[3.25, 1.55, 0]}><boxGeometry args={[.3, .8, 1.9]} /><meshStandardMaterial color="#2F3A40" metalness={.3} roughness={.2} /></mesh>
     <mesh position={[-.9, .85, 0]} castShadow receiveShadow><boxGeometry args={[5, .25, 2.3]} /><meshStandardMaterial color="#4B4F52" /></mesh>
     {[-2.4, -.3, 2.6].flatMap(x => [-1, 1].map(z => <mesh key={`${x}${z}`} position={[x, .42, z * 1.05]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.42, .42, .3, 16]} /><meshStandardMaterial color="#202326" /></mesh>))}
     {chargement === 'fers' && Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[-.9, 1.05 + (i % 3) * .07, -.3 + i * .07]} castShadow><boxGeometry args={[4.6, .04, .04]} /><meshStandardMaterial color="#8A5A3C" /></mesh>)}
-    {chargement !== 'fers' && Array.from({ length: 12 }, (_, i) => <mesh key={i} position={[-2.6 + (i % 6) * .7, 1.17 + Math.floor(i / 6) * .38, 0]} castShadow><boxGeometry args={[.62, .36, 1.9]} /><meshStandardMaterial color={chargement === 'ciment' ? '#DCCFB2' : '#9E9A91'} /></mesh>)}
+    {chargement !== 'fers' && Array.from({ length: 12 }, (_, i) => <mesh key={i} position={[-2.6 + (i % 6) * .7, 1.17 + Math.floor(i / 6) * .38, 0]} castShadow><boxGeometry args={chargement === 'carrelage' ? [.6, .34, .6] : [.62, .36, 1.9]} /><meshStandardMaterial color={COULEURS_CHARGEMENT[chargement]} /></mesh>)}
   </group>;
 }
 
 /** Balise d'une tâche : anneau au sol, colonne de lumière et libellé. Un clic y envoie le joueur, ou ouvre la tâche s'il est arrivé. */
-function Balise({ position, libelle, onClick }: { position: V3; libelle: string; onClick: () => void }) {
+export function Balise({ position, libelle, onClick }: { position: V3; libelle: string; onClick: () => void }) {
   const anneau = useRef<THREE.Mesh>(null), losange = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
@@ -188,9 +221,9 @@ function Balise({ position, libelle, onClick }: { position: V3; libelle: string;
   </group>;
 }
 
-/** Ouvrier qui fait l'aller-retour entre deux points, un parpaing ou un sac dans les mains. */
-function OuvrierEnBoucle({ points, depart, variante, porte = false, pause, rythme }: { points: PointPlan[]; depart: number; variante: number; porte?: boolean; pause: boolean; rythme: number }) {
-  const ref = useRef<THREE.Group>(null), cible = useRef(depart % points.length), charge = useRef<THREE.Mesh>(null);
+/** Ouvrier qui fait l'aller-retour entre deux points, un agglo, un sac ou une brouette à l'aller. */
+export function OuvrierEnBoucle({ points, depart, variante, porte = false, pause, rythme, nom, brouette = false }: { points: PointPlan[]; depart: number; variante: number; porte?: boolean; pause: boolean; rythme: number; nom?: string; brouette?: boolean }) {
+  const ref = useRef<THREE.Group>(null), cible = useRef(depart % points.length), charge = useRef<THREE.Group>(null);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, delta) => {
     if (!ref.current || pause) return;
@@ -203,15 +236,26 @@ function OuvrierEnBoucle({ points, depart, variante, porte = false, pause, rythm
       ref.current.rotation.y = Math.atan2(mouvement.x, mouvement.z);
     }
     // On porte à l'aller (vers le second point), on revient les mains vides.
-    if (charge.current) charge.current.visible = porte && cible.current === 1;
+    if (charge.current) charge.current.visible = brouette || (porte && cible.current === 1);
   });
   const [x, z] = points[depart % points.length];
   return <group ref={ref} position={[x, 0, z]}>
     <HumainMonde casque variante={variante} marche={!pause} allure={1.2 * rythme} />
-    <mesh ref={charge} position={[0, 1.15, .38]} castShadow><boxGeometry args={[.4, .2, .3]} /><meshStandardMaterial color="#9E9A91" /></mesh>
+    <group ref={charge}>
+      {brouette ? <group position={[0, 0, .9]}>
+        <mesh position={[0, .5, 0]} castShadow><boxGeometry args={[.62, .3, .8]} /><meshStandardMaterial color="#4F7A8C" metalness={.4} roughness={.5} /></mesh>
+        <mesh position={[0, .2, .45]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[.18, .18, .1, 12]} /><meshStandardMaterial color="#2B2B2E" /></mesh>
+        {[-.22, .22].map(dx => <mesh key={dx} position={[dx, .62, -.6]} rotation={[.35, 0, 0]}><boxGeometry args={[.04, .04, .7]} /><meshStandardMaterial color="#6B5A45" /></mesh>)}
+      </group> : <mesh position={[0, 1.15, .38]} castShadow><boxGeometry args={[.4, .2, .3]} /><meshStandardMaterial color="#9E9A91" /></mesh>}
+    </group>
+    {nom && <EtiquetteOuvrier texte={nom} />}
   </group>;
 }
 
-function OuvrierPoste({ position, rotation, variante }: { position: V3; rotation: number; variante: number }) {
-  return <group position={position} rotation={[0, rotation, 0]}><HumainMonde casque prof variante={variante} /></group>;
+export function OuvrierPoste({ position, rotation, variante, nom }: { position: V3; rotation: number; variante: number; nom?: string }) {
+  return <group position={position} rotation={[0, rotation, 0]}><HumainMonde casque prof variante={variante} />{nom && <EtiquetteOuvrier texte={nom} />}</group>;
+}
+
+function EtiquetteOuvrier({ texte }: { texte: string }) {
+  return <Billboard position={[0, 2.25, 0]}><Text fontSize={.2} color="#FFF4D9" outlineColor="#1C1511" outlineWidth={.03} anchorX="center" anchorY="middle">{texte}</Text></Billboard>;
 }
