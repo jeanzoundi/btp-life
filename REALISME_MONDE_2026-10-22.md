@@ -63,9 +63,15 @@ Un autre outil a travaillé de 08:35 à 12:40 dans le même dossier : personnage
 
 ## Déploiement (23 octobre)
 
-- Frontend en production : `dpl_EurDbHSNaWsfDZvKrG3s8562oAyk` (alias btp-life-frontend.vercel.app), construit depuis le commit 2743b7c. Backend inchangé.
-- Retour arrière : `dpl_2zKws4eNomaxySmGFzjDg1i42KrH` (commit d1b4597).
-- Contrôles :
+Heures en temps universel, celui d'Abidjan. Backend inchangé.
+
+- 01:03 : `dpl_EurDbHSNaWsfDZvKrG3s8562oAyk`, construit depuis le commit 2743b7c. Retour arrière : `dpl_2zKws4eNomaxySmGFzjDg1i42KrH` (commit d1b4597).
+- 07:16 : `dpl_9XBnShcQ8YaZxYybvYe5Y4xRvu3x`, construit depuis le commit d7457e9. Même code, avec le texte intégral de la licence OFL. C'est le déploiement en production (alias btp-life-frontend.vercel.app). Retour arrière : `dpl_EurDbHSNaWsfDZvKrG3s8562oAyk`.
+- Contrôles du redéploiement :
+  - Pages, ressources et API du backend : mêmes résultats que ci-dessous.
+  - Licence servie identique au fichier du dépôt.
+  - Monde de démonstration chargé sans erreur dans la console.
+- Contrôles du premier déploiement :
   - Pages publiques, textures, ciel HDRI, modèles et police : réponse 200, tailles identiques aux fichiers du dépôt.
   - API du backend : 401 sans jeton, 400 pour une connexion vide.
   - Navigateur, sur le site de production : monde de démonstration avec le nouveau HUD, la place des Palmiers et les personnages réalistes ; résidence avec la liste des meubles, le menu « Dormir », le départ du personnage, puis « Arrêter ». Aucune erreur dans la console.
@@ -74,7 +80,6 @@ Un autre outil a travaillé de 08:35 à 12:40 dans le même dossier : personnage
 ## Limites
 
 - La bibliothèque Rocketbox compte peu de personnages noirs en tenue civile : Awa et Mariam partagent le même modèle. Aucune couleur de peau n'a été retouchée.
-- Le texte intégral de la licence OFL 1.1 a été joint à `public/fonts/LICENCE-NOTO.md` le 23 octobre, après le déploiement. La production ne le publiera qu'au prochain déploiement du frontend.
 - Commits locaux uniquement, sans push.
 
 ## Commits
