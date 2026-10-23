@@ -6,8 +6,9 @@ describe('architecture regroupée', () => {
     const plan=construireArchitecture(17,8,12,'campus','#d8c092',false,false);
     expect(plan.solides[0]).toMatchObject({position:[0,4,0],taille:[17,8,12]});
     expect(plan.solides.length+plan.vitres.length).toBeGreaterThan(200);
-    expect(Object.values(plan).filter(lot=>lot.length).length).toBe(2);
-    for(const lot of Object.values(plan))for(const bloc of lot){
+    const lots=[plan.solides,plan.vitres,plan.lumieres,plan.fleurs];
+    expect(lots.filter(lot=>lot.length).length).toBe(2);
+    for(const lot of lots)for(const bloc of lot){
       expect(bloc.position.every(Number.isFinite)).toBe(true);
       expect(bloc.taille.every(n=>n>0)).toBe(true);
     }
@@ -30,6 +31,21 @@ describe('architecture regroupée', () => {
     const nuit=construireArchitecture(13,18,11,'tour','#abc',false,true);
     expect(nuit.lumieres.length).toBeGreaterThan(0);
     expect(nuit.lumieres.length+nuit.vitres.length).toBe(jour.vitres.length);
+  });
+  it('coiffe maisons et petits commerces de tuiles, garde les tours à toit plat', () => {
+    const maison=construireArchitecture(15,8,12,'maison','#abc',false,false);
+    expect(maison.toit).toMatchObject({largeur:16.6,profondeur:13.6,y:8.25,couleur:'#c9652f'});
+    expect(maison.toit!.hauteur).toBeGreaterThan(2);
+    expect(construireArchitecture(10,4.6,8,'commerce','#abc',true,false,'#b83a2a').toit?.couleur).toBe('#b83a2a');
+    expect(construireArchitecture(13,18,11,'tour','#abc',false,false).toit).toBeUndefined();
+    expect(construireArchitecture(28,10,18,'commerce','#abc',true,false).toit).toBeUndefined();
+  });
+  it('fleurit les entrées sans bloquer la porte', () => {
+    const plan=construireArchitecture(10,4.6,8,'commerce','#abc',true,false);
+    expect(plan.fleurs.length).toBe(22);
+    expect(plan.fleurs.every(f=>f.position[2]>4.9&&f.taille.every(n=>n>0))).toBe(true);
+    expect(plan.fleurs.every(f=>Math.abs(f.position[0])>.7)).toBe(true);
+    expect(construireArchitecture(17,8,12,'campus','#abc',false,false).fleurs).toEqual([]);
   });
   it('garde le chantier et sa grue dans un seul lot', () => {
     const plan=construireArchitecture(21,4,15,'chantier','#abc',false,false);

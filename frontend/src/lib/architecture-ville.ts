@@ -1,11 +1,27 @@
 export type V3 = [number, number, number];
 export type BlocArchitecture = { position: V3; taille: V3; couleur: string; rotation: number };
-export type PlanArchitecture = { solides: BlocArchitecture[]; vitres: BlocArchitecture[]; lumieres: BlocArchitecture[] };
+export type ToitArchitecture = { largeur: number; profondeur: number; hauteur: number; y: number; couleur: string };
+export type PlanArchitecture = {
+  solides: BlocArchitecture[]; vitres: BlocArchitecture[]; lumieres: BlocArchitecture[];
+  /** Fleurs et feuillages des bacs, dessinés en sphères instanciées. */
+  fleurs: BlocArchitecture[];
+  /** Toit à quatre pans en tuiles, réservé aux maisons et aux petits commerces. */
+  toit?: ToitArchitecture;
+};
+type LotBlocs = 'solides' | 'vitres' | 'lumieres' | 'fleurs';
+
+const COULEURS_FLEURS = ['#e8476b', '#f2c14e', '#fff4e0', '#d94f9c', '#f08a4b'];
+const FEUILLAGES = ['#3f7a3a', '#4d8b3f', '#2f6b35'];
+
+/** Les maisons et les commerces bas reçoivent un toit de tuiles ; tours, campus et chantiers restent à toit plat. */
+export function aToitTuiles(kind: string, h: number) {
+  return kind === 'maison' || (kind === 'commerce' && h <= 5.5);
+}
 
 /** Data-only shell: all opaque boxes share one draw call, including balconies. */
-export function construireArchitecture(w: number, h: number, d: number, kind: string, color: string, devanture: boolean, nuit: boolean): PlanArchitecture {
-  const plan: PlanArchitecture = { solides: [], vitres: [], lumieres: [] };
-  const ajouter = (position: V3, taille: V3, couleur: string, rotation = 0, lot: keyof PlanArchitecture = 'solides') => plan[lot].push({ position, taille, couleur, rotation });
+export function construireArchitecture(w: number, h: number, d: number, kind: string, color: string, devanture: boolean, nuit: boolean, couleurToit = '#c9652f'): PlanArchitecture {
+  const plan: PlanArchitecture = { solides: [], vitres: [], lumieres: [], fleurs: [] };
+  const ajouter = (position: V3, taille: V3, couleur: string, rotation = 0, lot: LotBlocs = 'solides') => plan[lot].push({ position, taille, couleur, rotation });
   if (kind === 'chantier') {
     ajouter([0, .18, 0], [w, .36, d], '#a89980');
     for (const y of [0, 3.3, 6.6]) {
@@ -26,7 +42,7 @@ export function construireArchitecture(w: number, h: number, d: number, kind: st
       if (devanture && side === 0 && f === 0) continue;
       const r = side * Math.PI / 2, span = side % 2 ? d : w, offset = (side % 2 ? w : d) / 2;
       const count = Math.max(2, Math.floor(span / 2.5));
-      const local = (x: number, y: number, z: number, taille: V3, couleur: string, lot: keyof PlanArchitecture = 'solides') => {
+      const local = (x: number, y: number, z: number, taille: V3, couleur: string, lot: LotBlocs = 'solides') => {
         ajouter([x * Math.cos(r) + z * Math.sin(r), y, -x * Math.sin(r) + z * Math.cos(r)], taille, couleur, r, lot);
       };
       for (let k = 0; k < count; k++) {
@@ -44,13 +60,36 @@ export function construireArchitecture(w: number, h: number, d: number, kind: st
     }
   }
   ajouter([0, h + .1, 0], [w + .8, .3, d + .8], '#e8d9bd');
-  ajouter([0, h + .4, 0], [w - .8, .3, d - .8], '#697268');
-  ajouter([w * .25, h + .9, 0], [2, .7, 1.4], '#aeb6ae');
-  // Rooftop vents and recessed parapets give silhouettes a less toy-like finish.
-  for (const x of [-w / 2 + .25, w / 2 - .25]) ajouter([x, h + .65, 0], [.22, .8, d], '#d2c5ad');
-  for (let i = 0; i < 6; i++) ajouter([w * .25 - .8 + i * .32, h + 1.27, 0], [.08, .025, 1.15], '#566164');
+  if (aToitTuiles(kind, h)) {
+    plan.toit = { largeur: w + 1.6, profondeur: d + 1.6, hauteur: Math.min(3.2, Math.min(w, d) * (kind === 'maison' ? .4 : .34)), y: h + .25, couleur: couleurToit };
+    ajouterBacsFleuris(plan, w, d);
+  } else {
+    ajouter([0, h + .4, 0], [w - .8, .3, d - .8], '#697268');
+    ajouter([w * .25, h + .9, 0], [2, .7, 1.4], '#aeb6ae');
+    // Rooftop vents and recessed parapets give silhouettes a less toy-like finish.
+    for (const x of [-w / 2 + .25, w / 2 - .25]) ajouter([x, h + .65, 0], [.22, .8, d], '#d2c5ad');
+    for (let i = 0; i < 6; i++) ajouter([w * .25 - .8 + i * .32, h + 1.27, 0], [.08, .025, 1.15], '#566164');
+  }
   if (!devanture) ajouter([0, 1.25, d / 2 + .18], [2, 2.5, .25], '#233e45');
   if (kind === 'commerce') for (let i = 0; i < 10; i++) ajouter([(i - 4.5) * w / 10, 3.72, d / 2 + .8], [w / 10, .12, 1.4], i % 2 ? '#f6e7c6' : '#355b51');
   if (kind === 'campus') for (const x of [-w * .35, w * .35]) ajouter([x, 1.7, d / 2 + 1], [.6, 3.4, .6], '#e8d9bd');
   return plan;
+}
+
+/** Deux bacs en terre cuite devant l'entrée, garnis de feuillage et de fleurs ; disposition fixe pour un rendu stable. */
+function ajouterBacsFleuris(plan: PlanArchitecture, w: number, d: number) {
+  const z = d / 2 + 1.35;
+  for (const cote of [-1, 1]) {
+    const x = cote * Math.max(1.6, w / 2 - 1.4);
+    plan.solides.push({ position: [x, .3, z], taille: [2.2, .6, .8], couleur: '#b5653f', rotation: 0 });
+    plan.solides.push({ position: [x, .61, z], taille: [2, .04, .62], couleur: '#5a3b2a', rotation: 0 });
+    for (let i = 0; i < 4; i++) {
+      const fx = x - .75 + i * .5;
+      plan.fleurs.push({ position: [fx, .78, z + (i % 2 ? .1 : -.1)], taille: [.5, .42, .5], couleur: FEUILLAGES[(i + (cote > 0 ? 1 : 0)) % FEUILLAGES.length], rotation: 0 });
+    }
+    for (let i = 0; i < 7; i++) {
+      const fx = x - .85 + i * .28;
+      plan.fleurs.push({ position: [fx, .98 + (i % 3) * .05, z + ((i * 7) % 5 - 2) * .07], taille: [.2, .18, .2], couleur: COULEURS_FLEURS[(i + (cote > 0 ? 2 : 0)) % COULEURS_FLEURS.length], rotation: 0 });
+    }
+  }
 }

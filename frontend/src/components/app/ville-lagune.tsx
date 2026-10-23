@@ -13,6 +13,7 @@ import { ParcsMonde } from './parcs-monde';
 import { aDevanture, FacadeAbidjan } from './facades-abidjan';
 import { construireArchitecture } from '@/lib/architecture-ville';
 import { BlocsInstances } from './blocs-instances';
+import { ToitTuiles } from './toits-monde';
 import { avancerTrafic } from '@/lib/fluidite-monde';
 
 type V = [number, number, number];
@@ -129,18 +130,22 @@ function Textile({ p }: { p: V }) { return <group position={p}>{[-1.5, -0.5, 0.5
 /** Original modular architecture: recessed glass, wraparound balconies and shopfronts. */
 export const Architecture = memo(function Architecture({ width: w, height: h, depth: d, kind, color, nuit = false, slug = '' }: { width: number; height: number; depth: number; kind: string; color: string; nuit?: boolean; slug?: string }) {
   const devanture = aDevanture(slug);
-  const plan = useMemo(() => construireArchitecture(w, h, d, kind, color, devanture, nuit), [w, h, d, kind, color, devanture, nuit]);
+  // Maquis et marché en tuiles rouges, les autres en terre cuite.
+  const vivrier = slug === 'maquis' || slug === 'marche';
+  const plan = useMemo(() => construireArchitecture(w, h, d, kind, color, devanture, nuit, vivrier ? '#b83a2a' : '#c9652f'), [w, h, d, kind, color, devanture, nuit, vivrier]);
   return <group>
     <BlocsInstances blocs={plan.solides} interactif={false} />
     <BlocsInstances blocs={plan.vitres} matiere="vitre" interactif={false} />
     <BlocsInstances blocs={plan.lumieres} matiere="lumiere" interactif={false} />
+    <BlocsInstances blocs={plan.fleurs} arrondi interactif={false} />
+    {plan.toit && <ToitTuiles toit={plan.toit} />}
     {/* Simple click volume: no per-window intersection work when moving the mouse. */}
     <mesh position={[0, (kind === 'chantier' ? 7 : h) / 2, 0]}>
       <boxGeometry args={[w, kind === 'chantier' ? 7 : h, d]} /><meshBasicMaterial visible={false} />
     </mesh>
     {devanture && <FacadeAbidjan slug={slug} largeur={w} profondeur={d} nuit={nuit} />}
     {kind === 'commerce' && <>
-      <Parasol p={[-3, 0, d / 2 + 4]} c="#db9e54" /><Parasol p={[3, 0, d / 2 + 4]} c="#f1ddab" />
+      <Parasol p={[-3, 0, d / 2 + 4]} c={vivrier ? '#c8372d' : '#db9e54'} /><Parasol p={[3, 0, d / 2 + 4]} c={vivrier ? '#fff4e0' : '#f1ddab'} />
     </>}
   </group>;
 });
@@ -233,9 +238,10 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
       const y = Math.floor(i / size), row = Math.floor(y / 32);
       const x = (i % size + (row % 2) * 32) % size;
       const seam = x % 64 < 2 || y % 32 < 2;
-      const tile = (Math.floor(x / 64) * 19 + row * 13) % 15;
-      const v = seam ? 132 : 204 + tile + ((i * 73) % 9);
-      data.set([v, v - 9, v - 23, 255], i * 4);
+      const nuances = [[214, 176, 142], [201, 161, 128], [224, 191, 157], [192, 150, 121]];
+      const [r, g, b] = seam ? [146, 114, 92] : nuances[(Math.floor(x / 64) * 19 + row * 13) % 4];
+      const grain = seam ? 0 : ((i * 73) % 11) - 5;
+      data.set([r + grain, g + grain, b + grain, 255], i * 4);
     }
     const t = new THREE.DataTexture(data, size, size); t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(60, 44); t.colorSpace = THREE.SRGBColorSpace;

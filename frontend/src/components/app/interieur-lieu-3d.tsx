@@ -18,6 +18,7 @@ import { CampusUniversitaire } from './campus-universitaire';
 import { RefletsMonde } from './reflets-monde';
 import { FluiditeMonde } from './fluidite-monde';
 import { qualiteMemorisee } from '@/lib/fluidite-monde';
+import { POLICES_JEU } from '@/lib/polices-jeu';
 import { SurfaceBloc } from './materiaux-monde';
 import { ACTIVITES_UNIVERSITE, ETAT_CAMPUS_INITIAL, realiserActivite } from '@/lib/activites-universite';
 
@@ -93,7 +94,7 @@ function Salle({ slug, nom, directions }: { slug: string; nom: string; direction
 
 function Bouton({ d, symbole, directions }: { d: Direction; symbole: string; directions: Set<Direction> }) {
   const [, actualiser] = useState(0);
-  return <button aria-label={d} className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/25 bg-slate-950/75 text-xl font-bold text-white shadow-lg active:bg-amber-500" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); actualiser(v => v + 1); }} onPointerUp={() => { directions.delete(d); actualiser(v => v + 1); }} onPointerCancel={() => { directions.delete(d); actualiser(v => v + 1); }}>{symbole}</button>;
+  return <button aria-label={d} className="hud-bouton h-11 w-11 bg-creme text-lg text-encre" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); actualiser(v => v + 1); }} onPointerUp={() => { directions.delete(d); actualiser(v => v + 1); }} onPointerCancel={() => { directions.delete(d); actualiser(v => v + 1); }}>{symbole}</button>;
 }
 
 export function InterieurLieu3D(props: { slug: string; nom: string; onSortir: () => void; children?: ReactNode }) {
@@ -128,25 +129,25 @@ function InterieurStandard({ slug, nom, onSortir, children }: { slug: string; no
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); directions.clear(); };
   }, [directions]);
-  return <section className="fixed inset-0 z-[100] bg-[#101d21]" aria-label={`Dans ${nom}`}>
+  return <section className={`fixed inset-0 z-[100] bg-[#2a2219] ${POLICES_JEU} hud-texte`} aria-label={`Dans ${nom}`}>
     <Canvas shadows dpr={1} camera={{ position: [5.8, 5.5, 10.3], fov: 52 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}><FluiditeMonde qualite={qualite} actif rayonOcclusion={.45} /><RefletsMonde/>{universite ? <UniversiteRealiste directions={directions} destination={destination} onArrivee={setDescription} /> : bureau ? <BureauxRealistes type={bureau} directions={directions} destination={destination} onArrivee={setDescription} /> : residence ? <ResidenceRealiste directions={directions} destination={destination} onArrivee={setDescription} /> : autreFamille ? <AutresLieuxRealistes slug={slug} directions={directions} destination={destination} onArrivee={setDescription} /> : <Salle slug={slug} nom={nom} directions={directions} />}</Canvas>
-    <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 bg-gradient-to-b from-slate-950/90 to-transparent p-4 text-white sm:p-6"><div><span className="text-[10px] font-bold uppercase tracking-[.25em] text-amber-300">Intérieur visitable</span><h2 className="mt-1 font-display text-xl font-bold sm:text-3xl">{nom}</h2><p className="mt-1 text-xs text-white/65">Déplacez-vous librement dans le bâtiment</p></div><button onClick={onSortir} className="pointer-events-auto rounded-xl border border-white/20 bg-slate-950/75 px-4 py-3 text-sm font-bold shadow-xl hover:bg-amber-500 hover:text-slate-950">🚪 Sortir</button></header>
-    <div className="absolute bottom-5 left-5 grid grid-cols-3 gap-1"><span /><Bouton d="avant" symbole="▲" directions={directions} /><span /><Bouton d="gauche" symbole="◀" directions={directions} /><Bouton d="arriere" symbole="▼" directions={directions} /><Bouton d="droite" symbole="▶" directions={directions} /></div>
-    <button onClick={() => { directions.clear(); setActivites(v => !v); }} aria-expanded={activites} className="absolute right-4 top-28 rounded-xl bg-amber-200 px-4 py-3 font-bold text-slate-900">{activites ? 'Fermer les activités' : 'Services et activités'}</button>
-    {universite && <button className="absolute right-4 top-44 rounded-lg bg-slate-950/90 px-3 py-3 text-sm text-amber-200" onClick={()=>{setCameraLibre(v=>!v);window.dispatchEvent(new Event('campus-camera'));}}>{cameraLibre ? 'Revenir au joueur' : 'Caméra libre · tourner / zoomer'}</button>}
+    <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-5"><div className="hud-carte pointer-events-auto min-w-0 px-3 py-2"><span className="text-[10px] font-extrabold uppercase tracking-[.2em] text-mangue">Intérieur visitable</span><h2 className="hud-titre truncate text-lg font-normal leading-tight sm:text-2xl">{nom}</h2><p className="text-[11px] font-bold text-encre/70">Déplacez-vous librement dans le bâtiment</p></div><button onClick={onSortir} className="hud-bouton pointer-events-auto shrink-0 bg-mangue px-4 py-3 text-sm text-encre">🚪 Sortir</button></header>
+    <div className="absolute bottom-5 left-5 grid grid-cols-3 gap-1.5"><span /><Bouton d="avant" symbole="▲" directions={directions} /><span /><Bouton d="gauche" symbole="◀" directions={directions} /><Bouton d="arriere" symbole="▼" directions={directions} /><Bouton d="droite" symbole="▶" directions={directions} /></div>
+    <button onClick={() => { directions.clear(); setActivites(v => !v); }} aria-expanded={activites} className="hud-bouton absolute right-4 top-28 bg-foret px-4 py-3 text-sm text-creme">{activites ? 'Fermer les activités' : 'Services et activités'}</button>
+    {universite && <button className="hud-bouton absolute right-4 top-44 bg-white px-3 py-3 text-sm text-encre" onClick={()=>{setCameraLibre(v=>!v);window.dispatchEvent(new Event('campus-camera'));}}>{cameraLibre ? 'Revenir au joueur' : 'Caméra libre · tourner / zoomer'}</button>}
     {activites && children}
-    {!activites && <div className="absolute left-3 right-3 top-44 max-h-[calc(100dvh-20rem)] overflow-y-auto rounded-xl border border-white/15 bg-slate-950/85 p-3 text-white sm:left-5 sm:right-auto sm:top-28 sm:max-h-[calc(100dvh-16rem)] sm:w-64">
-      <p className="text-xs font-bold uppercase tracking-widest text-amber-200">{universite ? 'Campus · 2 niveaux' : bureau ? 'Espaces de travail' : autreFamille ? 'Espaces du bâtiment' : 'Votre appartement'}</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">{points.map((piece, index) => <button key={piece.id} className="rounded-lg bg-white/10 px-3 py-2 text-left text-sm hover:bg-white/20" onClick={() => { directions.clear(); setFiche(false); setDestination(v => v === null ? index : (Math.floor(v / points.length) + 1) * points.length + index); setDescription(`En route vers : ${piece.label.toLowerCase()}…`); }}>{piece.label}</button>)}</div>
-      <p role="status" className="mt-2 text-xs leading-relaxed text-white/65">{description}</p>
+    {!activites && <div className="absolute left-3 right-3 top-44 max-h-[calc(100dvh-20rem)] overflow-y-auto rounded-[14px] border-[2.4px] border-encre bg-encre/95 p-3 text-creme shadow-[4px_4px_0_0_rgba(11,46,31,.45)] sm:left-5 sm:right-auto sm:top-32 sm:max-h-[calc(100dvh-16rem)] sm:w-64">
+      <p className="hud-titre text-xs font-normal tracking-wider text-mangue">{universite ? 'Campus · 2 niveaux' : bureau ? 'Espaces de travail' : autreFamille ? 'Espaces du bâtiment' : 'Votre appartement'}</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">{points.map((piece, index) => <button key={piece.id} className="rounded-[10px] border-2 border-encre bg-creme px-3 py-2 text-left text-sm font-extrabold text-encre shadow-[2px_2px_0_0_rgba(0,0,0,.35)] hover:bg-[#ffe3bd]" onClick={() => { directions.clear(); setFiche(false); setDestination(v => v === null ? index : (Math.floor(v / points.length) + 1) * points.length + index); setDescription(`En route vers : ${piece.label.toLowerCase()}…`); }}>{piece.label}</button>)}</div>
+      <p role="status" className="mt-2 text-xs leading-relaxed text-creme/75">{description}</p>
       {universite && <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
         <div className="grid grid-cols-3 gap-2 text-center text-[10px]"><span>XP<br/><b className="text-amber-200">{etatCampus.xp}</b></span><span>Focus<br/><b className="text-emerald-300">{etatCampus.concentration}%</b></span><span>Social<br/><b className="text-sky-300">{etatCampus.social}%</b></span></div>
         <p className="mt-2 text-[11px] leading-relaxed text-white/70">{etatCampus.derniereAction}</p>
       </div>}
       {universite && stationArrivee && <AtelierCampus key={stationArrivee.id} station={stationArrivee.id} onReussite={() => setEtatCampus(etat => ({...realiserActivite(etat, stationArrivee.id), derniereAction: 'Exercice réussi : réponse validée avec le responsable.'}))} />}
-      {!universite && stationArrivee && !fiche && <button className="mt-3 w-full rounded-lg bg-amber-200 p-2 text-sm font-bold text-slate-950" onClick={() => setFiche(true)}>Consulter la fiche du poste</button>}
+      {!universite && stationArrivee && !fiche && <button className="hud-bouton mt-3 w-full bg-mangue p-2 text-sm text-encre" onClick={() => setFiche(true)}>Consulter la fiche du poste</button>}
       {!universite && stationArrivee && fiche && <FichePosteBureau key={stationArrivee.id} station={stationArrivee.id} onFermer={() => setFiche(false)} />}
     </div>}
-    <p className="pointer-events-none absolute bottom-5 right-5 hidden rounded-full bg-slate-950/70 px-4 py-2 text-xs text-white/70 sm:block">ZQSD / flèches · Échap pour sortir</p>
+    <p className="hud-pastille pointer-events-none absolute bottom-5 right-5 hidden text-xs sm:inline-flex">ZQSD / flèches · Échap pour sortir</p>
   </section>;
 }

@@ -7,6 +7,7 @@ import { HumainMonde } from './humain-monde';
 import { FluiditeMonde, StatistiquesRendu } from './fluidite-monde';
 import { orienterProgressivement, type QualiteMonde } from '@/lib/fluidite-monde';
 import { itineraireVille } from '@/lib/itineraire-ville';
+import { decalagePlongee } from '@/lib/camera-monde';
 import { useQuery } from '@tanstack/react-query';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -27,6 +28,8 @@ import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
 import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from '@/lib/meteo-monde';
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
+import { objectifDuMoment } from '@/lib/objectif-monde';
+import { POLICES_JEU } from '@/lib/polices-jeu';
 
 type Critique = { icone: string; label: string } | null;
 const VITESSES = [1, 2, 3] as const;
@@ -210,7 +213,11 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
     if (actif && delaiSignal.current >= 1.5) { delaiSignal.current = 0; onPosition?.([ref.current.position.x, ref.current.position.z]); }
     if (actif !== marche) { if (!actif) onPosition?.([ref.current.position.x, ref.current.position.z]); setMarche(actif); }
   });
-  return <group ref={ref}><Personnage nom={nom} marche={marche} casque variante={1} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} /></group>;
+  return <group ref={ref}>
+    {/* Anneau du joueur, visible même derrière un bâtiment, comme le losange. */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={9} userData={{ sansOcclusion: true }}><ringGeometry args={[.62, .82, 40]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
+    <Personnage nom={nom} marche={marche} casque variante={1} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
+  </group>;
 }
 
 function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, onParler, rythme, contexte, bulles }: { nom: string; couleur: string; route: PointMonde[]; depart: number; pause: boolean; joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void; rythme: number; contexte: ContextePensee; bulles: boolean }) {
@@ -254,26 +261,29 @@ function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> 
   const controles = useRef<ComponentRef<typeof MapControls>>(null);
   const cible = useMemo(() => new THREE.Vector3(), []);
   const camera = useThree(s => s.camera);
+  const aspect = useThree(s => s.size.width / Math.max(1, s.size.height));
+  // Vue plongeante par défaut (face au nord, reculée en portrait) ; caméra libre basse en option.
+  const decalage = useMemo<[number, number, number]>(() => proche ? decalagePlongee(aspect) : [5, 3.8, 7], [proche, aspect]);
   useEffect(()=>{const basculer=()=>setProche(v=>!v);window.addEventListener('btp-camera',basculer);return()=>window.removeEventListener('btp-camera',basculer);},[]);
-  useEffect(()=>{camera.position.set(joueur.current.x+(proche?8:5),proche?13:3.8,joueur.current.z+(proche?14:7));controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[proche,camera,joueur]);
+  useEffect(()=>{camera.position.set(joueur.current.x+decalage[0],decalage[1],joueur.current.z+decalage[2]);controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[decalage,camera,joueur]);
   useEffect(() => {
     const recentrer = (event: KeyboardEvent) => {
       if (event.code !== 'KeyR' || (event.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return;
       const position = joueur.current;
-      camera.position.set(position.x+(proche?8:5),proche?13:3.8,position.z+(proche?14:7));
+      camera.position.set(position.x+decalage[0],decalage[1],position.z+decalage[2]);
       controles.current?.target.set(position.x, 1, position.z);
       controles.current?.update();
     };
     window.addEventListener('keydown', recentrer);
     return () => window.removeEventListener('keydown', recentrer);
-  }, [camera, joueur, proche]);
+  }, [camera, joueur, decalage]);
   useFrame((_, delta) => {
     if (!controles.current) return;
     cible.set(joueur.current.x, 1, joueur.current.z);
     cible.sub(controles.current.target).multiplyScalar(1 - Math.exp(-6 * delta));
     camera.position.add(cible); controles.current.target.add(cible); controles.current.update();
   });
-  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?16:3} maxDistance={proche?48:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
+  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?14:3} maxDistance={proche?72:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
 }
 
 
@@ -322,15 +332,34 @@ function Scene({ nomJoueur, joueurs, directions, destination, heure, pause, sele
 }
 
 function BoutonDirection({ direction, symbole, setDirection }: { direction: Direction; symbole: string; setDirection: (d: Direction, actif: boolean) => void }) {
-  return <button type="button" aria-label={direction} className="flex h-11 w-11 select-none items-center justify-center rounded-xl border border-white/30 bg-graphite/80 text-lg font-bold text-white shadow-lg backdrop-blur active:scale-95 active:bg-terracotta" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
+  return <button type="button" aria-label={direction} className="hud-bouton h-10 w-10 select-none bg-creme text-base text-encre" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
 }
 
-function JaugeBesoin({ label, valeur, couleur }: { label: string; valeur: number; couleur: string }) {
+/** Jauge circulaire du HUD : anneau coloré autour de l'icône, valeur en chiffres gras. */
+function JaugeAnneau({ label, valeur, couleur, icone }: { label: string; valeur: number; couleur: string; icone: string }) {
   const niveau = Math.max(0, Math.min(100, valeur));
-  return <div className="min-w-[88px] flex-1"><div className="mb-1 flex justify-between text-[10px] font-semibold text-white"><span>{label}</span><span>{Math.round(niveau)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full transition-all" style={{ width: `${niveau}%`, backgroundColor: couleur }} /></div></div>;
+  const circonference = 2 * Math.PI * 15;
+  return <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(niveau)} className="flex flex-col items-center gap-0.5">
+    <div className="flex items-center gap-1.5">
+      <span className={`relative inline-flex h-9 w-9 items-center justify-center ${niveau < 25 ? 'animate-pulse' : ''}`}>
+        <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90" aria-hidden="true">
+          <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,253,245,.16)" strokeWidth="4" />
+          <circle cx="18" cy="18" r="15" fill="none" stroke={couleur} strokeWidth="4" strokeLinecap="round" strokeDasharray={`${circonference * niveau / 100} ${circonference}`} />
+        </svg>
+        <span className="text-sm leading-none" aria-hidden="true">{icone}</span>
+      </span>
+      <b className="hud-titre text-[15px] font-normal text-creme">{Math.round(niveau)}</b>
+    </div>
+    <span className="text-[10px] font-extrabold text-creme/80">{label}</span>
+  </div>;
 }
 
-export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false }: { nomJoueur?: string; besoins?: BesoinsJoueur; demo?: boolean; immersif?: boolean }) {
+const IconeCarte = () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Z" /><path d="M9 4v13.5M15 6.5V20" /></svg>;
+const IconeMenu = () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" /></svg>;
+
+export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string }
+
+export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif = false }: { nomJoueur?: string; besoins?: BesoinsJoueur; profil?: ProfilJoueur; demo?: boolean; immersif?: boolean }) {
   const userId = useAuthStore((s) => s.user?.id);
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
@@ -352,6 +381,7 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const [relations, setRelations] = useState<Record<string, number>>({});
   const parler = useCallback((nom: string) => { setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
   const [plan, setPlan] = useState(false);
+  const [options, setOptions] = useState(false);
   const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
@@ -379,9 +409,8 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
     const distance = Math.hypot(Math.max(0, Math.abs(positionCourante[0] - b.position[0]) - b.taille[0] / 2), Math.max(0, Math.abs(positionCourante[1] - b.position[2]) - b.taille[2] / 2));
     if (distance > 5) {
       const [x, , z] = b.position;
-      const entrees: PointMonde[] = [[x - b.taille[0] / 2 - 2, z], [x + b.taille[0] / 2 + 2, z], [x, z - b.taille[2] / 2 - 2], [x, z + b.taille[2] / 2 + 2]];
-      entrees.sort((a, c) => Math.hypot(a[0] - positionCourante[0], a[1] - positionCourante[1]) - Math.hypot(c[0] - positionCourante[0], c[1] - positionCourante[1]));
-      destination.current = entrees[0]; lieuEnApproche.current = b;
+      // On arrive par la porte, côté façade : la caméra plongeante regarde vers le nord, le joueur n'est jamais caché par le bâtiment.
+      destination.current = [x, THREE.MathUtils.clamp(z + b.taille[2] / 2 + 2, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; lieuEnApproche.current = b;
       setMessage(`En route vers ${b.nom}. Tu peux reprendre les commandes à tout moment.`); setPlan(false); return;
     }
     lieuEnApproche.current = null;
@@ -399,8 +428,9 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   useEffect(() => {
     const lieu = lieuEnApproche.current;
     if (!lieu) return;
-    const distance = Math.hypot(Math.max(0, Math.abs(positionCourante[0] - lieu.position[0]) - lieu.taille[0] / 2), Math.max(0, Math.abs(positionCourante[1] - lieu.position[2]) - lieu.taille[2] / 2));
-    if (distance <= 4) choisir(lieu);
+    // Arrivée validée devant la porte, pas en longeant un mur pendant le contournement.
+    const porte = [lieu.position[0], THREE.MathUtils.clamp(lieu.position[2] + lieu.taille[2] / 2 + 2, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)];
+    if (Math.hypot(positionCourante[0] - porte[0], positionCourante[1] - porte[1]) <= 2.5) choisir(lieu);
   }, [positionCourante, choisir]);
   const changerMode = useCallback((id: ModeJeuId) => {
     const nouveau = MODES_JEU.find(m => m.id === id)!;
@@ -517,13 +547,14 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   useEffect(() => {
     const changer = (code: string, actif: boolean) => { const direction = TOUCHES[code]; if (!direction) return; if (actif) directions.add(direction); else directions.delete(direction); };
     if (interieur) { directions.clear(); return; }
-    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); } };
+    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); } };
     const up = (e: KeyboardEvent) => changer(e.code, false);
     const clear = () => directions.clear();
     window.addEventListener('blur', clear);
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('blur', clear); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); document.body.style.cursor = 'default'; };
   }, [directions, interieur]);
+  useEffect(() => { if (!message) return; const minuteur = window.setTimeout(() => setMessage(''), 7000); return () => window.clearTimeout(minuteur); }, [message]);
   const setDirection = (d: Direction, actif: boolean) => { if (actif) { lieuEnApproche.current = null; directions.add(d); } else directions.delete(d); rafraichir((v) => v + 1); };
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
@@ -533,48 +564,86 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
   const meteo = meteoForcee ?? meteoDuMoment(new Date(), heure);
   const nuit = heure >= 19 || heure < 6;
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
-  return <div className={`relative w-full overflow-hidden border border-white/20 bg-slate-900 shadow-2xl ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl'}`} data-testid="quartier-3d">
+  const etapeEnCours = mode !== 'libre' ? modeActif.etapes[etapeMode] : undefined;
+  const objectif = etapeEnCours
+    ? { texte: etapeEnCours.titre, etiquette: secondes !== null ? `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}` : `${etapeMode + 1}/${modeActif.etapes.length}` }
+    : objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
+  const argent = profil?.argent ?? (demo ? 150_000 : undefined);
+  const hautHud = immersif ? 'top-20' : 'top-3';
+  const hautPanneaux = immersif ? 'top-[226px]' : 'top-[158px]';
+  const allerVers = (slug: string) => { const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
+  return <div className={`relative w-full overflow-hidden bg-[#d9c4a2] ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border-[2.4px] border-encre shadow-[6px_6px_0_0_#0B2E1F]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
-      <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
+      <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} maquette />
       <Scene meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
     </Canvas>
     </div>
-    <div className={`pointer-events-none absolute left-3 max-w-[160px] rounded-xl bg-slate-950/65 px-3 py-2 text-white backdrop-blur sm:max-w-[190px] ${immersif ? 'top-20' : 'top-16 sm:top-3'}`}>
-      <strong className="block text-sm font-medium">Les Rives d’Abidjan</strong>
-      <span className="block text-[11px] text-white/65">{quartierActuel.nom} · <span data-testid="meteo-monde">{LIBELLES_METEO[meteo].icone} {LIBELLES_METEO[meteo].nom}</span></span>
-    </div>
-    <PanneauModesJeu ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
+    {/* HUD : carte profil (argent, niveau, heure), plan, options, objectif du moment, quartier et vitesse du temps. */}
+    <header className={`pointer-events-none absolute inset-x-3 z-10 flex flex-col gap-2 ${hautHud}`}>
+      <div className="flex items-stretch gap-2">
+        <div className="hud-carte pointer-events-auto flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-1.5">
+          <div className="min-w-0">
+            <small className="block truncate text-[10px] font-extrabold">{nomJoueur ?? 'Joueur'}, {profil?.poste ?? 'apprenti'}</small>
+            <b className="hud-titre block truncate text-lg font-normal leading-tight">{argent === undefined ? '— F' : `${argent.toLocaleString('fr-FR')} F`}</b>
+          </div>
+          <div className="shrink-0 text-right">
+            <small className="flex items-center justify-end gap-1 text-[10px] font-extrabold">
+              <span aria-hidden="true" title={libelleSauvegarde} className={`h-2 w-2 rounded-full ${etatSauvegarde === 'erreur' ? 'bg-mangue' : etatSauvegarde === 'sauvegarde-ok' ? 'bg-foret' : 'bg-encre/30'}`} />
+              {profil?.niveau ? `Niveau ${profil.niveau}` : 'Abidjan'} · <span data-testid="meteo-monde" title={LIBELLES_METEO[meteo].nom}>{LIBELLES_METEO[meteo].icone}<span className="sr-only"> {LIBELLES_METEO[meteo].nom}</span></span>
+            </small>
+            <b className="hud-titre block text-lg font-normal leading-tight text-mangue">{affichageHeure}</b>
+          </div>
+        </div>
+        <button type="button" aria-label="Plan et lieux" aria-expanded={plan} onClick={() => { setPlan(v => !v); setOptions(false); setSelection(null); }} className="hud-bouton pointer-events-auto w-12 shrink-0 bg-mangue text-encre"><IconeCarte /></button>
+        <button type="button" aria-label="Options" aria-expanded={options} onClick={() => { setOptions(v => !v); setPlan(false); }} className="hud-bouton pointer-events-auto w-12 shrink-0 bg-foret text-creme"><IconeMenu /></button>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" aria-expanded={menuModes} aria-label={`Objectif : ${objectif.texte}`} onClick={() => setMenuModes(v => !v)} className="hud-pastille pointer-events-auto min-w-0">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-mangue" aria-hidden="true" />
+          <span className="truncate">{objectif.texte}</span>
+          {objectif.etiquette && <em className="shrink-0 rounded-full bg-piment px-2 py-0.5 text-[11px] not-italic text-white">{objectif.etiquette}</em>}
+        </button>
+        <button type="button" aria-label={`Quartier ${quartierActuel.nom} : ouvrir le plan`} onClick={() => { setPlan(true); setOptions(false); setSelection(null); }} className="hud-pastille hud-titre pointer-events-auto min-w-0 max-w-[48%] shrink-0 bg-foret text-[12px] font-normal text-white">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11Z" /><circle cx="12" cy="10" r="2.2" /></svg>
+          <span className="truncate">{quartierActuel.nom}</span>
+        </button>
+      </div>
+      <div className="flex justify-end">
+        <div role="group" aria-label="Vitesse du temps" className="hud-pastille pointer-events-auto gap-0.5 px-1 py-1">
+          <button type="button" onClick={() => setPause((v) => !v)} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`h-7 w-7 rounded-full text-[11px] ${pause ? 'bg-mangue text-encre' : 'hover:bg-encre/10'}`}>Ⅱ</button>
+          {VITESSES.map(v => <button key={v} type="button" onClick={() => changerVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`h-7 min-w-7 rounded-full px-1 text-[9px] tracking-tighter ${!pause && vitesse === v ? 'bg-foret text-white' : 'hover:bg-encre/10'}`}>{'▶'.repeat(v)}</button>)}
+        </div>
+      </div>
+    </header>
+    <PanneauModesJeu haut={hautPanneaux} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
-    <div role="status" className={`pointer-events-none absolute bottom-3 right-3 max-w-[55%] rounded-lg px-2 py-1 text-right text-[10px] backdrop-blur ${etatSauvegarde === 'erreur' ? 'bg-amber-950/95 text-amber-100' : 'bg-slate-950/65 text-white/70'}`}>{libelleSauvegarde}</div>
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
-    <button onClick={() => { setPlan(v => !v); setSelection(null); }} aria-expanded={plan} className="absolute right-3 top-16 rounded-xl border border-white/20 bg-[#182e32]/95 px-4 py-3 text-sm text-amber-100">Plan & lieux</button>
-    {!plan && <details className="absolute right-3 top-32 z-10 max-w-[250px] rounded-xl bg-slate-950/85 p-2 text-xs text-white backdrop-blur">
-      <summary className="cursor-pointer rounded-lg px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Options</summary>
-      <div className="mt-2 grid gap-2 border-t border-white/10 pt-2">
-        <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
-        <StatistiquesRendu />
-        <button type="button" className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
-        <button className="rounded-lg bg-white/10 px-3 py-3 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir en vue cinéma'}</button>
-        <p className="max-w-52 px-2 py-2 leading-relaxed text-white/60">Sol : marcher · Bâtiment : rejoindre<br />{cameraProche ? 'Vue cinéma : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
-      </div>
-    </details>}
-    {plan && <nav aria-label="Lieux du quartier" className="absolute right-3 top-32 z-10 max-h-[55%] w-72 max-w-[calc(100%_-_24px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#182e32]/95 p-3 text-white shadow-xl">
-      <h2 className="px-2 py-2 text-xs uppercase tracking-widest text-amber-200">5 quartiers · {BATIMENTS.length} lieux</h2>
-      <section className="mb-3 rounded-xl border border-amber-200/20 bg-white/5 p-3" aria-label="Carnet d’exploration">
-        <h3 className="text-sm font-bold text-amber-100">Carnet d’exploration · {decouvertes.length}/{POINTS_DECOUVERTE.length}</h3>
-        <p className="my-2 text-xs text-white/60">Rejoins les repères dorés et touche-les à proximité. Chaque découverte est conservée.</p>
-        {POINTS_DECOUVERTE.map(point => <button key={point.id} className="flex min-h-11 w-full items-center justify-between border-t border-white/10 py-2 text-left text-xs hover:text-amber-200" onClick={() => { destination.current = point.position; setPlan(false); setMessage(`Cap sur ${point.nom}. Contourne les bâtiments si le passage est bloqué.`); }}><span>{point.nom}</span><span>{decouvertes.includes(point.id) ? '✓' : '+75'}</span></button>)}
+    {options && <section aria-label="Options" className={`hud-carte absolute right-3 z-20 grid w-[min(290px,calc(100%-24px))] gap-2 p-3 text-sm ${hautPanneaux}`}>
+      <h2 className="hud-titre text-base font-normal">Options</h2>
+      <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
+      <StatistiquesRendu />
+      <button type="button" className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
+      <button type="button" className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir à la vue plongeante'}</button>
+      <p className="px-1 text-[11px] font-extrabold">{libelleSauvegarde}</p>
+      <p className="px-1 text-[11px] leading-relaxed text-encre/70">Sol : marcher · Bâtiment : y aller<br />{cameraProche ? 'Vue plongeante : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
+    </section>}
+    {plan && <nav aria-label="Lieux du quartier" className={`hud-carte absolute right-3 z-20 max-h-[calc(100%-180px)] w-80 max-w-[calc(100%_-_24px)] overflow-y-auto p-3 ${hautPanneaux}`}>
+      <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-base font-normal">Plan · {BATIMENTS.length} lieux</h2><button type="button" aria-label="Fermer le plan" onClick={() => setPlan(false)} className="hud-bouton h-8 w-8 shrink-0 bg-white text-xs">✕</button></div>
+      <section className="my-3 rounded-[10px] border-[2.4px] border-encre bg-[#fff3d6] p-3" aria-label="Carnet d’exploration">
+        <h3 className="text-sm font-extrabold">Carnet d’exploration · {decouvertes.length}/{POINTS_DECOUVERTE.length}</h3>
+        <p className="my-1 text-xs text-encre/70">Rejoins les repères dorés et touche-les à proximité. Chaque découverte est conservée.</p>
+        {POINTS_DECOUVERTE.map(point => <button key={point.id} className="flex min-h-10 w-full items-center justify-between border-t border-encre/15 py-2 text-left text-xs font-bold hover:text-foret" onClick={() => { destination.current = point.position; setPlan(false); setMessage(`Cap sur ${point.nom}. Contourne les bâtiments si le passage est bloqué.`); }}><span>{point.nom}</span><span>{decouvertes.includes(point.id) ? '✓' : '+75'}</span></button>)}
       </section>
-      <div aria-label="Plan de la ville" className="relative my-2 h-44 rounded-xl border border-white/15 bg-[#56766d]">
-        <span className="absolute left-2 top-1 text-[9px] text-white/70">N ↑</span>
-        <div className="absolute bottom-0 h-3 w-full rounded-b-xl bg-cyan-700" />
-        {QUARTIERS.map(q => <button key={q.nom} title={`Se déplacer vers ${q.nom}`} onClick={() => { destination.current = [q.x, q.z]; setPlan(false); setMessage(`Itinéraire vers ${q.nom}.`); }} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-center text-[9px] ${q.nom === quartierActuel.nom ? 'bg-amber-300 font-bold text-slate-900' : 'bg-[#152b30]/90 hover:bg-emerald-700'}`} style={{ left: `${(q.x + 130) / 260 * 100}%`, top: `${(q.z + 130) / 190 * 100}%` }}>{q.nom}</button>)}
+      <div aria-label="Plan de la ville" className="relative my-2 h-44 rounded-[10px] border-[2.4px] border-encre bg-[#a9bf8f]">
+        <span className="absolute left-2 top-1 text-[9px] font-extrabold text-encre/70">N ↑</span>
+        <div className="absolute bottom-0 h-3 w-full rounded-b-[7px] bg-[#3f9fb0]" />
+        {QUARTIERS.map(q => <button key={q.nom} title={`Se déplacer vers ${q.nom}`} onClick={() => { destination.current = [q.x, q.z]; setPlan(false); setMessage(`Itinéraire vers ${q.nom}.`); }} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-encre px-2 py-0.5 text-center text-[9px] font-extrabold ${q.nom === quartierActuel.nom ? 'bg-mangue text-encre' : 'bg-creme text-encre hover:bg-foret hover:text-white'}`} style={{ left: `${(q.x + 130) / 260 * 100}%`, top: `${(q.z + 130) / 190 * 100}%` }}>{q.nom}</button>)}
       </div>
-      <p className="px-2 text-[10px] text-white/60">Cliquez un quartier sur la carte pour lancer l’itinéraire, ou choisissez directement un lieu.</p>
-      <label className="my-3 block text-xs text-amber-100">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-lg bg-slate-800 p-3 text-white"><option>Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom}>{q.nom}</option>)}</select></label>
-      {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/15 p-2"><h3 className="text-sm font-bold text-amber-200">{q.nom}</h3><p className="my-2 text-xs text-white/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-3 text-left text-sm hover:bg-white/10">{b.nom}<span className="mt-1 block text-[10px] text-white/50">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
+      <p className="px-1 text-[10px] text-encre/70">Touche un quartier pour lancer l’itinéraire, ou choisis directement un lieu.</p>
+      <label className="my-3 block text-xs font-extrabold">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-[10px] border-[2.4px] border-encre bg-white p-2.5 text-encre"><option>Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom}>{q.nom}</option>)}</select></label>
+      {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-[10px] border-2 border-encre/20 p-2"><h3 className="text-sm font-extrabold text-foret">{q.nom}</h3><p className="my-1 text-xs text-encre/70">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-bold hover:bg-encre/5">{b.nom}<span className="mt-0.5 block text-[10px] font-medium text-encre/60">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
     {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); setMessage(`${action.label} : besoin restauré (démo, non sauvegardé).`); }} />}
     {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} onSortir={() => { directions.clear(); setInterieur(null); setMessage(`Vous êtes sorti de ${interieur.nom}.`); }}>
@@ -583,18 +652,19 @@ export function Quartier3D({ nomJoueur, besoins, demo = false, immersif = false 
         setDemoStats(s => ({ ...s, [cible]: 100 }));
       }} />
     </InterieurLieu3D>}
-    {message && <p role="status" className="absolute bottom-16 left-3 right-3 rounded-xl bg-emerald-950/95 p-3 text-center text-xs text-emerald-100">{message}</p>}
-    <div role="group" aria-label="Vitesse du temps" className="absolute right-3 top-3 flex items-center gap-0.5 rounded-xl border border-white/20 bg-graphite/85 p-1 text-white shadow backdrop-blur">
-      <button type="button" onClick={() => setPause((v) => !v)} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`h-8 w-8 rounded-lg text-xs font-bold ${pause ? 'bg-amber-300 text-slate-900' : 'hover:bg-white/15'}`}>Ⅱ</button>
-      {VITESSES.map(v => <button key={v} type="button" onClick={() => changerVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`h-8 min-w-8 rounded-lg px-1 text-[10px] font-bold tracking-tighter ${!pause && vitesse === v ? 'bg-emerald-400 text-slate-900' : 'hover:bg-white/15'}`}>{'▶'.repeat(v)}</button>)}
-      <span className="px-1.5 text-sm font-bold tabular-nums">{affichageHeure}</span>
-    </div>
-    <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
-    <details className="absolute bottom-28 left-3 z-10 w-48 rounded-xl bg-slate-950/85 p-3 text-xs text-white backdrop-blur sm:bottom-3 sm:w-64">
-      <summary className="cursor-pointer py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Besoins {Math.min(stats.energie, stats.moral, stats.faim, stats.social) < 25 && <span className="ml-2 text-amber-200">· À surveiller</span>}</summary>
-      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/10 pt-3">
-      <JaugeBesoin label="Énergie" valeur={stats.energie} couleur="#60a5fa" /><JaugeBesoin label="Moral" valeur={stats.moral} couleur="#f4c430" /><JaugeBesoin label="Faim" valeur={stats.faim} couleur="#fb923c" /><JaugeBesoin label="Social" valeur={stats.social} couleur="#a78bfa" />
+    <div className="absolute bottom-[150px] left-3 z-10 grid grid-cols-3 gap-1.5 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
+    {/* Bas d'écran : indice ou dernier message, puis les quatre besoins en anneaux. */}
+    <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 mx-auto flex max-w-md flex-col items-center gap-2">
+      {etatSauvegarde === 'erreur' && !demo && <p className="hud-pastille bg-[#fff1d6] text-[11px]">⚠ Sauvegarde locale · serveur à reprendre</p>}
+      {message ? <p role="status" className="hud-pastille pointer-events-auto max-w-full text-center text-[12px] leading-snug">{message}</p>
+        : <p className="hud-pastille max-w-full text-center text-[12px] leading-snug">Touche un lieu pour t’y rendre</p>}
+      <div role="group" aria-label="Besoins" className="pointer-events-auto grid w-full grid-cols-4 gap-1 rounded-[14px] bg-encre px-2 py-2 shadow-[4px_4px_0_0_rgba(11,46,31,.4)]">
+        <JaugeAnneau label="Faim" valeur={stats.faim} couleur="#F77F00" icone="🍲" />
+        <JaugeAnneau label="Énergie" valeur={stats.energie} couleur="#F4C430" icone="⚡" />
+        <JaugeAnneau label="Moral" valeur={stats.moral} couleur="#3BB273" icone="🙂" />
+        <JaugeAnneau label="Social" valeur={stats.social} couleur="#F25F5C" icone="💬" />
       </div>
-    </details>
+    </div>
+    <p role="status" className="sr-only">{libelleSauvegarde}</p>
   </div>;
 }

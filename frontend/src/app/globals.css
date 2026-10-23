@@ -29,6 +29,26 @@ body {
 
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
+/* HUD du monde 3D : cartes papier à bord encré et ombre franche, lisibles en plein soleil sur téléphone. */
+@layer components {
+  .hud-titre { font-family: var(--font-hud-titre), var(--font-display); letter-spacing: 0.01em; }
+  .hud-texte { font-family: var(--font-hud-texte), var(--font-display); }
+  .hud-carte {
+    @apply rounded-[10px] border-[2.4px] border-encre bg-creme text-encre shadow-[4px_4px_0_0_#0B2E1F];
+    font-family: var(--font-hud-texte), var(--font-display);
+  }
+  .hud-pastille {
+    @apply inline-flex items-center gap-2 rounded-full border-[2.4px] border-encre bg-creme px-3 py-1.5 text-[13px] font-extrabold text-encre shadow-[3px_3px_0_0_#0B2E1F];
+    font-family: var(--font-hud-texte), var(--font-display);
+  }
+  .hud-bouton {
+    @apply inline-flex items-center justify-center rounded-[10px] border-[2.4px] border-encre font-extrabold shadow-[4px_4px_0_0_#0B2E1F] transition-[transform,box-shadow] duration-100;
+    font-family: var(--font-hud-texte), var(--font-display);
+  }
+  .hud-bouton:active, .hud-pastille:is(button):active { @apply translate-x-[2px] translate-y-[2px] shadow-[2px_2px_0_0_#0B2E1F]; }
+  .hud-bouton:focus-visible, .hud-pastille:focus-visible, .hud-carte:focus-visible { outline: 3px solid #F77F00; outline-offset: 2px; }
+}
+
 .auth-grille {
   background-image:
     linear-gradient(rgba(245, 240, 230, 0.07) 1px, transparent 1px),

@@ -16,6 +16,13 @@ const config: Config = {
         mineral: '#8A8680',
         brun: '#4A342A',
         argile: '#A85F4C',
+        // HUD du monde 3D : encre foncée, papier crème et couleurs ivoiriennes franches.
+        encre: '#0B2E1F',
+        creme: '#FFFDF5',
+        foret: '#006B3F',
+        mangue: '#F77F00',
+        piment: '#B42318',
+        soleil: '#F4C430',
       },
       fontFamily: {
         display: ['var(--font-display)', 'sans-serif'],

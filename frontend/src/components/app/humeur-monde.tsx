@@ -19,9 +19,10 @@ export function Plumbob3D({ humeur, hauteur = 2.85 }: { humeur: Humeur; hauteur?
   });
   const couleur = COULEURS_HUMEUR[humeur];
   return <group ref={ref} position={[0, hauteur, 0]}>
-    <mesh scale={[.19, .34, .19]} userData={{ sansOcclusion: true }}>
+    {/* Dessiné en dernier et sans test de profondeur : le joueur reste repérable derrière un toit. */}
+    <mesh scale={[.19, .34, .19]} renderOrder={10} userData={{ sansOcclusion: true }}>
       <octahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color={couleur} emissive={couleur} emissiveIntensity={1.35} roughness={.25} metalness={.1} flatShading />
+      <meshStandardMaterial color={couleur} emissive={couleur} emissiveIntensity={1.35} roughness={.25} metalness={.1} flatShading transparent depthTest={false} />
     </mesh>
   </group>;
 }
