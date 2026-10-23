@@ -12,39 +12,28 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { reglagesBloom, reglagesEffets, type NiveauEffets } from '@/lib/rendu-monde';
 
-/** Étalonnage final en espace d'affichage : saturation, hautes lumières chaudes, léger contraste, vignettage,
- * et flou de maquette (tilt-shift) qui garde nette la bande centrale où se trouve le joueur. */
+/** Étalonnage « lagune » en espace d'affichage : ombres légèrement bleu-vert, hautes lumières chaudes,
+ * couleurs plus franches, contraste en S et vignettage. Il donne du relief sans effet de maquette. */
 const ETALONNAGE = {
   uniforms: {
     tDiffuse: { value: null },
-    uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
-    uChaleur: { value: .6 },
-    uSaturation: { value: 1.1 },
-    uVignette: { value: .18 },
-    uFlou: { value: 0 },
+    uTonalite: { value: .7 },
+    uSaturation: { value: 1.14 },
+    uContraste: { value: .26 },
+    uVignette: { value: .22 },
   },
   vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: `
-    uniform sampler2D tDiffuse; uniform vec2 uTexel; uniform float uChaleur, uSaturation, uVignette, uFlou; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTonalite, uSaturation, uContraste, uVignette; varying vec2 vUv;
     void main() {
       vec4 source = texture2D(tDiffuse, vUv);
-      vec3 c = source.rgb;
-      float rayon = smoothstep(.2, .5, abs(vUv.y - .52)) * uFlou;
-      if (rayon > .05) {
-        vec3 somme = c; float n = 1.0;
-        for (int i = 0; i < 8; i++) {
-          float a = float(i) * .785398 + .39;
-          vec2 o = vec2(cos(a), sin(a)) * uTexel * rayon;
-          somme += texture2D(tDiffuse, vUv + o).rgb + texture2D(tDiffuse, vUv + o * .5).rgb; n += 2.0;
-        }
-        c = somme / n;
-      }
-      c = clamp(c, 0.0, 1.0);
+      vec3 c = clamp(source.rgb, 0.0, 1.0);
       float l = dot(c, vec3(.2126, .7152, .0722));
       c = mix(vec3(l), c, uSaturation);
-      c *= mix(vec3(1.0), vec3(1.06, 1.0, .9), uChaleur * smoothstep(.15, .85, l));
-      c = mix(c, c * c * (3.0 - 2.0 * c), .16);
-      float vignette = smoothstep(.85, .3, length((vUv - .5) * vec2(1.0, 1.1)));
+      vec3 teinte = mix(vec3(.95, 1.0, 1.04), vec3(1.05, 1.0, .93), smoothstep(.12, .78, l));
+      c *= mix(vec3(1.0), teinte, uTonalite);
+      c = mix(c, c * c * (3.0 - 2.0 * c), uContraste);
+      float vignette = smoothstep(.9, .32, length((vUv - .5) * vec2(1.0, 1.12)));
       c *= mix(1.0 - uVignette, 1.0, vignette);
       gl_FragColor = vec4(c, source.a);
     }`,
@@ -74,8 +63,8 @@ function creerOcclusion(scene: THREE.Scene, camera: THREE.Camera, rayon: number,
   return pass;
 }
 
-/** Prend la main sur le rendu de la scène (priorité 1) : occlusion, halo, étalonnage, lissage SMAA puis tons chauds et effet maquette. */
-export function RenduAvance({ niveau, nuit = false, rayonOcclusion = 1, maquette = false }: { niveau: NiveauEffets; nuit?: boolean; rayonOcclusion?: number; maquette?: boolean }) {
+/** Prend la main sur le rendu de la scène (priorité 1) : occlusion, halo, lissage SMAA puis étalonnage. */
+export function RenduAvance({ niveau, nuit = false, rayonOcclusion = 1 }: { niveau: NiveauEffets; nuit?: boolean; rayonOcclusion?: number }) {
   const gl = useThree(s => s.gl);
   const scene = useThree(s => s.scene);
   const camera = useThree(s => s.camera);
@@ -103,16 +92,13 @@ export function RenduAvance({ niveau, nuit = false, rayonOcclusion = 1, maquette
   useEffect(() => {
     chaine.composer.setPixelRatio(dpr);
     chaine.composer.setSize(largeur, hauteur);
-    chaine.etalonnage.uniforms.uTexel.value.set(1 / Math.max(1, largeur * dpr), 1 / Math.max(1, hauteur * dpr));
   }, [chaine, dpr, largeur, hauteur]);
   useEffect(() => {
     const { seuil, intensite, rayon } = reglagesBloom(nuit);
     chaine.halo.threshold = seuil; chaine.halo.strength = intensite; chaine.halo.radius = rayon;
-    const u = chaine.etalonnage.uniforms;
-    u.uChaleur.value = nuit ? .2 : .6;
-    // Le flou de maquette coûte 17 lectures par pixel : réservé aux niveaux avec occlusion.
-    u.uFlou.value = maquette && occlusion ? 2.4 : 0;
-  }, [chaine, nuit, maquette, occlusion]);
+    // La nuit, on garde le contraste mais on retire la chaleur, pour que les lampadaires restent la seule source dorée.
+    chaine.etalonnage.uniforms.uTonalite.value = nuit ? .3 : .7;
+  }, [chaine, nuit]);
   useEffect(() => {
     // Les ombres ne sont recalculées qu'une fois par image, pas à chaque passe ; les statistiques cumulent toutes les passes.
     const ombres = gl.shadowMap.autoUpdate, statistiques = gl.info.autoReset;

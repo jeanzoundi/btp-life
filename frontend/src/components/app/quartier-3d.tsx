@@ -7,7 +7,9 @@ import { HumainMonde } from './humain-monde';
 import { FluiditeMonde, StatistiquesRendu } from './fluidite-monde';
 import { orienterProgressivement, type QualiteMonde } from '@/lib/fluidite-monde';
 import { itineraireVille } from '@/lib/itineraire-ville';
-import { decalagePlongee } from '@/lib/camera-monde';
+import { AZIMUT_VUE, decalageVue } from '@/lib/camera-monde';
+import { distance as distanceEntre, porteBatiment } from '@/lib/minicarte';
+import { progressionVersNiveauSuivant } from '@/lib/niveau';
 import { useQuery } from '@tanstack/react-query';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -28,7 +30,9 @@ import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
 import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from '@/lib/meteo-monde';
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
-import { objectifDuMoment } from '@/lib/objectif-monde';
+import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif-monde';
+import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, type NotificationMonde, type TypeNotification } from './hud-monde';
+import { Minicarte } from './minicarte';
 import { appliquerEffet } from '@/lib/objets-interieurs';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
@@ -36,6 +40,7 @@ import type { IdentitePersonnage } from '@/lib/identites-personnages';
 
 type Critique = { icone: string; label: string } | null;
 const VITESSES = [1, 2, 3] as const;
+const NOMS_PNJ = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type PointMonde = [number, number];
@@ -223,8 +228,10 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   </group>;
 }
 
-function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, onParler, rythme, contexte, bulles }: { nom: string; couleur: string; route: PointMonde[]; depart: number; pause: boolean; joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void; rythme: number; contexte: ContextePensee; bulles: boolean }) {
+function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, onParler, rythme, contexte, bulles, suivi }: { nom: string; couleur: string; route: PointMonde[]; depart: number; pause: boolean; joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void; rythme: number; contexte: ContextePensee; bulles: boolean; suivi?: React.MutableRefObject<Map<string, THREE.Vector3>> }) {
   const ref = useRef<THREE.Group>(null);
+  // La minicarte lit directement la position de l'habitant, sans copie à chaque image.
+  useEffect(() => { const carte = suivi?.current; if (!carte || !ref.current) return; carte.set(nom, ref.current.position); return () => { carte.delete(nom); }; }, [nom, suivi]);
   const index = useRef(depart % route.length);
   const approche = useRef(false);
   const [attend, setAttend] = useState(false);
@@ -259,14 +266,14 @@ function Passant({ route, depart, pause, couleur, rythme }: { route: PointMonde[
   return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={depart % 3 === 0} variante={depart + Math.round(point[0])} allure={1.5 * rythme} /></group>;
 }
 
-function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> }) {
+function CameraSims({ joueur, vue }: { joueur: React.MutableRefObject<THREE.Vector3>; vue?: React.MutableRefObject<{ azimut: number }> }) {
   const [proche,setProche]=useState(true);
   const controles = useRef<ComponentRef<typeof MapControls>>(null);
   const cible = useMemo(() => new THREE.Vector3(), []);
   const camera = useThree(s => s.camera);
   const aspect = useThree(s => s.size.width / Math.max(1, s.size.height));
-  // Vue plongeante par défaut (face au nord, reculée en portrait) ; caméra libre basse en option.
-  const decalage = useMemo<[number, number, number]>(() => proche ? decalagePlongee(aspect) : [5, 3.8, 7], [proche, aspect]);
+  // Vue d'ensemble de trois quarts par défaut (reculée en portrait) ; caméra libre basse en option.
+  const decalage = useMemo<[number, number, number]>(() => proche ? decalageVue(aspect) : [5, 3.8, 7], [proche, aspect]);
   useEffect(()=>{const basculer=()=>setProche(v=>!v);window.addEventListener('btp-camera',basculer);return()=>window.removeEventListener('btp-camera',basculer);},[]);
   useEffect(()=>{camera.position.set(joueur.current.x+decalage[0],decalage[1],joueur.current.z+decalage[2]);controles.current?.target.set(joueur.current.x,1.2,joueur.current.z);controles.current?.update();},[decalage,camera,joueur]);
   useEffect(() => {
@@ -285,8 +292,10 @@ function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> 
     cible.set(joueur.current.x, 1, joueur.current.z);
     cible.sub(controles.current.target).multiplyScalar(1 - Math.exp(-6 * delta));
     camera.position.add(cible); controles.current.target.add(cible); controles.current.update();
+    // La minicarte et la flèche d'objectif s'orientent comme la caméra, y compris en caméra libre.
+    if (vue) vue.current.azimut = Math.atan2(camera.position.x - controles.current.target.x, camera.position.z - controles.current.target.z);
   });
-  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?14:3} maxDistance={proche?72:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
+  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?14:3} maxDistance={proche?60:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
 }
 
 
@@ -309,8 +318,7 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
-  const joueur = useRef(new THREE.Vector3());
+function Scene({ joueur, vue, suiviPnj, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -328,39 +336,17 @@ function Scene({ nomJoueur, joueurs, directions, destination, heure, pause, sele
     }} />)}
     {BATIMENTS.map((b) => <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
     <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} />
-    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} />)}
+    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} />)}
     {ROUTES_PASSANTS.flatMap((route, i) => [0, 2].map((depart, j) => <Passant key={`passant-${i}-${j}`} route={route} depart={depart} pause={pause} rythme={rythme} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} />))}
-    <CameraSims joueur={joueur} />
+    <CameraSims joueur={joueur} vue={vue} />
   </>;
 }
 
 function BoutonDirection({ direction, symbole, setDirection }: { direction: Direction; symbole: string; setDirection: (d: Direction, actif: boolean) => void }) {
-  return <button type="button" aria-label={direction} className="hud-bouton h-10 w-10 select-none bg-creme text-base text-encre" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
+  return <button type="button" aria-label={direction} className="hud-verre hud-bouton h-10 w-10 select-none rounded-xl text-base" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
 }
 
-/** Jauge circulaire du HUD : anneau coloré autour de l'icône, valeur en chiffres gras. */
-function JaugeAnneau({ label, valeur, couleur, icone }: { label: string; valeur: number; couleur: string; icone: string }) {
-  const niveau = Math.max(0, Math.min(100, valeur));
-  const circonference = 2 * Math.PI * 15;
-  return <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(niveau)} className="flex flex-col items-center gap-0.5">
-    <div className="flex items-center gap-1.5">
-      <span className={`relative inline-flex h-9 w-9 items-center justify-center ${niveau < 25 ? 'animate-pulse' : ''}`}>
-        <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90" aria-hidden="true">
-          <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,253,245,.16)" strokeWidth="4" />
-          <circle cx="18" cy="18" r="15" fill="none" stroke={couleur} strokeWidth="4" strokeLinecap="round" strokeDasharray={`${circonference * niveau / 100} ${circonference}`} />
-        </svg>
-        <span className="text-sm leading-none" aria-hidden="true">{icone}</span>
-      </span>
-      <b className="hud-titre text-[15px] font-normal text-creme">{Math.round(niveau)}</b>
-    </div>
-    <span className="text-[10px] font-extrabold text-creme/80">{label}</span>
-  </div>;
-}
-
-const IconeCarte = () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Z" /><path d="M9 4v13.5M15 6.5V20" /></svg>;
-const IconeMenu = () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" /></svg>;
-
-export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string }
+export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string; xp?: number; reputation?: number }
 
 export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif = false }: { nomJoueur?: string; besoins?: BesoinsJoueur; profil?: ProfilJoueur; demo?: boolean; immersif?: boolean }) {
   const userId = useAuthStore((s) => s.user?.id);
@@ -388,7 +374,26 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
-  const [message, setMessage] = useState('');
+  const [notifications, setNotifications] = useState<NotificationMonde[]>([]);
+  const compteurNotifications = useRef(0);
+  const fermerNotification = useCallback((id: number) => setNotifications(n => n.filter(x => x.id !== id)), []);
+  /** Ajoute un événement au fil (trois au plus) ; il se retire seul après quelques secondes. */
+  const notifier = useCallback((texte: string, type: TypeNotification = 'info', action?: NotificationMonde['action']) => {
+    const id = ++compteurNotifications.current;
+    setNotifications(n => [...n.filter(x => x.texte !== texte), { id, texte, type, action }].slice(-3));
+    window.setTimeout(() => setNotifications(n => n.filter(x => x.id !== id)), action ? 10000 : 6000);
+  }, []);
+  // Lues par la minicarte et la flèche d'objectif, écrites par la scène à chaque image : aucun rendu React en plus.
+  const joueurRef = useRef(new THREE.Vector3());
+  const vueRef = useRef({ azimut: AZIMUT_VUE });
+  const suiviPnj = useRef(new Map<string, THREE.Vector3>());
+  const [large, setLarge] = useState(true);
+  useEffect(() => {
+    const requete = window.matchMedia('(min-width: 640px)');
+    const suivre = () => setLarge(requete.matches);
+    suivre(); requete.addEventListener('change', suivre);
+    return () => requete.removeEventListener('change', suivre);
+  }, []);
   const [mode, setMode] = useState<ModeJeuId>('libre');
   const [menuModes, setMenuModes] = useState(false);
   const [etapeMode, setEtapeMode] = useState(0);
@@ -412,22 +417,22 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     const distance = Math.hypot(Math.max(0, Math.abs(positionCourante[0] - b.position[0]) - b.taille[0] / 2), Math.max(0, Math.abs(positionCourante[1] - b.position[2]) - b.taille[2] / 2));
     if (distance > 5) {
       const [x, , z] = b.position;
-      // On arrive par la porte, côté façade : la caméra plongeante regarde vers le nord, le joueur n'est jamais caché par le bâtiment.
+      // On arrive par la porte, côté façade : la vue d'ensemble se tient au sud, le joueur n'est jamais caché par le bâtiment.
       destination.current = [x, THREE.MathUtils.clamp(z + b.taille[2] / 2 + 2, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; lieuEnApproche.current = b;
-      setMessage(`En route vers ${b.nom}. Tu peux reprendre les commandes à tout moment.`); setPlan(false); return;
+      notifier(`En route vers ${b.nom}.`, 'trajet'); setPlan(false); return;
     }
     lieuEnApproche.current = null;
     setSelection(b); setPlan(false); directionsRef.current.clear(); destination.current = null;
-    if (mode === 'libre' || secondes === 0) { setMessage(''); return; }
+    if (mode === 'libre' || secondes === 0) return;
     const resultat = avancerMode(MODES_JEU.find(m => m.id === mode)!, etapeMode, b.slug);
     if (resultat.points) {
       const bonus = resultat.termine ? Math.max(0, secondes ?? 0) * 5 : 0;
       const nouveauScore = score + resultat.points + bonus;
       setEtapeMode(resultat.etape); setScore(nouveauScore);
       if (resultat.termine) setRecords(r => ({ ...r, [mode]: Math.max(r[mode] ?? 0, nouveauScore) }));
-      setMessage(resultat.termine ? `Mission accomplie ! Bonus rapidité : ${bonus} points. Rejoue pour améliorer ton record.` : `Objectif validé ! +${resultat.points} points.`);
-    } else setMessage(`Ce lieu n'est pas l'objectif actuel. Consulte le panneau de mission.`);
-  }, [mode, secondes, etapeMode, score, positionCourante]);
+      notifier(resultat.termine ? `Mission accomplie ! Bonus rapidité : ${bonus} points. Rejoue pour améliorer ton record.` : `Objectif validé ! +${resultat.points} points.`, 'succes');
+    } else notifier(`Ce lieu n'est pas l'objectif actuel. Consulte le planning du jour.`, 'info');
+  }, [mode, secondes, etapeMode, score, positionCourante, notifier]);
   useEffect(() => {
     const lieu = lieuEnApproche.current;
     if (!lieu) return;
@@ -437,8 +442,8 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   }, [positionCourante, choisir]);
   const changerMode = useCallback((id: ModeJeuId) => {
     const nouveau = MODES_JEU.find(m => m.id === id)!;
-    setMode(id); setEtapeMode(0); setScore(0); setSecondes(nouveau.duree); setMenuModes(false); setSelection(null); setMessage(id === 'libre' ? 'Exploration libre activée.' : `${nouveau.nom} lancé : suis les objectifs.`);
-  }, []);
+    setMode(id); setEtapeMode(0); setScore(0); setSecondes(nouveau.duree); setMenuModes(false); setSelection(null); notifier(id === 'libre' ? 'Exploration libre activée.' : `${nouveau.nom} lancé : suis les objectifs.`, 'info');
+  }, [notifier]);
   const { data: joueurs = [] } = useQuery({ queryKey: ['carriere', 'joueurs-actifs'], queryFn: () => api.get<JoueurActif[]>('/carriere/joueurs-actifs'), staleTime: 45_000, refetchInterval: 45_000, enabled: !demo });
   const { data: etatMonde, isFetchedAfterMount, isFetching, isError } = useQuery({
     queryKey: ['carriere', 'monde'],
@@ -551,14 +556,13 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   useEffect(() => {
     const changer = (code: string, actif: boolean) => { const direction = TOUCHES[code]; if (!direction) return; if (actif) directions.add(direction); else directions.delete(direction); };
     if (interieur) { directions.clear(); return; }
-    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); } };
+    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); return; } if (e.ctrlKey || e.metaKey || e.altKey) return; const touche = e.key.toLowerCase(); if (touche === 'm') { setPlan(v => !v); setOptions(false); setSelection(null); } else if (touche === 'j') setMenuModes(v => !v); else if (touche === 'o') { setOptions(v => !v); setPlan(false); } else if (touche === 'p') setPause(v => !v); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') changerVitesse(Number(e.code.slice(-1)) as (typeof VITESSES)[number]); };
     const up = (e: KeyboardEvent) => changer(e.code, false);
     const clear = () => directions.clear();
     window.addEventListener('blur', clear);
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('blur', clear); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); document.body.style.cursor = 'default'; };
-  }, [directions, interieur]);
-  useEffect(() => { if (!message) return; const minuteur = window.setTimeout(() => setMessage(''), 7000); return () => window.clearTimeout(minuteur); }, [message]);
+  }, [directions, interieur, changerVitesse]);
   const setDirection = (d: Direction, actif: boolean) => { if (actif) { lieuEnApproche.current = null; directions.add(d); } else directions.delete(d); rafraichir((v) => v + 1); };
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
@@ -573,101 +577,109 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     ? { texte: etapeEnCours.titre, etiquette: secondes !== null ? `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}` : `${etapeMode + 1}/${modeActif.etapes.length}` }
     : objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
   const argent = profil?.argent ?? (demo ? 150_000 : undefined);
+  const niveau = profil?.niveau ?? (demo ? 3 : 1);
+  const progressionXp = progressionVersNiveauSuivant(profil?.xp ?? (demo ? 760 : 0), niveau).pct;
+  const reputation = profil?.reputation ?? (demo ? 520 : undefined);
+  const couleurSauvegarde = etatSauvegarde === 'erreur' ? '#E2653C' : etatSauvegarde === 'sauvegarde-ok' ? '#4CC3A5' : 'rgb(251 245 234 / .3)';
   const hautHud = immersif ? 'top-20' : 'top-3';
-  const hautPanneaux = immersif ? 'top-[226px]' : 'top-[158px]';
   const allerVers = (slug: string) => { const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
-  return <div className={`relative w-full overflow-hidden bg-[#d9c4a2] ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border-[2.4px] border-encre shadow-[6px_6px_0_0_#0B2E1F]'}`} data-testid="quartier-3d">
+  // Cible de l'objectif : la porte du lieu à rejoindre, ou le repère non découvert le plus proche.
+  const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
+  const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
+  const repereProche = useMemo(() => POINTS_DECOUVERTE.filter(p => !decouvertes.includes(p.id)).sort((a, b) => distanceEntre(a.position, positionCourante) - distanceEntre(b.position, positionCourante))[0], [decouvertes, positionCourante]);
+  const cibleObjectif: PointMonde | null = batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
+    : !etapeEnCours && objectif.texte === 'Trouve les repères' && repereProche ? repereProche.position : null;
+  const reperesCarte = useMemo(() => POINTS_DECOUVERTE.map(p => ({ id: p.id, position: p.position, trouve: decouvertes.includes(p.id) })), [decouvertes]);
+  // Un besoin qui devient critique déclenche une alerte avec le trajet vers le bon lieu (une fois, jusqu'à remontée).
+  const signalesRef = useRef(new Set<CleBesoin>());
+  useEffect(() => {
+    const { nouvelles, signales } = alertesBesoins(stats, signalesRef.current);
+    signalesRef.current = signales;
+    for (const alerte of nouvelles) notifier(`${alerte.texte} (${Math.round(stats[alerte.cle])} %).`, 'alerte', { label: alerte.action, executer: () => allerVers(alerte.lieu) });
+  });
+  useEffect(() => { if (etatSauvegarde === 'erreur' && !demo) notifier('Sauvegarde locale : le serveur reprendra dès que possible.', 'alerte'); }, [etatSauvegarde, demo, notifier]);
+  // Accueil une seule fois, même avec le double montage du mode strict.
+  const accueilFait = useRef(false);
+  useEffect(() => {
+    if (accueilFait.current) return;
+    accueilFait.current = true;
+    window.setTimeout(() => notifier(demo ? 'Bienvenue aux Palmiers ! Touche un bâtiment, le sol ou la minicarte pour te déplacer.' : `Content de te revoir${nomJoueur ? `, ${nomJoueur}` : ''} !`, 'info'), 1500);
+  }, [demo, nomJoueur, notifier]);
+  const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
+  return <div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
-    <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}>
-      <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} maquette />
-      <Scene meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={modeActif.etapes[etapeMode]?.lieu} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); setMessage(`${nom} découvert ! +75 points d’exploration.`); }} />
+    <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
+      <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
-    {/* HUD : carte profil (argent, niveau, heure), plan, options, objectif du moment, quartier et vitesse du temps. */}
-    <header className={`pointer-events-none absolute inset-x-3 z-10 flex flex-col gap-2 ${hautHud}`}>
-      <div className="flex items-stretch gap-2">
-        <div className="hud-carte pointer-events-auto flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-1.5">
-          <div className="min-w-0">
-            <small className="block truncate text-[10px] font-extrabold">{nomJoueur ?? 'Joueur'}, {profil?.poste ?? 'apprenti'}</small>
-            <b className="hud-titre block truncate text-lg font-normal leading-tight">{argent === undefined ? '— F' : `${argent.toLocaleString('fr-FR')} F`}</b>
-          </div>
-          <div className="shrink-0 text-right">
-            <small className="flex items-center justify-end gap-1 text-[10px] font-extrabold">
-              <span aria-hidden="true" title={libelleSauvegarde} className={`h-2 w-2 rounded-full ${etatSauvegarde === 'erreur' ? 'bg-mangue' : etatSauvegarde === 'sauvegarde-ok' ? 'bg-foret' : 'bg-encre/30'}`} />
-              {profil?.niveau ? `Niveau ${profil.niveau}` : 'Abidjan'} · <span data-testid="meteo-monde" title={LIBELLES_METEO[meteo].nom}>{LIBELLES_METEO[meteo].icone}<span className="sr-only"> {LIBELLES_METEO[meteo].nom}</span></span>
-            </small>
-            <b className="hud-titre block text-lg font-normal leading-tight text-mangue">{affichageHeure}</b>
-          </div>
-        </div>
-        <button type="button" aria-label="Plan et lieux" aria-expanded={plan} onClick={() => { setPlan(v => !v); setOptions(false); setSelection(null); }} className="hud-bouton pointer-events-auto w-12 shrink-0 bg-mangue text-encre"><IconeCarte /></button>
-        <button type="button" aria-label="Options" aria-expanded={options} onClick={() => { setOptions(v => !v); setPlan(false); }} className="hud-bouton pointer-events-auto w-12 shrink-0 bg-foret text-creme"><IconeMenu /></button>
+    {/* HUD « Lagune » : le bâtisseur et son objectif à gauche, l'heure et la minicarte à droite, le centre reste dégagé. */}
+    <header className={`pointer-events-none absolute inset-x-3 z-10 flex items-start justify-between gap-3 ${hautHud}`}>
+      <div className="flex min-w-0 flex-col items-start gap-2">
+        <CarteJoueur nom={nomJoueur ?? 'Bâtisseur'} poste={profil?.poste ?? 'Apprenti'} niveau={niveau} progression={progressionXp} argent={argent} reputation={reputation} humeur={humeur} etatSauvegarde={{ libelle: libelleSauvegarde, couleur: couleurSauvegarde }} compacte={!large} />
+        {cap}
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <button type="button" aria-expanded={menuModes} aria-label={`Objectif : ${objectif.texte}`} onClick={() => setMenuModes(v => !v)} className="hud-pastille pointer-events-auto min-w-0">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-mangue" aria-hidden="true" />
-          <span className="truncate">{objectif.texte}</span>
-          {objectif.etiquette && <em className="shrink-0 rounded-full bg-piment px-2 py-0.5 text-[11px] not-italic text-white">{objectif.etiquette}</em>}
-        </button>
-        <button type="button" aria-label={`Quartier ${quartierActuel.nom} : ouvrir le plan`} onClick={() => { setPlan(true); setOptions(false); setSelection(null); }} className="hud-pastille hud-titre pointer-events-auto min-w-0 max-w-[48%] shrink-0 bg-foret text-[12px] font-normal text-white">
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11Z" /><circle cx="12" cy="10" r="2.2" /></svg>
-          <span className="truncate">{quartierActuel.nom}</span>
-        </button>
-      </div>
-      <div className="flex justify-end">
-        <div role="group" aria-label="Vitesse du temps" className="hud-pastille pointer-events-auto gap-0.5 px-1 py-1">
-          <button type="button" onClick={() => setPause((v) => !v)} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`h-7 w-7 rounded-full text-[11px] ${pause ? 'bg-mangue text-encre' : 'hover:bg-encre/10'}`}>Ⅱ</button>
-          {VITESSES.map(v => <button key={v} type="button" onClick={() => changerVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`h-7 min-w-7 rounded-full px-1 text-[9px] tracking-tighter ${!pause && vitesse === v ? 'bg-foret text-white' : 'hover:bg-encre/10'}`}>{'▶'.repeat(v)}</button>)}
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <HorlogeMonde heure={affichageHeure} meteo={LIBELLES_METEO[meteo]} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
+        <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
+          onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />
+        <div className="flex gap-1.5">
+          <BoutonHud libelle="Planning du jour" raccourci="J" actif={menuModes} onClick={() => setMenuModes(v => !v)}>{ICONES.planning}</BoutonHud>
+          <BoutonHud libelle="Plan et lieux" raccourci="M" actif={plan} onClick={() => { setPlan(v => !v); setOptions(false); setSelection(null); }}>{ICONES.carte}</BoutonHud>
+          <BoutonHud libelle="Options" raccourci="O" actif={options} onClick={() => { setOptions(v => !v); setPlan(false); }}>{ICONES.reglages}</BoutonHud>
         </div>
       </div>
     </header>
-    <PanneauModesJeu haut={hautPanneaux} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
+    {/* Fil d'événements : sous le bâtisseur sur grand écran, au-dessus des besoins sur téléphone. */}
+    <div className={`pointer-events-none absolute z-20 ${large ? `left-3 w-[320px] ${immersif ? 'top-[216px]' : 'top-[148px]'}` : 'inset-x-3 bottom-[120px]'}`}>
+      <PileNotifications notifications={notifications} onFermer={fermerNotification} />
+    </div>
+    <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
     {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
-    {options && <section aria-label="Options" className={`hud-carte absolute right-3 z-20 grid w-[min(290px,calc(100%-24px))] gap-2 p-3 text-sm ${hautPanneaux}`}>
-      <h2 className="hud-titre text-base font-normal">Options</h2>
-      <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
+    {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
+      <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
+      <div className="hud-separateur" />
+      <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
       <StatistiquesRendu />
-      <button type="button" className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
-      <button type="button" className="hud-bouton justify-start bg-white px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche?'Passer en caméra libre':'Revenir à la vue plongeante'}</button>
-      <p className="px-1 text-[11px] font-extrabold">{libelleSauvegarde}</p>
-      <p className="px-1 text-[11px] leading-relaxed text-encre/70">Sol : marcher · Bâtiment : y aller<br />{cameraProche ? 'Vue plongeante : angle fixe' : 'Glisser : tourner'} · Molette : zoom<br />ZQSD / flèches : marcher<br />R : recentrer · Échap : fermer</p>
-    </section>}
-    {plan && <nav aria-label="Lieux du quartier" className={`hud-carte absolute right-3 z-20 max-h-[calc(100%-180px)] w-80 max-w-[calc(100%_-_24px)] overflow-y-auto p-3 ${hautPanneaux}`}>
-      <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-base font-normal">Plan · {BATIMENTS.length} lieux</h2><button type="button" aria-label="Fermer le plan" onClick={() => setPlan(false)} className="hud-bouton h-8 w-8 shrink-0 bg-white text-xs">✕</button></div>
-      <section className="my-3 rounded-[10px] border-[2.4px] border-encre bg-[#fff3d6] p-3" aria-label="Carnet d’exploration">
-        <h3 className="text-sm font-extrabold">Carnet d’exploration · {decouvertes.length}/{POINTS_DECOUVERTE.length}</h3>
-        <p className="my-1 text-xs text-encre/70">Rejoins les repères dorés et touche-les à proximité. Chaque découverte est conservée.</p>
-        {POINTS_DECOUVERTE.map(point => <button key={point.id} className="flex min-h-10 w-full items-center justify-between border-t border-encre/15 py-2 text-left text-xs font-bold hover:text-foret" onClick={() => { destination.current = point.position; setPlan(false); setMessage(`Cap sur ${point.nom}. Contourne les bâtiments si le passage est bloqué.`); }}><span>{point.nom}</span><span>{decouvertes.includes(point.id) ? '✓' : '+75'}</span></button>)}
-      </section>
-      <div aria-label="Plan de la ville" className="relative my-2 h-44 rounded-[10px] border-[2.4px] border-encre bg-[#a9bf8f]">
-        <span className="absolute left-2 top-1 text-[9px] font-extrabold text-encre/70">N ↑</span>
-        <div className="absolute bottom-0 h-3 w-full rounded-b-[7px] bg-[#3f9fb0]" />
-        {QUARTIERS.map(q => <button key={q.nom} title={`Se déplacer vers ${q.nom}`} onClick={() => { destination.current = [q.x, q.z]; setPlan(false); setMessage(`Itinéraire vers ${q.nom}.`); }} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-encre px-2 py-0.5 text-center text-[9px] font-extrabold ${q.nom === quartierActuel.nom ? 'bg-mangue text-encre' : 'bg-creme text-encre hover:bg-foret hover:text-white'}`} style={{ left: `${(q.x + 130) / 260 * 100}%`, top: `${(q.z + 130) / 190 * 100}%` }}>{q.nom}</button>)}
+      <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
+      <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche ? 'Passer en caméra libre' : 'Revenir à la vue d’ensemble'}</button>
+      <p className="hud-legende px-1">{libelleSauvegarde}</p>
+      <div className="rounded-xl bg-black/25 p-3 text-[11.5px] leading-relaxed text-jeu-ivoire/75">
+        <p className="hud-legende mb-1.5">Commandes</p>
+        Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom
       </div>
-      <p className="px-1 text-[10px] text-encre/70">Touche un quartier pour lancer l’itinéraire, ou choisis directement un lieu.</p>
-      <label className="my-3 block text-xs font-extrabold">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-[10px] border-[2.4px] border-encre bg-white p-2.5 text-encre"><option>Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom}>{q.nom}</option>)}</select></label>
-      {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-[10px] border-2 border-encre/20 p-2"><h3 className="text-sm font-extrabold text-foret">{q.nom}</h3><p className="my-1 text-xs text-encre/70">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-bold hover:bg-encre/5">{b.nom}<span className="mt-0.5 block text-[10px] font-medium text-encre/60">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
+    </section>}
+    {plan && <nav aria-label="Lieux du quartier" className={`hud-verre absolute inset-x-3 z-30 max-h-[calc(100%-24px)] overflow-y-auto p-4 sm:inset-x-auto sm:right-3 sm:w-[340px] ${hautHud}`}>
+      <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Plan · {BATIMENTS.length} lieux</h2><button type="button" aria-label="Fermer le plan" onClick={() => setPlan(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
+      <div className="hud-separateur mt-2" />
+      <section className="my-3 rounded-xl border border-white/10 bg-white/[.04] p-3" aria-label="Carnet d’exploration">
+        <h3 className="flex items-center justify-between text-sm font-bold">Carnet d’exploration<span className="hud-chiffre text-jeu-or">{decouvertes.length}/{POINTS_DECOUVERTE.length}</span></h3>
+        <p className="my-1 text-xs text-jeu-ivoire/65">Rejoins les repères dorés et touche-les à proximité. Chaque découverte est conservée.</p>
+        {POINTS_DECOUVERTE.map(point => <button key={point.id} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 py-2 text-left text-xs font-semibold hover:text-jeu-or" onClick={() => { destination.current = point.position; setPlan(false); notifier(`Cap sur ${point.nom}.`, 'trajet'); }}><span>{point.nom}</span><span className="hud-chiffre">{decouvertes.includes(point.id) ? '✓' : '+75'}</span></button>)}
+      </section>
+      <div aria-label="Plan de la ville" className="relative my-2 h-44 overflow-hidden rounded-xl border border-white/10 bg-[#33402B]" style={{ backgroundImage: 'linear-gradient(rgba(251,245,234,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(251,245,234,.05) 1px, transparent 1px)', backgroundSize: '16px 16px' }}>
+        <span className="hud-legende absolute left-2 top-1.5">N ↑</span>
+        <div className="absolute bottom-0 h-3 w-full bg-[#2C7C7E]" />
+        {QUARTIERS.map(q => <button key={q.nom} title={`Se déplacer vers ${q.nom}`} onClick={() => { destination.current = [q.x, q.z]; setPlan(false); notifier(`Itinéraire vers ${q.nom}.`, 'trajet'); }} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full px-2.5 py-0.5 text-center text-[9.5px] font-bold ${q.nom === quartierActuel.nom ? 'bg-jeu-terre text-white' : 'border border-white/15 bg-black/45 text-jeu-ivoire hover:bg-white/15'}`} style={{ left: `${(q.x + 130) / 260 * 100}%`, top: `${(q.z + 130) / 190 * 100}%` }}>{q.nom}</button>)}
+      </div>
+      <p className="px-1 text-[10.5px] text-jeu-ivoire/60">Touche un quartier pour lancer l’itinéraire, ou choisis directement un lieu.</p>
+      <label className="my-3 block text-xs font-bold">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-xl border border-white/15 bg-[#2A211B] p-2.5 text-jeu-ivoire"><option className="bg-[#2A211B]">Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom} className="bg-[#2A211B]">{q.nom}</option>)}</select></label>
+      {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/10 bg-white/[.03] p-2"><h3 className="text-sm font-bold text-jeu-or">{q.nom}</h3><p className="my-1 text-xs text-jeu-ivoire/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-semibold hover:bg-white/[.06]">{b.nom}<span className="hud-chiffre mt-0.5 block text-[10.5px] font-semibold text-jeu-ivoire/55">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
-    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); setMessage(`${action.label} : besoin restauré (démo, non sauvegardé).`); }} />}
-    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); setMessage(`Vous êtes sorti de ${interieur.nom}.`); }}>
+    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); notifier(`${action.label} : besoin restauré (démo, non sauvegardé).`, 'succes'); }} />}
+    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
         const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
         setDemoStats(s => ({ ...s, [cible]: 100 }));
       }} />
     </InterieurLieu3D>}
-    <div className="absolute bottom-[150px] left-3 z-10 grid grid-cols-3 gap-1.5 sm:hidden"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>
-    {/* Bas d'écran : indice ou dernier message, puis les quatre besoins en anneaux. */}
-    <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 mx-auto flex max-w-md flex-col items-center gap-2">
-      {etatSauvegarde === 'erreur' && !demo && <p className="hud-pastille bg-[#fff1d6] text-[11px]">⚠ Sauvegarde locale · serveur à reprendre</p>}
-      {message ? <p role="status" className="hud-pastille pointer-events-auto max-w-full text-center text-[12px] leading-snug">{message}</p>
-        : <p className="hud-pastille max-w-full text-center text-[12px] leading-snug">Touche un lieu pour t’y rendre</p>}
-      <div role="group" aria-label="Besoins" className="pointer-events-auto grid w-full grid-cols-4 gap-1 rounded-[14px] bg-encre px-2 py-2 shadow-[4px_4px_0_0_rgba(11,46,31,.4)]">
-        <JaugeAnneau label="Faim" valeur={stats.faim} couleur="#F77F00" icone="🍲" />
-        <JaugeAnneau label="Énergie" valeur={stats.energie} couleur="#F4C430" icone="⚡" />
-        <JaugeAnneau label="Moral" valeur={stats.moral} couleur="#3BB273" icone="🙂" />
-        <JaugeAnneau label="Social" valeur={stats.social} couleur="#F25F5C" icone="💬" />
-      </div>
+    {/* Bas d'écran : besoins, rappel des commandes sur grand écran, croix de déplacement sur téléphone. */}
+    <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3">
+      <JaugesBesoins besoins={stats} compacte={!large} />
+      {large && <p className="hud-verre mb-1 hidden items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] text-jeu-ivoire/70 lg:flex">Clique un lieu, le sol ou la minicarte<span className="px-1 text-jeu-ivoire/30">·</span><b className="hud-chiffre text-jeu-or">M</b> plan <b className="hud-chiffre ml-1 text-jeu-or">J</b> planning <b className="hud-chiffre ml-1 text-jeu-or">P</b> pause</p>}
+      {large ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1.5"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
     </div>
     <p role="status" className="sr-only">{libelleSauvegarde}</p>
   </div>;

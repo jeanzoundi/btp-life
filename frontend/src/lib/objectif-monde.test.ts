@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { objectifDuMoment } from './objectif-monde';
-import { decalagePlongee, distancePlongee } from './camera-monde';
+import { alertesBesoins, objectifDuMoment } from './objectif-monde';
 
 const bien = { energie: 80, moral: 80, faim: 80, social: 80 };
 
@@ -15,17 +14,17 @@ describe('objectif du moment', () => {
   });
 });
 
-describe('vue plongeante', () => {
-  it('recule en portrait sans dépasser la limite', () => {
-    expect(distancePlongee(1.6)).toBe(32);
-    expect(distancePlongee(.46)).toBeGreaterThan(45);
-    expect(distancePlongee(.1)).toBe(64);
-    expect(distancePlongee(Number.NaN)).toBe(32);
+describe('alertes de besoins', () => {
+  it('signale une seule fois un besoin critique, puis de nouveau après remontée', () => {
+    const premiere = alertesBesoins({ ...bien, faim: 20 }, new Set());
+    expect(premiere.nouvelles).toEqual([{ cle: 'faim', texte: 'Tu as faim', action: 'Aller manger', lieu: 'maquis' }]);
+    expect(alertesBesoins({ ...bien, faim: 18 }, premiere.signales).nouvelles).toEqual([]);
+    const remontee = alertesBesoins({ ...bien, faim: 45 }, premiere.signales);
+    expect(remontee.signales.has('faim')).toBe(false);
+    expect(alertesBesoins({ ...bien, faim: 10 }, remontee.signales).nouvelles).toHaveLength(1);
   });
-  it('regarde vers le nord avec une forte plongée', () => {
-    const [x, y, z] = decalagePlongee(1.5);
-    expect(x).toBe(0);
-    expect(Math.atan2(y, z) * 180 / Math.PI).toBeCloseTo(58);
-    expect(Math.hypot(y, z)).toBeCloseTo(32);
+  it('n’alerte pas entre 25 et 40, sans oublier un signal déjà donné', () => {
+    expect(alertesBesoins({ ...bien, energie: 30 }, new Set()).nouvelles).toEqual([]);
+    expect(alertesBesoins({ ...bien, energie: 30 }, new Set(['energie'])).signales.has('energie')).toBe(true);
   });
 });

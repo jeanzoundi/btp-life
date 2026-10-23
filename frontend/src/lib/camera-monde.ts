@@ -1,14 +1,17 @@
-/** Inclinaison de la vue plongeante : assez raide pour lire la rue comme un plan, assez basse pour voir les devantures. */
-export const INCLINAISON_PLONGEE = 58 * Math.PI / 180;
+/** Vue d'ensemble de BTP Life : de trois quarts, légèrement tournée pour lire deux façades à la fois,
+ * comme le regard d'un chef de chantier posté en hauteur. Elle reste du côté sud, celui des portes. */
+export const AZIMUT_VUE = 32 * Math.PI / 180;
+export const INCLINAISON_VUE = 42 * Math.PI / 180;
 
-/** En portrait, on recule pour garder environ vingt mètres de rue en largeur. */
-export function distancePlongee(aspect: number) {
-  if (!Number.isFinite(aspect) || aspect <= 0) return 32;
-  return aspect >= 1 ? 32 : Math.min(64, 32 / Math.pow(aspect, .85));
+/** Assez près pour voir les personnages, et en portrait on recule pour garder la rue lisible en largeur. */
+export function distanceVue(aspect: number) {
+  if (!Number.isFinite(aspect) || aspect <= 0) return 24;
+  return aspect >= 1 ? 24 : Math.min(46, 24 / Math.pow(aspect, .8));
 }
 
-/** Position de la caméra relative au joueur : face au nord, sans rotation, comme une maquette posée sur la table. */
-export function decalagePlongee(aspect: number): [number, number, number] {
-  const distance = distancePlongee(aspect);
-  return [0, distance * Math.sin(INCLINAISON_PLONGEE), distance * Math.cos(INCLINAISON_PLONGEE)];
+/** Position de la caméra relative au joueur. */
+export function decalageVue(aspect: number): [number, number, number] {
+  const distance = distanceVue(aspect);
+  const horizontal = distance * Math.cos(INCLINAISON_VUE);
+  return [horizontal * Math.sin(AZIMUT_VUE), distance * Math.sin(INCLINAISON_VUE), horizontal * Math.cos(AZIMUT_VUE)];
 }

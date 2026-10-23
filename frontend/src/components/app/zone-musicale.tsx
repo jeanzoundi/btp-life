@@ -37,12 +37,12 @@ export function ControleZoneMusicale({ position, interieur }: { position: [numbe
     audio.current = { contexte, gain, timer }; setActive(zone.id);
   };
   if (!zone) return null;
-  return <details aria-label={`Zone musicale : ${zone.nom}`} className="hud-carte absolute bottom-[150px] right-3 z-[8] max-w-52 px-3 py-2">
-    <summary className="cursor-pointer py-0.5 text-xs font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-mangue">♫ Musique{active ? ' · En écoute' : ''}</summary>
-    <div className="mt-2 border-t-2 border-encre/15 pt-2">
-    <p className="text-[10px] font-extrabold uppercase tracking-widest text-mangue">♫ Zone musicale</p><strong className="mt-1 block text-sm">{zone.nom}</strong><span className="text-[10px] text-encre/60">{zone.style}</span>
-    <button onClick={active ? arreter : demarrer} className="hud-bouton mt-2 w-full bg-foret px-3 py-2 text-xs text-creme">{active ? '■ Arrêter' : '▶ Écouter'}</button>
-    {active && <label className="mt-2 block text-[10px] font-bold text-encre/70">Volume<input aria-label="Volume de la zone musicale" className="mt-1 w-full accent-[#006B3F]" type="range" min="0" max="0.3" step="0.02" value={volume} onChange={e => setVolume(Number(e.target.value))} /></label>}
+  return <details aria-label={`Zone musicale : ${zone.nom}`} className="hud-verre absolute bottom-[120px] right-3 z-[8] max-w-56 rounded-2xl px-3 py-2 sm:bottom-3">
+    <summary className="cursor-pointer py-0.5 text-[12px] font-bold text-jeu-ivoire/85">♫ Musique{active ? ' · en écoute' : ''}</summary>
+    <div className="mt-2 border-t border-white/10 pt-2">
+    <p className="hud-legende text-jeu-or">Zone musicale</p><strong className="mt-1 block text-sm">{zone.nom}</strong><span className="text-[11px] text-jeu-ivoire/60">{zone.style}</span>
+    <button onClick={active ? arreter : demarrer} className="hud-bouton hud-bouton-principal mt-2 w-full px-3 py-2 text-xs">{active ? '■ Arrêter' : '▶ Écouter'}</button>
+    {active && <label className="mt-2 block text-[11px] font-semibold text-jeu-ivoire/70">Volume<input aria-label="Volume de la zone musicale" className="mt-1 w-full accent-[#E8B04A]" type="range" min="0" max="0.3" step="0.02" value={volume} onChange={e => setVolume(Number(e.target.value))} /></label>}
     </div>
   </details>;
 }

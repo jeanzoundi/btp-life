@@ -29,7 +29,7 @@ export function ZonesObjets({ objets, selection, usage, onChoisir }: Pick<Intera
       </mesh>
       {actif && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={2} userData={{ sansOcclusion: true }}>
         <planeGeometry args={[o.zone.largeur + .4, o.zone.profondeur + .4]} />
-        <meshBasicMaterial color="#F77F00" transparent opacity={selection === o.id ? .32 : .2} depthWrite={false} />
+        <meshBasicMaterial color="#E8B04A" transparent opacity={selection === o.id ? .32 : .2} depthWrite={false} />
       </mesh>}
     </group>;
   })}</>;

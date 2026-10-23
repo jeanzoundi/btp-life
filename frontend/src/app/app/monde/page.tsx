@@ -21,6 +21,8 @@ interface CarriereMe {
   social: number;
   niveau: number;
   argentVirtuel?: number;
+  xp?: number;
+  reputation?: number;
   profilActuel?: { nom: string } | null;
   avatar?: { nomPersonnage: string; config?: unknown } | null;
 }
@@ -92,7 +94,7 @@ export default function MondePage() {
           <Quartier3D
             nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
             besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
-            profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom } : undefined}
+            profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom, xp: carriere.xp, reputation: carriere.reputation } : undefined}
             immersif={immersif}
           />
         </div>

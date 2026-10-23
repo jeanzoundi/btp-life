@@ -25,7 +25,8 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
   // Lumière dorée de fin d'après-midi (et un peu le matin), même sans étalonnage en mode fluide.
   const doree = Math.max(THREE.MathUtils.smoothstep(heure, 14, 17.2) * (1 - THREE.MathUtils.smoothstep(heure, 18.3, 19)), (1 - THREE.MathUtils.smoothstep(heure, 7, 9)) * THREE.MathUtils.smoothstep(heure, 6, 6.8) * .6);
   const couleurSoleil = jour < 0.1 ? '#aac5f5' : crepuscule > 0.3 ? '#ffbd7c' : meteo === 'harmattan' ? '#ffd9a8' : `#${new THREE.Color('#fff0d6').lerp(new THREE.Color('#ffcf8f'), doree * (1 - ambiance.melange)).getHexString()}`;
-  const intensiteAmbiante = 0.2 + jour * .65;
+  // Ambiance plus basse et soleil plus fort : des ombres franches donnent du volume aux façades et aux personnages.
+  const intensiteAmbiante = 0.16 + jour * .5;
   useFrame(({ controls }, delta) => {
     if (ambiance.eclairs && Math.random() < Math.min(delta, .1) * .12) eclair.current = 1;
     eclair.current = Math.max(0, eclair.current - delta * 5);
@@ -45,6 +46,6 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
     {jour < 0.5 && !couvert && <Stars radius={180} depth={70} count={1200} factor={3} saturation={0.15} fade speed={0.15} />}
     <hemisphereLight ref={ambiante} args={['#c5e0f1', '#75644f', intensiteAmbiante]} />
     <primitive object={cible} />
-    <directionalLight ref={soleil} target={cible} castShadow color={couleurSoleil} intensity={0.35 + jour * 2.8 * ambiance.soleil} position={[70, 90, 45]} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-48} shadow-camera-right={48} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-near={1} shadow-camera-far={230} shadow-normalBias={0.06} shadow-bias={-0.00015} />
+    <directionalLight ref={soleil} target={cible} castShadow color={couleurSoleil} intensity={0.4 + jour * 3.2 * ambiance.soleil} position={[70, 90, 45]} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-48} shadow-camera-right={48} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-near={1} shadow-camera-far={230} shadow-normalBias={0.06} shadow-bias={-0.00015} />
   </>;
 }

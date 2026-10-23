@@ -15,7 +15,7 @@ const LIBELLES_EFFETS: Record<NiveauEffets, string> = {
   3: 'occlusion + halo + lissage',
 };
 
-export function FluiditeMonde({ qualite, actif, nuit = false, rayonOcclusion = 1, maquette = false }: { qualite: QualiteMonde; actif: boolean; nuit?: boolean; rayonOcclusion?: number; maquette?: boolean }) {
+export function FluiditeMonde({ qualite, actif, nuit = false, rayonOcclusion = 1 }: { qualite: QualiteMonde; actif: boolean; nuit?: boolean; rayonOcclusion?: number }) {
   const { setDpr, setFrameloop, gl } = useThree();
   const resolution = useRef(1);
   const plafond = useRef(1.5);
@@ -59,7 +59,7 @@ export function FluiditeMonde({ qualite, actif, nuit = false, rayonOcclusion = 1
     }
     m.duree = 0; m.images = 0;
   });
-  return niveau > 0 ? <RenduAvance niveau={niveau} nuit={nuit} rayonOcclusion={rayonOcclusion} maquette={maquette} /> : null;
+  return niveau > 0 ? <RenduAvance niveau={niveau} nuit={nuit} rayonOcclusion={rayonOcclusion} /> : null;
 }
 
 /** Isolated state: measuring FPS must not rerender the entire city. */
@@ -70,7 +70,7 @@ export function StatistiquesRendu() {
     window.addEventListener(EVENEMENT, mesurer);
     return () => window.removeEventListener(EVENEMENT, mesurer);
   }, []);
-  return <p data-testid="performance-monde" className="px-1 text-[10px] leading-relaxed text-encre/60">
+  return <p data-testid="performance-monde" className="px-1 text-[10.5px] leading-relaxed text-jeu-ivoire/55">
     {mesure ? `${mesure.fps} images/s · ${mesure.appels} appels de dessin · résolution ×${mesure.dpr.toFixed(2)} · ${LIBELLES_EFFETS[mesure.effets]}` : 'Mesure de fluidité en cours…'}
   </p>;
 }

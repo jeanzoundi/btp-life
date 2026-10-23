@@ -1,11 +1,26 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
-## Style d'interface (référence vie2babi.ci, sans reprise de leurs ressources)
+## Interface « Lagune » et nouvelles fonctions (23 octobre)
 
-- HUD en cartes crème à bord encré et ombres franches. Polices Bungee et Archivo, auto-hébergées par Next.
-- Carte profil en haut : argent virtuel, niveau, météo, heure. Boutons plan et options, pastille d'objectif du moment, pastille de quartier, vitesses du temps.
-- Besoins en anneaux en bas de l'écran. Panneaux de lieu, de dialogue, de plan, d'options et de modes, ainsi que les intérieurs, dans le même style.
-- Vue plongeante face au nord, reculée automatiquement en portrait. Le joueur arrive par la porte, côté façade, et reste repérable derrière les toits (losange et anneau toujours visibles).
+La première interface copiait de trop près vie2babi.ci : mêmes polices, mêmes cartes crème, même disposition et même vue plongeante. Une deuxième version, « plan d'exécution », a été jugée trop faible. La version « Lagune » les remplace. Elle est commitée localement, pas encore déployée.
+
+- **Style** :
+  - Verre sombre et chaud, filets dorés, accents terre cuite et eau de lagune.
+  - Polices Bricolage Grotesque (titres et chiffres) et Manrope (texte), auto-hébergées par Next.
+  - Icônes dessinées pour le jeu.
+  - Panneaux de lieu, de dialogue, de plan, d'options, de planning, de musique et intérieurs dans le même style.
+- **Bâtisseur** : médaillon avec anneau d'expérience vers le niveau suivant, niveau, humeur, argent virtuel et réputation, tirés de la vraie carrière.
+- **Minicarte** (nouvelle) :
+  - Montre la ville autour du joueur, tournée comme la caméra : bâtiments, chaussées, plage, lagune, habitants, repères et objectif.
+  - Toucher un bâtiment y envoie le joueur ; toucher la rue l'y fait marcher.
+- **Cap d'objectif** (nouveau) : l'objectif en cours avec la distance et une flèche qui pointe vers lui. Le bâtiment visé est mis en valeur dans la ville.
+- **Fil d'événements** (nouveau) : trajets, découvertes, missions et besoins urgents. Un besoin sous 25 propose directement le trajet (« Aller manger », « Rentrer dormir »…).
+- **Raccourcis** : M plan, J planning, O options, P pause, 1 à 3 pour la vitesse.
+- **Téléphone** : versions compactes de la fiche, de l'objectif, de l'horloge et des besoins.
+- **Rendu** :
+  - Étalonnage « lagune » : ombres légèrement bleu-vert, hautes lumières chaudes, contraste et saturation plus francs.
+  - Soleil plus fort et ambiance plus basse pour des ombres nettes.
+  - Vue de trois quarts plus proche (24 m, inclinée de 42°) pour voir les personnages. Pas de flou « maquette ».
 
 ## Réalisme
 
