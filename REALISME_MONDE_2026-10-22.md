@@ -74,7 +74,7 @@ Un autre outil a travaillé de 08:35 à 12:40 dans le même dossier : personnage
 ## Limites
 
 - La bibliothèque Rocketbox compte peu de personnages noirs en tenue civile : Awa et Mariam partagent le même modèle. Aucune couleur de peau n'a été retouchée.
-- Le texte intégral de la licence OFL 1.1 reste à joindre à `public/fonts/LICENCE-NOTO.md`. La police n'embarque que la mention de copyright et l'adresse de la licence.
+- Le texte intégral de la licence OFL 1.1 a été joint à `public/fonts/LICENCE-NOTO.md` le 23 octobre, après le déploiement. La production ne le publiera qu'au prochain déploiement du frontend.
 - Commits locaux uniquement, sans push.
 
 ## Commits
