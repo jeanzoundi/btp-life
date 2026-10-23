@@ -7,6 +7,7 @@ import { Habitant } from './residence-realiste';
 import { familleLieu, navigationLieu, OBSTACLES_LIEU, stationsLieu, type FamilleLieu } from '@/lib/plan-autres-lieux';
 import { VieInterieure } from './vie-interieure';
 import { SurfaceBloc } from './materiaux-monde';
+import { ZonesObjets, type InteractionsInterieur } from './objets-interieurs-3d';
 
 type V = [number, number, number];
 function Bloc({ p, s, c, rond = false, metal = 0 }: { p: V; s: V; c: string; rond?: boolean; metal?: number }) {
@@ -57,7 +58,7 @@ function Mobilier({ famille }: { famille: FamilleLieu }) {
   </>;
 }
 
-export function AutresLieuxRealistes({ slug, directions, destination, onArrivee }: { slug: string; directions: Set<string>; destination: number | null; onArrivee: (message: string) => void }) {
+export function AutresLieuxRealistes({ slug, directions, destination, onArrivee, interactions }: { slug: string; directions: Set<string>; destination: number | null; onArrivee: (message: string) => void; interactions?: InteractionsInterieur }) {
   const famille = familleLieu(slug)!;
   const points = useMemo(() => stationsLieu(famille), [famille]);
   const nav = useMemo(() => navigationLieu(), []);
@@ -69,7 +70,9 @@ export function AutresLieuxRealistes({ slug, directions, destination, onArrivee 
     <Bloc p={[0,1.4,-4.8]} s={[12,2.8,.18]} c={style.mur} />{[-5.8,5.8].map(x=><Bloc key={x} p={[x,.45,0]} s={[.18,.9,9.6]} c={style.mur} />)}
     {[-3.6,3.6].map(x=><group key={x} position={[x,1.75,-4.68]}><Bloc p={[0,0,0]} s={[2.7,1.35,.05]} c="#80aab0" />{[-1.35,0,1.35].map(a=><Bloc key={a} p={[a,0,.06]} s={[.05,1.45,.06]} c="#f0eee3" />)}</group>)}
     <Text position={[0,2,-4.67]} fontSize={.22} maxWidth={2.4} textAlign="center" color="#314d54">{style.titre}</Text><Bloc p={[0,1.22,-4.64]} s={[1.8,1,.04]} c="#f0eee1" />
-    <Mobilier famille={famille} /><VieInterieure type={famille} /><Habitant directions={directions} destination={destination} onArrivee={onArrivee} points={points} avancer={nav.avancer} calculerChemin={nav.chemin} />
+    <Mobilier famille={famille} /><VieInterieure type={famille} />
+    {interactions && <ZonesObjets objets={interactions.objets} selection={interactions.selection} usage={interactions.usage} onChoisir={interactions.onChoisir} />}
+    <Habitant directions={directions} destination={destination} onArrivee={onArrivee} points={points} avancer={nav.avancer} calculerChemin={nav.chemin} usage={interactions?.usage} onAccesAtteint={interactions?.onAccesAtteint} onAnnule={interactions?.onAnnule} casque={famille === 'chantier'} />
   </>;
 }
 

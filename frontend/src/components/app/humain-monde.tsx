@@ -15,7 +15,7 @@ import { identiteDepuisNom } from '@/lib/identites-personnages';
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-export function HumainMonde({ allure, ...props }: PersonnageStyliseProps & { allure?: number }) {
+export function HumainMonde({ allure, sansCasque, ...props }: PersonnageStyliseProps & { allure?: number; sansCasque?: boolean }) {
   const modele = modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);
@@ -36,7 +36,7 @@ export function HumainMonde({ allure, ...props }: PersonnageStyliseProps & { all
   return <group>
     <group ref={proche}>
       <Suspense fallback={<PersonnageStylise {...props} />}>
-        <group scale={props.scale ?? 1}><PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} /></group>
+        <group scale={props.scale ?? 1}><PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} sansCasque={sansCasque} /></group>
       </Suspense>
     </group>
     <group ref={loin} visible={false}><PersonnageStylise {...props} silhouette /></group>

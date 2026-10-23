@@ -6,9 +6,11 @@ import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { avancerResidence, cheminResidence, PLAN_RESIDENCE as PLAN, POINTS_RESIDENCE } from '@/lib/plan-residence';
 import type { PointInterieur } from '@/lib/navigation-interieur';
+import type { ObjetInterieur } from '@/lib/objets-interieurs';
 import { VieInterieure } from './vie-interieure';
 import { SurfaceBloc } from './materiaux-monde';
 import { HumainMonde } from './humain-monde';
+import { JetDouche, Vapeur, ZonesObjets, type InteractionsInterieur, type UsageObjet } from './objets-interieurs-3d';
 
 type V3 = [number, number, number];
 function Bloc({ p, s, c, doux = false, metal = 0 }: { p: V3; s: V3; c: string; doux?: boolean; metal?: number }) {
@@ -26,7 +28,29 @@ function Lampe({ p }: { p: V3 }) {
   return <group position={p}><Tube p={[0, .025, 0]} r={.15} h={.05} c="#3b3936" /><Tube p={[0, .22, 0]} r={.025} h={.4} c="#ad8655" /><mesh position={[0, .46, 0]}><coneGeometry args={[.24, .3, 24, 1, true]} /><meshStandardMaterial color="#f6dfb3" emissive="#e8b16b" emissiveIntensity={.35} side={THREE.DoubleSide} /></mesh><pointLight position={[0, .4, 0]} color="#ffd8a0" intensity={2} distance={3} /></group>;
 }
 
-function Appartement() {
+/** Meuble télé face au canapé ; l'écran s'allume quand on la regarde. */
+function Television({ allumee }: { allumee: boolean }) {
+  return <group position={[PLAN.tele.x, 0, PLAN.tele.z]}>
+    <Bloc p={[0, .25, 0]} s={[PLAN.tele.largeur, .5, PLAN.tele.profondeur]} c="#5f4b39" doux />
+    <Bloc p={[0, .96, .05]} s={[1.3, .78, .06]} c="#141a1c" />
+    <mesh position={[0, .96, .015]} rotation={[0, Math.PI, 0]}>
+      <planeGeometry args={[1.2, .68]} />
+      <meshStandardMaterial color="#0c1316" emissive={allumee ? '#86bcd8' : '#000000'} emissiveIntensity={allumee ? 1.15 : 0} roughness={.25} />
+    </mesh>
+    {allumee && <pointLight position={[0, 1, -.5]} color="#9fc8e0" intensity={1.4} distance={3.5} />}
+  </group>;
+}
+
+/** Chaise de la table à manger, où l'on s'installe pour étudier ses plans. */
+function Chaise({ p }: { p: V3 }) {
+  return <group position={p}>
+    <Bloc p={[0, .46, 0]} s={[.46, .06, .46]} c="#8a6a4a" doux />
+    <Bloc p={[0, .78, -.21]} s={[.46, .56, .05]} c="#8a6a4a" doux />
+    {[-.19, .19].flatMap(x => [-.19, .19].map(z => <Tube key={`${x},${z}`} p={[x, .22, z]} r={.025} h={.44} c="#5a4632" />))}
+  </group>;
+}
+
+function Appartement({ teleAllumee = false }: { teleAllumee?: boolean }) {
   const veinage = useMemo(() => {
     const largeur = 128, hauteur = 256;
     const pixels = new Uint8Array(largeur * hauteur * 4);
@@ -112,6 +136,7 @@ function Appartement() {
       <Tube p={[0, 1.06, 1.2]} r={.17} h={.16} c="#9ba4a3" />
       <Bloc p={[0, 1, 0]} s={[.45, .025, .6]} c="#bfa077" />
     </group>
+    <Television allumee={teleAllumee} /><Chaise p={[2.5, 0, 1.55]} />
     <Bloc p={[2.5, .76, 2.6]} s={[1, .08, 1.5]} c="#a58a67" doux />
     {[2.15, 2.85].flatMap(x => [2.05, 3.15].map(z => <Tube key={`${x},${z}`} p={[x, .36, z]} r={.04} h={.72} c="#665544" />))}
     <Tube p={[2.5, .82, 2.6]} r={.23} h={.02} c="#f0ece2" /><Tube p={[2.5, .9, 3]} r={.07} h={.16} c="#bed0d1" />
@@ -129,33 +154,67 @@ function Appartement() {
   </>;
 }
 
-export function Habitant({ directions, destination, onArrivee, points = POINTS_RESIDENCE, avancer = avancerResidence, calculerChemin = cheminResidence }: { directions: Set<string>; destination: number | null; onArrivee: (message: string) => void; points?: readonly (PointInterieur & { detail: string })[]; avancer?: typeof avancerResidence; calculerChemin?: typeof cheminResidence }) {
+/** Le joueur dans un intérieur : visite des pièces, déplacement manuel, et utilisation des meubles
+ * (trajet jusqu'à l'accès, pose allongée, assise ou debout le temps de l'action, retour à l'accès). */
+export function Habitant({ directions, destination, onArrivee, points = POINTS_RESIDENCE, avancer = avancerResidence, calculerChemin = cheminResidence, usage = null, onAccesAtteint, onAnnule, casque = false }: {
+  directions: Set<string>; destination: number | null; onArrivee: (message: string) => void;
+  points?: readonly (PointInterieur & { detail: string })[]; avancer?: typeof avancerResidence; calculerChemin?: typeof cheminResidence;
+  usage?: UsageObjet | null; onAccesAtteint?: () => void; onAnnule?: () => void; casque?: boolean;
+}) {
   const [marche,setMarche]=useState(false);
-  const groupe = useRef<THREE.Group>(null);
-  const jambes = useRef<THREE.Group>(null), bras = useRef<THREE.Group>(null);
+  const groupe = useRef<THREE.Group>(null), corps = useRef<THREE.Group>(null);
   const chemin = useRef<PointInterieur[]>([]);
-  const temps = useRef(0);
   const marcheManuelle = useRef(false);
+  const enRoute = useRef(false);
+  const surMeuble = useRef<ObjetInterieur | null>(null);
   const notifier = useRef(onArrivee); notifier.current = onArrivee;
+  const rappels = useRef({ onAccesAtteint, onAnnule }); rappels.current = { onAccesAtteint, onAnnule };
   useEffect(() => {
     if (destination === null) { chemin.current = []; return; }
     if (groupe.current) {
+      enRoute.current = false;
       const cible = points[destination % points.length];
       chemin.current = calculerChemin(groupe.current.position, cible);
       if (!chemin.current.length) notifier.current(Math.hypot(groupe.current.position.x - cible.x, groupe.current.position.z - cible.z) < .2 ? cible.detail : 'Passage inaccessible. Déplacez-vous puis réessayez.');
     }
   }, [destination, points, calculerChemin]);
+  const objetVise = usage?.phase === 'trajet' ? usage.objet : null;
+  useEffect(() => {
+    if (!objetVise || !groupe.current) return;
+    const p = groupe.current.position;
+    chemin.current = calculerChemin(p, objetVise.acces);
+    enRoute.current = chemin.current.length > 0;
+    if (enRoute.current) return;
+    if (Math.hypot(p.x - objetVise.acces.x, p.z - objetVise.acces.z) < .25) rappels.current.onAccesAtteint?.();
+    else { notifier.current('Ce meuble est inaccessible d’ici : rapproche-toi puis réessaie.'); rappels.current.onAnnule?.(); }
+  }, [objetVise, calculerChemin]);
   useFrame((_, delta) => {
     if (!groupe.current) return;
     const p = groupe.current.position;
     let dx = Number(directions.has('droite')) - Number(directions.has('gauche'));
     let dz = Number(directions.has('arriere')) - Number(directions.has('avant'));
+    const enAction = usage?.phase === 'action';
+    // Bouger soi-même interrompt l'action en cours, comme dans un jeu de simulation de vie.
+    if ((dx || dz) && (enAction || enRoute.current)) { enRoute.current = false; rappels.current.onAnnule?.(); }
+    if (enAction && usage && !(dx || dz)) {
+      const pose = usage.objet.usage;
+      if (pose) { p.set(pose.x, pose.y, pose.z); groupe.current.rotation.y = pose.rotation; surMeuble.current = usage.objet; }
+      else groupe.current.rotation.y = usage.objet.regard;
+      if (corps.current) corps.current.rotation.x = usage.action.pose === 'allonge' ? -Math.PI / 2 : 0;
+      if (marche) setMarche(false);
+      return;
+    }
+    if (surMeuble.current) { const a = surMeuble.current.acces; p.set(a.x, 0, a.z); surMeuble.current = null; }
+    if (corps.current) corps.current.rotation.x = 0;
     if (dx || dz) { if (!marcheManuelle.current) notifier.current('Déplacement manuel · choisissez une destination pour reprendre la visite.'); chemin.current = []; marcheManuelle.current = true; }
     else if (chemin.current.length) {
       const cible = chemin.current[0]; dx = cible.x - p.x; dz = cible.z - p.z;
       if (Math.hypot(dx, dz) < .06) {
         chemin.current.shift(); dx = dz = 0;
-        if (!chemin.current.length && destination !== null) notifier.current(points[destination % points.length].detail);
+        if (!chemin.current.length) {
+          if (enRoute.current) { enRoute.current = false; rappels.current.onAccesAtteint?.(); }
+          else if (destination !== null) notifier.current(points[destination % points.length].detail);
+        }
       }
     }
     const prochain = avancer(p, dx, dz, delta);
@@ -164,17 +223,15 @@ export function Habitant({ directions, destination, onArrivee, points = POINTS_R
     if(bouge!==marche)setMarche(bouge);
     p.set(prochain.x, 0, prochain.z);
     if (bouge) groupe.current.rotation.y = Math.atan2(dx, dz);
-    temps.current += Math.min(delta, .05) * 8;
-    const balancement = bouge ? Math.sin(temps.current) * .45 : 0;
-    jambes.current?.children.forEach((jambe, i) => { jambe.rotation.x = balancement * (i ? -1 : 1); });
-    bras.current?.children.forEach((bras, i) => { bras.rotation.x = balancement * (i ? 1 : -1); });
   });
+  const pose = usage?.phase === 'action' ? usage.action.pose : null;
+  // Le joueur reste le bâtisseur ; à l'intérieur, il retire son casque (sauf sur un chantier).
   return <group ref={groupe} position={[0, 0, 3.8]}>
-    <HumainMonde variante={1} couleur="#b3996b" marche={marche}/>
+    <group ref={corps}><HumainMonde identite="batisseur" variante={1} marche={marche} assis={pose === 'assis'} prof={pose === 'parle'} sansCasque={!casque} /></group>
   </group>;
 }
 
-export function ResidenceRealiste({ directions, destination, onArrivee }: { directions: Set<string>; destination: number | null; onArrivee: (message: string) => void }) {
+export function ResidenceRealiste({ directions, destination, onArrivee, interactions }: { directions: Set<string>; destination: number | null; onArrivee: (message: string) => void; interactions?: InteractionsInterieur }) {
   const { camera, size } = useThree();
   const cible = useMemo(() => new THREE.Vector3(0, 0, 0), []);
   useEffect(() => {
@@ -182,11 +239,16 @@ export function ResidenceRealiste({ directions, destination, onArrivee }: { dire
     const recul = Math.max(1, 1.2 / (size.width / size.height));
     camera.position.set(0, 12 * recul, 12 * recul); camera.lookAt(cible);
   }, [camera, size.width, size.height, cible]);
+  const enCours = interactions?.usage?.phase === 'action' ? interactions.usage.action.id : null;
   return <>
     <color attach="background" args={['#343d3c']} />
     <hemisphereLight args={['#e6f0f4', '#7b6651', 1.3]} /><ambientLight intensity={.45} />
     <directionalLight position={[-3, 8, -3]} intensity={3} color="#fff1d5" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.035} />
     <directionalLight position={[2, 5, 8]} intensity={.7} color="#d4e5ee" />
-    <Appartement /><VieInterieure type="habitation" /><Habitant directions={directions} destination={destination} onArrivee={onArrivee} />
+    <Appartement teleAllumee={enCours === 'tele'} /><VieInterieure type="habitation" />
+    {interactions && <ZonesObjets objets={interactions.objets} selection={interactions.selection} usage={interactions.usage} onChoisir={interactions.onChoisir} />}
+    {enCours === 'douche' && <JetDouche p={[PLAN.douche.x, .2, PLAN.douche.z]} />}
+    {enCours === 'cuisiner' && <Vapeur p={[PLAN.cuisine.x, 1.14, PLAN.cuisine.z + 1.2]} />}
+    <Habitant directions={directions} destination={destination} onArrivee={onArrivee} usage={interactions?.usage} onAccesAtteint={interactions?.onAccesAtteint} onAnnule={interactions?.onAnnule} />
   </>;
 }

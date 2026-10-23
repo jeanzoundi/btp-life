@@ -18,10 +18,12 @@ function estAffiche(objet: THREE.Object3D | null) {
 
 export interface PersonnageRealisteProps {
   modele: ModeleRealiste; marche?: boolean; assis?: boolean; prof?: boolean; allure?: number; nom?: string;
+  /** Masque le casque des modèles d'ouvrier (à la maison, au bureau). */
+  sansCasque?: boolean;
 }
 
 /** Personnage photoréaliste articulé (Microsoft Rocketbox, MIT) : un squelette cloné par instance, fondus entre animations. */
-export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom }: PersonnageRealisteProps) {
+export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom, sansCasque = false }: PersonnageRealisteProps) {
   const { genre } = MODELES_REALISTES[modele];
   const { scene } = useGLTF(chemin(modele), false, true);
   const { animations: clips } = useGLTF(animations(genre), false, true);
@@ -34,6 +36,9 @@ export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom }:
     });
     return copie;
   }, [scene]);
+  useEffect(() => {
+    instance.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && /helmet/i.test((m.material as THREE.Material)?.name ?? '')) m.visible = !sansCasque; });
+  }, [instance, sansCasque]);
   const mixeur = useMemo(() => new THREE.AnimationMixer(instance), [instance]);
   const actions = useMemo(() => Object.fromEntries(clips.map(c => [c.name, mixeur.clipAction(c)])), [clips, mixeur]);
   const etat = etatAnimation({ marche, assis, prof, allure });

@@ -54,7 +54,8 @@ const ETALONNAGE = {
 function exclureDeLOcclusion(objet: THREE.Object3D) {
   if ((objet as THREE.Points).isPoints || (objet as THREE.Line).isLine || (objet as THREE.Sprite).isSprite || objet.userData.sansOcclusion) return true;
   const materiau = (objet as THREE.Mesh).material;
-  return Array.isArray(materiau) ? materiau.some(m => m.transparent) : Boolean(materiau?.transparent);
+  // Les volumes de clic (matériau invisible) seraient sinon dessinés dans la passe de normales et projetteraient des halos.
+  return Array.isArray(materiau) ? materiau.some(m => m.transparent || !m.visible) : Boolean(materiau && (materiau.transparent || !materiau.visible));
 }
 
 type InternesGtao = { _overrideVisibility: () => void; _visibilityCache: THREE.Object3D[] };

@@ -29,6 +29,7 @@ import { Pluie } from './meteo-monde';
 import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from '@/lib/meteo-monde';
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
 import { objectifDuMoment } from '@/lib/objectif-monde';
+import { appliquerEffet } from '@/lib/objets-interieurs';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
 import type { IdentitePersonnage } from '@/lib/identites-personnages';
@@ -649,7 +650,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
       {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-[10px] border-2 border-encre/20 p-2"><h3 className="text-sm font-extrabold text-foret">{q.nom}</h3><p className="my-1 text-xs text-encre/70">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-bold hover:bg-encre/5">{b.nom}<span className="mt-0.5 block text-[10px] font-medium text-encre/60">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
     {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); setMessage(`${action.label} : besoin restauré (démo, non sauvegardé).`); }} />}
-    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} onSortir={() => { directions.clear(); setInterieur(null); setMessage(`Vous êtes sorti de ${interieur.nom}.`); }}>
+    {interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); setMessage(`Vous êtes sorti de ${interieur.nom}.`); }}>
       <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
         const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
         setDemoStats(s => ({ ...s, [cible]: 100 }));

@@ -6,6 +6,7 @@ export const PLAN_RESIDENCE = {
   lit: { x: -3.5, z: -3, largeur: 2, profondeur: 2.4 },
   canape: { x: -3.65, z: 2, largeur: 2.7, profondeur: 1 },
   table: { x: -3.65, z: 3.3, largeur: 1.5, profondeur: .65 },
+  tele: { x: -3.65, z: 4.25, largeur: 1.6, profondeur: .45 },
   cuisine: { x: 4.9, z: 2, largeur: 1.2, profondeur: 4 },
   repas: { x: 2.5, z: 2.6, largeur: 1, profondeur: 1.5 },
   douche: { x: 4.65, z: -3.6, largeur: 1.5, profondeur: 1.5 },
