@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { EauLagune, JardinsUrbains } from './ambiance-lagune';
-import { SurfaceBloc } from './materiaux-monde';
+import { MateriauMonde, SurfaceBloc, type MatiereMonde } from './materiaux-monde';
 import { VoitureMonde } from './vehicule-monde';
 import { phaseSignal } from '@/lib/itineraire-ville';
 import { ParcsMonde } from './parcs-monde';
@@ -17,8 +17,8 @@ import { ToitTuiles } from './toits-monde';
 import { avancerTrafic } from '@/lib/fluidite-monde';
 
 type V = [number, number, number];
-function Bloc({ p, s, c, r = 0, e }: { p: V; s: V; c: string; r?: number; e?: string }) {
-  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:<SurfaceBloc dimensions={s} couleur={c}/>}</mesh>;
+function Bloc({ p, s, c, r = 0, e, m }: { p: V; s: V; c: string; r?: number; e?: string; m?: MatiereMonde }) {
+  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:m?<MateriauMonde type={m} couleur={c} echelle={1.6} relief={.9} rugosite={.65} metal={.45}/>:<SurfaceBloc dimensions={s} couleur={c}/>}</mesh>;
 }
 
 function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
@@ -116,14 +116,14 @@ function Lampadaire({ p }: { p: V }) {
 function ArretBus({ p, r = 0 }: { p: V; r?: number }) {
   return <group position={p} rotation={[0, r, 0]}>
     <Bloc p={[0, 1.25, 0]} s={[3.5, 0.12, 1.5]} c="#d4ddd8" />
-    <Bloc p={[0, 2.55, 0]} s={[3.8, 0.18, 1.7]} c="#304b54" />
+    <Bloc p={[0, 2.55, 0]} s={[3.8, 0.18, 1.7]} c="#9fb0b0" m="corrugated_iron" />
     {[-1.65, 1.65].map(x => <Bloc key={x} p={[x, 1.3, 0]} s={[0.1, 2.5, 0.1]} c="#304b54" />)}
     <Bloc p={[0, 0.55, 0.15]} s={[2.7, 0.16, 0.55]} c="#b67a49" />
     <Bloc p={[0, 1.45, -0.7]} s={[3.2, 2.1, 0.08]} c="#78a6aa" />
   </group>;
 }
 function Kiosque({ p }: { p: V }) {
-  return <group position={p}><Bloc p={[0, 1.1, 0]} s={[3.6, 2.2, 2.8]} c="#c86e43" /><Bloc p={[0, 2.45, 0]} s={[4.2, 0.25, 3.4]} c="#f0d07c" /><Bloc p={[0, 1.25, 1.43]} s={[2.3, 1.05, 0.08]} c="#33555b" /><Textile p={[0, 2.25, 1.7]} /></group>;
+  return <group position={p}><Bloc p={[0, 1.1, 0]} s={[3.6, 2.2, 2.8]} c="#c86e43" /><Bloc p={[0, 2.45, 0]} s={[4.2, 0.25, 3.4]} c="#f0d07c" m="corrugated_iron" /><Bloc p={[0, 1.25, 1.43]} s={[2.3, 1.05, 0.08]} c="#33555b" /><Textile p={[0, 2.25, 1.7]} /></group>;
 }
 function Textile({ p }: { p: V }) { return <group position={p}>{[-1.5, -0.5, 0.5, 1.5].map((x, i) => <Bloc key={x} p={[x, 0, 0]} s={[1, 0.18, 0.9]} c={i % 2 ? '#efe3bf' : '#3e7666'} />)}</group>; }
 
@@ -231,29 +231,10 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 /** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
 export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1 }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
-  const texture = useMemo(() => {
-    const size = 256;
-    const data = new Uint8Array(size * size * 4);
-    for (let i = 0; i < size * size; i++) {
-      const y = Math.floor(i / size), row = Math.floor(y / 32);
-      const x = (i % size + (row % 2) * 32) % size;
-      const seam = x % 64 < 2 || y % 32 < 2;
-      const nuances = [[214, 176, 142], [201, 161, 128], [224, 191, 157], [192, 150, 121]];
-      const [r, g, b] = seam ? [146, 114, 92] : nuances[(Math.floor(x / 64) * 19 + row * 13) % 4];
-      const grain = seam ? 0 : ((i * 73) % 11) - 5;
-      data.set([r + grain, g + grain, b + grain, 255], i * 4);
-    }
-    const t = new THREE.DataTexture(data, size, size); t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(60, 44); t.colorSpace = THREE.SRGBColorSpace;
-    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
-    t.generateMipmaps = true; t.anisotropy = 4; t.needsUpdate = true;
-    return t;
-  }, []);
-  useEffect(() => () => texture.dispose(), [texture]);
   return <group onClick={sol}>
     <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -40]} receiveShadow><planeGeometry args={[300, 260]} /><meshStandardMaterial color="#829079" roughness={1} /></mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} /><meshStandardMaterial map={texture} roughness={.94}/></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} />{/* Pavés photographiques (Poly Haven, CC0) recolorés en grès chaud. */}<MateriauMonde type="brick_pavement_02" echelle={2.4} relief={.85} /></mesh>
     {[-66, -10, 10].map(z => <group key={z}>
       <Bloc p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />
       {Array.from({ length: 56 }, (_, i) => <Bloc key={i} p={[(i - 27.5) * 4.3, 0.08, z]} s={[2, 0.015, 0.1]} c="#e6dcbf" />)}

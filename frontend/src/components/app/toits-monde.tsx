@@ -3,43 +3,18 @@
 import { memo, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { ToitArchitecture } from '@/lib/architecture-ville';
+import { useCartesPBR } from './materiaux-monde';
 
-let tuiles: THREE.DataTexture | null = null;
-
-/** Tuiles canal en niveaux de gris (la teinte vient du matériau) : rangées décalées, ombre sous chaque recouvrement. Partagée par tous les toits. */
-function textureTuiles() {
-  if (tuiles) return tuiles;
-  const taille = 128, rangees = 4, colonnes = 5;
-  const data = new Uint8Array(taille * taille * 4);
-  const hRang = taille / rangees, lTuile = taille / colonnes;
-  for (let y = 0; y < taille; y++) {
-    const rang = Math.floor(y / hRang), dansRang = (y % hRang) / hRang;
-    for (let x = 0; x < taille; x++) {
-      const xd = (x + (rang % 2) * lTuile / 2) % taille;
-      const col = Math.floor(xd / lTuile), dansTuile = (xd % lTuile) / lTuile;
-      // Galbe de la tuile (plus claire au sommet de la courbe), ombre portée en bas du rang, joint sombre entre tuiles.
-      const galbe = .82 + Math.sin(dansTuile * Math.PI) * .2;
-      const recouvrement = dansRang > .86 ? .55 : 1 - dansRang * .12;
-      const joint = dansTuile < .04 || dansTuile > .96 ? .7 : 1;
-      const nuance = 1 + (((col * 31 + rang * 17) % 7) - 3) * .025 + ((x * 13 + y * 7) % 5) * .006;
-      const v = Math.max(0, Math.min(255, Math.round(232 * galbe * recouvrement * joint * nuance)));
-      data.set([v, v, v, 255], (y * taille + x) * 4);
-    }
-  }
-  tuiles = new THREE.DataTexture(data, taille, taille);
-  tuiles.wrapS = tuiles.wrapT = THREE.RepeatWrapping;
-  tuiles.colorSpace = THREE.SRGBColorSpace;
-  tuiles.magFilter = THREE.LinearFilter; tuiles.minFilter = THREE.LinearMipmapLinearFilter;
-  tuiles.generateMipmaps = true; tuiles.anisotropy = 4; tuiles.needsUpdate = true;
-  return tuiles;
-}
+/** Teinte moyenne de la photo de tuiles : la couleur voulue est obtenue en multipliant par couleur / moyenne. */
+const MOYENNE_TUILES = new THREE.Color('rgb(145,80,43)');
+const TUILE_METRES = 3.5;
 
 /** Toit à quatre pans, faîtage selon la plus grande longueur. Les UV suivent la pente : un mètre de toit = une demi-tuile de texture. */
 function geometrieToit(longueur: number, largeur: number, hauteur: number) {
   const L = longueur / 2, l = largeur / 2, f = Math.max(0, L - l);
   const pente = (dx: number, y: number) => Math.hypot(dx, y);
   const positions: number[] = [], uvs: number[] = [];
-  const face = (points: [number, number, number][], uv: [number, number][]) => { points.forEach(p => positions.push(...p)); uv.forEach(u => uvs.push(u[0] * .5, u[1] * .5)); };
+  const face = (points: [number, number, number][], uv: [number, number][]) => { points.forEach(p => positions.push(...p)); uv.forEach(u => uvs.push(u[0] / TUILE_METRES, u[1] / TUILE_METRES)); };
   // Long pans (avant et arrière), en deux triangles chacun.
   const sAvant = pente(l, hauteur);
   face([[-L, 0, l], [L, 0, l], [f, hauteur, 0]], [[-L, 0], [L, 0], [f, sAvant]]);
@@ -63,9 +38,12 @@ export const ToitTuiles = memo(function ToitTuiles({ toit }: { toit: ToitArchite
   const geometrie = useMemo(() => geometrieToit(longueur, largeur, toit.hauteur), [longueur, largeur, toit.hauteur]);
   useEffect(() => () => geometrie.dispose(), [geometrie]);
   const faitage = Math.max(.4, longueur - largeur);
+  const [couleur, relief, rugosite] = useCartesPBR('clay_roof_tiles_02');
+  const teinte = useMemo(() => { const c = new THREE.Color(toit.couleur); return new THREE.Color(c.r / MOYENNE_TUILES.r, c.g / MOYENNE_TUILES.g, c.b / MOYENNE_TUILES.b); }, [toit.couleur]);
   return <group position={[0, toit.y, 0]} rotation={[0, tourne ? Math.PI / 2 : 0, 0]}>
+    {/* Tuiles canal photographiques (Poly Haven, CC0), dans le sens de la pente. */}
     <mesh geometry={geometrie} castShadow receiveShadow>
-      <meshStandardMaterial color={toit.couleur} map={textureTuiles()} roughness={.82} />
+      <meshStandardMaterial color={teinte} map={couleur} normalMap={relief} normalScale={[1.1, 1.1]} roughnessMap={rugosite} roughness={1} />
     </mesh>
     <mesh position={[0, toit.hauteur + .02, 0]} castShadow>
       <boxGeometry args={[faitage + .3, .16, .3]} />

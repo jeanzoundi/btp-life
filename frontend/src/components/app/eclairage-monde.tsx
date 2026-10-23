@@ -37,7 +37,8 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
     cible.updateMatrixWorld();
   });
   return <>
-    <RefletsMonde/>
+    {/* Le ciel photographié éclaire surtout le jour ; la nuit, il ne laisse qu'un léger reflet. */}
+    <RefletsMonde intensite={.06 + jour * (couvert ? .32 : .5)} />
     <color attach="background" args={[ciel]} />
     <fog attach="fog" args={[ciel, ambiance.brouillardProche, ambiance.brouillardLoin]} />
     {jour > 0.05 && !couvert && <Sky sunPosition={[Math.cos(angle) * 100, hauteur * 100, 45]} turbidity={Math.max(ambiance.turbidite, 5 + crepuscule * 6)} rayleigh={1.5 + crepuscule * 2} mieCoefficient={0.005} mieDirectionalG={0.8} />}
