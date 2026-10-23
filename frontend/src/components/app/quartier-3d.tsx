@@ -10,7 +10,7 @@ import { itineraireVille } from '@/lib/itineraire-ville';
 import { AZIMUT_VUE, decalageVue } from '@/lib/camera-monde';
 import { distance as distanceEntre, porteBatiment } from '@/lib/minicarte';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { api } from '@/lib/api';
@@ -33,6 +33,13 @@ import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-mond
 import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif-monde';
 import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, type NotificationMonde, type TypeNotification } from './hud-monde';
 import { Minicarte } from './minicarte';
+import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
+import { PanneauJourneeChantier, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
+import {
+  appliquerJournee, bilanJournee, bungalowChantier, CHANTIER_QUARTIER_INITIAL, chantierOuvert, enRepos, etatVisuel, etatVisuelSimulateur, evenementsDuJour,
+  FIN_DE_JOURNEE, journeeDisponible, lireChantierQuartier, nouvelleJournee, postesChantier, postesRestants, repondre, situationAuPoste, TITRES_ETAPES,
+  type ChantierQuartier, type ChantierSimulateur, type EtapeJournee, type EtatVisuel, type Journee, type PosteChantier, type SituationTerrain,
+} from '@/lib/journee-chantier';
 import { appliquerEffet } from '@/lib/objets-interieurs';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
@@ -41,6 +48,8 @@ import type { IdentitePersonnage } from '@/lib/identites-personnages';
 type Critique = { icone: string; label: string } | null;
 const VITESSES = [1, 2, 3] as const;
 const NOMS_PNJ = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
+// Chaque habitant garde son modèle : Yao est en tenue de chef de chantier, casque compris.
+const IDENTITES_PNJ: Record<string, IdentitePersonnage> = { Awa: 'awa', Yao: 'yao', Mariam: 'mariam', Koffi: 'koffi', Fatou: 'fatou' };
 
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type PointMonde = [number, number];
@@ -75,7 +84,18 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'marina', nom: 'Marina BTP Life', href: '/app/lieu/cafe', position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
   { slug: 'sports', nom: 'Complexe sportif', href: '/app/recompenses', position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
-const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS];
+const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
+const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
+const POSTES_CHANTIER = postesChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2]);
+const LIBELLES_POSTES: Record<PosteChantier | 'yao', string> = { yao: 'Yao', bungalow: 'Bungalow · EPI', 'securite-0': 'Point sécurité', 'securite-1': 'Point sécurité', 'securite-2': 'Point sécurité', livraison: 'Livraison' };
+const ANNONCES_ETAPES: Record<EtapeJournee, string> = { epi: 'Équipe-toi au bungalow.', securite: 'Équipé ! Fais maintenant le tour de sécurité : trois points le long de la palissade.', livraison: 'Tour terminé. Le camion de livraison attend à l’entrée.', bilan: 'Livraison réceptionnée. Retourne voir Yao pour le bilan.' };
+/** Libellé de la tâche à un poste, figé à l'ouverture (l'étape peut avancer pendant que le retour s'affiche). */
+function tacheAuPoste(poste: PosteChantier, journee: Journee) {
+  const situation = situationAuPoste(journee, poste);
+  if (!situation) return null;
+  return { poste, situation, etape: poste === 'bungalow' ? 'Équipement' : poste === 'livraison' ? 'Réception' : `Tour de sécurité · point ${4 - postesRestants(journee).length}/3` };
+}
+const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
   { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
@@ -246,9 +266,9 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
       if (ref.current.position.distanceTo(joueur.current) <= 4) { approche.current = false; setAttend(false); destination.current = null; onParler(nom); }
       return;
     }
-    const cible = route[index.current];
+    const cible = route[index.current % route.length];
     mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
-    if (mouvement.lengthSq() < 0.18) index.current = (index.current + 1) % route.length;
+    if (mouvement.lengthSq() < 0.18) index.current = (index.current % route.length + 1) % route.length;
     else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
   });
   const point = route[depart % route.length];
@@ -256,7 +276,7 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
     e.stopPropagation(); if (e.delta >= 5 || !ref.current) return;
     if (ref.current.position.distanceTo(joueur.current) <= 4) onParler(nom);
     else { approche.current = true; setAttend(true); destination.current = [ref.current.position.x, ref.current.position.z]; }
-  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} allure={1.8 * rythme} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
+  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} allure={1.8 * rythme} identite={IDENTITES_PNJ[nom]} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
 }
 function Passant({ route, depart, pause, couleur, rythme }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string; rythme: number }) {
   const ref = useRef<THREE.Group>(null); const index = useRef(depart % route.length);
@@ -318,7 +338,7 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ joueur, vue, suiviPnj, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
+function Scene({ joueur, vue, suiviPnj, chantier, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteChantier | 'yao'; position: PointMonde; libelle: string }[] }; onPoste: (poste: PosteChantier | 'yao') => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -334,9 +354,11 @@ function Scene({ joueur, vue, suiviPnj, nomJoueur, joueurs, directions, destinat
       if (Math.hypot(joueur.current.x - point.position[0], joueur.current.z - point.position[1]) <= 6) onDecouverte(id, nom);
       else destination.current = point.position;
     }} />)}
-    {BATIMENTS.map((b) => <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
+    {BATIMENTS.map((b) => b.slug === 'chantier'
+      ? <ChantierVivant key={b.slug} centre={CENTRE_CHANTIER} largeur={b.taille[0]} profondeur={b.taille[2]} etat={chantier.etat} nomChantier={chantier.nom} livraison={chantier.livraison} postes={chantier.postes} pause={pause} rythme={rythme} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onPoste={onPoste} onSelect={() => onSelect(b)} />
+      : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
     <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} />
-    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} />)}
+    {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={nom === 'Yao' && yaoAuChantier ? [POSTES_CHANTIER.yao] : ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} />)}
     {ROUTES_PASSANTS.flatMap((route, i) => [0, 2].map((depart, j) => <Passant key={`passant-${i}-${j}`} route={route} depart={depart} pause={pause} rythme={rythme} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} />))}
     <CameraSims joueur={joueur} vue={vue} />
   </>;
@@ -368,7 +390,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const lieuEnApproche = useRef<Batiment3D | null>(null);
   const [interlocuteur, setInterlocuteur] = useState<string | null>(null);
   const [relations, setRelations] = useState<Record<string, number>>({});
-  const parler = useCallback((nom: string) => { setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
+  const parler = useCallback((nom: string) => { setDialogueLibre(false); setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
   const [plan, setPlan] = useState(false);
   const [options, setOptions] = useState(false);
   const [cameraProche,setCameraProche]=useState(true);
@@ -388,6 +410,24 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const vueRef = useRef({ azimut: AZIMUT_VUE });
   const suiviPnj = useRef(new Map<string, THREE.Vector3>());
   const [large, setLarge] = useState(true);
+  // Journée de travail au Grand chantier : chantier du quartier (gardé dans le navigateur) ou vrai chantier du simulateur.
+  const client = useQueryClient();
+  const cleChantier = `btp-life-chantier-quartier:${userId ?? 'demo'}`;
+  const [chantierQuartier, setChantierQuartier] = useState<ChantierQuartier>(CHANTIER_QUARTIER_INITIAL);
+  useEffect(() => { try { setChantierQuartier(lireChantierQuartier(JSON.parse(localStorage.getItem(cleChantier) ?? 'null'))); } catch { /* Stockage facultatif. */ } }, [cleChantier]);
+  const enregistrerChantier = useCallback((c: ChantierQuartier) => { setChantierQuartier(c); try { localStorage.setItem(cleChantier, JSON.stringify(c)); } catch { /* Stockage facultatif. */ } }, [cleChantier]);
+  const [journee, setJournee] = useState<Journee | null>(null);
+  const [resultatJournee, setResultatJournee] = useState<ResultatJournee | null>(null);
+  const [tache, setTache] = useState<{ poste: PosteChantier; situation: SituationTerrain; etape: string } | null>(null);
+  const [dialogueLibre, setDialogueLibre] = useState(false);
+  const posteEnApproche = useRef<PosteChantier | 'yao' | null>(null);
+  const [progresDemo, setProgresDemo] = useState({ argent: 150_000, xp: 760 });
+  const { data: chantiersSimulateur } = useQuery({ queryKey: ['chantiers', 'mine'], queryFn: () => api.get<ChantierSimulateur[]>('/chantiers/mine'), enabled: !demo, staleTime: 60_000 });
+  const chantierActif = chantiersSimulateur?.find(c => c.statut === 'en_cours');
+  const jouerJournee = useMutation({
+    mutationFn: (id: string) => api.post<ChantierSimulateur>(`/chantiers/mine/${id}/journee`),
+    onSuccess: () => { client.invalidateQueries({ queryKey: ['chantiers'] }); client.invalidateQueries({ queryKey: ['carriere', 'me'] }); },
+  });
   useEffect(() => {
     const requete = window.matchMedia('(min-width: 640px)');
     const suivre = () => setLarge(requete.matches);
@@ -434,6 +474,11 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     } else notifier(`Ce lieu n'est pas l'objectif actuel. Consulte le planning du jour.`, 'info');
   }, [mode, secondes, etapeMode, score, positionCourante, notifier]);
   useEffect(() => {
+    const poste = posteEnApproche.current;
+    if (poste && Math.hypot(positionCourante[0] - POSTES_CHANTIER[poste][0], positionCourante[1] - POSTES_CHANTIER[poste][1]) <= 4.5) {
+      posteEnApproche.current = null;
+      if (poste === 'yao') parler('Yao'); else if (journee) setTache(tacheAuPoste(poste, journee));
+    }
     const lieu = lieuEnApproche.current;
     if (!lieu) return;
     // Arrivée validée devant la porte, pas en longeant un mur pendant le contournement.
@@ -573,12 +618,17 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const nuit = heure >= 19 || heure < 6;
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
   const etapeEnCours = mode !== 'libre' ? modeActif.etapes[etapeMode] : undefined;
-  const objectif = etapeEnCours
+  const objectifVie = objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
+  const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && journeeDisponible(chantierQuartier, heure, Date.now());
+  const restantsSecurite = journee?.etape === 'securite' ? postesRestants(journee).length : 0;
+  const objectif: { texte: string; etiquette?: string; lieu?: string } = etapeEnCours
     ? { texte: etapeEnCours.titre, etiquette: secondes !== null ? `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}` : `${etapeMode + 1}/${modeActif.etapes.length}` }
-    : objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
-  const argent = profil?.argent ?? (demo ? 150_000 : undefined);
+    : journee ? { texte: TITRES_ETAPES[journee.etape], etiquette: journee.etape === 'securite' ? `${3 - restantsSecurite}/3` : undefined, lieu: 'chantier' }
+    : travailPropose ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
+    : objectifVie;
+  const argent = profil?.argent ?? (demo ? progresDemo.argent : undefined);
   const niveau = profil?.niveau ?? (demo ? 3 : 1);
-  const progressionXp = progressionVersNiveauSuivant(profil?.xp ?? (demo ? 760 : 0), niveau).pct;
+  const progressionXp = progressionVersNiveauSuivant(profil?.xp ?? (demo ? progresDemo.xp : 0), niveau).pct;
   const reputation = profil?.reputation ?? (demo ? 520 : undefined);
   const couleurSauvegarde = etatSauvegarde === 'erreur' ? '#E2653C' : etatSauvegarde === 'sauvegarde-ok' ? '#4CC3A5' : 'rgb(251 245 234 / .3)';
   const hautHud = immersif ? 'top-20' : 'top-3';
@@ -587,8 +637,70 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
   const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
   const repereProche = useMemo(() => POINTS_DECOUVERTE.filter(p => !decouvertes.includes(p.id)).sort((a, b) => distanceEntre(a.position, positionCourante) - distanceEntre(b.position, positionCourante))[0], [decouvertes, positionCourante]);
-  const cibleObjectif: PointMonde | null = batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
+  // Pendant la journée, la flèche vise le poste restant le plus proche, puis Yao pour le bilan.
+  const posteCible: PosteChantier | 'yao' | null = journee ? (journee.etape === 'bilan' ? 'yao' : [...postesRestants(journee)].sort((a, b) => distanceEntre(POSTES_CHANTIER[a], positionCourante) - distanceEntre(POSTES_CHANTIER[b], positionCourante))[0] ?? null) : travailPropose ? 'yao' : null;
+  const cibleObjectif: PointMonde | null = posteCible ? POSTES_CHANTIER[posteCible]
+    : batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
     : !etapeEnCours && objectif.texte === 'Trouve les repères' && repereProche ? repereProche.position : null;
+  const etatChantier = useMemo(() => chantierActif ? etatVisuelSimulateur(chantierActif) : etatVisuel(chantierQuartier.avancement), [chantierActif, chantierQuartier.avancement]);
+  const nomChantier = chantierActif?.chantier.nom ?? 'Résidence Lagune II';
+  const statutJournee: StatutJournee = resultatJournee ? 'resultat' : journee ? (journee.etape === 'bilan' ? 'bilan' : 'en_cours') : !chantierOuvert(heure) ? 'ferme' : enRepos(chantierQuartier, heure, Date.now()) ? 'repos' : 'disponible';
+  const postesVisibles = journee ? (journee.etape === 'bilan' ? ['yao' as const] : postesRestants(journee)) : statutJournee === 'disponible' ? ['yao' as const] : [];
+  const chantierScene = useMemo(() => ({
+    etat: etatChantier, nom: nomChantier,
+    livraison: journee?.etape === 'livraison' ? journee.livraison as ChargementLivraison : null,
+    postes: postesVisibles.map(id => ({ id, position: POSTES_CHANTIER[id], libelle: LIBELLES_POSTES[id] })),
+  }), [etatChantier, nomChantier, journee, postesVisibles.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Balise touchée : on y va, ou on ouvre la tâche si l'on est déjà sur place. */
+  const surPoste = (poste: PosteChantier | 'yao') => {
+    const point = POSTES_CHANTIER[poste];
+    if (Math.hypot(joueurRef.current.x - point[0], joueurRef.current.z - point[1]) > 4.5) {
+      posteEnApproche.current = poste; lieuEnApproche.current = null; setSelection(null); destination.current = point;
+      notifier(poste === 'yao' ? 'En route pour retrouver Yao.' : `En route : ${LIBELLES_POSTES[poste].toLowerCase()}.`, 'trajet');
+      return;
+    }
+    if (poste === 'yao') { parler('Yao'); return; }
+    if (journee && situationAuPoste(journee, poste)) setTache(tacheAuPoste(poste, journee));
+    else if (journee) notifier(`Pas encore : ${TITRES_ETAPES[journee.etape].toLowerCase()} d’abord.`, 'info');
+  };
+  const commencerJournee = () => {
+    setJournee(nouvelleJournee(chantierQuartier.journees)); setInterlocuteur(null);
+    posteEnApproche.current = 'bungalow'; destination.current = POSTES_CHANTIER.bungalow;
+    notifier('Journée commencée : direction le bungalow pour t’équiper.', 'trajet');
+  };
+  const repondreTache = (id: string, choix: number) => {
+    if (!journee) return;
+    const suivante = repondre(journee, id, choix);
+    setJournee(suivante);
+    if (suivante.etape !== journee.etape) notifier(ANNONCES_ETAPES[suivante.etape], suivante.etape === 'bilan' ? 'succes' : 'trajet');
+  };
+  const faireLeBilan = () => {
+    if (!journee) return;
+    const bilan = bilanJournee(journee), avant = etatChantier.avancement, heureFin = Math.max(heure, FIN_DE_JOURNEE), maintenant = Date.now();
+    if (chantierActif) {
+      // Vrai chantier : la journée passe par le simulateur (salaires, matériaux, imprévus) ; on se repose ensuite jusqu'au lendemain.
+      enregistrerChantier({ ...chantierQuartier, journees: chantierQuartier.journees + 1, repos: { heure: heureFin, le: maintenant } });
+      jouerJournee.mutate(chantierActif.id, {
+        onSuccess: res => setResultatJournee({ bilan, avant, apres: res.statut === 'en_cours' ? res.avancementPct : 100, recompenses: 'simulateur', evenements: evenementsDuJour(res) }),
+        onError: (erreur: Error) => setResultatJournee({ bilan, avant, apres: avant, recompenses: 'simulateur', erreur: erreur.message, idChantier: chantierActif.id }),
+      });
+      return;
+    }
+    const apres = appliquerJournee(chantierQuartier, bilan.avancement, heureFin, maintenant);
+    enregistrerChantier(apres);
+    if (demo) {
+      setProgresDemo(p => ({ argent: p.argent + bilan.paie, xp: p.xp + bilan.xp }));
+      setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 8), faim: Math.max(0, s.faim - 6) }));
+    }
+    setResultatJournee({ bilan, avant: chantierQuartier.avancement >= 100 ? 0 : chantierQuartier.avancement, apres: apres.avancement, recompenses: demo ? 'demo' : 'apprentissage' });
+  };
+  const terminerJournee = () => {
+    const apres = resultatJournee?.apres;
+    setResultatJournee(null); setJournee(null); setInterlocuteur(null);
+    // Fin de journée à 17 h, comme une vraie journée de chantier.
+    if (horlogeRef.current.heure < FIN_DE_JOURNEE && horlogeRef.current.heure >= 6) { horlogeRef.current = { heure: FIN_DE_JOURNEE, instant: Date.now(), pause: horlogeRef.current.pause }; setHeure(FIN_DE_JOURNEE); }
+    if (apres !== undefined) notifier(apres >= 100 ? 'Ouvrage livré ! Un nouveau chantier commencera demain.' : `Journée terminée : le chantier est à ${Math.round(apres)} %.`, 'succes');
+  };
   const reperesCarte = useMemo(() => POINTS_DECOUVERTE.map(p => ({ id: p.id, position: p.position, trouve: decouvertes.includes(p.id) })), [decouvertes]);
   // Un besoin qui devient critique déclenche une alerte avec le trajet vers le bon lieu (une fois, jusqu'à remontée).
   const signalesRef = useRef(new Set<CleBesoin>());
@@ -611,7 +723,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
     {/* HUD « Lagune » : le bâtisseur et son objectif à gauche, l'heure et la minicarte à droite, le centre reste dégagé. */}
@@ -637,7 +749,11 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     </div>
     <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
-    {interlocuteur && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
+    {interlocuteur === 'Yao' && !dialogueLibre && <PanneauJourneeChantier statut={statutJournee} nomJoueur={nomJoueur ?? 'Bâtisseur'} nomChantier={nomChantier} etat={etatChantier} simulateur={Boolean(chantierActif)} demo={demo} journee={journee} resultat={resultatJournee} enCours={jouerJournee.isPending}
+      onCommencer={commencerJournee} onBilan={faireLeBilan} onTerminer={terminerJournee} onAbandonner={() => { setJournee(null); setInterlocuteur(null); notifier('Journée interrompue. Yao te retrouvera au chantier.', 'info'); }}
+      onDiscuter={() => setDialogueLibre(true)} onFermer={() => { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); }} />}
+    {tache && <TacheChantier key={`${tache.poste}-${tache.situation.id}`} etape={tache.etape} situation={tache.situation} onRepondre={choix => repondreTache(tache.situation.id, choix)} onFermer={() => setTache(null)} />}
+    {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
     {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />

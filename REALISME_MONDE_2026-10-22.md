@@ -22,6 +22,38 @@ La première interface copiait de trop près vie2babi.ci : mêmes polices, même
   - Soleil plus fort et ambiance plus basse pour des ombres nettes.
   - Vue de trois quarts plus proche (24 m, inclinée de 42°) pour voir les personnages. Pas de flou « maquette ».
 
+## Chantier vivant et journée de travail avec Yao (23 octobre)
+
+- **Chantier** : le Grand chantier évolue phase par phase.
+  - Phases : implantation et terrassement, fondations, élévation des murs sous échafaudage, toiture-terrasse, finitions, ouvrage livré.
+  - Autour : palissade en tôle au bandeau terre cuite, portail, panneau de chantier (nom, phase, avancement) et bungalow.
+  - En activité : grue à tour qui tourne avec sa charge, bétonnière, matériaux, ouvriers au travail.
+- **Journée de travail** (début possible de 6 h à 18 h) :
+  - Yao attend au portail et donne la consigne.
+  - Le joueur s'équipe au bungalow, fait le tour de sécurité (trois points le long de la palissade), réceptionne une livraison, puis revient pour le bilan.
+  - Chaque étape est une situation de terrain à trois réponses, avec une explication.
+  - Les situations changent d'une journée à l'autre : six de sécurité, trois de livraison.
+  - L'objectif et la minicarte guident d'un poste à l'autre.
+- **Bilan sur 100** : avancement du chantier, plus salaire et expérience en démonstration. La mention « Journée exemplaire » est réservée au sans-faute ; avec une erreur, 85/100 donne « Bonne journée ».
+- **Avec un compte et un chantier en cours dans le simulateur** : le bilan joue la vraie journée (`POST /chantiers/mine/:id/journee`), avec salaires, matériaux, imprévus et progression réels, et affiche le journal du jour.
+- **Sans chantier** : journée d'apprentissage sur le chantier du quartier. Sa progression est gardée dans le navigateur, car la sauvegarde du monde côté serveur n'accepte pas de nouveau champ.
+- **Rythme** : une journée par jour de jeu. La fin de journée avance l'horloge à 17 h.
+- **Habitants** : Yao porte sa tenue de chef de chantier, et chaque habitant garde son propre modèle.
+- **Balises** : un volume de clic invisible couvre toute la balise, libellé compris. Avant, toucher le libellé ou le losange laissait passer le clic jusqu'au sol, et le joueur partait ailleurs.
+- **Aucun changement côté serveur.**
+- **Vérifié** :
+  - Tests : logique de la journée, géométrie du chantier, panneaux de Yao et des situations. Vitest 159/159 (36 fichiers).
+  - TypeScript.
+  - En jeu, une journée complète en démonstration :
+    - Consigne de Yao, trajet automatique jusqu'au bungalow, équipement.
+    - Tour de sécurité (échafaudage, électricité, stockage) : chaque point s'ouvre en touchant sa balise. Le retour reste affiché après la réponse, jusqu'à « Continuer ».
+    - Camion de ciment au portail, puis réception.
+    - Bilan avec Yao, avec une erreur volontaire : 85/100, 4 bonnes décisions sur 5, chantier de 24 à 42 %, +6 400 FCFA et +71 points d'expérience.
+    - Fin de journée : horloge avancée à 17 h, Yao au repos jusqu'au lendemain 6 h, chantier passé à l'élévation des murs, progression gardée dans le navigateur.
+    - Deuxième journée, rejouée après le changement de mention, avec d'autres situations (découpe, levage, fouille, livraison d'aciers) : 85/100 donne « Bonne journée », chantier de 42 à 60 %.
+    - Aucune erreur dans la console.
+- **Non vérifié** : la vraie journée du simulateur avec un compte.
+
 ## Réalisme
 
 - **Personnages** : 7 modèles articulés Microsoft Rocketbox (licence MIT). Ouvrier casqué pour le joueur, chef de chantier, cadres, tenues de ville.
