@@ -59,7 +59,17 @@ Un autre outil a travaillé de 08:35 à 12:40 dans le même dossier : personnage
 - Build de production réussi (47 pages).
 - Navigateur local : joueur réaliste en repos puis en course, orienté dans le sens du déplacement. Personnages réalistes dans la ville, à la résidence et dans l'atelier `/direction-artistique` (gros plans de Jean et de Fatou, cheveux compris).
 - Fluidité mesurée dans le panneau étroit de l'aperçu : 34 à 41 images/s en qualité automatique (halo et lissage, résolution ×1,10 à ×1,25). Ce n'est pas un banc d'essai et cela ne garantit rien sur d'autres appareils.
-- Non vérifié : téléphone physique, compte connecté et sauvegarde réelle, production.
+- Non vérifié : téléphone physique, compte connecté et sauvegarde réelle.
+
+## Déploiement (23 octobre)
+
+- Frontend en production : `dpl_EurDbHSNaWsfDZvKrG3s8562oAyk` (alias btp-life-frontend.vercel.app), construit depuis le commit 2743b7c. Backend inchangé.
+- Retour arrière : `dpl_2zKws4eNomaxySmGFzjDg1i42KrH` (commit d1b4597).
+- Contrôles :
+  - Pages publiques, textures, ciel HDRI, modèles et police : réponse 200, tailles identiques aux fichiers du dépôt.
+  - API du backend : 401 sans jeton, 400 pour une connexion vide.
+  - Navigateur, sur le site de production : monde de démonstration avec le nouveau HUD, la place des Palmiers et les personnages réalistes ; résidence avec la liste des meubles, le menu « Dormir », le départ du personnage, puis « Arrêter ». Aucune erreur dans la console.
+  - Non revu en production : la fin de l'action (pose allongée, barre de progression). Le panneau du navigateur était masqué, ce qui ralentit la page à environ 2 images par seconde. Elle avait été vérifiée en local.
 
 ## Limites
 
@@ -71,11 +81,11 @@ Un autre outil a travaillé de 08:35 à 12:40 dans le même dossier : personnage
 
 Cinq commits locaux, dans l'ordre où le travail a été fait :
 
-1. Style.
-2. Ville réaliste.
-3. Travail de l'autre outil, tel quel.
-4. Personnages réalistes.
-5. Intérieurs interactifs.
+1. Style (3dc0297).
+2. Ville réaliste (26ec814).
+3. Travail de l'autre outil, tel quel (64adca6).
+4. Personnages réalistes (a7ab880).
+5. Intérieurs interactifs (2743b7c).
 
 L'autre outil s'appuyait sur les matériaux de la ville, posés juste avant : son aperçu de la place centrale utilise les pavés Poly Haven. Le réalisme est donc réparti avant et après son commit, pour que chaque commit compile seul.
 
