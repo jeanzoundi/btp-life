@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
+// Toutes les scènes 3D passent par ce module : on y fixe aussi la police locale des textes 3D.
+import '@/lib/police-textes-3d';
 
 export type MatiereMonde = 'concrete_floor' | 'wood_floor' | 'asphalt_02' | 'painted_plaster_wall' | 'brick_pavement_02' | 'clay_roof_tiles_02' | 'corrugated_iron';
 
@@ -50,11 +52,25 @@ function projectionMonde(shader: THREE.WebGLProgramParametersWithUniforms, echel
     .replace('#include <roughnessmap_fragment>', remplacer(THREE.ShaderChunk.roughnessmap_fragment));
 }
 
+/** Un matériau par combinaison de réglages, partagé par tous les blocs (et entre la ville et les intérieurs) :
+ * des centaines de murs ne coûtent plus des centaines d'envois d'uniformes au GPU. */
+const materiauxPartages = new Map<string, THREE.MeshStandardMaterial>();
+
 /** Matériau photographique en coordonnées monde : `echelle` = mètres couverts par une répétition de la texture. */
 export function MateriauMonde({ type, couleur = '#ffffff', echelle = 2, relief = .6, rugosite = 1, metal = 0 }: { type: MatiereMonde; couleur?: string; echelle?: number; relief?: number; rugosite?: number; metal?: number }) {
   const maps = useCartesPBR(type);
-  return <meshStandardMaterial color={couleur} map={maps[0]} normalMap={maps[1]} normalScale={[relief, relief]} roughnessMap={maps[2]} roughness={rugosite} metalness={metal}
-    customProgramCacheKey={() => `monde-pbr-${type}-${echelle}`} onBeforeCompile={shader => projectionMonde(shader, echelle)} />;
+  const materiau = useMemo(() => {
+    const cle = `${type}|${couleur}|${echelle}|${relief}|${rugosite}|${metal}`;
+    let m = materiauxPartages.get(cle);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color: couleur, map: maps[0], normalMap: maps[1], normalScale: new THREE.Vector2(relief, relief), roughnessMap: maps[2], roughness: rugosite, metalness: metal });
+      m.customProgramCacheKey = () => `monde-pbr-${type}-${echelle}`;
+      m.onBeforeCompile = shader => projectionMonde(shader, echelle);
+      materiauxPartages.set(cle, m);
+    }
+    return m;
+  }, [type, couleur, echelle, relief, rugosite, metal, maps]);
+  return <primitive object={materiau} attach="material" dispose={null} />;
 }
 
 export function Finition({couleur,metal=0}:{couleur:string;metal?:number}){

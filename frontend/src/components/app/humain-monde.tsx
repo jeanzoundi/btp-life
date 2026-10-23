@@ -1,12 +1,47 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { Suspense, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Detailed, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { BlocsInstances } from './blocs-instances';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
-export { PersonnageStylise as HumainMonde } from './personnage-stylise';
+import { PersonnageStylise, type PersonnageStyliseProps } from './personnage-stylise';
+import { PersonnageRealiste } from './personnage-realiste';
+import { modeleRealiste } from '@/lib/personnages-realistes';
+import { identiteDepuisNom } from '@/lib/identites-personnages';
+
+/** De près, le personnage photoréaliste animé (Rocketbox) ; au loin et pendant son chargement, la version stylisée,
+ * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
+ * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
+ * mais ce qui entoure le joueur doit rester détaillé. */
+export function HumainMonde({ allure, ...props }: PersonnageStyliseProps & { allure?: number }) {
+  const modele = modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
+  const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
+  const monde = useMemo(() => new THREE.Vector3(), []);
+  const detaille = useRef<boolean | null>(null);
+  useFrame(({ camera, controls }) => {
+    if (!proche.current || !loin.current) return;
+    proche.current.getWorldPosition(monde);
+    const cible = (controls as unknown as { target?: THREE.Vector3 } | null)?.target;
+    const distance = cible ? monde.distanceTo(cible) : camera.position.distanceTo(monde);
+    // Un modèle réaliste coûte 2 à 4 appels de dessin, la version stylisée détaillée une soixantaine :
+    // tout ce qui est à l'écran est réaliste, la silhouette instanciée prend le relais au-delà.
+    const seuil = cible ? 60 : 70;
+    // Hystérésis de 10 % : pas de clignotement entre les deux versions à la limite.
+    const pres = detaille.current === null ? distance < seuil : distance < seuil * (detaille.current ? 1.1 : .9);
+    if (pres === detaille.current) return;
+    detaille.current = pres; proche.current.visible = pres; loin.current.visible = !pres;
+  });
+  return <group>
+    <group ref={proche}>
+      <Suspense fallback={<PersonnageStylise {...props} />}>
+        <group scale={props.scale ?? 1}><PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} /></group>
+      </Suspense>
+    </group>
+    <group ref={loin} visible={false}><PersonnageStylise {...props} silhouette /></group>
+  </group>;
+}
 
 type V=[number,number,number];
 function Volume({p,s,c}:{p:V;s:V;c:string}){

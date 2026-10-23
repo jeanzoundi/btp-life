@@ -11,7 +11,7 @@ import { VoitureMonde } from './vehicule-monde';
 import { phaseSignal } from '@/lib/itineraire-ville';
 import { ParcsMonde } from './parcs-monde';
 import { aDevanture, FacadeAbidjan } from './facades-abidjan';
-import { construireArchitecture } from '@/lib/architecture-ville';
+import { construireArchitecture, type BlocArchitecture } from '@/lib/architecture-ville';
 import { BlocsInstances } from './blocs-instances';
 import { ToitTuiles } from './toits-monde';
 import { avancerTrafic } from '@/lib/fluidite-monde';
@@ -229,6 +229,17 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 }
 
 /** A pedestrian square, tree-lined boulevards and a lagoon promenade. */
+/** Tirets de chaussée, passages piétons et garde-corps de la promenade : plus de trois cents petits blocs
+ * regroupés en une seule commande de dessin (et une seule passe d'ombre) au lieu d'un maillage chacun. */
+const BLOCS_REPETES: BlocArchitecture[] = [
+  ...[-66, -10, 10].flatMap(z => Array.from({ length: 56 }, (_, i): BlocArchitecture => ({ position: [(i - 27.5) * 4.3, 0.08, z], taille: [2, 0.015, 0.1], couleur: '#e6dcbf', rotation: 0 }))),
+  ...[-54, 54].flatMap(x => [-66, -10, 10].flatMap(z => Array.from({ length: 6 }, (_, i): BlocArchitecture => ({ position: [x + (i - 2.5) * 0.65, 0.15, z], taille: [0.38, 0.025, 4.2], couleur: '#eee8d7', rotation: 0 })))),
+  ...Array.from({ length: 60 }, (_, i): BlocArchitecture[] => [
+    { position: [(i - 29.5) * 4, 0.9, 49], taille: [0.12, 1.4, 0.12], couleur: '#e1dfca', rotation: 0 },
+    { position: [(i - 29.5) * 4, 1.55, 49], taille: [4, 0.08, 0.08], couleur: '#e1dfca', rotation: 0 },
+  ]).flat(),
+];
+
 /** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
 export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1, artistique = true }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number; artistique?: boolean }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
@@ -238,12 +249,11 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} />{/* Pavés photographiques (Poly Haven, CC0) recolorés en grès chaud. */}<MateriauMonde type="brick_pavement_02" echelle={2.4} relief={.85} /></mesh>
     {[-66, -10, 10].map(z => <group key={z}>
       <Bloc p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />
-      {Array.from({ length: 56 }, (_, i) => <Bloc key={i} p={[(i - 27.5) * 4.3, 0.08, z]} s={[2, 0.015, 0.1]} c="#e6dcbf" />)}
       {[-3.15, 3.15].map(o => <Bloc key={o} p={[0, 0.12, z + o]} s={[240, 0.2, 0.25]} c="#ede2c8" />)}
     </group>)}
     {[-54, 54].map(x => <Bloc key={x} p={[x, 0.075, -40]} s={[6, 0.035, 176]} c="#555d60" />)}
     {/* Passages piétons et marquages d'intersection : donnent une vraie échelle routière. */}
-    {[-54, 54].flatMap(x => [-66, -10, 10].flatMap(z => Array.from({ length: 6 }, (_, i) => <Bloc key={`${x}-${z}-${i}`} p={[x + (i - 2.5) * 0.65, 0.15, z]} s={[0.38, 0.025, 4.2]} c="#eee8d7" />)))}
+    <BlocsInstances blocs={BLOCS_REPETES} interactif={false} />
     {[-66, -10, 10].flatMap(z => [-54, 54].map(x => <FeuTricolore key={`signal-${x}-${z}`} p={[x + 3.8, 0, z + 3.8]} axe={x < 0 ? 'horizontal' : 'vertical'} />))}
     {QUARTIERS.slice(1).map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.14, 0]}><ringGeometry args={[4.7, 5.1, 40]} /><meshStandardMaterial color="#8d9b7e" /></mesh>
@@ -271,10 +281,6 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <Bloc p={[0, 0.08, 58]} s={[240, 0.16, 20]} c="#e7cf92" />
     <Bloc p={[0, -0.06, 82]} s={[300, 0.1, 30]} c="#44878b" />
     <Bloc p={[0, 0.18, 47]} s={[240, 0.35, 5]} c="#a58c6d" />
-    {Array.from({ length: 60 }, (_, i) => <group key={i}>
-      <Bloc p={[(i - 29.5) * 4, 0.9, 49]} s={[0.12, 1.4, 0.12]} c="#e1dfca" />
-      <Bloc p={[(i - 29.5) * 4, 1.55, 49]} s={[4, 0.08, 0.08]} c="#e1dfca" />
-    </group>)}
     {[-42, -21, 0, 21, 42].map(x => <group key={x}><Palmier p={[x, 0, 44]} /><Banc p={[x + 3, 0.3, 46]} /></group>)}
     {[-70, -50, -30, -10, 10, 30, 50, 70].map((x, i) => <group key={x}><Parasol p={[x, 0.1, 57]} c={i % 2 ? '#d4664f' : '#f1d471'} /><Bloc p={[x + 2.2, 0.18, 59]} s={[2.4, 0.18, 0.75]} c="#55a1a2" r={-0.15} /></group>)}
     <group position={[0, 0.1, 57]}><Bloc p={[0, 0.08, 0]} s={[12, 0.12, 7]} c="#e8d5a4" />{[-6, 6].map(x => <Bloc key={x} p={[x, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#e8ece5" />)}<Bloc p={[0, 2.75, 0]} s={[12, 0.12, 0.12]} c="#e8ece5" /></group>

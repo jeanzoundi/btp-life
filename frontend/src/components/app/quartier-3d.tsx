@@ -113,7 +113,7 @@ function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batimen
   </group>;
 }
 
-function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number; identite?: IdentitePersonnage }) {
+function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number; identite?: IdentitePersonnage; allure?: number }) {
   return <HumainMonde {...props} scale={1.1}/>;
 }
 function PersonnageAncien({ nom, couleur = '#c1502e', marche = false, casque = false, variante = 0 }: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
@@ -218,7 +218,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   return <group ref={ref}>
     {/* Anneau du joueur, visible même derrière un bâtiment, comme le losange. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={9} userData={{ sansOcclusion: true }}><ringGeometry args={[.62, .82, 40]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <Personnage nom={nom} marche={marche} casque variante={1} identite="batisseur" /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
+    <Personnage nom={nom} marche={marche} casque variante={1} identite="batisseur" allure={4.5} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
   </group>;
 }
 
@@ -248,14 +248,14 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
     e.stopPropagation(); if (e.delta >= 5 || !ref.current) return;
     if (ref.current.position.distanceTo(joueur.current) <= 4) onParler(nom);
     else { approche.current = true; setAttend(true); destination.current = [ref.current.position.x, ref.current.position.z]; }
-  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
+  }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} allure={1.8 * rythme} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
 }
 function Passant({ route, depart, pause, couleur, rythme }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string; rythme: number }) {
   const ref = useRef<THREE.Group>(null); const index = useRef(depart % route.length);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
   const point = route[depart % route.length];
-  return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={depart % 3 === 0} variante={depart + Math.round(point[0])} /></group>;
+  return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={depart % 3 === 0} variante={depart + Math.round(point[0])} allure={1.5 * rythme} /></group>;
 }
 
 function CameraSims({ joueur }: { joueur: React.MutableRefObject<THREE.Vector3> }) {

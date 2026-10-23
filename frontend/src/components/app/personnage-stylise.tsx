@@ -12,6 +12,8 @@ type V = [number, number, number];
 export interface PersonnageStyliseProps {
   variante?: number; couleur?: string; marche?: boolean; assis?: boolean; prof?: boolean;
   casque?: boolean; nom?: string; scale?: number; identite?: IdentitePersonnage;
+  /** Version lointaine seule (silhouette instanciée), quand le modèle détaillé est affiché ailleurs. */
+  silhouette?: boolean;
 }
 function Galbe({ p, s, c, rugosite = .76 }: { p: V; s: V; c: string; rugosite?: number }) {
   return <mesh position={p} scale={s} castShadow><sphereGeometry args={[1, 20, 14]} /><meshStandardMaterial color={c} roughness={rugosite} /></mesh>;
@@ -62,7 +64,7 @@ const MOLLET: [number, number][] = [[.066, 0], [.065, .09], [.076, .27], [.076, 
 const AVANT_BRAS: [number, number][] = [[.036, 0], [.045, .1], [.054, .2], [.051, .26]];
 
 /** Un seul modèle articulé partagé par le monde, les intérieurs et l'atelier de revue. */
-export function PersonnageStylise({ variante = 0, couleur, marche = false, assis = false, prof = false, casque = false, nom, scale = 1, identite }: PersonnageStyliseProps) {
+export function PersonnageStylise({ variante = 0, couleur, marche = false, assis = false, prof = false, casque = false, nom, scale = 1, identite, silhouette: seulementSilhouette = false }: PersonnageStyliseProps) {
   const i = Math.abs(Math.floor(variante));
   const reconnu = identite ?? identiteDepuisNom(nom);
   const base = IDENTITES_PERSONNAGES[reconnu ?? (casque ? (i % 2 ? 'yao' : 'batisseur') : prof ? 'awa' : (['koffi', 'awa', 'mariam', 'fatou'] as const)[i % 4])];
@@ -95,6 +97,7 @@ export function PersonnageStylise({ variante = 0, couleur, marche = false, assis
     if (tete.current) tete.current.rotation.y = Math.sin(t * .45 + i) * .07 * (1 - m);
     if (yeux.current) yeux.current.scale.y = Math.sin(t * .72 + i * 2) > .995 ? .15 : 1;
   });
+  if (seulementSilhouette) return <group scale={scale * base.hauteur}><BlocsInstances blocs={silhouette} arrondi /></group>;
   return <group scale={scale * base.hauteur}>
     <Detailed distances={[0, 46]} hysteresis={.15}>
       <group ref={corps} scale={[base.largeur, 1, 1]}>
