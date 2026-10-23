@@ -30,6 +30,8 @@ import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
 import { objectifDuMoment } from '@/lib/objectif-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
+import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
+import type { IdentitePersonnage } from '@/lib/identites-personnages';
 
 type Critique = { icone: string; label: string } | null;
 const VITESSES = [1, 2, 3] as const;
@@ -67,7 +69,7 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'marina', nom: 'Marina BTP Life', href: '/app/lieu/cafe', position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
   { slug: 'sports', nom: 'Complexe sportif', href: '/app/recompenses', position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
-const EMPRISES=BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]}));
+const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS];
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
   { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
@@ -111,7 +113,7 @@ function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batimen
   </group>;
 }
 
-function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
+function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number; identite?: IdentitePersonnage }) {
   return <HumainMonde {...props} scale={1.1}/>;
 }
 function PersonnageAncien({ nom, couleur = '#c1502e', marche = false, casque = false, variante = 0 }: { nom?: string; couleur?: string; marche?: boolean; casque?: boolean; variante?: number }) {
@@ -196,10 +198,10 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
     if (actif) {
       const distance=Math.min(mouvement.length(),4.5*Math.min(delta,.05));mouvement.normalize();
       prochain.copy(ref.current.position).addScaledVector(mouvement, distance);
-      const bloque = BATIMENTS.some(b => Math.abs(prochain.x - b.position[0]) < b.taille[0] / 2 + 0.7 && Math.abs(prochain.z - b.position[2]) < b.taille[2] / 2 + 0.7);
+      const bloque = EMPRISES.some(b => Math.abs(prochain.x - b.x) < b.largeur / 2 + 0.7 && Math.abs(prochain.z - b.z) < b.profondeur / 2 + 0.7);
       if (!bloque) ref.current.position.copy(prochain);
       else {
-        const libre = (x: number, z: number) => !BATIMENTS.some(b => Math.abs(x - b.position[0]) < b.taille[0] / 2 + 0.7 && Math.abs(z - b.position[2]) < b.taille[2] / 2 + 0.7);
+        const libre = (x: number, z: number) => !EMPRISES.some(b => Math.abs(x - b.x) < b.largeur / 2 + 0.7 && Math.abs(z - b.z) < b.profondeur / 2 + 0.7);
         if (libre(prochain.x, ref.current.position.z)) ref.current.position.x = prochain.x;
         else if (libre(ref.current.position.x, prochain.z)) ref.current.position.z = prochain.z;
         else destination.current = null;
@@ -216,7 +218,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   return <group ref={ref}>
     {/* Anneau du joueur, visible même derrière un bâtiment, comme le losange. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={9} userData={{ sansOcclusion: true }}><ringGeometry args={[.62, .82, 40]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <Personnage nom={nom} marche={marche} casque variante={1} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
+    <Personnage nom={nom} marche={marche} casque variante={1} identite="batisseur" /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
   </group>;
 }
 
@@ -456,7 +458,8 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     if (!plusRecent) return;
     const etat = appliquerTempsEcoule(plusRecent);
     hydratationRef.current = true;
-    setPositionInitiale([etat.position.x, etat.position.z]); setPositionCourante([etat.position.x, etat.position.z]);
+    const positionLibre = degagerPositionPalmiers([etat.position.x, etat.position.z]);
+    setPositionInitiale(positionLibre); setPositionCourante(positionLibre);
     setRelations(etat.relations ?? {}); setMode(etat.mode); setEtapeMode(etat.etapeMode); setScore(etat.score); setSecondes(etat.secondes);
     setDecouvertes(etat.decouvertes ?? []); setRecords(etat.records ?? {});
     setHeure(etat.heure); setPause(etat.pause);

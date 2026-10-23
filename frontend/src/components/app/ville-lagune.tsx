@@ -15,6 +15,7 @@ import { construireArchitecture } from '@/lib/architecture-ville';
 import { BlocsInstances } from './blocs-instances';
 import { ToitTuiles } from './toits-monde';
 import { avancerTrafic } from '@/lib/fluidite-monde';
+import { PlacePalmiers } from './place-palmiers';
 
 type V = [number, number, number];
 function Bloc({ p, s, c, r = 0, e, m }: { p: V; s: V; c: string; r?: number; e?: string; m?: MatiereMonde }) {
@@ -229,7 +230,7 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 
 /** A pedestrian square, tree-lined boulevards and a lagoon promenade. */
 /** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
-export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1 }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number }) {
+export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1, artistique = true }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number; artistique?: boolean }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
   return <group onClick={sol}>
     <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
@@ -261,15 +262,7 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <Bloc p={[31.5, 0.08, -74]} s={[22, 0.05, 5.5]} c="#666b69" />
     <VoitureStationnee p={[-36, 0, -15.2]} c="#7e2831" /><VoitureStationnee p={[-27, 0, -15.2]} c="#d5c9aa" />
     <VoitureStationnee p={[26, 0, -74]} c="#416f84" /><VoitureStationnee p={[37, 0, -74]} c="#b88735" />
-    {/* The square is pedestrian-only; road markings never cut across it. */}
-    <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[5.8, 64]} /><meshStandardMaterial color="#b99471" /></mesh>
-    <mesh position={[0, 0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[5.3, 5.5, 64]} /><meshStandardMaterial color="#eee2c3" /></mesh>
-    {[-18, -9, 9, 18].flatMap(x => [-3.8, 3.8].map(z => <group key={`${x}-${z}`}>
-      <Bloc p={[x, 0.35, z]} s={[3.8, 0.7, 2.6]} c="#adac92" />
-      <Bloc p={[x, 0.73, z]} s={[3.5, 0.1, 2.3]} c="#596847" />
-      <Palmier p={[x, 0.8, z]} scale={0.8} />
-    </group>))}
-    {[-12, 12].map(x => <Banc key={x} p={[x, 0.2, 1.8]} r={Math.PI} />)}
+    <PlaceCentrale artistique={artistique} />
     {[-42, -28, -14, 14, 28, 42].flatMap(x => [-15, 15].map(z => <Lampadaire key={`${x}-${z}`} p={[x, 0, z]} />))}
     <ArretBus p={[-27, 0.1, -6.2]} /><ArretBus p={[27, 0.1, 6.2]} r={Math.PI} />
     <Kiosque p={[0, 0, 20]} />
@@ -296,6 +289,35 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <TrafficVertical x={55.5} offset={20} color="#b65d45" pause={pause} inverse rythme={rythme} />
   </group>;
 });
+
+/** Même secteur dans le jeu et dans l'atelier : la comparaison ne reconstruit pas un décor différent. */
+export function PlaceCentrale({ artistique = true }: { artistique?: boolean }) {
+  return <group>
+    <mesh position={[0, .14, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[5.8, 64]} /><meshStandardMaterial color="#b99471" /></mesh>
+    <mesh position={[0, .16, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[5.3, 5.5, 64]} /><meshStandardMaterial color="#eee2c3" /></mesh>
+    {[-18, -9, 9, 18].flatMap(x => [-3.8, 3.8].map(z => <group key={`${x}-${z}`}>
+      <Bloc p={[x, .35, z]} s={[3.8, .7, 2.6]} c="#adac92" />
+      <Bloc p={[x, .73, z]} s={[3.5, .1, 2.3]} c="#596847" />
+      {(!artistique || Math.abs(x) === 18) && <Palmier p={[x, .8, z]} scale={.8} />}
+    </group>))}
+    {!artistique && [-12, 12].map(x => <Banc key={x} p={[x, .2, 1.8]} r={Math.PI} />)}
+    {artistique && <PlacePalmiers />}
+  </group>;
+}
+
+export function ApercuPlaceCentrale({ artistique }: { artistique: boolean }) {
+  return <group>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .03, -10]} receiveShadow><planeGeometry args={[90, 90]} /><MateriauMonde type="brick_pavement_02" echelle={2.4} relief={.85} /></mesh>
+    {[-10, 10].map(z => <group key={z}>
+      <Bloc p={[0, .05, z]} s={[90, .04, 6]} c="#555d60" />
+      {Array.from({ length: 20 }, (_, i) => <Bloc key={i} p={[(i - 9.5) * 4.3, .08, z]} s={[2, .015, .1]} c="#e6dcbf" />)}
+      {[-3.15, 3.15].map(o => <Bloc key={o} p={[0, .12, z + o]} s={[90, .2, .25]} c="#ede2c8" />)}
+    </group>)}
+    <PlaceCentrale artistique={artistique} />
+    {[-14, 14].map(x => <Lampadaire key={x} p={[x, 0, -15]} />)}
+    <VoitureStationnee p={[-27, 0, -15.2]} c="#d5c9aa" />
+  </group>;
+}
 function ArchitectureBlock({ i }: { i: number }) {
   const h = 9 + (i * 7 % 20);
   return <group position={[(i - 5.5) * 20, 0, -145 - i % 3 * 7]}>

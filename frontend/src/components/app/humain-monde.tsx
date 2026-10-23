@@ -6,6 +6,7 @@ import { Billboard, Detailed, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { BlocsInstances } from './blocs-instances';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
+export { PersonnageStylise as HumainMonde } from './personnage-stylise';
 
 type V=[number,number,number];
 function Volume({p,s,c}:{p:V;s:V;c:string}){
@@ -13,7 +14,7 @@ function Volume({p,s,c}:{p:V;s:V;c:string}){
 }
 
 /** Adult proportions, elbow/knee pivots and alternating gait, shared by every scene. */
-export function HumainMonde({variante=0,couleur='#456578',marche=false,assis=false,prof=false,casque=false,nom,scale=1}:{variante?:number;couleur?:string;marche?:boolean;assis?:boolean;prof?:boolean;casque?:boolean;nom?:string;scale?:number}){
+export function HumainReference({variante=0,couleur='#456578',marche=false,assis=false,prof=false,casque=false,nom,scale=1}:{variante?:number;couleur?:string;marche?:boolean;assis?:boolean;prof?:boolean;casque?:boolean;nom?:string;scale?:number}){
   const corps=useRef<THREE.Group>(null),tete=useRef<THREE.Group>(null),etiquette=useRef<THREE.Group>(null);
   const membres=useRef<Array<THREE.Group|null>>([]),genoux=useRef<Array<THREE.Group|null>>([]);
   const world=useMemo(()=>new THREE.Vector3(),[]);
