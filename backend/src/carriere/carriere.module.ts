@@ -6,12 +6,13 @@ import { BesoinsService } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { LieuxService } from './lieux.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [NotificationsModule],
   controllers: [CarriereController],
-  providers: [CarriereService, ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService],
+  providers: [CarriereService, ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService, LieuxService],
   exports: [ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService],
 })
 export class CarriereModule {}

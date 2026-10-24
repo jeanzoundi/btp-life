@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsObject, IsOptional, IsPositive, IsString, Max, MaxLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -72,4 +72,42 @@ export class NomEntrepriseDto {
 export class UpdateEtatMondeDto {
   @IsObject()
   etat: Record<string, unknown>;
+}
+
+/** Action de besoin, éventuellement un article de la carte d'un lieu de vie (maquis, café). Sans corps : l'action historique. */
+export class ActionBesoinDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  article?: string;
+
+  /** Au maquis : manger à la table des collègues. */
+  @IsOptional()
+  @IsBoolean()
+  tablee?: boolean;
+
+  /** Au marché : la remise obtenue en marchandant (plafonnée par le serveur). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  remise?: number;
+
+  /** Au complexe sportif : le match a été gagné aux tirs au but. */
+  @IsOptional()
+  @IsBoolean()
+  victoire?: boolean;
+}
+
+/** Séance terminée dans un lieu du quartier : l'étape jouée et la note du bilan (0-100). */
+export class SeanceLieuDto {
+  @IsInt()
+  @Min(0)
+  @Max(30)
+  etape: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  note: number;
 }

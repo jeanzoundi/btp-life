@@ -21,11 +21,14 @@ interface EmbeddedPg {
 }
 
 const DATA_DIR = path.join(__dirname, '..', '.embedded-pg-data');
+// Sous Windows, Postgres relâche ses fichiers un instant après stop() : sans nouvelles tentatives,
+// la suppression du dossier échoue (EBUSY) et fait passer pour cassée une migration valide.
+const SUPPRESSION = { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } as const;
 const PORT = 5433; // différent de 5432 pour ne jamais entrer en conflit avec un Postgres local existant.
 const DATABASE_URL = `postgresql://postgres:postgres@localhost:${PORT}/btp_life_test`;
 
 async function main() {
-  fs.rmSync(DATA_DIR, { recursive: true, force: true });
+  fs.rmSync(DATA_DIR, SUPPRESSION);
 
   const pg: EmbeddedPg = new EmbeddedPostgres({
     databaseDir: DATA_DIR,
@@ -63,7 +66,9 @@ async function main() {
     console.log('\nOK — migrations + seed valides sur une base neuve.');
   } finally {
     await pg.stop();
-    fs.rmSync(DATA_DIR, { recursive: true, force: true });
+    // Un dossier encore verrouillé ne doit ni masquer l'erreur d'une migration, ni faire échouer un
+    // test réussi : il sera supprimé au prochain lancement.
+    try { fs.rmSync(DATA_DIR, SUPPRESSION); } catch (e) { console.warn(`Nettoyage reporté : ${DATA_DIR} sera supprimé au prochain lancement (${(e as Error).message}).`); }
   }
 }
 

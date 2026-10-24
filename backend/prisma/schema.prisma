@@ -438,6 +438,9 @@ model UserCarriere {
   traits                   Json?
   // État persistant du monde 3D : position, relations et progression des modes de jeu.
   etatMonde                Json?
+  // Programmes des lieux du quartier (laboratoire, dépôt, hôtel de ville…) : étape en cours,
+  // cycles bouclés, dernière séance payée — voir LieuxService.
+  progresLieux             Json?
   // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
   // et pour candidater aux marchés (voir Chantier.typeMarche).
   nomEntreprise            String?

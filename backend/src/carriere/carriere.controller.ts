@@ -2,11 +2,12 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { LieuxService } from './lieux.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('carriere')
@@ -17,6 +18,7 @@ export class CarriereController {
     private readonly pnjService: PnjService,
     private readonly epargneService: EpargneService,
     private readonly avatarItemsService: AvatarItemsService,
+    private readonly lieuxService: LieuxService,
   ) {}
 
   @Get('me')
@@ -134,9 +136,19 @@ export class CarriereController {
     return this.carriereService.renommerEntreprise(user.userId, dto.nom);
   }
 
+  @Get('lieux')
+  progresLieux(@CurrentUser() user: RequestUser) {
+    return this.lieuxService.progres(user.userId);
+  }
+
+  @Post('lieux/:slug/seance')
+  seanceLieu(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body() dto: SeanceLieuDto) {
+    return this.lieuxService.seance(user.userId, slug, dto.etape, dto.note);
+  }
+
   @Post('besoins/:action')
-  agirBesoin(@CurrentUser() user: RequestUser, @Param('action') action: ActionBesoin) {
-    return this.besoinsService.agir(user.userId, action);
+  agirBesoin(@CurrentUser() user: RequestUser, @Param('action') action: ActionBesoin, @Body() dto: ActionBesoinDto) {
+    return this.besoinsService.agir(user.userId, action, { article: dto?.article, tablee: dto?.tablee, remise: dto?.remise, victoire: dto?.victoire });
   }
 
   @Post('epargne/deposer')
