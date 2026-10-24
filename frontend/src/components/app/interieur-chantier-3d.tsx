@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import * as THREE from 'three';
 import type { BlocArchitecture, V3 } from '@/lib/architecture-ville';
 import { qualiteMemorisee } from '@/lib/fluidite-monde';
@@ -19,11 +19,10 @@ import { HumainMonde } from './humain-monde';
 import { MateriauMonde } from './materiaux-monde';
 import { RefletsMonde } from './reflets-monde';
 import { FriseEtapes, type StatutJournee } from './panneau-journee-chantier';
+import { CroixDirections, JoueurInterieur, decalageCamera, useCommandesInterieur, type CameraSuivi, type Direction } from './joueur-interieur';
 
-type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
-const TOUCHES: Record<string, Direction | undefined> = { KeyW: 'avant', KeyZ: 'avant', ArrowUp: 'avant', KeyS: 'arriere', ArrowDown: 'arriere', KeyA: 'gauche', KeyQ: 'gauche', ArrowLeft: 'gauche', KeyD: 'droite', ArrowRight: 'droite' };
-const AZIMUT = 32 * Math.PI / 180, INCLINAISON = 50 * Math.PI / 180, RECUL = 23;
-const DECALAGE_CAMERA: V3 = [RECUL * Math.cos(INCLINAISON) * Math.sin(AZIMUT), RECUL * Math.sin(INCLINAISON), RECUL * Math.cos(INCLINAISON) * Math.cos(AZIMUT)];
+const CAMERA: CameraSuivi = { azimut: 32 * Math.PI / 180, inclinaison: 50 * Math.PI / 180, recul: 23 };
+const DECALAGE_CAMERA = decalageCamera(CAMERA);
 const DALLE = 4.1, TOIT = 7.18;
 
 export interface ProprietesChantierInterieur {
@@ -61,17 +60,7 @@ export function InterieurChantier3D({ nomChantier, etat, equipe, journee, statut
     directions.clear(); visee.current = null; route.current = chemin(position.current, point);
   }, [directions]);
   const arrivee = useCallback((station: StationChantier) => rappels.current.onPoste(station), []);
-  useEffect(() => {
-    const changer = (event: KeyboardEvent, actif: boolean) => { const d = TOUCHES[event.code]; if (!d) return; event.preventDefault(); if (actif) directions.add(d); else directions.delete(d); };
-    const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return;
-      if (e.code === 'Escape') { if (!rappels.current.onEchap()) rappels.current.onSortir(); } else changer(e, true);
-    };
-    const up = (e: KeyboardEvent) => changer(e, false);
-    const vider = () => directions.clear();
-    window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('blur', vider);
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', vider); directions.clear(); };
-  }, [directions]);
+  useCommandesInterieur(directions, rappels);
   const phase = journee ? phaseJournee(journee) : null;
   return <section className={`fixed inset-0 z-[100] bg-[#2a2219] ${POLICES_JEU} hud-texte`} aria-label={`Sur le chantier ${nomChantier}`}>
     <Canvas shadows dpr={1} camera={{ position: [DEPART[0] + DECALAGE_CAMERA[0], DECALAGE_CAMERA[1], DEPART[1] + DECALAGE_CAMERA[2]], fov: 46, near: .1, far: 260 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
@@ -110,14 +99,10 @@ export function InterieurChantier3D({ nomChantier, etat, equipe, journee, statut
         {statut === 'disponible' ? <>Pas de journée en cours. <button onClick={() => aller('yao')} className="font-bold text-jeu-or underline">Va voir Yao</button>, devant la base vie, pour commencer.</> : statut === 'repos' ? 'Journée terminée : l’équipe reprend demain à 6 h. Tu peux visiter le chantier.' : 'Le chantier est fermé : les journées commencent entre 6 h et 18 h.'}
       </p>}
     </aside>}
-    <div className="absolute bottom-5 left-5 grid grid-cols-3 gap-1.5 sm:hidden"><span /><BoutonDirection d="avant" symbole="▲" directions={directions} /><span /><BoutonDirection d="gauche" symbole="◀" directions={directions} /><BoutonDirection d="arriere" symbole="▼" directions={directions} /><BoutonDirection d="droite" symbole="▶" directions={directions} /></div>
+    <CroixDirections directions={directions} />
     <p className="hud-verre pointer-events-none absolute bottom-5 right-5 hidden rounded-full px-3.5 py-1.5 text-[11.5px] text-jeu-ivoire/70 sm:block">Clique le sol ou une balise · ZQSD / flèches · Échap pour sortir</p>
     {children}
   </section>;
-}
-
-function BoutonDirection({ d, symbole, directions }: { d: Direction; symbole: string; directions: Set<Direction> }) {
-  return <button aria-label={d} className="hud-verre hud-bouton h-11 w-11 rounded-xl text-lg" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); }} onPointerUp={() => directions.delete(d)} onPointerCancel={() => directions.delete(d)}>{symbole}</button>;
 }
 
 /** Où travaille chaque métier selon l'étape : un poste fixe (éventuellement en hauteur) ou un aller-retour. */
@@ -181,49 +166,9 @@ const SceneChantier = memo(function SceneChantier({ etat, equipe, postes, livrai
     {!visite && etape === 'recrutement' && !equipe.length && [[12.3, -5.4], [13.3, -5.2], [14.3, -5.5]].map(([x, z], i) => <OuvrierPoste key={i} position={[x, 0, z]} rotation={Math.PI} variante={i + 1} nom="Candidat" />)}
     {!visite && <Yao onClick={() => onPoste('yao')} />}
     {postes.map(s => <Balise key={s} position={[STATIONS[s][0], 0, STATIONS[s][1]]} libelle={LIBELLES_STATIONS[s]} onClick={() => onPoste(s)} />)}
-    <JoueurChantier directions={directions} position={position} route={route} visee={visee} onArrivee={onArrivee} />
+    <JoueurInterieur directions={directions} position={position} route={route} visee={visee} onArrivee={onArrivee} avancer={avancer} depart={DEPART} camera={CAMERA} />
   </>;
 });
-
-/** Le joueur : clavier relatif à la caméra, ou trajet calculé ; la caméra le suit de trois quarts. */
-function JoueurChantier({ directions, position, route, visee, onArrivee }: { directions: Set<Direction>; position: MutableRefObject<Point>; route: MutableRefObject<Point[]>; visee: MutableRefObject<StationChantier | null>; onArrivee: (s: StationChantier) => void }) {
-  const groupe = useRef<THREE.Group>(null), marcheRef = useRef(false);
-  const [marche, setMarche] = useState(false);
-  const camera = useThree(s => s.camera);
-  const cible = useMemo(() => new THREE.Vector3(), []), voulue = useMemo(() => new THREE.Vector3(), []);
-  useFrame((_, delta) => {
-    const g = groupe.current;
-    if (!g) return;
-    const dx = Number(directions.has('droite')) - Number(directions.has('gauche')), dz = Number(directions.has('arriere')) - Number(directions.has('avant'));
-    let bouge = false;
-    if (dx || dz) {
-      route.current = []; visee.current = null;
-      const mx = Math.cos(AZIMUT) * dx + Math.sin(AZIMUT) * dz, mz = -Math.sin(AZIMUT) * dx + Math.cos(AZIMUT) * dz;
-      const suivant = avancer(position.current, mx, mz, delta);
-      bouge = suivant[0] !== position.current[0] || suivant[1] !== position.current[1];
-      if (bouge) g.rotation.y = Math.atan2(mx, mz);
-      position.current = suivant;
-    } else if (route.current.length) {
-      const [tx, tz] = route.current[0], [x, z] = position.current;
-      const ex = tx - x, ez = tz - z, d = Math.hypot(ex, ez), pas = Math.min(delta, .05) * 3.4;
-      position.current = d <= pas ? [tx, tz] : [x + ex / d * pas, z + ez / d * pas];
-      if (d <= pas) route.current.shift();
-      if (d > .01) g.rotation.y = Math.atan2(ex, ez);
-      bouge = true;
-      if (!route.current.length && visee.current) { const arrivee = visee.current; visee.current = null; onArrivee(arrivee); }
-    }
-    g.position.set(position.current[0], 0, position.current[1]);
-    if (bouge !== marcheRef.current) { marcheRef.current = bouge; setMarche(bouge); }
-    cible.set(position.current[0], 1.1, position.current[1]);
-    voulue.set(cible.x + DECALAGE_CAMERA[0], cible.y + DECALAGE_CAMERA[1], cible.z + DECALAGE_CAMERA[2]);
-    camera.position.lerp(voulue, 1 - Math.exp(-4 * Math.min(delta, .1)));
-    camera.lookAt(cible);
-  });
-  return <group ref={groupe} position={[DEPART[0], 0, DEPART[1]]}>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .05, 0]} renderOrder={9}><ringGeometry args={[.55, .72, 36]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <HumainMonde casque identite="batisseur" marche={marche} allure={3.4} />
-  </group>;
-}
 
 /** Yao, chef de chantier, à l'angle de la base vie : le toucher ouvre la journée. */
 function Yao({ onClick }: { onClick: () => void }) {

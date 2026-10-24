@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { phaseJournee, type BilanJournee, type Journee, type SituationTerrain } from '@/lib/journee-chantier';
-import { METIERS, PROGRAMME, candidats, evaluerEquipe, type EtatVisuel, type EvaluationEquipe, type Metier, type Ouvrier } from '@/lib/programme-chantier';
+import { METIERS, PROGRAMME, candidats, evaluerEquipe, ordreChoix, type EtatVisuel, type EvaluationEquipe, type Metier, type Ouvrier } from '@/lib/programme-chantier';
 
 export type StatutJournee = 'disponible' | 'en_cours' | 'bilan' | 'resultat' | 'repos' | 'ferme';
 export type Recompenses = 'demo' | 'simulateur' | 'apprentissage';
@@ -57,10 +57,12 @@ function consigne(etat: EtatVisuel, nomJoueur: string, nomChantier: string) {
 }
 
 /** Yao, chef de chantier : consigne du matin, suivi de la journée, bilan et récompenses. */
-export function PanneauJourneeChantier({ statut, nomJoueur, nomChantier, etat, simulateur, demo, journee, resultat, enCours, onCommencer, onBilan, onTerminer, onAbandonner, onDiscuter, onPlanning, onFermer }: {
+export function PanneauJourneeChantier({ statut, nomJoueur, nomChantier, etat, simulateur, demo, journee, resultat, enCours, onCommencer, onBilan, onTerminer, onAbandonner, onDiscuter, onPlanning, onAttendre, onFermer }: {
   statut: StatutJournee; nomJoueur: string; nomChantier: string; etat: EtatVisuel; simulateur: boolean; demo: boolean;
   journee: Journee | null; resultat: ResultatJournee | null; enCours: boolean;
-  onCommencer: () => void; onBilan: () => void; onTerminer: () => void; onAbandonner: () => void; onDiscuter: () => void; onPlanning?: () => void; onFermer: () => void;
+  onCommencer: () => void; onBilan: () => void; onTerminer: () => void; onAbandonner: () => void; onDiscuter: () => void; onPlanning?: () => void;
+  /** Chantier fermé ou journée déjà faite : passer le temps jusqu'à 6 h. */
+  onAttendre?: () => void; onFermer: () => void;
 }) {
   const replique = statut === 'disponible' ? consigne(etat, nomJoueur, nomChantier)
     : statut === 'en_cours' ? 'On avance bien. Continue, je garde un œil sur l’équipe.'
@@ -116,6 +118,7 @@ export function PanneauJourneeChantier({ statut, nomJoueur, nomChantier, etat, s
       {statut === 'en_cours' && <button onClick={onFermer} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">Continuer</button>}
       {statut === 'bilan' && <button onClick={onBilan} disabled={enCours} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">{enCours ? 'Calcul de la journée…' : 'Faire le point'}</button>}
       {statut === 'resultat' && <button onClick={onTerminer} className="hud-bouton hud-bouton-or w-full p-3 text-sm">Terminer la journée</button>}
+      {(statut === 'repos' || statut === 'ferme') && onAttendre && <button onClick={onAttendre} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">⏭ {statut === 'repos' ? 'Revenir demain' : 'Attendre l’ouverture'} · 6 h</button>}
       {statut !== 'resultat' && !simulateur && onPlanning && <button onClick={onPlanning} className="hud-bouton hud-bouton-verre w-full justify-start p-3 text-left text-sm">📋 Planning et équipe</button>}
       {statut !== 'resultat' && <button onClick={onDiscuter} className="hud-bouton hud-bouton-verre w-full justify-start p-3 text-left text-sm">Discuter avec Yao</button>}
       {(statut === 'en_cours' || statut === 'bilan') && <button onClick={onAbandonner} className="w-full p-1.5 text-[12px] font-semibold text-jeu-ivoire/45 hover:text-jeu-ivoire/80">Interrompre la journée</button>}
@@ -135,7 +138,7 @@ export function TacheChantier({ etape, situation, onRepondre, onFermer }: { etap
     <p className="mt-3 rounded-xl bg-black/20 p-3 text-sm leading-relaxed">{situation.situation}</p>
     {!reponse ? <div className="mt-3 space-y-2">
       <p className="hud-legende">Que fais-tu ?</p>
-      {situation.choix.map((c, i) => <button key={c.texte} onClick={() => { setChoix(i); onRepondre(i); }} className="block w-full rounded-xl border border-white/15 bg-white/[.06] p-3 text-left text-sm font-semibold transition-colors hover:border-jeu-or/50">{c.texte}</button>)}
+      {ordreChoix(situation).map(i => <button key={situation.choix[i].texte} onClick={() => { setChoix(i); onRepondre(i); }} className="block w-full rounded-xl border border-white/15 bg-white/[.06] p-3 text-left text-sm font-semibold transition-colors hover:border-jeu-or/50">{situation.choix[i].texte}</button>)}
     </div> : <div className="mt-3 space-y-3">
       <div role="status" className={`rounded-xl border p-3 text-sm leading-relaxed ${reponse.correct ? 'border-jeu-lagune/50 bg-jeu-lagune/10' : 'border-jeu-terre/50 bg-jeu-terre/10'}`}>
         <p className={`font-bold ${reponse.correct ? 'text-jeu-lagune' : 'text-[#F08A4B]'}`}>{reponse.correct ? '✓ Bonne décision' : '✗ Pas la bonne décision'}</p>

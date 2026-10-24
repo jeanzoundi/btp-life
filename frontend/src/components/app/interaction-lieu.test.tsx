@@ -44,4 +44,10 @@ describe('Interactions dans la ville', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Solde insuffisant'));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+  it('présente le marché pour lui-même : on y entre pour marchander, sans le repas du maquis', () => {
+    render(<QueryClientProvider client={new QueryClient()}><InteractionLieu slug="marche" nom="Marché des Jardins" href="/app/lieu/marche" demo onDemo={vi.fn()} onClose={() => {}} onEnter={vi.fn()} /></QueryClientProvider>);
+    expect(screen.getByText('Fruits, grillades et marchandage')).toBeInTheDocument();
+    expect(screen.getByText(/tout se discute/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Manger un plat/ })).not.toBeInTheDocument();
+  });
 });

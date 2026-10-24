@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetRecrutement, candidats, debutEtape, etapeAuJour, etapeDepuisNom, etatVisuel, evaluerEquipe, lireOuvrier, METIERS, metiersManquants, PROGRAMME, situation, TOTAL_JOURS, type Metier,
+  budgetRecrutement, candidats, debutEtape, etapeAuJour, etapeDepuisNom, etatVisuel, evaluerEquipe, lireOuvrier, METIERS, metiersManquants, ordreChoix, PROGRAMME, situation, TOTAL_JOURS, type Metier,
 } from './programme-chantier';
 
 const GROS_OEUVRE: Metier[] = ['Chef d’équipe', 'Maçon', 'Manœuvre', 'Ferrailleur', 'Coffreur'];
@@ -27,6 +27,17 @@ describe('programme du chantier', () => {
       }
     }
     expect(ids.size).toBeGreaterThan(35);
+  });
+  it('n’affiche pas la bonne réponse toujours au même rang, mais toujours au même endroit pour une situation', () => {
+    const situations = PROGRAMME.flatMap(e => [...e.travaux, ...e.securite, ...(e.livraison ? [e.livraison] : [])].map(t => t.situation));
+    const rangs = [0, 0, 0];
+    for (const s of situations) {
+      const ordre = ordreChoix(s);
+      expect([...ordre].sort(), s.id).toEqual([0, 1, 2]);
+      expect(ordreChoix(s), s.id).toEqual(ordre);
+      rangs[ordre.findIndex(i => s.choix[i].correct)]++;
+    }
+    for (const n of rangs) expect(n, rangs.join(' / ')).toBeGreaterThan(situations.length / 6);
   });
   it('dessine l’étape du jour avec son travail déjà fait', () => {
     expect(etatVisuel(0)).toMatchObject({ etape: 'recrutement', progression: 1, jour: 1, total: 18, avancement: 0 });

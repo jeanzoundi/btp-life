@@ -191,14 +191,15 @@ export function MiniPelle({ position, rotation = 0, pause, rythme }: { position:
 
 const COULEURS_CHARGEMENT: Record<Exclude<ChargementLivraison, 'fers'>, string> = { ciment: '#DCCFB2', agglos: '#9E9A91', carrelage: '#C9B79A' };
 
-export function CamionLivraison({ position, chargement, rotation = Math.PI }: { position: V3; chargement: ChargementLivraison; rotation?: number }) {
+/** Camion plateau ; sans chargement, il attend à vide. */
+export function CamionLivraison({ position, chargement, rotation = Math.PI }: { position: V3; chargement: ChargementLivraison | null; rotation?: number }) {
   return <group position={position} rotation={[0, rotation, 0]}>
     <mesh position={[2.5, 1.2, 0]} castShadow><boxGeometry args={[1.8, 1.9, 2.2]} /><meshStandardMaterial color="#F0EDE4" roughness={.5} /></mesh>
     <mesh position={[3.25, 1.55, 0]}><boxGeometry args={[.3, .8, 1.9]} /><meshStandardMaterial color="#2F3A40" metalness={.3} roughness={.2} /></mesh>
     <mesh position={[-.9, .85, 0]} castShadow receiveShadow><boxGeometry args={[5, .25, 2.3]} /><meshStandardMaterial color="#4B4F52" /></mesh>
     {[-2.4, -.3, 2.6].flatMap(x => [-1, 1].map(z => <mesh key={`${x}${z}`} position={[x, .42, z * 1.05]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.42, .42, .3, 16]} /><meshStandardMaterial color="#202326" /></mesh>))}
     {chargement === 'fers' && Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[-.9, 1.05 + (i % 3) * .07, -.3 + i * .07]} castShadow><boxGeometry args={[4.6, .04, .04]} /><meshStandardMaterial color="#8A5A3C" /></mesh>)}
-    {chargement !== 'fers' && Array.from({ length: 12 }, (_, i) => <mesh key={i} position={[-2.6 + (i % 6) * .7, 1.17 + Math.floor(i / 6) * .38, 0]} castShadow><boxGeometry args={chargement === 'carrelage' ? [.6, .34, .6] : [.62, .36, 1.9]} /><meshStandardMaterial color={COULEURS_CHARGEMENT[chargement]} /></mesh>)}
+    {chargement && chargement !== 'fers' && Array.from({ length: 12 }, (_, i) => <mesh key={i} position={[-2.6 + (i % 6) * .7, 1.17 + Math.floor(i / 6) * .38, 0]} castShadow><boxGeometry args={chargement === 'carrelage' ? [.6, .34, .6] : [.62, .36, 1.9]} /><meshStandardMaterial color={COULEURS_CHARGEMENT[chargement]} /></mesh>)}
   </group>;
 }
 

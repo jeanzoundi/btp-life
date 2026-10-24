@@ -1,5 +1,177 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Tous les autres lieux du quartier : banque, agence, bureaux, plateforme, Tour, marché, marina, sport, commerces (24 octobre)
+
+Ni commité ni déployé. Pas de nouvelle migration, mais le serveur change (une compétence par étape, la carte des besoins étendue) : backend d'abord, frontend ensuite.
+
+- **Six bâtiments à programme de plus**, avec la même méthode :
+  - un mentor ;
+  - un programme en étapes, une séance par jour de jeu aux horaires du lieu, un bilan, 40/100 au moins ;
+  - un décor qui évolue avec les étapes ;
+  - un poste branché sur un vrai système du jeu.
+  - **Banque BTL**, avec Fanta Coulibaly (8 h – 16 h) : « Financer son projet », en 5 étapes.
+    - Étapes : ouvrir son compte, épargner pour l'apport, monter le dossier de crédit, comprendre le coût du crédit, signer et décaisser.
+    - Les calculs de l'argent : intérêts d'un placement, taux d'endettement (33 % au plus), coût total d'un crédit.
+    - Le décor suit le dossier : carte bancaire posée dès l'ouverture du compte, dossier qui grossit au bureau des prêts, porte ronde de la salle des coffres ouverte quand le prêt est accordé.
+    - Le guichet d'épargne dépose et retire pour de bon (`POST /carriere/epargne/deposer` et `/retirer`). En démonstration, l'épargne reste dans la partie.
+  - **Agence des talents**, avec Esther Kacou (8 h – 17 h) : « Décrocher un poste », en 5 étapes.
+    - Étapes : faire le point, le CV, le test technique (un métré de semelles), l'entretien, la proposition.
+    - Le décor suit la candidature : le CV sort de l'imprimante, ta copie est notée, le contrat est signé à la fin.
+    - Le mur des offres affiche les vraies offres du jeu. On y candidate pour de bon (`POST /offres/:id/candidater`), avec les conditions de niveau, de réputation, de chantiers et de compétences.
+  - **Maison des ingénieurs**, avec Inès Diabaté (8 h – 18 h) : « Étude d'une structure », en 6 étapes.
+    - Étapes : rassembler les données, descente de charges, dimensionner la semelle, ferrailler la poutre, note de calcul et plans, visa et contrôle.
+    - Les vrais calculs d'un bureau d'études : échelle d'un plan, charge sur un poteau, semelle, section d'acier. Chaque étude change les chiffres.
+    - La maquette de la structure se monte au fil de l'étude. Le tableau des compétences, au mur, est celui du joueur.
+  - **Atelier de formation**, avec Didier Assi (8 h – 19 h) : « Logiciels du chantier », en 5 étapes.
+    - Étapes : le métré au tableur, lire un plan numérique, le planning en Gantt et son chemin critique, le rapport journalier, la maquette BIM.
+    - Le grand écran montre le logiciel du jour, et la maquette de l'imprimante 3D grandit avec la formation.
+    - Le rayon des logiciels montre ceux que le joueur maîtrise.
+  - **Plateforme logistique**, avec Sékou Traoré, en plein air (5 h – 19 h) : « Approvisionner les chantiers », en 5 étapes.
+    - Étapes : réceptionner un conteneur, stocker selon les règles, planifier la tournée, charger les camions, suivre les livraisons.
+    - Le conteneur s'ouvre une fois réceptionné, et les camions à quai sont chargés à l'étape du chargement.
+    - Le bureau du dispatch suit les vrais chantiers du joueur (`GET /chantiers/mine`).
+  - **Tour BTP Life**, avec Joseph Amani (8 h – 19 h) : « Diriger une entreprise de BTP », en 5 étapes.
+    - Étapes : répondre à un appel d'offres, chiffrer l'offre, tenir la trésorerie, recruter et manager, clôturer l'exercice.
+    - Les chiffres d'une entreprise : prix de vente depuis le déboursé sec, solde de trésorerie du mois.
+    - L'écran des marchés affiche les vrais appels d'offres du jeu (`GET /chantiers/marches`).
+  - **Chaque étape forme une compétence** du jeu, dans les neuf lieux à programme : 30 % de la note en XP de compétence. Par exemple, la semelle forme la géotechnique, et l'entretien d'embauche la gestion humaine. Rien en entraînement ni sous 40/100.
+- **Cinq lieux de vie de plus**, chacun avec sa mécanique. Le service est le même qu'au maquis : on paie, on attend, c'est prêt, on s'installe, et les jauges bougent une fois l'article consommé.
+  - **Marché des Jardins**, avec Maman Akoua (6 h – 19 h).
+    - Le décor : quatre étals sous des bâches hautes (fruits, légumes, pagnes, épices), le grill de choukouya qui fume, la banane braisée, les paniers de la vannière, un pousse-pousse.
+    - La carte : mangues 300 F, ananas 500 F, banane braisée 500 F, choukouya 1 500 F, et un panier de fruits à partager à 2 000 F (+25 de social).
+    - Mécanique propre, **le marchandage** : on salue d'abord, puis on propose −10, −20 ou −35 %. La vendeuse accepte, contre-propose à sa limite, ou se fâche et ne vend plus qu'au prix affiché.
+    - Sa limite : 5 % sans salut, 15 % après, et 5 points de plus après 17 h. Le serveur plafonne la remise à 20 % et arrondit aux 25 F.
+    - On mange sur le banc, face à la rue.
+  - **Marina BTP Life**, avec le capitaine Désiré (8 h – 21 h).
+    - Le décor : la lagune, deux pontons sur pieux, des pirogues peintes, une terrasse sous de hautes paillotes, un kiosque à cocos, des cocotiers.
+    - La carte : noix de coco 500 F au kiosque, brochettes de crevettes 3 000 F en terrasse.
+    - Mécanique propre, **la balade en pirogue**, à 2 000 F : énergie −5, social +35, moral +8.
+      - On embarque au bout du grand ponton. Le piroguier pousse à la perche et fait le tour du plan d'eau en 18 secondes.
+      - Le joueur est assis dans la pirogue, et la caméra le suit. La pirogue contourne les pontons, puis accoste proue vers la rive.
+  - **Complexe sportif**, avec Coach Aya (6 h – 22 h).
+    - Le décor : un terrain synthétique à cinq avec ses lignes et ses cages, des projecteurs allumés le soir, une aire de musculation en plein air, une piste en tartan, une buvette, une tribune.
+    - Mécanique propre, **le match à cinq** contre l'équipe du dépôt :
+      - Neuf joueurs et le ballon bougent, et le joueur court sur le terrain. Le score avance jusqu'à 2 – 2.
+      - Puis viennent les tirs au but : on tire, puis on plonge, cinq chacun, puis mort subite.
+      - Le match se paie à la fin, 500 F. Le gagner ajoute +10 de social et +4 de moral.
+    - Les autres activités : musculation à 1 000 F, assis au banc ; footing à 300 F, un vrai tour de piste en courant ; jus de la buvette à 300 F.
+    - Le sport fatigue. Il est refusé à bout de forces, et il reste utile tant que le moral n'est pas au plus haut.
+  - **Centre commercial Azur**, avec Mireille (9 h – 22 h).
+    - Le décor : des escaliers mécaniques, un espace restauration à trois comptoirs avec leurs menus lumineux, un opticien, une pharmacie, et la Boutique Lagune (portants, gilets haute visibilité, casques, mannequin casqué).
+    - La carte, servie à table : shawarma 2 000 F, cocktail de fruits 1 200 F, glace 1 000 F.
+    - Mécanique propre, **la cabine d'essayage**, branchée sur la vraie garde-robe. Ce qu'on possède se porte (`POST /carriere/avatar/equiper`), et le reste indique le niveau ou le métier requis.
+  - **Galerie des Palmiers**, avec Madame Brou (8 h – 21 h).
+    - Le décor : un salon de coiffure, un pressing, une boutique de téléphonie, une pâtisserie, une bijouterie et une librairie.
+    - Chaque service se rend à sa boutique, avec son commerçant : coupe 1 500 F, assis au fauteuil ; crédit téléphone 500 F ; pressing 1 000 F ; pâtisserie et café 800 F.
+    - Mécanique propre, **la vitrine des réussites** : les vrais badges et certificats du joueur, exposés en 3D au centre de la galerie (douze au plus) et listés avec leur date.
+- **Dans la ville** : la carte du Marché des Jardins ne reprend plus le texte du maquis ni son repas à 1 200 F. Les lieux de vie y présentent leur propre accroche.
+- **Côté serveur**, sans migration :
+  - La carte des besoins passe à 32 articles, ceux de tous les lieux de vie.
+  - `POST /carriere/besoins/:action` accepte aussi `remise` (au marché) et `victoire` (au match).
+  - Les effets peuvent être négatifs, puisque le sport fatigue. Le serveur répond « Trop fatigué(e) pour ça » si une jauge passait sous 0.
+  - Un article qui vise d'abord le moral (sport, pirogue, coiffeur, pressing) reste utile tant que le moral n'est pas à 98.
+  - Une séance réussie dans un lieu à programme forme la compétence de l'étape.
+- **Vérifié** :
+  - TypeScript, frontend et backend.
+  - Vitest 248/248 (44 fichiers). Une première passe, sur une machine chargée (8 minutes), avait laissé deux fichiers en erreur sans échec de test ; relancée, elle passe entière en une minute. Elle couvre notamment :
+    - les plans des cinq lieux de vie, chaque poste étant accessible depuis l'entrée ;
+    - la carte identique à celle du serveur, le marchandage ;
+    - la pirogue, qui ne touche aucun ponton ;
+    - le tour de piste, le score du match, les tirs au but ;
+    - la cabine et la vitrine.
+  - Jest backend 254/254 (18 suites).
+  - En jeu, en démonstration :
+    - Marché : salut, contre-proposition à 250 F au lieu de 300 F, achat, repas sur le banc ; faim +12.
+    - Marina : la balade complète, de l'embarquement au retour à quai ; −2 000 F, énergie −5, moral +8, social au maximum.
+    - Complexe sportif : rassemblement, match jusqu'à 2 – 2, tirs au but perdus 3 – 4, match réglé 500 F ; énergie −20, moral +8.
+    - Centre commercial : l'intérieur et la cabine d'essayage, qui demande en démonstration de se connecter.
+    - Galerie : les services refusés (« Pas besoin ») avec moral et social pleins ; la pâtisserie commandée puis récupérée au comptoir ; −800 F, faim +15, énergie +8.
+    - Banque : l'intérieur, « Attendre l'ouverture », l'accueil de Fanta et le début de la séance.
+  - Correctifs trouvés en jeu :
+    - Au marché, les offres affichées sont arrondies aux 25 F, comme le prix payé.
+    - Le bouton de la carte dit « Réserver » pour la pirogue seulement : « Choisir » pour une activité, « Demander » pour un service, « Commander » ailleurs.
+- **Non vérifié** :
+  - En jeu, à cause de la fenêtre de l'aperçu, passée en arrière-plan (0 image par seconde) :
+    - la suite de la séance à la banque ;
+    - l'agence, la Maison des ingénieurs, l'atelier, la plateforme logistique et la Tour BTP Life ;
+    - la nouvelle carte du marché dans la ville.
+    - Les tests couvrent leurs programmes, l'accès à leurs postes et la carte.
+  - Avec un vrai compte, ne sont couverts que par les tests : l'épargne, la candidature, la cabine, la vitrine et les commandes payées.
+- **Déploiement** : le backend d'abord, avec la migration `progres_lieux` du 24 octobre s'il ne l'a pas encore. Lancer `npm run test:migrations`, puis `prisma migrate deploy` en mode session, puis le health-check. Le frontend ensuite : il envoie des articles que seul le nouveau serveur connaît.
+
+## Lieux du quartier reliés au jeu : laboratoire, dépôt, mairie, maquis, café, université (24 octobre)
+
+Ni commité ni déployé. Le serveur change (une migration, deux routes, la carte des besoins) : il faudra déployer le backend avant le frontend.
+
+- **La méthode du chantier sur trois autres bâtiments**, avec une mécanique propre à chacun. Un intérieur fidèle au métier, un mentor, un programme en étapes visible dans le décor, une séance par jour de jeu aux horaires du lieu, un bilan. Sous 40/100, l'étape est à refaire.
+  - **Laboratoire des matériaux**, avec Adjoua Ehui : « Campagne d'essais du béton » en 7 étapes.
+    - Étapes : réception des échantillons, affaissement au cône d'Abrams, confection des éprouvettes, écrasement à 7 jours, granulométrie, résistance à 28 jours et conformité, rapport.
+    - Chaque campagne change les chiffres, avec des bétons conformes et d'autres non.
+    - Le tableau des résultats se remplit au mur, puis le tampon CONFORME ou NON CONFORME tombe.
+  - **Dépôt matériaux**, avec Brou Kouassi, en plein air : « Commande d'un chantier » en 5 étapes.
+    - Étapes : réception d'un fournisseur, inventaire, préparation (CPJ 45, HA12, agglos de 15, sable de rivière), chargement et pesée, facturation au franc près.
+    - Charge utile de 8 t : une commande sur quatre est en surcharge.
+  - **Hôtel de ville**, avec Akissi Gnahoré : « Permis de construire » en 6 étapes.
+    - Étapes : terrain (ACD, bornage), dossier, règles d'urbanisme (emprise au sol de 60 % au plus), dépôt (on refuse l'intermédiaire), délivrance et affichage, conformité.
+    - Le panneau du dossier, au guichet, suit l'instruction.
+  - Trois natures de tâches :
+    - Situations à trois réponses, toutes expliquées.
+    - Mesures à calculer : tous les points dans la tolérance, la moitié jusqu'au double.
+    - Pièces à cocher : chaque intrus retire des points.
+- **Les séances payées par le serveur** (avec un compte) : `POST /carriere/lieux/:slug/seance` refuse une étape qui n'est pas celle du jour.
+  - XP : modulée par la forme du personnage, comme pour les missions.
+  - Argent : 500 F plus 15 F par point, 2 000 F au plus.
+  - Réputation : +1, ou +3 quand un cycle est bouclé.
+  - La séance fatigue : énergie −5, faim −4.
+  - Une seule séance payée par lieu toutes les 20 minutes réelles. Entre-temps, c'est de l'entraînement : la progression avance, avec un quart de l'XP, sans argent ni réputation.
+  - La progression est enregistrée dans le compte (`UserCarriere.progresLieux`).
+  - En démonstration, tout reste dans le navigateur. Si le serveur ne répond pas, la séance est gardée dans le navigateur, sans gains.
+- **Le Maquis Chez Tantie Bintou** : cour à ciel ouvert, tables et chaises en plastique, braisière qui fume, comptoir carrelé, ardoise de la carte, bar et téléviseur, lave-mains, manguier, guirlande le soir.
+  - Une vraie carte : garba 1 000 F, alloco poisson 1 500 F, attiéké carpe braisée 2 500 F, foutou sauce graine 3 000 F, poulet braisé 3 500 F, bissap et gingembre 300 F. Chaque plat rassasie plus ou moins.
+  - On paie au comptoir, la tantie prépare, c'est servi à table, on s'assoit et on mange. Les jauges montent une fois le plat mangé, ou quand on l'emporte en partant avant.
+  - Mécanique propre, **la table des collègues** : à midi et après 17 h, l'équipe du chantier mange ici.
+    - Manger avec eux ajoute 20 points de social.
+    - Le repas se termine sur la nouvelle du jour. Elle renvoie vers un lieu (laboratoire, dépôt, mairie, chantier, université, banque, agence, café, atelier, Maison des ingénieurs, ou le lit quand on est épuisé), avec un bouton pour y aller.
+- **Le Café des Bâtisseurs** : comptoir et machine à expresso, tables de bistrot, coin salon, vitrine sur la rue.
+  - Carte : café noir (qui réveille aussi), thé à la menthe, jus de passion, café-croissant, et la tournée pour la table (+60 de social, +5 de relation avec chacun).
+  - Mécanique propre, **le réseau** : à midi et après 17 h, une architecte, un gérant de PME et une ingénieure structure sont attablés.
+    - Une conversation par personne et par visite : la bonne approche fait grandir la relation (+12), une autre un peu (+3).
+    - Chaque palier (30, 60, 90) débloque un conseil.
+    - Les relations sont gardées dans la sauvegarde du monde.
+  - Le tableau des annonces affiche les vraies offres d'emploi du jeu, celles à portée du niveau en tête, avec un lien vers l'agence.
+- **Université BTP** : amphithéâtre avec grand écran et pupitre, gradins et étudiants, bibliothèque, emploi du temps du semestre, vitrine des diplômés.
+  - Le doyen, Pr Kouamé N'Dri, propose le prochain cours de l'Académie, module par module : l'Académie d'abord, puis la Grande École.
+  - On s'assoit en amphi, et le cours est projeté avec le lecteur de diapositives de l'Académie.
+  - Arrivé au bout, le cours est validé dans l'Académie (`POST /carriere/cours/:id/termine`, même mutation hors ligne que la page de l'Académie). Sa mission pratique, payée, est proposée à la fin.
+  - La bibliothèque permet de relire n'importe quel cours.
+  - En démonstration, les cours suivis restent dans le navigateur. Sans catalogue, deux cours de démonstration.
+- **Partout** :
+  - « Attendre l'ouverture » et « Revenir demain » passent le temps jusqu'à l'ouverture suivante, chez Yao aussi (6 h). La démo commence à 16 h et l'hôtel de ville ferme à 16 h : sans ce bouton, on le trouvait toujours fermé.
+  - Une rue en asphalte et un trottoir pavé entourent chaque intérieur, au lieu d'un vide noir.
+  - La bonne réponse n'est plus toujours la première : l'ordre des choix change d'une situation à l'autre, sur le chantier aussi.
+  - Les tâches manquées se voient : ✓ réussie, ≈ à moitié, ✗ manquée.
+- **Côté serveur** :
+  - Migration `20261024090000_progres_lieux` : une colonne JSON. `npm run test:migrations` passe (13 migrations et le seed sur une base neuve).
+  - Routes `GET /carriere/lieux` et `POST /carriere/lieux/:slug/seance`.
+  - `POST /carriere/besoins/:action` accepte `{ article, tablee }` : un prix et des effets par article, des points ajoutés jusqu'à 100. Sans corps, l'action garde son effet d'avant.
+  - `scripts/test-migrations.ts` réessaie la suppression du dossier temporaire. Un fichier encore verrouillé sous Windows ne fait plus échouer un test réussi.
+- **Vérifié** :
+  - TypeScript, frontend et backend.
+  - Vitest 217/217 (43 fichiers). Quatre fichiers avaient dépassé le délai pendant que le serveur de développement compilait ; ils passent relancés à part.
+  - Jest backend 249/249 (18 suites), dont la validation de l'étape, les gains, l'entraînement, le cycle bouclé et chaque article de la carte.
+  - En jeu, en démonstration :
+    - Laboratoire : séance complète de l'étape 1, bilan 100/100, passage à l'essai d'affaissement.
+    - Dépôt : séance complète avec une erreur volontaire, bilan 70/100.
+    - Hôtel de ville : séance complète, puis « Revenir demain · 7 h 30 ».
+    - « Attendre l'ouverture » au laboratoire et au dépôt.
+    - Maquis : entrée, fermé avant 10 h, ouverture.
+  - Correctifs trouvés en jeu : sol du laboratoire en résine claire et sol carrelé à la mairie, nom du mentor doublé par l'étiquette de sa balise, fente noire au seuil, calcul de la section de l'éprouvette mal arrondi dans l'explication.
+- **Non vérifié** :
+  - En jeu : le repas au maquis, le café, l'université. La fenêtre de l'aperçu ne dessinait plus aucune image. Les tests couvrent le service complet, la carte, le réseau, l'accès aux postes et l'ordre du semestre.
+  - Une séance payée et un repas commandé avec un vrai compte : couverts par les tests Jest seulement.
+- **Déploiement** : le backend d'abord (`npm run test:migrations`, puis `prisma migrate deploy` en mode session, puis health-check), le frontend ensuite. Avec l'ancien backend, le frontend garde les séances dans le navigateur, sans gains, et un plat du maquis serait facturé au prix unique d'avant (1 200 F).
+- **Suite** : faite le même jour, voir la section précédente. Tous les lieux du quartier ont maintenant leur intérieur.
+
 ## Chantier de A à Z : programme, recrutement et intérieur réaliste (23 octobre)
 
 Commité localement, pas encore déployé.

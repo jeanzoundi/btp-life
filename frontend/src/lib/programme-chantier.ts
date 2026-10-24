@@ -4,6 +4,20 @@
 export interface Choix { texte: string; correct: boolean; retour: string }
 export interface SituationTerrain { id: string; titre: string; situation: string; choix: readonly Choix[] }
 
+/** Ordre d'affichage des choix : les données mettent la bonne réponse en premier, l'écran la place ailleurs selon la
+ * situation, toujours au même endroit pour une même situation. Renvoie les indices d'origine dans l'ordre affiché. */
+export function ordreChoix(s: { id: string; choix: readonly unknown[] }): number[] {
+  let graine = 0;
+  for (let i = 0; i < s.id.length; i++) graine = (Math.imul(graine, 31) + s.id.charCodeAt(i)) >>> 0;
+  const ordre = s.choix.map((_, i) => i);
+  for (let i = ordre.length - 1; i > 0; i--) {
+    graine = (Math.imul(graine ^ (graine >>> 15), 2246822519) + 3266489917) >>> 0;
+    const j = Math.floor(graine / 2 ** 32 * (i + 1));
+    [ordre[i], ordre[j]] = [ordre[j], ordre[i]];
+  }
+  return ordre;
+}
+
 /** Endroits du chantier où se déroulent les tâches (repères de l'intérieur du chantier). */
 export type ZoneChantier = 'vestiaire' | 'bureau' | 'stockage' | 'ferraillage' | 'betonniere' | 'implantation' | 'fouille' | 'facade-sud' | 'facade-est' | 'acces-etage' | 'entree-ouvrage' | 'portail';
 
