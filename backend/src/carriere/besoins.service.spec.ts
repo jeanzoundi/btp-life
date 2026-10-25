@@ -284,6 +284,14 @@ describe('BesoinsService.agir avec un article de la carte', () => {
     expect(effetArticle(CARTE.glace, { remise: .2 }).prix).toBe(1000);
   });
 
+  it('chez soi, cuisiner et recevoir un voisin coûtent moins cher qu’au maquis et au café', async () => {
+    const { svc } = await service({});
+    expect((await svc.agir('u1', 'repas', { article: 'cuisine-maison' })).coutPaye).toBe(600);
+    expect((await svc.agir('u1', 'social', { article: 'voisin-maison' })).coutPaye).toBe(700);
+    expect(CARTE['cuisine-maison'].prix).toBeLessThan(CARTE.garba.prix);
+    expect(CARTE['voisin-maison'].effets.social).toBeGreaterThan(CARTE['jus-passion'].effets.social ?? 0);
+  });
+
   it('le sport fatigue mais remonte le moral, et se refuse à bout de forces', async () => {
     const { svc } = await service({ energie: 60, social: 40, moral: 50 });
     const resultat = await svc.agir('u1', 'social', { article: 'match-foot', victoire: true });

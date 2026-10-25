@@ -78,6 +78,9 @@ export const CARTE: Record<string, ArticleCarte> = {
   'credit-telephone': { action: 'social', prix: 500, effets: { social: 20 }, moral: 2, message: 'Du crédit pour appeler la famille et les amis.' },
   pressing: { action: 'social', prix: 1000, effets: { social: 5 }, moral: 4, moralPrincipal: true, message: 'Ta tenue revient du pressing, impeccable.' },
   patisserie: { action: 'repas', prix: 800, effets: { faim: 15, energie: 8 }, moral: 3, message: 'Une pâtisserie et un café à la galerie.' },
+  // Chez soi, à la Résidence Lagune : cuisiner coûte moins cher que le maquis, recevoir un voisin aussi.
+  'cuisine-maison': { action: 'repas', prix: 600, effets: { faim: 55 }, moral: 2, message: 'Riz sauce arachide maison : simple, bon, et moins cher qu’au maquis.' },
+  'voisin-maison': { action: 'social', prix: 700, effets: { social: 35 }, moral: 4, message: 'Ton voisin est passé boire un jus : vous avez refait le quartier.' },
 };
 /** Au maquis, manger à la table des collègues compte aussi pour le lien social. */
 export const BONUS_TABLEE = { social: 20, moral: 2 };

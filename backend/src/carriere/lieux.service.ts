@@ -18,6 +18,8 @@ export const COMPETENCES_LIEUX: Record<string, string[]> = {
   'bureau-etudes': ['lecture-plans', 'beton-ferraillage', 'geotechnique', 'beton-ferraillage', 'word-rapport', 'controle-qualite'],
   logistique: ['controle-qualite', 'securite-n1', 'decision-chantier', 'securite-n1', 'decision-chantier'],
   entreprise: ['metre-devis', 'metre-devis', 'decision-chantier', 'gestion-humaine', 'decision-chantier'],
+  'jardins-residence': ['technologie-batiment', 'securite-n1', 'maconnerie', 'technologie-batiment', 'metre-devis'],
+  'construction-nord': ['securite-n1', 'securite-n1', 'securite-n1', 'securite-n1', 'word-rapport'],
 };
 export const ETAPES_LIEUX: Record<string, number> = Object.fromEntries(Object.entries(COMPETENCES_LIEUX).map(([slug, competences]) => [slug, competences.length]));
 /** Une séance payée qui compte fait gagner 30 % de sa note à la compétence de l'étape (cinq paliers de 150 XP). */
