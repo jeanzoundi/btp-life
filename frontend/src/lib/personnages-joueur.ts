@@ -4,6 +4,7 @@
 import type { DesignPersonnage } from './identites-personnages';
 import type { ModeleRealiste } from './personnages-realistes';
 import { gabaritDepuis, type GabaritPersonnage } from './gabarit-personnage';
+import { couleurCasque } from './casques';
 
 export type IdPersonnage = 'combinaison' | 'bleu-travail' | 'tailleur' | 'tenue-ville' | 'jean' | 'capuche' | 'costume';
 
@@ -12,6 +13,8 @@ export interface Apparence2D { peau: string; cheveux: 'court' | 'afro' | 'tresse
 
 export interface PersonnageJoueur {
   gabarit?: GabaritPersonnage;
+  /** Couleur du casque choisie (créateur ou dressing) : le casque réaliste et la version stylisée la prennent. */
+  couleurCasque?: string;
   id: IdPersonnage; titre: string; detail: string;
   /** Modèle 3D réaliste (de près) ; `design` habille la version stylisée (de loin, ou pendant le chargement). */
   modele: ModeleRealiste; design: DesignPersonnage;
@@ -72,7 +75,9 @@ export function personnageChoisi(config: unknown): IdPersonnage | null {
 }
 
 /** Le personnage à afficher : celui choisi, sinon celui d'origine. */
-export const personnageDe = (config: unknown): PersonnageJoueur => ({ ...parId(personnageChoisi(config) ?? PERSONNAGE_DEFAUT), gabarit: gabaritDepuis(config) });
+export const personnageDe = (config: unknown): PersonnageJoueur => ({
+  ...parId(personnageChoisi(config) ?? PERSONNAGE_DEFAUT), gabarit: gabaritDepuis(config), couleurCasque: couleurCasque(config) ?? undefined,
+});
 
 /** Avant le premier choix, on propose le personnage le plus proche de l'avatar 2D : même teint, cheveux longs pour les tresses. */
 export function personnageProche(config: unknown): IdPersonnage {

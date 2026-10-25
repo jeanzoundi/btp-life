@@ -21,6 +21,8 @@ export function HumainJoueur({ casque = true, nom, marche, assis, prof, allure, 
   casque?: boolean; nom?: string; marche?: boolean; assis?: boolean; prof?: boolean; allure?: number; scale?: number;
 }) {
   const personnage = usePersonnageJoueur();
-  const design = casque ? { ...personnage.design, casque: personnage.design.casque ?? '#f4c430' } : { ...personnage.design, casque: undefined };
-  return <group scale={echelleGabarit(personnage.gabarit)}><HumainMonde modele={personnage.modele} design={design} casque={casque} sansCasque={!casque} nom={nom} marche={marche} assis={assis} prof={prof} allure={allure} scale={scale} /></group>;
+  // Le casque choisi (créateur ou dressing) colore le casque réaliste et la version stylisée.
+  const teinte = personnage.couleurCasque;
+  const design = casque ? { ...personnage.design, casque: teinte ?? personnage.design.casque ?? '#f4c430' } : { ...personnage.design, casque: undefined };
+  return <group scale={echelleGabarit(personnage.gabarit)}><HumainMonde modele={personnage.modele} design={design} casque={casque} sansCasque={!casque} nom={nom} marche={marche} assis={assis} prof={prof} allure={allure} scale={scale} teinteCasque={teinte} /></group>;
 }

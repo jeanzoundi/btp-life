@@ -1,5 +1,48 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Écran de création après l'inscription : personnages réalistes et réglages (25 octobre)
+
+Ni commité ni déployé. Le serveur change sans migration (une option de plus au choix du personnage).
+
+- **Point de départ.** L'accueil de l'autre outil enchaînait déjà mode → personnage → personnalité → porte d'entrée → métier visé → récapitulatif, avec une sauvegarde et une reprise justes. Mais le personnage 3D restait caché derrière un bouton (l'écran montrait le portrait 2D), et seuls sa taille et sa morphologie se réglaient.
+- **Un écran de création façon jeu** (`/onboarding`, juste après l'inscription) :
+  - fond et polices du monde vivant, frise des six étapes (Mode · Personnage · Caractère · Départ · Métier · Prêt) qu'on rouvre d'un clic ;
+  - le personnage réaliste reste à l'écran d'un bout à l'autre sur son plateau tournant, qu'on fait tourner du doigt ou à la souris ;
+  - sous lui, sa carte d'identité se remplit : nom, modèle, taille, morphologie, puis traits, situation de départ et métier visé ;
+  - sur ordinateur, il reste épinglé à gauche pendant que le panneau défile ; sur téléphone, il passe au-dessus du panneau.
+- **Les réglages, visibles aussitôt sur le modèle 3D** :
+  - le modèle (les sept personnages réalistes), la taille, la morphologie et le nom ;
+  - la couleur du casque, parmi six couleurs de chantier (blanc, jaune, orange, bleu, vert, rouge) avec leur usage courant ;
+  - le portrait du mode classique (tenue, fond, type de tenue) reste dans un volet à part.
+- **Le casque, un seul choix pour les deux modes.**
+  - Il colore le portrait classique, le casque du modèle réaliste et la version stylisée vue de loin.
+  - Le casque du modèle réaliste est une copie de matériau propre au joueur : Yao et les autres personnages du même modèle gardent le leur.
+  - Un casque gagné au dressing se voit désormais aussi en 3D.
+  - Les cinq modèles tête nue n'ont pas de casque 3D : la couleur vaut pour leur portrait et leur silhouette au loin.
+- **Le même panneau de réglages** sert au choix du personnage dans le monde (premier pas, options, carte de l'accueil classique).
+- **Aperçu sans compte** : `/creation-preview` joue tout l'écran sans appeler le serveur. Le personnage est gardé dans le navigateur, et le monde de démonstration le reprend.
+- **Côté serveur** : `PATCH /carriere/avatar/personnage` accepte `casque`, limité aux six couleurs du créateur, rangé dans `Avatar.config.casque` sans toucher au reste de la configuration.
+- **Vérifié** :
+  - TypeScript, frontend et backend.
+  - Vitest 311/311 (58 fichiers), dont :
+    - la palette, miroir du serveur ;
+    - le panneau de réglages ;
+    - l'écran de création en aperçu (sans appel serveur, personnage gardé pour le monde, frise) ;
+    - le choix dans le monde ;
+    - les tests de l'accueil, inchangés sur le fond.
+  - Jest : choix du personnage et DTO 52/52. Suite complète 277/278 sur une machine chargée : le hachage argon2 de `auth.service.spec` dépasse son délai, et ce fichier passe seul (13/13).
+  - À l'écran, sur `/creation-preview` :
+    - les six étapes jusqu'au bout ;
+    - le casque du « Bleu de travail » teint en jaune sur le modèle 3D ;
+    - taille et morphologie appliquées ;
+    - rotation au glisser, personnage épinglé à côté du panneau ;
+    - le départ et le métier visé affichés en pastilles sous le personnage.
+  - Dans le monde de démonstration : le joueur est bien ce personnage, casque jaune, et Yao l'appelle « Kouassi ». Yao et les candidats, sur les mêmes modèles, gardent leur casque blanc.
+- **Non vérifié** : l'accueil réel avec un compte (le serveur local pointe sur la base de production) ; il utilise le même écran que l'aperçu, et ses enregistrements sont couverts par les tests.
+- **Limites** :
+  - les vêtements ne se teignent pas : sur ces modèles, tenue et peau des mains partagent la même texture ;
+  - les nouveaux métiers restent à ajouter.
+
 ## Besoins au rythme du monde, hygiène, loisirs et humeurs (25 octobre)
 
 Chantier n° 1 de la comparaison avec GTA et Les Sims. Ni commité ni déployé. Le serveur change avec une migration (deux colonnes) : backend d'abord (`prisma migrate deploy` en mode session, port 5432), puis le frontend.

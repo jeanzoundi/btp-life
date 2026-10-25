@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChoixPersonnage } from './choix-personnage';
 
@@ -16,16 +16,17 @@ function ouvrir(options: { premierChoix?: boolean; nom?: string } = {}) {
 }
 
 describe('le choix du personnage', () => {
-  it('transmet la taille et la morphologie sélectionnées', () => {
+  it('transmet la taille, la morphologie et la couleur du casque sélectionnées', () => {
     const { onValider } = ouvrir();
-    fireEvent.change(screen.getByLabelText('Taille'), { target: { value: 'grande' } });
-    fireEvent.change(screen.getByLabelText('Morphologie'), { target: { value: 'large' } });
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Taille' })).getByRole('radio', { name: 'Grande' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Morphologie' })).getByRole('radio', { name: 'Large' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Casque jaune' }));
     fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
-    expect(onValider).toHaveBeenCalledWith('combinaison', 'Kouassi', { stature: 'grande', silhouette: 'large' });
+    expect(onValider).toHaveBeenCalledWith('combinaison', 'Kouassi', { stature: 'grande', silhouette: 'large', casque: '#F2C230' });
   });
   it('montre les sept personnages, celui proposé déjà coché, et le plateau 3D', () => {
     ouvrir();
-    expect(screen.getAllByRole('radio')).toHaveLength(7);
+    expect(within(screen.getByRole('radiogroup', { name: 'Personnages' })).getAllByRole('radio')).toHaveLength(7);
     expect(screen.getByRole('radio', { name: /Combinaison de chantier/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('plateau-3d')).toBeInTheDocument();
   });
@@ -38,7 +39,7 @@ describe('le choix du personnage', () => {
     expect(screen.getByRole('radio', { name: /Costume/ })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('radio', { name: /Tailleur sombre/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
-    expect(onValider).toHaveBeenCalledWith('tailleur', 'Yasmine', { stature: 'moyenne', silhouette: 'standard' });
+    expect(onValider).toHaveBeenCalledWith('tailleur', 'Yasmine', { stature: 'moyenne', silhouette: 'standard', casque: '#F5F0E6' });
   });
   it('demande un nom d’au moins deux lettres', () => {
     ouvrir({ nom: 'K' });

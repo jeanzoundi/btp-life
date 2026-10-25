@@ -10,6 +10,8 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }));
 vi.mock('@/components/app/auth-guard', () => ({ AuthGuard: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/app/mentor', () => ({ MentorBulle: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/lib/mode-experience-store', () => ({ useModeExperienceStore: (fn: (s: unknown) => unknown) => fn({ setMode: mocks.mode }) }));
+// next/font n'est pas appelable sous Vitest : l'écran de création prend les polices du jeu.
+vi.mock('@/lib/polices-jeu', () => ({ POLICES_JEU: '' }));
 
 const profil = { id: 'p1', slug: 'etudiant-be', nom: 'Étudiant Bureau d’études', famille: 'BE', description: null };
 const metier = { id: 'm1', slug: 'ingenieur-structure', nom: 'Ingénieur structure', famille: 'BE', description: null };

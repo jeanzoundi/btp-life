@@ -8,6 +8,7 @@ import { BlocsInstances } from './blocs-instances';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
 import { PersonnageStylise, type PersonnageStyliseProps } from './personnage-stylise';
 import { PersonnageRealiste } from './personnage-realiste';
+import { TeinteCasque } from './teinte-casque';
 import { modeleRealiste, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { identiteDepuisNom } from '@/lib/identites-personnages';
 
@@ -15,15 +16,18 @@ import { identiteDepuisNom } from '@/lib/identites-personnages';
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-export function HumainMonde({ allure, sansCasque, modele: modeleChoisi, ...props }: PersonnageStyliseProps & {
+export function HumainMonde({ allure, sansCasque, modele: modeleChoisi, teinteCasque, ...props }: PersonnageStyliseProps & {
   allure?: number; sansCasque?: boolean;
   /** Modèle réaliste imposé (le personnage choisi par le joueur) ; sinon, déduit de l'identité ou de la variante. */
   modele?: ModeleRealiste;
+  /** Couleur du casque du joueur, appliquée à son seul modèle réaliste (la version stylisée la reçoit par `design`). */
+  teinteCasque?: string;
 }) {
   const modele = modeleChoisi ?? modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);
   const detaille = useRef<boolean | null>(null);
+  const realiste = <PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} sansCasque={sansCasque} />;
   useFrame(({ camera, controls }) => {
     if (!proche.current || !loin.current) return;
     proche.current.getWorldPosition(monde);
@@ -40,7 +44,7 @@ export function HumainMonde({ allure, sansCasque, modele: modeleChoisi, ...props
   return <group>
     <group ref={proche}>
       <Suspense fallback={<PersonnageStylise {...props} />}>
-        <group scale={props.scale ?? 1}><PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} sansCasque={sansCasque} /></group>
+        <group scale={props.scale ?? 1}>{teinteCasque ? <TeinteCasque couleur={teinteCasque}>{realiste}</TeinteCasque> : realiste}</group>
       </Suspense>
     </group>
     <group ref={loin} visible={false}><PersonnageStylise {...props} silhouette /></group>
