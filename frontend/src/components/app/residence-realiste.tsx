@@ -9,7 +9,7 @@ import type { PointInterieur } from '@/lib/navigation-interieur';
 import type { ObjetInterieur } from '@/lib/objets-interieurs';
 import { VieInterieure } from './vie-interieure';
 import { SurfaceBloc } from './materiaux-monde';
-import { HumainMonde } from './humain-monde';
+import { HumainJoueur } from './personnage-joueur';
 import { JetDouche, Vapeur, ZonesObjets, type InteractionsInterieur, type UsageObjet } from './objets-interieurs-3d';
 
 type V3 = [number, number, number];
@@ -225,9 +225,9 @@ export function Habitant({ directions, destination, onArrivee, points = POINTS_R
     if (bouge) groupe.current.rotation.y = Math.atan2(dx, dz);
   });
   const pose = usage?.phase === 'action' ? usage.action.pose : null;
-  // Le joueur reste le bâtisseur ; à l'intérieur, il retire son casque (sauf sur un chantier).
+  // Le joueur garde le personnage qu'il a choisi ; à l'intérieur, il retire son casque (sauf sur un chantier).
   return <group ref={groupe} position={[0, 0, 3.8]}>
-    <group ref={corps}><HumainMonde identite="batisseur" variante={1} marche={marche} assis={pose === 'assis'} prof={pose === 'parle'} sansCasque={!casque} /></group>
+    <group ref={corps}><HumainJoueur casque={casque} marche={marche} assis={pose === 'assis'} prof={pose === 'parle'} /></group>
   </group>;
 }
 

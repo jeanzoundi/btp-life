@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
+import { CarteMondeVivant } from '@/components/app/carte-monde-vivant';
 import { Plumbob } from '@/components/app/plumbob';
 import { PanneauBesoins, humeurDepuisBesoins } from '@/components/app/besoins';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
@@ -209,6 +210,9 @@ export default function DashboardPage() {
       {carriere && (
         <PanneauBesoins besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} />
       )}
+
+      {/* ── Le monde vivant : le même personnage, et la progression dans les lieux du quartier ── */}
+      {carriere && <CarteMondeVivant avatar={carriere.avatar} />}
 
       {/* ── À faire maintenant ── */}
       <section className="grid gap-4 md:grid-cols-2">

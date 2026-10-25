@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { avecApparence } from '@/lib/personnages-joueur';
 
 // Avatar BTP vectoriel — personnalisation profonde façon RPG (12 catégories),
 // rétro-compatible avec les configs v1 (accessoire → pilosité/lunettes).
@@ -35,7 +36,7 @@ export interface AvatarConfig {
 }
 
 export const OPTIONS_AVATAR = {
-  peau: ['#8D5524', '#A9713C', '#C68642', '#E0AC69', '#F1C27D'],
+  peau: ['#5C3A24', '#8D5524', '#A9713C', '#C68642', '#E0AC69', '#F1C27D'],
   casqueStyle: ['standard', 'visiere', 'aucun'] as const,
   casque: ['#F5F0E6', '#C1502E', '#D9B382', '#6B7A3F', '#B87333', '#2B2B2E'],
   cheveux: ['court', 'afro', 'tresses', 'chauve'] as const,
@@ -112,7 +113,8 @@ export function avatarAleatoire(): AvatarConfig {
 
 export function configDepuis(config: unknown): AvatarConfig {
   if (!config || typeof config !== 'object') return AVATAR_DEFAUT;
-  const c = config as Partial<AvatarConfig> & { accessoire?: string };
+  // Le personnage du monde vivant impose son teint et ses cheveux : le même joueur dans les deux modes.
+  const c = avecApparence(config as Partial<AvatarConfig> & { accessoire?: string });
   return {
     ...AVATAR_DEFAUT,
     ...Object.fromEntries(Object.entries(c).filter(([, v]) => v !== undefined && v !== null)),

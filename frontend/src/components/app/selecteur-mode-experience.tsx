@@ -1,16 +1,23 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { adresseMonde, lieuDuMonde, pageClassique } from '@/lib/liens-modes';
 import { routeAccueilPourMode, useModeExperienceStore, type ModeExperience } from '@/lib/mode-experience-store';
 
 export function SelecteurModeExperience({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const chemin = usePathname();
   const mode = useModeExperienceStore((state) => state.mode);
   const setMode = useModeExperienceStore((state) => state.setMode);
+  const lieuMonde = useModeExperienceStore((state) => state.lieuMonde);
 
+  // On change de mode sans changer d'endroit : la banque du monde ouvre la page de la banque, les offres d'emploi
+  // ouvrent l'Agence des talents dans le monde.
   function choisir(prochainMode: ModeExperience) {
     setMode(prochainMode);
-    router.push(routeAccueilPourMode(prochainMode));
+    const dansLeMonde = chemin?.startsWith('/app/monde');
+    if (prochainMode === 'classique') router.push(dansLeMonde && lieuMonde ? pageClassique(lieuMonde) : routeAccueilPourMode('classique'));
+    else router.push(dansLeMonde ? routeAccueilPourMode('monde') : adresseMonde(lieuDuMonde(chemin)));
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
 import type * as THREE from 'three';
 import { angleEcran, distance, distanceLisible, type Point2 } from '@/lib/minicarte';
+import { AvatarBtp } from './avatar-btp';
 
 /** Icônes du HUD : un seul trait, couleur héritée du texte. */
 function Svg({ children, taille = 18 }: { children: ReactNode; taille?: number }) {
@@ -30,9 +31,13 @@ export const ICONES = {
 const COULEURS_HUMEUR = { bien: '#4CC3A5', moyen: '#E8B04A', mal: '#E2653C' } as const;
 
 /** Médaillon du bâtisseur : initiale, anneau d'expérience vers le niveau suivant, niveau, humeur et ressources. */
-export function CarteJoueur({ nom, poste, niveau, progression, argent, reputation, humeur, etatSauvegarde, compacte = false }: {
+export function CarteJoueur({ nom, poste, niveau, progression, argent, reputation, humeur, etatSauvegarde, compacte = false, portrait, onPortrait }: {
   nom: string; poste: string; niveau: number; progression: number; argent?: number; reputation?: number;
   humeur: keyof typeof COULEURS_HUMEUR; etatSauvegarde: { libelle: string; couleur: string }; compacte?: boolean;
+  /** Configuration de l'avatar du mode classique : le même visage dans les deux modes (l'initiale tant qu'elle charge). */
+  portrait?: unknown;
+  /** Toucher le portrait ouvre le choix du personnage. */
+  onPortrait?: () => void;
 }) {
   const rayon = 25, tour = 2 * Math.PI * rayon;
   return <div className={`hud-verre pointer-events-auto flex min-w-0 max-w-full items-center ${compacte ? 'gap-2.5 p-1.5 pr-3' : 'gap-3 p-2 pr-4'}`}>
@@ -42,7 +47,11 @@ export function CarteJoueur({ nom, poste, niveau, progression, argent, reputatio
         <circle cx="29" cy="29" r={rayon} fill="none" stroke="rgb(251 245 234 / .12)" strokeWidth="4" />
         <circle cx="29" cy="29" r={rayon} fill="none" stroke="url(#hud-or-xp)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${tour * progression / 100} ${tour}`} className="transition-[stroke-dasharray] duration-700" />
       </svg>
-      <span className={`hud-titre absolute flex items-center justify-center rounded-full bg-[radial-gradient(circle_at_32%_25%,#F29467,#B4452A_72%)] text-white shadow-[inset_0_-3px_8px_rgb(0_0_0/.25)] ${compacte ? 'inset-[6px] text-[16px]' : 'inset-[7px] text-[20px]'}`}>{(nom.trim()[0] ?? 'B').toUpperCase()}</span>
+      {portrait === undefined
+        ? <span className={`hud-titre absolute flex items-center justify-center rounded-full bg-[radial-gradient(circle_at_32%_25%,#F29467,#B4452A_72%)] text-white shadow-[inset_0_-3px_8px_rgb(0_0_0/.25)] ${compacte ? 'inset-[6px] text-[16px]' : 'inset-[7px] text-[20px]'}`}>{(nom.trim()[0] ?? 'B').toUpperCase()}</span>
+        : <button type="button" onClick={onPortrait} disabled={!onPortrait} aria-label="Changer de personnage" title="Changer de personnage" className={`absolute overflow-hidden rounded-full ring-1 ring-white/20 ${compacte ? 'inset-[6px]' : 'inset-[7px]'}`}>
+          <AvatarBtp config={portrait} taille={compacte ? 34 : 44} className="!h-full !w-full !rounded-full" />
+        </button>}
       <span className={`hud-chiffre absolute -bottom-1 -right-1 flex items-center justify-center rounded-full border-2 border-jeu-nuit bg-[linear-gradient(180deg,#F3C66A,#D89A2C)] px-1 text-[#2A1C0E] ${compacte ? 'h-5 min-w-5 text-[10px]' : 'h-[22px] min-w-[22px] text-[11px]'}`}>{niveau}</span>
       <span className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-jeu-nuit" style={{ backgroundColor: COULEURS_HUMEUR[humeur] }} title="Humeur" />
       <span className="sr-only">Niveau {niveau}, {progression} % vers le niveau {niveau + 1}</span>

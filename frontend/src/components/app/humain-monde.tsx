@@ -8,15 +8,19 @@ import { BlocsInstances } from './blocs-instances';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
 import { PersonnageStylise, type PersonnageStyliseProps } from './personnage-stylise';
 import { PersonnageRealiste } from './personnage-realiste';
-import { modeleRealiste } from '@/lib/personnages-realistes';
+import { modeleRealiste, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { identiteDepuisNom } from '@/lib/identites-personnages';
 
 /** De près, le personnage photoréaliste animé (Rocketbox) ; au loin et pendant son chargement, la version stylisée,
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-export function HumainMonde({ allure, sansCasque, ...props }: PersonnageStyliseProps & { allure?: number; sansCasque?: boolean }) {
-  const modele = modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
+export function HumainMonde({ allure, sansCasque, modele: modeleChoisi, ...props }: PersonnageStyliseProps & {
+  allure?: number; sansCasque?: boolean;
+  /** Modèle réaliste imposé (le personnage choisi par le joueur) ; sinon, déduit de l'identité ou de la variante. */
+  modele?: ModeleRealiste;
+}) {
+  const modele = modeleChoisi ?? modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);
   const detaille = useRef<boolean | null>(null);

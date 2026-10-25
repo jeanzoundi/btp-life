@@ -24,6 +24,7 @@ import { PanneauModesJeu } from './panneau-modes-jeu';
 import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
+import { useModeExperienceStore } from '@/lib/mode-experience-store';
 import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
 import { besoinCritique, humeurDepuisBesoins, type Humeur } from './besoins';
 import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
@@ -50,6 +51,7 @@ import { PanneauChantiers, PanneauCompetences, PanneauEpargne, PanneauLogiciels,
 import { InterieurLieuProgramme } from './interieur-lieu-programme';
 import { PanneauxLieu, useProgrammesLieux } from './programmes-lieux';
 import { appliquerArticle, prixArticle, type ArticleCarte, type OptionsArticle } from '@/lib/lieux-vie';
+import { ChoixPersonnage, lireChoixDemo, useEnregistrerPersonnage, type ChoixPersonnageJoueur } from './choix-personnage';
 import { LieuAzur } from './lieu-azur';
 import { LieuCafe } from './lieu-cafe';
 import { LieuGalerie } from './lieu-galerie';
@@ -58,6 +60,9 @@ import { LieuMarche } from './lieu-marche';
 import { LieuMarina } from './lieu-marina';
 import { LieuSport } from './lieu-sport';
 import { LieuUniversite } from './lieu-universite';
+import { FournisseurPersonnage, HumainJoueur } from './personnage-joueur';
+import { personnageChoisi, personnageDe, personnageProche } from '@/lib/personnages-joueur';
+import { LIEUX_MONDE } from '@/lib/liens-modes';
 import type { ConsommationLieu } from './service-lieu';
 import { appliquerEffet } from '@/lib/objets-interieurs';
 import { POLICES_JEU } from '@/lib/polices-jeu';
@@ -81,27 +86,27 @@ interface Batiment3D {
 }
 
 const BATIMENTS: Batiment3D[] = [
-  { slug: 'universite', nom: 'Université BTP', href: '/app/academie', position: [-29, 4, -23], taille: [17, 8, 12], couleur: '#d8c092', type: 'campus' },
-  { slug: 'entreprise', nom: 'Tour BTP Life', href: '/app/entreprise', position: [29, 9, -24], taille: [13, 18, 11], couleur: '#53677a', type: 'tour' },
-  { slug: 'chantier', nom: 'Grand chantier', href: '/app/chantiers', position: [31, 2, 22], taille: [21, 4, 15], couleur: '#d97706', type: 'chantier' },
-  { slug: 'residence', nom: 'Résidence Lagune', href: '/app/lieu/residence', position: [-31, 4, 22], taille: [15, 8, 12], couleur: '#b45309', type: 'maison' },
-  { slug: 'maquis', nom: 'Le Maquis', href: '/app/lieu/maquis', position: [-11, 2.3, 31], taille: [10, 4.6, 8], couleur: '#be563c', type: 'commerce' },
-  { slug: 'cafe', nom: 'Café social', href: '/app/lieu/cafe', position: [10, 2.3, -34], taille: [10, 4.6, 8], couleur: '#6b7a3f', type: 'commerce' },
-  { slug: 'banque', nom: 'Banque BTL', href: '/app/lieu/banque', position: [-41, 4, -1], taille: [12, 8, 10], couleur: '#d6bd75', type: 'campus' },
-  { slug: 'fournisseur', nom: 'Dépôt matériaux', href: '/app/fournisseur', position: [42, 3.5, -1], taille: [14, 7, 11], couleur: '#8e785e', type: 'commerce' },
-  { slug: 'mairie', nom: 'Hôtel de ville', href: '/app/lieu/mairie', position: [-26, 4.5, -91], taille: [18, 9, 13], couleur: '#d8ccb2', type: 'campus' },
-  { slug: 'laboratoire', nom: 'Laboratoire des matériaux', href: '/app/lieu/laboratoire', position: [28, 3, -91], taille: [16, 6, 12], couleur: '#98b8ae', type: 'campus' },
-  { slug: 'bureau-etudes', nom: 'Maison des ingénieurs', href: '/app/competences', position: [0, 6, -114], taille: [16, 12, 10], couleur: '#6e8e99', type: 'tour' },
-  { slug: 'jardins-residence', nom: 'Résidences des Jardins', href: '/app/lieu/residence', position: [-88, 3, -33], taille: [14, 6, 12], couleur: '#d7b58b', type: 'maison' },
-  { slug: 'marche', nom: 'Marché des Jardins', href: '/app/lieu/maquis', position: [-88, 2, -58], taille: [16, 4, 10], couleur: '#b65d45', type: 'commerce' },
-  { slug: 'atelier', nom: 'Atelier de formation', href: '/app/logiciels', position: [87, 3, -33], taille: [18, 6, 12], couleur: '#b1aa82', type: 'campus' },
-  { slug: 'logistique', nom: 'Plateforme logistique', href: '/app/depot', position: [88, 3, -54], taille: [22, 6, 14], couleur: '#788d99', type: 'campus' },
-  { slug: 'agence', nom: 'Agence des talents', href: '/app/offres', position: [-88, 4.5, -88], taille: [14, 9, 12], couleur: '#a2b5a1', type: 'tour' },
-  { slug: 'construction-nord', nom: 'Chantier du Plateau', href: '/app/chantiers', position: [87, 2, -88], taille: [20, 4, 16], couleur: '#c39b64', type: 'chantier' },
-  { slug: 'centre-azur', nom: 'Centre commercial Azur', href: '/app/inventaire', position: [-84, 5, 24], taille: [28, 10, 18], couleur: '#88aeb2', type: 'commerce' },
-  { slug: 'galerie-palmiers', nom: 'Galerie des Palmiers', href: '/app/inventaire', position: [84, 4, 25], taille: [26, 8, 18], couleur: '#c0936f', type: 'commerce' },
-  { slug: 'marina', nom: 'Marina BTP Life', href: '/app/lieu/cafe', position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
-  { slug: 'sports', nom: 'Complexe sportif', href: '/app/recompenses', position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
+  { slug: 'universite', ...LIEUX_MONDE['universite'], position: [-29, 4, -23], taille: [17, 8, 12], couleur: '#d8c092', type: 'campus' },
+  { slug: 'entreprise', ...LIEUX_MONDE['entreprise'], position: [29, 9, -24], taille: [13, 18, 11], couleur: '#53677a', type: 'tour' },
+  { slug: 'chantier', ...LIEUX_MONDE['chantier'], position: [31, 2, 22], taille: [21, 4, 15], couleur: '#d97706', type: 'chantier' },
+  { slug: 'residence', ...LIEUX_MONDE['residence'], position: [-31, 4, 22], taille: [15, 8, 12], couleur: '#b45309', type: 'maison' },
+  { slug: 'maquis', ...LIEUX_MONDE['maquis'], position: [-11, 2.3, 31], taille: [10, 4.6, 8], couleur: '#be563c', type: 'commerce' },
+  { slug: 'cafe', ...LIEUX_MONDE['cafe'], position: [10, 2.3, -34], taille: [10, 4.6, 8], couleur: '#6b7a3f', type: 'commerce' },
+  { slug: 'banque', ...LIEUX_MONDE['banque'], position: [-41, 4, -1], taille: [12, 8, 10], couleur: '#d6bd75', type: 'campus' },
+  { slug: 'fournisseur', ...LIEUX_MONDE['fournisseur'], position: [42, 3.5, -1], taille: [14, 7, 11], couleur: '#8e785e', type: 'commerce' },
+  { slug: 'mairie', ...LIEUX_MONDE['mairie'], position: [-26, 4.5, -91], taille: [18, 9, 13], couleur: '#d8ccb2', type: 'campus' },
+  { slug: 'laboratoire', ...LIEUX_MONDE['laboratoire'], position: [28, 3, -91], taille: [16, 6, 12], couleur: '#98b8ae', type: 'campus' },
+  { slug: 'bureau-etudes', ...LIEUX_MONDE['bureau-etudes'], position: [0, 6, -114], taille: [16, 12, 10], couleur: '#6e8e99', type: 'tour' },
+  { slug: 'jardins-residence', ...LIEUX_MONDE['jardins-residence'], position: [-88, 3, -33], taille: [14, 6, 12], couleur: '#d7b58b', type: 'maison' },
+  { slug: 'marche', ...LIEUX_MONDE['marche'], position: [-88, 2, -58], taille: [16, 4, 10], couleur: '#b65d45', type: 'commerce' },
+  { slug: 'atelier', ...LIEUX_MONDE['atelier'], position: [87, 3, -33], taille: [18, 6, 12], couleur: '#b1aa82', type: 'campus' },
+  { slug: 'logistique', ...LIEUX_MONDE['logistique'], position: [88, 3, -54], taille: [22, 6, 14], couleur: '#788d99', type: 'campus' },
+  { slug: 'agence', ...LIEUX_MONDE['agence'], position: [-88, 4.5, -88], taille: [14, 9, 12], couleur: '#a2b5a1', type: 'tour' },
+  { slug: 'construction-nord', ...LIEUX_MONDE['construction-nord'], position: [87, 2, -88], taille: [20, 4, 16], couleur: '#c39b64', type: 'chantier' },
+  { slug: 'centre-azur', ...LIEUX_MONDE['centre-azur'], position: [-84, 5, 24], taille: [28, 10, 18], couleur: '#88aeb2', type: 'commerce' },
+  { slug: 'galerie-palmiers', ...LIEUX_MONDE['galerie-palmiers'], position: [84, 4, 25], taille: [26, 8, 18], couleur: '#c0936f', type: 'commerce' },
+  { slug: 'marina', ...LIEUX_MONDE['marina'], position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
+  { slug: 'sports', ...LIEUX_MONDE['sports'], position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
 const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
@@ -268,7 +273,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   return <group ref={ref}>
     {/* Anneau du joueur, visible même derrière un bâtiment, comme le losange. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={9} userData={{ sansOcclusion: true }}><ringGeometry args={[.62, .82, 40]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <Personnage nom={nom} marche={marche} casque variante={1} identite="batisseur" allure={4.5} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
+    <HumainJoueur nom={nom} marche={marche} casque allure={4.5} scale={1.1} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
   </group>;
 }
 
@@ -394,8 +399,26 @@ function BoutonDirection({ direction, symbole, setDirection }: { direction: Dire
 
 export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string; xp?: number; reputation?: number }
 
-export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif = false }: { nomJoueur?: string; besoins?: BesoinsJoueur; profil?: ProfilJoueur; demo?: boolean; immersif?: boolean }) {
+export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieuInitial, demo = false, immersif = false }: {
+  nomJoueur?: string; besoins?: BesoinsJoueur; profil?: ProfilJoueur;
+  /** Avatar du compte (nom, configuration du dressing et personnage choisi) ; absent pendant son chargement. */
+  avatar?: { nomPersonnage?: string; config?: unknown } | null;
+  /** Lieu à ouvrir dès l'arrivée (/app/monde?lieu=banque, depuis une page du mode classique). */
+  lieuInitial?: string | null;
+  demo?: boolean; immersif?: boolean;
+}) {
   const userId = useAuthStore((s) => s.user?.id);
+  // Le personnage du joueur : choisi au premier pas dans le monde, rangé dans le compte (ou ce navigateur en démonstration).
+  const [choixDemo, setChoixDemo] = useState<ChoixPersonnageJoueur | null>(null);
+  const [choixDemoLu, setChoixDemoLu] = useState(false);
+  useEffect(() => { if (demo) { setChoixDemo(lireChoixDemo()); setChoixDemoLu(true); } }, [demo]);
+  const idPersonnage = demo ? choixDemo?.personnage ?? null : personnageChoisi(avatar?.config);
+  const personnage = useMemo(() => personnageDe({ personnage: idPersonnage }), [idPersonnage]);
+  const nomJoueur = demo ? choixDemo?.nom || nomCompte : nomCompte;
+  const [choixPersonnageOuvert, setChoixPersonnageOuvert] = useState(false);
+  const premierChoix = demo ? choixDemoLu && !choixDemo : avatar !== undefined && !idPersonnage;
+  const enregistrerPersonnage = useEnregistrerPersonnage(demo, setChoixDemo);
+  const configPortrait = demo ? { personnage: idPersonnage } : avatar?.config;
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
@@ -411,6 +434,10 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const [meteoForcee, setMeteoForcee] = useState<Meteo | null>(null);
   const [selection, setSelection] = useState<Batiment3D | null>(null);
   const [interieur, setInterieur] = useState<Batiment3D | null>(null);
+  // Le lieu où l'on est (dedans, ou devant avec sa fiche) : la bascule vers le mode classique ouvre sa page.
+  const setLieuMonde = useModeExperienceStore((s) => s.setLieuMonde);
+  useEffect(() => { setLieuMonde(interieur?.slug ?? selection?.slug ?? null); }, [interieur?.slug, selection?.slug, setLieuMonde]);
+  useEffect(() => () => setLieuMonde(null), [setLieuMonde]);
   const lieuEnApproche = useRef<Batiment3D | null>(null);
   const [interlocuteur, setInterlocuteur] = useState<string | null>(null);
   const [relations, setRelations] = useState<Record<string, number>>({});
@@ -477,6 +504,18 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
   const pretRef = useRef(demo);
   const horlogeRef = useRef({ heure: 16, instant: Date.now(), pause: false });
   const hydratationRef = useRef(false);
+  // Arrivée depuis le mode classique : on se présente à la porte du lieu demandé et on entre.
+  const lieuDemande = useRef(lieuInitial ?? null);
+  const ouvrirLieuDemande = useCallback(() => {
+    const lieu = lieuDemande.current ? BATIMENTS.find(b => b.slug === lieuDemande.current) : undefined;
+    lieuDemande.current = null;
+    if (!lieu) return;
+    const porte: PointMonde = [lieu.position[0], THREE.MathUtils.clamp(lieu.position[2] + lieu.taille[2] / 2 + 2, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)];
+    setPositionInitiale(porte); setPositionCourante(porte);
+    setSelection(null); setInterieur(lieu);
+    if (!demo) try { window.history.replaceState(null, '', '/app/monde'); } catch { /* L'adresse reste telle quelle. */ }
+  }, [demo]);
+  useEffect(() => { if (demo) ouvrirLieuDemande(); }, [demo, ouvrirLieuDemande]);
   /** Laisse passer le temps jusqu'à une heure (le lendemain si elle est passée) : attendre l'ouverture d'un lieu, revenir le lendemain. */
   const passerA = useCallback((cible: number) => {
     horlogeRef.current = { heure: cible, instant: Date.now(), pause: horlogeRef.current.pause };
@@ -583,9 +622,10 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     horlogeRef.current = { heure: etat.heure, instant: Date.now(), pause: etat.pause };
     etatRef.current = etat;
     pretRef.current = true;
+    ouvrirLieuDemande();
     if (etat !== etatMonde) modifieRef.current = true;
     setEtatSauvegarde(isError ? 'erreur' : 'sauvegarde-ok');
-  }, [etatMonde, demo, userId, isFetchedAfterMount, isFetching, isError]);
+  }, [etatMonde, demo, userId, isFetchedAfterMount, isFetching, isError, ouvrirLieuDemande]);
   useEffect(() => {
     if (!pretRef.current) return;
     if (hydratationRef.current) { hydratationRef.current = false; return; }
@@ -841,7 +881,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     {planningOuvert && <PanneauPlanning etat={etatChantier} equipe={equipeChantier} onFermer={() => setPlanningOuvert(false)} />}
     {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={() => setRelations(r => ({ ...r, [interlocuteur]: Math.min(100, (r[interlocuteur] ?? 0) + 1) }))} onLieu={slug => { setInterlocuteur(null); setInterieur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
   </>;
-  return <div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
+  return <FournisseurPersonnage personnage={personnage}><div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
@@ -852,7 +892,8 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     {/* HUD « Lagune » : le bâtisseur et son objectif à gauche, l'heure et la minicarte à droite, le centre reste dégagé. */}
     <header className={`pointer-events-none absolute inset-x-3 z-10 flex items-start justify-between gap-3 ${hautHud}`}>
       <div className="flex min-w-0 flex-col items-start gap-2">
-        <CarteJoueur nom={nomJoueur ?? 'Bâtisseur'} poste={profil?.poste ?? 'Apprenti'} niveau={niveau} progression={progressionXp} argent={argent} reputation={reputation} humeur={humeur} etatSauvegarde={{ libelle: libelleSauvegarde, couleur: couleurSauvegarde }} compacte={!large} />
+        <CarteJoueur nom={nomJoueur ?? 'Bâtisseur'} poste={profil?.poste ?? 'Apprenti'} niveau={niveau} progression={progressionXp} argent={argent} reputation={reputation} humeur={humeur} etatSauvegarde={{ libelle: libelleSauvegarde, couleur: couleurSauvegarde }} compacte={!large}
+          portrait={configPortrait} onPortrait={() => setChoixPersonnageOuvert(true)} />
         {cap}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -876,6 +917,7 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
     {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />
+      <button type="button" onClick={() => { setOptions(false); setChoixPersonnageOuvert(true); }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">🧍 Changer de personnage · {personnage.titre}</button>
       <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
       <StatistiquesRendu />
       <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
@@ -958,5 +1000,9 @@ export function Quartier3D({ nomJoueur, besoins, profil, demo = false, immersif 
       {large ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1.5"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
     </div>
     <p role="status" className="sr-only">{libelleSauvegarde}</p>
-  </div>;
+    {(premierChoix || choixPersonnageOuvert) && <ChoixPersonnage initial={idPersonnage ?? personnageProche(avatar?.config)} nomInitial={nomJoueur ?? ''} avatarConfig={demo ? undefined : avatar?.config}
+      premierChoix={premierChoix} demo={demo} enCours={enregistrerPersonnage.isPending} erreur={enregistrerPersonnage.error ? (enregistrerPersonnage.error as Error).message || 'Enregistrement impossible pour l’instant.' : null}
+      onAnnuler={premierChoix ? undefined : () => setChoixPersonnageOuvert(false)}
+      onValider={(id, nom) => enregistrerPersonnage.mutate({ personnage: id, nom }, { onSuccess: () => { setChoixPersonnageOuvert(false); notifier(`${nom} est prêt pour les Palmiers. Le même personnage t’attend en mode classique.`, 'succes'); } })} />}
+  </div></FournisseurPersonnage>;
 }

@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Detailed, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import { IDENTITES_PERSONNAGES, identiteDepuisNom, type IdentitePersonnage, type Coiffure } from '@/lib/identites-personnages';
+import { IDENTITES_PERSONNAGES, identiteDepuisNom, type DesignPersonnage, type IdentitePersonnage, type Coiffure } from '@/lib/identites-personnages';
 import { BlocsInstances } from './blocs-instances';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
 
@@ -12,6 +12,8 @@ type V = [number, number, number];
 export interface PersonnageStyliseProps {
   variante?: number; couleur?: string; marche?: boolean; assis?: boolean; prof?: boolean;
   casque?: boolean; nom?: string; scale?: number; identite?: IdentitePersonnage;
+  /** Palette et silhouette imposées (le personnage choisi par le joueur), à la place d'une identité du jeu. */
+  design?: DesignPersonnage;
   /** Version lointaine seule (silhouette instanciée), quand le modèle détaillé est affiché ailleurs. */
   silhouette?: boolean;
 }
@@ -64,11 +66,11 @@ const MOLLET: [number, number][] = [[.066, 0], [.065, .09], [.076, .27], [.076, 
 const AVANT_BRAS: [number, number][] = [[.036, 0], [.045, .1], [.054, .2], [.051, .26]];
 
 /** Un seul modèle articulé partagé par le monde, les intérieurs et l'atelier de revue. */
-export function PersonnageStylise({ variante = 0, couleur, marche = false, assis = false, prof = false, casque = false, nom, scale = 1, identite, silhouette: seulementSilhouette = false }: PersonnageStyliseProps) {
+export function PersonnageStylise({ variante = 0, couleur, marche = false, assis = false, prof = false, casque = false, nom, scale = 1, identite, design, silhouette: seulementSilhouette = false }: PersonnageStyliseProps) {
   const i = Math.abs(Math.floor(variante));
   const reconnu = identite ?? identiteDepuisNom(nom);
-  const base = IDENTITES_PERSONNAGES[reconnu ?? (casque ? (i % 2 ? 'yao' : 'batisseur') : prof ? 'awa' : (['koffi', 'awa', 'mariam', 'fatou'] as const)[i % 4])];
-  const haut = reconnu || !couleur ? base.haut : couleur;
+  const base = design ?? IDENTITES_PERSONNAGES[reconnu ?? (casque ? (i % 2 ? 'yao' : 'batisseur') : prof ? 'awa' : (['koffi', 'awa', 'mariam', 'fatou'] as const)[i % 4])];
+  const haut = design || reconnu || !couleur ? base.haut : couleur;
   const peau = base.peau;
   const corps = useRef<THREE.Group>(null), tete = useRef<THREE.Group>(null), yeux = useRef<THREE.Group>(null), etiquette = useRef<THREE.Group>(null);
   const membres = useRef<Array<THREE.Group | null>>([]), genoux = useRef<Array<THREE.Group | null>>([]);

@@ -4,9 +4,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import type { V3 } from '@/lib/architecture-ville';
-import type { IdentitePersonnage } from '@/lib/identites-personnages';
 import type { Assise, Point } from '@/lib/navigation-plan';
-import { HumainMonde } from './humain-monde';
+import { HumainJoueur } from './personnage-joueur';
 
 // Joueur des intérieurs « à programme » (chantier, laboratoire, dépôt, mairie) : clavier relatif à la caméra,
 // trajet calculé vers un point ou un poste, caméra de trois quarts qui suit.
@@ -41,10 +40,10 @@ export function CroixDirections({ directions }: { directions: Set<Direction> }) 
 }
 
 /** Le joueur : clavier relatif à la caméra, ou trajet calculé ; à la fin du trajet vers un poste visé, on prévient. */
-export function JoueurInterieur<S extends string>({ directions, position, route, visee, onArrivee, avancer, depart, camera, identite = 'batisseur', casque = true, assise = null }: {
+export function JoueurInterieur<S extends string>({ directions, position, route, visee, onArrivee, avancer, depart, camera, casque = true, assise = null }: {
   directions: Set<Direction>; position: MutableRefObject<Point>; route: MutableRefObject<Point[]>; visee: MutableRefObject<S | null>;
   onArrivee: (s: S) => void; avancer: (p: Point, dx: number, dz: number, delta: number) => Point; depart: Point; camera: CameraSuivi;
-  identite?: IdentitePersonnage; casque?: boolean; assise?: Assise | null;
+  casque?: boolean; assise?: Assise | null;
 }) {
   const groupe = useRef<THREE.Group>(null), marcheRef = useRef(false);
   const [marche, setMarche] = useState(false);
@@ -92,6 +91,6 @@ export function JoueurInterieur<S extends string>({ directions, position, route,
   });
   return <group ref={groupe} position={[depart[0], 0, depart[1]]}>
     <mesh visible={!assise} rotation={[-Math.PI / 2, 0, 0]} position={[0, .05, 0]} renderOrder={9}><ringGeometry args={[.55, .72, 36]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <HumainMonde casque={casque} identite={identite} marche={marche} allure={3.4} assis={Boolean(assise)} />
+    <HumainJoueur casque={casque} marche={marche} allure={3.4} assis={Boolean(assise)} />
   </group>;
 }

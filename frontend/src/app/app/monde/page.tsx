@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
@@ -65,7 +67,13 @@ const LIEUX_DE_VIE = [
 ];
 
 export default function MondePage() {
+  return <Suspense fallback={<Skeleton className="h-[100dvh] min-h-[620px] w-full rounded-none" />}><Monde /></Suspense>;
+}
+
+function Monde() {
   const user = useAuthStore((s) => s.user);
+  // Depuis une page du mode classique : /app/monde?lieu=banque ouvre directement la banque.
+  const lieuInitial = useSearchParams().get('lieu');
   const modeExperience = useModeExperienceStore((s) => s.mode);
   const immersif = modeExperience === 'monde';
   const { data, isLoading } = useQuery({
@@ -95,6 +103,8 @@ export default function MondePage() {
             nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
             besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
             profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom, xp: carriere.xp, reputation: carriere.reputation } : undefined}
+            avatar={carriere ? carriere.avatar ?? null : undefined}
+            lieuInitial={lieuInitial}
             immersif={immersif}
           />
         </div>

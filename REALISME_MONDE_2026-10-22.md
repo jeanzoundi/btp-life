@@ -1,5 +1,47 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Choix du personnage et modes classique et virtuel liés (25 octobre)
+
+Ni commité ni déployé. Le serveur change (une route, sans migration) : backend d'abord.
+
+- **Choisis ton personnage** au premier pas dans le monde vivant.
+  - Sept personnages, chacun avec son propre modèle 3D réaliste :
+    - combinaison de chantier et bleu de travail, casque compris ;
+    - tailleur sombre et tenue de ville ;
+    - jean et chemise, sweat à capuche, costume.
+  - L'écran montre le personnage sur un plateau tournant (flèches ou clavier), son avatar 2D sur chaque carte, et le nom du personnage.
+  - Le personnage le plus proche de l'avatar créé à l'inscription est proposé d'abord (teint, cheveux).
+  - On le change ensuite à tout moment : en touchant son portrait dans le monde, dans les options, ou depuis l'accueil classique.
+- **Le même personnage partout** :
+  - En 3D, il est le joueur dans la ville, sur le chantier, à la résidence et dans chaque intérieur. Il garde son casque au chantier et en ville, et l'enlève dans les lieux de vie.
+  - En 2D, l'avatar du mode classique prend son teint et ses cheveux : accueil, profil, classements, portrait du monde, autres joueurs. La tenue, le casque et les accessoires restent ceux du dressing.
+  - La palette de teints de l'avatar gagne un teint foncé, celui de plusieurs modèles.
+  - Les mentors appellent le joueur par le nom choisi.
+- **Côté serveur** : `PATCH /carriere/avatar/personnage { personnage, nomPersonnage? }`.
+  - Le choix est rangé dans `Avatar.config.personnage`, sans toucher aux réglages du dressing.
+  - Un joueur sans avatar en reçoit un à son nom. La liste des personnages est validée.
+  - En démonstration, le choix reste dans le navigateur.
+- **Les deux modes, un seul jeu** :
+  - La bascule « Monde vivant / Classique » garde l'endroit. Depuis la banque du monde, le mode classique ouvre la page de la banque ; depuis les offres d'emploi, le monde vivant ouvre l'Agence des talents. Il en va de même pour la formation, les logiciels, les compétences, les chantiers, le dépôt, le dressing et les récompenses.
+  - `/app/monde?lieu=banque` ouvre directement un lieu. La page classique de chaque lieu a son bouton « Y aller dans le monde vivant ».
+  - L'accueil classique gagne une carte « Monde vivant » : le personnage avec son bouton pour le changer, et la progression dans les lieux du quartier (étape, cycles bouclés), chacun avec « Y aller ».
+  - Une seule table relie lieux et pages : les bâtiments du monde la lisent aussi. Dans la ville, la Galerie mène aux récompenses et le Centre Azur au dressing.
+- **Vérifié** :
+  - TypeScript, frontend et backend.
+  - Vitest 266/266 (48 fichiers), dont la liste des personnages identique à celle du serveur, l'avatar 2D, la table des lieux et pages, la bascule qui garde l'endroit et l'écran du choix.
+  - Jest backend 257/257.
+  - En jeu, en démonstration :
+    - l'écran du choix à la première entrée ;
+    - le passage d'un modèle à l'autre sur le plateau ;
+    - le choix « Tailleur sombre » renommé Yasmine : le joueur en tailleur dans la ville et au maquis, le portrait et le nom dans l'interface, puis le choix rouvert depuis le portrait et refermé avec Échap ;
+    - `?lieu=banque` ouvre la banque, où Fanta salue « Bonjour Yasmine ! ».
+  - La démonstration accepte aussi `?lieu=` (`/simulation-preview?lieu=marina`).
+- **Fin de la vérification en jeu des lieux du 24 octobre** :
+  - Banque : début de séance et première tâche réussie (« Sélection parfaite »).
+  - Ouverts directement et dessinés avec leur programme et leur mentor : l'agence, la Maison des ingénieurs, l'atelier, la plateforme logistique et la Tour BTP Life.
+- **Non vérifié** : en jeu avec un vrai compte, il faudrait le serveur local, qui pointe sur la base de production. Sont couverts par les tests seulement : la bascule entre modes, la carte de l'accueil et l'enregistrement du personnage.
+- **Limite** : les modèles 3D sans casque (tailleur, tenue de ville, jean, capuche, costume) n'en portent pas sur un chantier ; de loin, leur version stylisée en porte un.
+
 ## Tous les autres lieux du quartier : banque, agence, bureaux, plateforme, Tour, marché, marina, sport, commerces (24 octobre)
 
 Ni commité ni déployé. Pas de nouvelle migration, mais le serveur change (une compétence par étape, la carte des besoins étendue) : backend d'abord, frontend ensuite.
@@ -91,7 +133,7 @@ Ni commité ni déployé. Pas de nouvelle migration, mais le serveur change (une
     - Au marché, les offres affichées sont arrondies aux 25 F, comme le prix payé.
     - Le bouton de la carte dit « Réserver » pour la pirogue seulement : « Choisir » pour une activité, « Demander » pour un service, « Commander » ailleurs.
 - **Non vérifié** :
-  - En jeu, à cause de la fenêtre de l'aperçu, passée en arrière-plan (0 image par seconde) :
+  - En jeu, à cause de la fenêtre de l'aperçu, passée en arrière-plan (0 image par seconde). Les lieux ont été vérifiés le 25 octobre (voir plus haut), la carte du marché non :
     - la suite de la séance à la banque ;
     - l'agence, la Maison des ingénieurs, l'atelier, la plateforme logistique et la Tour BTP Life ;
     - la nouvelle carte du marché dans la ville.

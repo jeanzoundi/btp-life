@@ -4,6 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { adresseMonde } from '@/lib/liens-modes';
 import { lieuParSlug, type ActionLieu } from '@/lib/lieux';
 import { jouerSon } from '@/lib/sons';
 import { PanneauBesoins } from '@/components/app/besoins';
@@ -42,8 +43,8 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6">
-      <Link href="/app/monde" className="inline-flex items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
-        ← Le quartier
+      <Link href={adresseMonde(slug)} className="inline-flex items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
+        🌍 Y aller dans le monde vivant →
       </Link>
 
       {/* En-tête immersif */}
