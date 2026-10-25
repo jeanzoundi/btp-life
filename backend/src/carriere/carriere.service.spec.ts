@@ -524,6 +524,13 @@ describe('CarriereService.choisirPersonnage', () => {
     await svc.choisirPersonnage('u1', { personnage: 'tailleur' });
     expect(update).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { config: { peau: '#C68642', casque: '#C1502E', couleurTenue: '#6B7A3F', personnage: 'tailleur' } } });
   });
+  it('range la couleur du casque choisie, que lisent le portrait classique et le modèle 3D', async () => {
+    const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
+    const prisma = fakePrisma({ avatar: { findUnique: jest.fn().mockResolvedValue({ config: { casque: '#F5F0E6', couleurTenue: '#123456' } }), update } });
+    const { svc } = await service(prisma);
+    const resultat = await svc.choisirPersonnage('u1', { personnage: 'combinaison', casque: '#F2C230' });
+    expect(resultat.config).toEqual({ casque: '#F2C230', couleurTenue: '#123456', personnage: 'combinaison' });
+  });
   it('change le nom du personnage avec le choix, quand il est donné', async () => {
     const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
     const prisma = fakePrisma({ avatar: { findUnique: jest.fn().mockResolvedValue({ nomPersonnage: 'Ancien', config: null }), update } });

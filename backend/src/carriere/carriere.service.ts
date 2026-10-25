@@ -102,6 +102,7 @@ export class CarriereService {
     const config = { ...((avatar?.config as Record<string, unknown> | null) ?? {}), personnage: dto.personnage,
       ...(dto.stature !== undefined ? { stature: dto.stature } : {}),
       ...(dto.silhouette !== undefined ? { silhouette: dto.silhouette } : {}),
+      ...(dto.casque !== undefined ? { casque: dto.casque } : {}),
     } as Prisma.InputJsonValue;
     const nom = dto.nomPersonnage?.trim();
     if (avatar) return this.prisma.avatar.update({ where: { userId }, data: { config, ...(nom ? { nomPersonnage: nom } : {}) } });

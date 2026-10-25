@@ -1,5 +1,5 @@
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Length, Max, MaxLength, Min } from 'class-validator';
-import { PERSONNAGES_JOUEUR } from '../personnages';
+import { COULEURS_CASQUE, PERSONNAGES_JOUEUR } from '../personnages';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -41,6 +41,11 @@ export class ChoisirPersonnageDto {
   @IsOptional()
   @IsIn(['fine', 'standard', 'large'])
   silhouette?: string;
+
+  /** Couleur du casque, parmi celles du créateur. */
+  @IsOptional()
+  @IsIn(COULEURS_CASQUE)
+  casque?: string;
 
   @IsIn(PERSONNAGES_JOUEUR)
   personnage: string;
