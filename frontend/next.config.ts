@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // L'atelier utilise son propre cache : les autres builds ne peuvent pas invalider ses chunks.
+  distDir: process.env.BTP_ATELIER === '1' ? '.next-atelier' : '.next',
   reactStrictMode: true,
   // Ne pas divulguer la techno serveur (retire l'en-tête X-Powered-By: Next.js).
   poweredByHeader: false,

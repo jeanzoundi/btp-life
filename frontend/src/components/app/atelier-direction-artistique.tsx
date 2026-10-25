@@ -25,7 +25,7 @@ export default function AtelierDirectionArtistique() {
   return <main className="min-h-screen bg-[#f4edde] text-[#163d38]">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#173e38]/15 px-6 py-5">
       <div><p className="text-[10px] font-bold uppercase tracking-[.3em]">BTP LIFE · Atelier visuel</p><h1 className="mt-1 text-2xl font-bold">Les visages et les rues d’Abidjan</h1></div>
-      <Link href="/simulation-preview" className="rounded-full bg-[#173e38] px-5 py-3 text-sm font-bold text-[#fff8e8]">Explorer le jeu →</Link>
+      <div className="flex flex-wrap gap-2"><Link href="/personnage-studio" className="rounded-full bg-[#e89e33] px-5 py-3 text-sm font-bold">Étude de réalisme →</Link><Link href="/simulation-preview" className="rounded-full bg-[#173e38] px-5 py-3 text-sm font-bold text-[#fff8e8]">Explorer le jeu →</Link></div>
     </header>
     <div className="flex flex-wrap items-center gap-2 px-6 py-4">
       {(['personnages', 'rue'] as const).map(v => <button key={v} aria-pressed={vue === v} onClick={() => { setVue(v); setIndex(null); }} className={`rounded-full px-5 py-2 text-sm font-bold ${vue === v ? 'bg-[#e89e33] text-[#1a342c]' : 'bg-white'}`}>{v === 'personnages' ? 'Les personnages' : 'La place des Palmiers'}</button>)}
