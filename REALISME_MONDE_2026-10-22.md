@@ -1,5 +1,69 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Liaisons du jeu vérifiées, Résidences des Jardins, Chantier du Plateau et chez soi (25 octobre)
+
+Ni commité ni déployé. Le serveur change (compétences de deux lieux, deux articles « maison », sans migration) : backend d'abord.
+
+- **Liaisons vérifiées** :
+  - Chaque lien interne mène à une page qui existe, y compris les pages `/app/lieu/*` utilisées (banque, mairie, laboratoire, maquis, café, résidence).
+  - Chaque appel du frontend correspond à une route du serveur (un seul faux positif : le gabarit de l'épargne).
+- **Incohérences corrigées** :
+  - Maquis et café : plus de forfait « repas 1 200 F / sortie 900 F » sur la fiche de la ville, la page classique ni le guide. La vraie carte du monde est partout, et la page classique commande les mêmes articles au serveur.
+  - La page classique de chaque lieu à programme montre la progression dans le monde : étapes faites, étape en cours, bouton « Reprendre « … » ».
+  - Le marché n'affiche plus le texte et le repas du maquis.
+  - Les Résidences des Jardins mènent aux compétences en mode classique.
+  - Dormir le soir fait passer la nuit, depuis le lit comme depuis la fiche de la résidence.
+  - En démonstration, cuisiner et recevoir se paient comme au maquis : un solde insuffisant arrête l'action.
+- **Résidences des Jardins**, « Dépannages chez les voisins » :
+  - Avec Gustave Konan, le gardien, de 8 h à 19 h, à la semaine.
+  - Cinq étapes :
+    - la fuite sous l'évier (litres perdus) ;
+    - la prise qui chauffe (intensité, I = P / 230) ;
+    - la fissure (volume de mortier) ;
+    - l'humidité (joints) ;
+    - le devis et la facture (peinture).
+  - Le décor :
+    - trois immeubles avec balcons, linge, climatiseurs et citernes ;
+    - un jardin et son manguier, la loge du gardien, le local des compteurs ;
+    - les pannes disparaissent étape par étape : flaque, prise noircie, fissure puis rebouchage, moisissure puis aération, et l'immeuble A repeint à la fin.
+- **Chantier du Plateau**, « Inspection sécurité du chantier » :
+  - Avec Ibrahim Bamba, coordinateur SPS, de 7 h à 17 h, par visite.
+  - Cinq étapes : accueil et EPI ; échafaudage (garde-corps, charge admissible) ; tranchée (blindage, talus) ; levage (élingues) ; rapport d'inspection.
+  - Le décor :
+    - un R+3 en construction et sa grue ;
+    - un échafaudage sans une planche ni un garde-corps jusqu'à l'étape 2 ;
+    - une tranchée non blindée jusqu'à l'étape 3 ;
+    - une benne suspendue au-dessus des ouvriers jusqu'à l'étape 4 ;
+    - le panneau d'inspection passe de « EN COURS » à « CONFORME » ;
+    - le visiteur reçoit son casque après l'étape 1.
+- **Côté serveur, pour ces deux lieux** : une compétence par étape, et des séances payées par le serveur comme dans les autres lieux.
+- **Chez soi, à la Résidence Lagune** :
+  - « Services et activités » ouvre « Chez toi », avec trois onglets :
+    - la journée : le chantier de Yao d'abord, puis chaque lieu à programme, dans l'ordre des ouvertures, avec l'étape qui attend ;
+    - le vrai courrier du joueur ;
+    - la garde-robe.
+  - Dormir le soir mène à 6 h 30 et ouvre « Bonjour ! », avec le programme du jour et des conseils selon les besoins :
+    - faim : le café ;
+    - envie de voir du monde : le sport ;
+    - moral bas : la marina.
+  - Une sieste en journée repose sans sauter d'heures.
+  - Deux vrais articles du serveur, moins chers qu'au maquis et au café :
+    - cuisiner : 600 F, +55 faim ;
+    - inviter un voisin : 700 F, +35 social.
+- **Vérifié** :
+  - TypeScript, frontend et backend.
+  - Vitest 276/276 (50 fichiers), dont la table des programmes, la journée vue de chez soi, le panneau « Chez toi », les articles maison et la fiche de la ville qui prévient le monde quand on a dormi.
+  - Jest : lieux, et besoins 23/23 (articles maison compris). Suite complète 257/258 sur une machine chargée : le hachage argon2 de `auth.service.spec` dépasse son délai, et ce fichier passe seul (13/13).
+  - En jeu, en démonstration :
+    - Jardins : séance complète de l'étape 1 (bonne décision, calcul 2 880 L, bilan 100/100, +2 000 F, +50 XP), puis « la prise qui chauffe » annoncée pour le lendemain ;
+    - Plateau : décor, Ibrahim casqué, début de séance, EPI cochés (« Sélection parfaite ») ;
+    - chez soi : panneau « Chez toi » ;
+    - nuit dans le lit à 19 h 41 : réveil « Bonjour ! », les Jardins à l'étape 2/5 ;
+    - « Dormir » depuis la fiche à 20 h 22 : réveil à 6 h 30 ;
+    - cuisiner : 150 000 → 149 400 F, faim 64 → 100, moral +2 ;
+    - aucune nouvelle erreur dans la console.
+- **Non vérifié** : en jeu avec un vrai compte, il faudrait le serveur local, qui pointe sur la base de production. Sont couverts par les tests seulement : les séances payées des deux lieux, le courrier et les articles maison passés par le serveur.
+
 ## Choix du personnage et modes classique et virtuel liés (25 octobre)
 
 Ni commité ni déployé. Le serveur change (une route, sans migration) : backend d'abord.

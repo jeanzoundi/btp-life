@@ -90,11 +90,11 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   },
   '/app/lieu/maquis': {
     titre: 'Le Maquis',
-    texte: "Un bon plat et ta faim repart au max ! Cela coûte 1 200 FCFA virtuels, mais un ventre vide, c'est moins d'XP sur tes missions — l'investissement en vaut la peine.",
+    texte: "Choisis sur la carte, du garba à 1 000 F au poulet braisé à 3 500 F : un ventre vide, c'est moins d'XP sur tes missions. Dans le monde vivant, mange à midi à la table des collègues du chantier : ça compte aussi pour le social.",
   },
   '/app/lieu/cafe': {
     titre: 'Le Café',
-    texte: "Viens discuter pour refaire le plein de social, pour 900 FCFA virtuels. Un personnage bien entouré travaille mieux — et c'est ici que se tisse ton réseau de bâtisseurs.",
+    texte: "Un café noir à 300 F te réveille, une tournée pour la table te fait des amis. Un personnage bien entouré travaille mieux : dans le monde vivant, la table du réseau t'attend à midi et après 17 h.",
   },
   '/app/lieu/residence': {
     titre: 'Ta Résidence',

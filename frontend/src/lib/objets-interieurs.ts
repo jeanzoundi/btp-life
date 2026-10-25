@@ -21,6 +21,8 @@ export interface ActionObjet {
   pose: PoseObjet;
   /** Sans besoin serveur, l'action est un moment de vie : animation et message, sans effet sur les jauges. */
   besoin?: BesoinServeur;
+  /** Article de la carte du serveur (prix et effets réels, ARTICLES_MAISON) plutôt que l'ancien tarif unique du besoin. */
+  article?: string;
   message: string;
 }
 
@@ -42,19 +44,19 @@ const NORD = Math.PI, EST = Math.PI / 2, SUD = 0;
 export const OBJETS_RESIDENCE: ObjetInterieur[] = [
   { id: 'lit', nom: 'Lit double', acces: { x: -2.15, z: -2.6 }, usage: { x: -3.5, z: -1.95, y: .82, rotation: 0 }, regard: -EST,
     zone: { x: PLAN.lit.x, z: PLAN.lit.z, largeur: PLAN.lit.largeur, profondeur: PLAN.lit.profondeur, hauteur: .9 },
-    actions: [{ id: 'dormir', label: 'Dormir', icone: '😴', duree: 9, pose: 'allonge', besoin: 'repos', message: 'Bonne nuit… Tu te réveilles reposé(e).' }] },
+    actions: [{ id: 'dormir', label: 'Dormir (la nuit passe jusqu’à 6 h 30)', icone: '😴', duree: 9, pose: 'allonge', besoin: 'repos', message: 'Bonne nuit… Tu te réveilles reposé(e).' }] },
   { id: 'canape', nom: 'Canapé', acces: { x: -1.95, z: 2.2 }, usage: { x: -3.4, z: 2.15, y: .1, rotation: SUD }, regard: -EST,
     zone: { x: PLAN.canape.x, z: PLAN.canape.z, largeur: PLAN.canape.largeur, profondeur: PLAN.canape.profondeur, hauteur: 1.1 },
     actions: [
       { id: 'tele', label: 'Regarder la télévision', icone: '📺', duree: 6, pose: 'assis', message: 'Un bon match à la télé : tu souffles un peu.' },
-      { id: 'voisin', label: 'Inviter un voisin', icone: '🍹', duree: 7, pose: 'assis', besoin: 'social', message: 'Ton voisin est passé : vous avez bien discuté.' },
+      { id: 'voisin', label: 'Inviter un voisin', icone: '🍹', duree: 7, pose: 'assis', besoin: 'social', article: 'voisin-maison', message: 'Ton voisin est passé : vous avez bien discuté.' },
     ] },
   { id: 'table', nom: 'Table et chaise', acces: { x: 2.5, z: 1.2 }, usage: { x: 2.5, z: 1.55, y: 0, rotation: SUD }, regard: SUD,
     zone: { x: PLAN.repas.x, z: PLAN.repas.z, largeur: PLAN.repas.largeur, profondeur: PLAN.repas.profondeur, hauteur: .95 },
     actions: [{ id: 'plans', label: 'Étudier tes plans', icone: '📐', duree: 6, pose: 'assis', message: 'Tu revois tranquillement les plans du prochain chantier.' }] },
   { id: 'cuisine', nom: 'Cuisinière', acces: { x: 3.95, z: 3 }, regard: EST,
     zone: { x: PLAN.cuisine.x, z: PLAN.cuisine.z, largeur: PLAN.cuisine.largeur, profondeur: PLAN.cuisine.profondeur, hauteur: 1.2 },
-    actions: [{ id: 'cuisiner', label: 'Cuisiner un repas', icone: '🍳', duree: 7, pose: 'debout', besoin: 'repas', message: 'Ça sent bon ! Tu as cuisiné et bien mangé.' }] },
+    actions: [{ id: 'cuisiner', label: 'Cuisiner un repas', icone: '🍳', duree: 7, pose: 'debout', besoin: 'repas', article: 'cuisine-maison', message: 'Ça sent bon ! Tu as cuisiné et bien mangé.' }] },
   { id: 'douche', nom: 'Douche', acces: { x: 3.55, z: -2.6 }, usage: { x: 4.65, z: -3.55, y: .2, rotation: -EST }, regard: EST,
     zone: { x: PLAN.douche.x, z: PLAN.douche.z, largeur: PLAN.douche.largeur, profondeur: PLAN.douche.profondeur, hauteur: 2.2 },
     actions: [{ id: 'douche', label: 'Prendre une douche', icone: '🚿', duree: 5, pose: 'debout', message: 'Une douche fraîche, ça réveille !' }] },
@@ -66,7 +68,7 @@ const ACCUEIL: Omit<ObjetInterieur, 'actions'> = {
 };
 
 export function objetsPour(slug: string, famille: FamilleLieu | null): ObjetInterieur[] {
-  if (slug === 'residence' || slug === 'jardins-residence') return OBJETS_RESIDENCE;
+  if (slug === 'residence') return OBJETS_RESIDENCE;
   if (!famille) return [];
   if (famille === 'restauration') return [
     { ...ACCUEIL, actions: [{ id: 'commander', label: 'Commander un plat', icone: '🍛', duree: 6, pose: 'debout', besoin: 'repas', message: 'Le plat du jour était délicieux.' }] },

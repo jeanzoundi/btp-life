@@ -14,7 +14,7 @@ export const LIEUX_MONDE: Record<string, { nom: string; href: string }> = {
   mairie: { nom: 'Hôtel de ville', href: '/app/lieu/mairie' },
   laboratoire: { nom: 'Laboratoire des matériaux', href: '/app/lieu/laboratoire' },
   'bureau-etudes': { nom: 'Maison des ingénieurs', href: '/app/competences' },
-  'jardins-residence': { nom: 'Résidences des Jardins', href: '/app/lieu/residence' },
+  'jardins-residence': { nom: 'Résidences des Jardins', href: '/app/competences' },
   marche: { nom: 'Marché des Jardins', href: '/app/lieu/maquis' },
   atelier: { nom: 'Atelier de formation', href: '/app/logiciels' },
   logistique: { nom: 'Plateforme logistique', href: '/app/depot' },

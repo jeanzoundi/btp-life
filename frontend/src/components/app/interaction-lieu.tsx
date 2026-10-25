@@ -12,23 +12,31 @@ import { SPORT } from '@/lib/lieux-vie/sport';
 import type { BesoinsJoueur } from './quartier-3d';
 
 type ActionBesoin = Extract<ActionLieu, { type: 'besoin' }>;
-/** Les lieux de vie qui ont leur intérieur : leur accroche présente le lieu avant d'entrer. */
-const ACCROCHES: Record<string, string> = Object.fromEntries([MARCHE, MARINA, SPORT, AZUR, GALERIE].map(l => [l.slug, l.accroche]));
-export function InteractionLieu({ slug, nom, href, demo, onDemo, onClose, onEnter }: {
+/** Les lieux qui ont leur intérieur : leur accroche présente le lieu avant d'entrer. */
+const ACCROCHES: Record<string, string> = {
+  ...Object.fromEntries([MARCHE, MARINA, SPORT, AZUR, GALERIE].map(l => [l.slug, l.accroche])),
+  'jardins-residence': 'Une fuite, une prise qui chauffe, une fissure : Gustave, le gardien, t’envoie dépanner les voisins. Chaque réparation paie et forme une compétence.',
+  'construction-nord': 'Un immeuble en R+3 et son échafaudage : avec Ibrahim, le coordinateur sécurité, tu traques les risques un à un jusqu’au rapport d’inspection.',
+};
+export function InteractionLieu({ slug, nom, href, demo, onDemo, onFait, onClose, onEnter }: {
   slug: string; nom: string; href: string; demo: boolean;
-  onDemo: (action: ActionBesoin) => void; onClose: () => void; onEnter?: () => void;
+  onDemo: (action: ActionBesoin) => void;
+  /** Action validée par le serveur (dormir le soir fait passer la nuit, par exemple). */
+  onFait?: (action: ActionBesoin) => void;
+  onClose: () => void; onEnter?: () => void;
 }) {
   const client = useQueryClient();
-  const alias: Record<string, string> = { 'jardins-residence': 'residence' };
+  const alias: Record<string, string> = {};
   const lieu = lieuParSlug(alias[slug] ?? slug);
   const agir = useMutation({
     mutationFn: (action: ActionBesoin) => api.post<{ message: string; carriere: BesoinsJoueur; coutPaye: number }>(`/carriere/besoins/${action.besoin}`),
-    onSuccess: (res) => {
+    onSuccess: (res, action) => {
       client.setQueryData(['carriere', 'me'], (ancienne: Record<string, unknown> | undefined) => ({ ...ancienne, ...res.carriere }));
       client.invalidateQueries({ queryKey: ['carriere', 'me'] });
+      onFait?.(action);
     },
   });
-  const roles: Record<string, string> = { universite: 'Formation et compétences', entreprise: 'Votre entreprise et vos équipes', chantier: 'Missions et gestion de chantier', fournisseur: 'Matériaux et approvisionnement', 'bureau-etudes': 'Ingénierie et compétences', atelier: 'Formation aux logiciels du métier', logistique: 'Stocks et approvisionnement', agence: 'Offres et opportunités de carrière', 'construction-nord': 'Projets de construction du Plateau', 'centre-azur': 'Boutiques, équipement et restauration', 'galerie-palmiers': 'Commerces et services du quartier', marina: 'Promenade, café et activités nautiques', sports: 'Sport, détente et récompenses', marche: 'Fruits, grillades et marchandage' };
+  const roles: Record<string, string> = { universite: 'Formation et compétences', entreprise: 'Votre entreprise et vos équipes', chantier: 'Missions et gestion de chantier', fournisseur: 'Matériaux et approvisionnement', 'bureau-etudes': 'Ingénierie et compétences', atelier: 'Formation aux logiciels du métier', logistique: 'Stocks et approvisionnement', agence: 'Offres et opportunités de carrière', 'centre-azur': 'Boutiques, équipement et restauration', 'galerie-palmiers': 'Commerces et services du quartier', marina: 'Promenade, café et activités nautiques', sports: 'Sport, détente et récompenses', marche: 'Fruits, grillades et marchandage', 'jardins-residence': 'Dépannages chez les voisins', 'construction-nord': 'Inspection sécurité du chantier' };
   return <section aria-label={`Interactions : ${nom}`} className="hud-verre absolute inset-x-3 bottom-3 z-20 mx-auto max-h-[60%] max-w-md overflow-y-auto p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[360px]">
     <div className="flex items-start justify-between gap-3"><div><p className="hud-legende text-jeu-or">Lieu sélectionné</p><h2 className="hud-titre mt-0.5 text-xl leading-tight">{nom}</h2></div><button aria-label="Fermer les interactions" onClick={onClose} className="hud-bouton hud-bouton-verre h-8 w-8 shrink-0 rounded-full text-xs">✕</button></div>
     <div className="hud-separateur mt-3" />

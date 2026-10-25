@@ -7,9 +7,11 @@ import { PLAN_BANQUE, PROGRAMME_BANQUE } from './banque';
 import { PLAN_BUREAU_ETUDES, PROGRAMME_BUREAU_ETUDES } from './bureau-etudes';
 import { PLAN_DEPOT, PROGRAMME_DEPOT } from './depot';
 import { PLAN_ENTREPRISE, PROGRAMME_ENTREPRISE } from './entreprise';
+import { PLAN_JARDINS, PROGRAMME_JARDINS } from './jardins';
 import { PLAN_LABORATOIRE, PROGRAMME_LABORATOIRE } from './laboratoire';
 import { PLAN_LOGISTIQUE, PROGRAMME_LOGISTIQUE } from './logistique';
 import { PLAN_MAIRIE, PROGRAMME_MAIRIE } from './mairie';
+import { PLAN_PLATEAU, PROGRAMME_PLATEAU } from './plateau';
 
 /** Service d'un lieu : une station du plan, toujours signalée, qui ouvre un panneau relié au serveur. */
 export type TypeServiceLieu = 'epargne' | 'offres' | 'competences' | 'chantiers' | 'marches' | 'logiciels';
@@ -25,6 +27,8 @@ export const LIEUX_PROGRAMME: Record<string, { programme: ProgrammeLieu; plan: P
   atelier: { programme: PROGRAMME_ATELIER, plan: PLAN_ATELIER, services: [{ station: 'catalogue', type: 'logiciels' }] },
   logistique: { programme: PROGRAMME_LOGISTIQUE, plan: PLAN_LOGISTIQUE, services: [{ station: 'suivi', type: 'chantiers' }] },
   entreprise: { programme: PROGRAMME_ENTREPRISE, plan: PLAN_ENTREPRISE, services: [{ station: 'marches', type: 'marches' }] },
+  'jardins-residence': { programme: PROGRAMME_JARDINS, plan: PLAN_JARDINS },
+  'construction-nord': { programme: PROGRAMME_PLATEAU, plan: PLAN_PLATEAU },
 };
 
 export const aUnProgramme = (slug: string) => slug in LIEUX_PROGRAMME;

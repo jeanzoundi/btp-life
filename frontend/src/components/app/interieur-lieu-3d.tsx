@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { articleMaison } from '@/lib/lieux-vie/maison';
 import { avancement, COUTS_BESOINS, EFFETS_DEMO, objetsPour, type ActionObjet, type BesoinServeur, type EffetBesoins, type ObjetInterieur } from '@/lib/objets-interieurs';
 import type { InteractionsInterieur, UsageObjet } from './objets-interieurs-3d';
 import { avancerInterieur, MOBILIER_INTERIEUR } from '@/lib/navigation-interieur';
@@ -35,9 +36,7 @@ const THEMES: Record<string, Theme> = {
   entreprise: { sol: '#8d999b', mur: '#dce2df', accent: '#31505c', objets: 'bureau' },
   'bureau-etudes': { sol: '#aaa79e', mur: '#e8e4d9', accent: '#486b78', objets: 'bureau' },
   chantier: { sol: '#9b907a', mur: '#c9c2b2', accent: '#e5ad32', objets: 'chantier' },
-  'construction-nord': { sol: '#9b907a', mur: '#c9c2b2', accent: '#e5ad32', objets: 'chantier' },
   residence: { sol: '#aa8968', mur: '#eadcc9', accent: '#77906a', objets: 'detente' },
-  'jardins-residence': { sol: '#aa8968', mur: '#eadcc9', accent: '#77906a', objets: 'detente' },
   maquis: { sol: '#a86d49', mur: '#efd5b5', accent: '#c8563f', objets: 'detente' },
   cafe: { sol: '#806550', mur: '#e7d4be', accent: '#73864e', objets: 'detente' },
 };
@@ -107,21 +106,29 @@ const JAUGE_BESOIN: Record<BesoinServeur, string> = { repos: 'Énergie', repas: 
 /** Ce que coûte et rapporte une action, affiché avant de la lancer. */
 function effetAction(action: ActionObjet, demo: boolean) {
   if (!action.besoin) return 'Moment de vie · sans effet sur les jauges';
+  const article = articleMaison(action.article);
+  if (article) return `${article.prix.toLocaleString('fr-FR')} F · ${Object.entries(article.effets).map(([j, n]) => `+${n} ${j === 'faim' ? 'faim' : j === 'social' ? 'social' : 'énergie'}`).join(', ')}${demo ? ' (démo)' : ''}`;
   const cout = COUTS_BESOINS[action.besoin];
   return `${cout ? `${cout.toLocaleString('fr-FR')} F` : 'Gratuit'} · ${JAUGE_BESOIN[action.besoin]} au maximum${demo ? ' (démo)' : ''}`;
 }
 
-export interface ProprietesInterieur { slug: string; nom: string; onSortir: () => void; children?: ReactNode; demo?: boolean; onDemo?: (effet: EffetBesoins) => void }
+export interface ProprietesInterieur {
+  slug: string; nom: string; onSortir: () => void; children?: ReactNode; demo?: boolean; onDemo?: (effet: EffetBesoins) => void;
+  /** Démonstration : un article de la maison payé et consommé, avec ses effets réels ; renvoie le motif d'un refus. */
+  onDemoArticle?: (article: string) => string | null;
+  /** Le joueur s'est réveillé dans son lit (la nuit peut passer). */
+  onDormi?: () => void;
+}
 
 export function InterieurLieu3D(props: ProprietesInterieur) {
   if(props.slug==='universite')return <CampusUniversitaire onSortir={props.onSortir}>{props.children}</CampusUniversitaire>;
   return <InterieurStandard {...props}/>;
 }
 
-function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo }: ProprietesInterieur) {
+function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemoArticle, onDormi }: ProprietesInterieur) {
   const directions = useMemo(() => new Set<Direction>(), []);
   const [activites, setActivites] = useState(false);
-  const residence = slug === 'residence' || slug === 'jardins-residence';
+  const residence = slug === 'residence';
   const universite = slug === 'universite';
   const bureau: TypeBureau | null = slug === 'entreprise' || slug === 'bureau-etudes' ? slug : null;
   const autreFamille = familleLieu(slug);
@@ -142,14 +149,14 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo }: Prop
   const estDemo = demo ?? !connecte;
   const client = useQueryClient();
   const agir = useMutation({
-    mutationFn: (besoin: BesoinServeur) => api.post<{ message: string; carriere: Record<string, unknown>; coutPaye: number }>(`/carriere/besoins/${besoin}`),
+    mutationFn: ({ besoin, article }: { besoin: BesoinServeur; article?: string }) => api.post<{ message: string; carriere: Record<string, unknown>; coutPaye: number }>(`/carriere/besoins/${besoin}`, article ? { article } : undefined),
     onSuccess: res => {
       client.setQueryData(['carriere', 'me'], (ancienne: Record<string, unknown> | undefined) => ({ ...ancienne, ...res.carriere }));
       client.invalidateQueries({ queryKey: ['carriere', 'me'] });
     },
   });
-  const etat = useRef({ usage, selection, estDemo, mutate: agir.mutate, onDemo });
-  etat.current = { usage, selection, estDemo, mutate: agir.mutate, onDemo };
+  const etat = useRef({ usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi });
+  etat.current = { usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi };
   const objetChoisi = objets.find(o => o.id === selection) ?? null;
   // Sur téléphone, le panneau des pièces se replie pour laisser voir (et toucher) les meubles.
   const [panneauOuvert, setPanneauOuvert] = useState(() => objets.length === 0 || typeof window === 'undefined' || window.matchMedia?.('(min-width: 640px)').matches !== false);
@@ -161,9 +168,12 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo }: Prop
   const accesAtteint = useCallback(() => {
     const u = etat.current.usage;
     if (!u || u.phase !== 'trajet') return;
+    // En démonstration aussi, l'article de la maison se paie au début : un solde insuffisant arrête tout.
+    const refus = u.action.article && etat.current.estDemo ? etat.current.onDemoArticle?.(u.action.article) : null;
+    if (refus) { setUsage(null); setRetour({ texte: refus, erreur: true }); return; }
     setUsage({ ...u, phase: 'action', debut: Date.now() });
     // Le serveur est sollicité au début : un refus (solde insuffisant…) arrête l'action tout de suite.
-    if (u.action.besoin && !etat.current.estDemo) etat.current.mutate(u.action.besoin, {
+    if (u.action.besoin && !etat.current.estDemo) etat.current.mutate({ besoin: u.action.besoin, article: u.action.article }, {
       onError: e => { setUsage(null); setRetour({ texte: e instanceof Error && e.message ? e.message : 'Action impossible. Réessaie.', erreur: true }); },
     });
   }, []);
@@ -175,9 +185,13 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo }: Prop
       if (a < 1) return;
       window.clearInterval(minuteur);
       setUsage(null);
-      const { besoin, message } = usage.action;
-      if (besoin && etat.current.estDemo) { etat.current.onDemo?.(EFFETS_DEMO[besoin]); setRetour({ texte: `${message} (démo : rien n'est sauvegardé)` }); }
-      else setRetour({ texte: besoin && COUTS_BESOINS[besoin] ? `${message} · −${COUTS_BESOINS[besoin].toLocaleString('fr-FR')} F` : message });
+      const { besoin, message, article: idArticle } = usage.action, article = articleMaison(idArticle);
+      const cout = article ? article.prix : besoin ? COUTS_BESOINS[besoin] : 0;
+      if (besoin && etat.current.estDemo) {
+        if (!(article && etat.current.onDemoArticle)) etat.current.onDemo?.(EFFETS_DEMO[besoin]);
+        setRetour({ texte: `${message} (démo : rien n'est sauvegardé)` });
+      } else setRetour({ texte: cout ? `${message} · −${cout.toLocaleString('fr-FR')} F` : message });
+      if (usage.action.id === 'dormir') etat.current.onDormi?.();
     }, 120);
     return () => window.clearInterval(minuteur);
   }, [usage]);

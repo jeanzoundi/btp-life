@@ -1,13 +1,28 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { adresseMonde } from '@/lib/liens-modes';
 import { lieuParSlug, type ActionLieu } from '@/lib/lieux';
+import { LIEUX_PROGRAMME } from '@/lib/lieux-programme';
+import { articleTropFatigant, articleUtile, effetsArticle, LIBELLES_JAUGES, type ArticleCarte, type JaugeBesoin, type LieuVie } from '@/lib/lieux-vie';
+import { CAFE } from '@/lib/lieux-vie/cafe';
+import { MAQUIS } from '@/lib/lieux-vie/maquis';
+import { useModeExperienceStore } from '@/lib/mode-experience-store';
+import type { ProgresLieuServeur } from '@/lib/programme-lieu';
 import { jouerSon } from '@/lib/sons';
 import { PanneauBesoins } from '@/components/app/besoins';
+
+// La page classique d'un lieu suit les mêmes règles que le monde vivant : la même carte au maquis et au café,
+// le même programme à la banque, à la mairie et au laboratoire.
+const CARTES: Record<string, LieuVie> = { maquis: MAQUIS, cafe: CAFE };
+const DANS_LE_MONDE: Record<string, string> = {
+  maquis: 'Dans le monde vivant, mange à la table des collègues du chantier (midi et après 17 h) : +20 de social, et la nouvelle du jour.',
+  cafe: 'Dans le monde vivant, la table du réseau se remplit à midi et après 17 h : architecte, gérant de PME, ingénieure, chacun avec ses conseils.',
+};
 
 interface CarriereMe {
   argentVirtuel: number;
@@ -39,13 +54,14 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
     );
   }
 
-  const aBesoin = lieu.actions.some((a) => a.type === 'besoin');
+  const carte = CARTES[slug];
+  const aBesoin = Boolean(carte) || lieu.actions.some((a) => a.type === 'besoin');
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6">
-      <Link href={adresseMonde(slug)} className="inline-flex items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
+      <LienMonde slug={slug} className="inline-flex items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
         🌍 Y aller dans le monde vivant →
-      </Link>
+      </LienMonde>
 
       {/* En-tête immersif */}
       <section className="overflow-hidden rounded-3xl border border-pierre bg-white">
@@ -68,6 +84,9 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
         </div>
       </section>
 
+      {carte && carriere && <CarteDuLieu lieu={carte} carriere={carriere} slug={slug} />}
+      {LIEUX_PROGRAMME[slug] && <ProgrammeDansLeMonde slug={slug} />}
+
       {/* Actions du lieu */}
       <div className="grid gap-3 sm:grid-cols-2">
         {lieu.actions.map((action, i) => (
@@ -80,6 +99,86 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
         <PanneauBesoins besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} compact />
       )}
     </div>
+  );
+}
+
+/** Un lien qui entre vraiment dans le monde vivant : mode Monde vivant, et le lieu ouvert dès l'arrivée. */
+function LienMonde({ slug, className, children }: { slug: string; className: string; children: ReactNode }) {
+  const router = useRouter();
+  const setMode = useModeExperienceStore((s) => s.setMode);
+  return <a href={adresseMonde(slug)} className={className} onClick={(e) => { e.preventDefault(); setMode('monde'); router.push(adresseMonde(slug)); }}>{children}</a>;
+}
+
+/** La carte du lieu, la même que dans le monde vivant : chaque article commandé passe par la même route serveur. */
+function CarteDuLieu({ lieu, carriere, slug }: { lieu: LieuVie; carriere: CarriereMe; slug: string }) {
+  const queryClient = useQueryClient();
+  const [retour, setRetour] = useState<{ texte: string; erreur?: boolean } | null>(null);
+  const commander = useMutation({
+    mutationFn: (article: ArticleCarte) => api.post<{ message: string; change: boolean; coutPaye: number; carriere: CarriereMe }>(`/carriere/besoins/${article.action}`, { article: article.id }),
+    onSuccess: (res) => {
+      jouerSon(res.change ? 'succes' : 'clic');
+      setRetour({ texte: res.change && res.coutPaye > 0 ? `${res.message} (−${res.coutPaye.toLocaleString('fr-FR')} F)` : res.message });
+      queryClient.setQueryData(['carriere', 'me'], (ancienne: CarriereMe | undefined) => ({ ...ancienne, ...res.carriere }));
+      queryClient.invalidateQueries({ queryKey: ['carriere', 'me'] });
+    },
+    onError: (err) => { jouerSon('echec'); setRetour({ texte: err instanceof ApiError ? err.message : 'Une erreur est survenue.', erreur: true }); },
+  });
+  const besoins = { energie: carriere.energie, faim: carriere.faim, social: carriere.social, moral: carriere.moral };
+  return (
+    <section className="rounded-2xl border-2 border-terracotta/30 bg-white p-4 sm:p-5" aria-label={`Carte : ${lieu.nom}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-lg font-bold text-graphite">La carte · {lieu.hote.nom}</h2>
+        <span className="font-mono text-sm font-semibold text-cuivre">{carriere.argentVirtuel.toLocaleString('fr-FR')} F</span>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {lieu.carte.map((a) => {
+          const utile = articleUtile(besoins, a), assez = carriere.argentVirtuel >= a.prix, fatigue = articleTropFatigant(besoins, a);
+          return (
+            <li key={a.id} className="flex items-center gap-3 rounded-xl border border-pierre px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-graphite">{a.nom}</p>
+                <p className="text-xs text-graphite/55">{a.detail}</p>
+                <p className="mt-0.5 flex flex-wrap gap-1.5 text-[11px] font-semibold text-graphite/70">
+                  {(Object.entries(effetsArticle(a)) as [JaugeBesoin, number][]).map(([j, n]) => <span key={j}>{LIBELLES_JAUGES[j].icone} {n > 0 ? '+' : '−'}{Math.abs(n)} {LIBELLES_JAUGES[j].nom}</span>)}
+                </p>
+              </div>
+              <button type="button" onClick={() => commander.mutate(a)} disabled={commander.isPending || !utile || !assez || fatigue}
+                className="shrink-0 rounded-full bg-terracotta px-4 py-2 text-xs font-semibold text-ivoire disabled:opacity-40">
+                {fatigue ? 'Trop fatigué(e)' : !utile ? 'Pas besoin' : !assez ? 'Trop cher' : `${a.prix.toLocaleString('fr-FR')} F`}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {retour && <p role={retour.erreur ? 'alert' : 'status'} className={`anim-fade-up mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold ${retour.erreur ? 'bg-terracotta/10 text-terracotta' : 'bg-olive/10 text-olive'}`}>{retour.texte}</p>}
+      {DANS_LE_MONDE[slug] && <p className="mt-3 text-xs text-graphite/60">{DANS_LE_MONDE[slug]} <LienMonde slug={slug} className="font-semibold text-terracotta">Y aller →</LienMonde></p>}
+    </section>
+  );
+}
+
+/** Le programme du lieu dans le monde vivant : où l'on en est, et l'étape à reprendre. */
+function ProgrammeDansLeMonde({ slug }: { slug: string }) {
+  const { programme } = LIEUX_PROGRAMME[slug];
+  const { data } = useQuery({
+    queryKey: ['carriere', 'lieux'], queryFn: () => api.get<Record<string, ProgresLieuServeur>>('/carriere/lieux'), staleTime: 60_000, retry: 1,
+  });
+  const faites = data?.[slug]?.etapes ?? 0, total = programme.etapes.length, cycles = data?.[slug]?.cycles ?? 0;
+  const enCours = Math.min(faites, total - 1);
+  return (
+    <section className="rounded-2xl border-2 border-terracotta/30 bg-white p-4 sm:p-5" aria-label="Programme dans le monde vivant">
+      <p className="text-xs font-semibold uppercase tracking-wide text-terracotta">Dans le monde vivant</p>
+      <h2 className="font-display text-lg font-bold text-graphite">{programme.titre} · avec {programme.mentor.nom}</h2>
+      <p className="text-xs text-graphite/55">{programme.mentor.role} · séances de {programme.horaires.ouverture} h à {programme.horaires.fermeture} h, une par jour de jeu</p>
+      <ol className="mt-3 space-y-1">
+        {programme.etapes.map((e, i) => (
+          <li key={e.id} className={`flex items-center gap-2 text-sm ${i < faites ? 'text-olive' : i === enCours ? 'font-semibold text-graphite' : 'text-graphite/45'}`}>
+            <span aria-hidden="true">{i < faites ? '✓' : i === enCours ? '→' : '·'}</span> {e.nom}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-xs text-graphite/55">{cycles ? `${cycles} ${cycles > 1 ? 'cycles bouclés' : 'cycle bouclé'} · ` : ''}Chaque étape réussie paie et forme une compétence.</p>
+      <LienMonde slug={slug} className="mt-3 inline-block rounded-full bg-terracotta px-4 py-2 text-sm font-semibold text-ivoire">Reprendre « {programme.etapes[enCours].nom} » →</LienMonde>
+    </section>
   );
 }
 

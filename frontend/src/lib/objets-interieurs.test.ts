@@ -3,6 +3,7 @@ import { appliquerEffet, avancement, COUTS_BESOINS, EFFETS_DEMO, objetsPour, OBJ
 import { cheminResidence, residenceLibre } from './plan-residence';
 import { navigationLieu } from './plan-autres-lieux';
 import { LIEUX } from './lieux';
+import { articleMaison } from './lieux-vie/maison';
 
 const ENTREE = { x: 0, z: 3.8 };
 
@@ -25,9 +26,16 @@ describe('objets interactifs des intérieurs', () => {
 
   it('reprend les coûts du serveur et du catalogue des lieux', () => {
     const cout = (slug: string) => { const a = LIEUX[slug].actions.find(x => x.type === 'besoin'); return a?.type === 'besoin' ? a.cout : undefined; };
-    expect(cout('maquis')).toBe(COUTS_BESOINS.repas);
-    expect(cout('cafe')).toBe(COUTS_BESOINS.social);
     expect(cout('residence')).toBe(COUTS_BESOINS.repos);
+    // Au maquis et au café, la vraie carte (lieux-vie) remplace l'ancien forfait.
+    expect(cout('maquis')).toBeUndefined();
+    expect(cout('cafe')).toBeUndefined();
+  });
+
+  it('fait payer la cuisine et le voisin au prix des articles maison', () => {
+    const articles = OBJETS_RESIDENCE.flatMap(o => o.actions).filter(a => a.article).map(a => a.article);
+    expect(articles.sort()).toEqual(['cuisine-maison', 'voisin-maison']);
+    for (const id of articles) expect(articleMaison(id), id).toBeDefined();
   });
 
   it('propose dormir, cuisiner et recevoir chez soi, avec un effet serveur', () => {

@@ -42,7 +42,7 @@ import {
   evenementsDuJour, FIN_DE_JOURNEE, journeeDisponible, OUVERTURE_CHANTIER, lireChantierQuartier, nouvelleJournee, phaseJournee, postesChantier, repondre, situation, tacheALaZone, tachesDisponibles,
   TITRES_PHASES, type ChantierQuartier, type ChantierSimulateur, type EtatVisuel, type Journee, type PhaseJournee, type PosteVille, type SituationTerrain, type TacheJour,
 } from '@/lib/journee-chantier';
-import { budgetRecrutement, candidats, PROGRAMME, TOTAL_JOURS, type EvaluationEquipe, type Metier, type Ouvrier } from '@/lib/programme-chantier';
+import { budgetRecrutement, PROGRAMME, TOTAL_JOURS, type EvaluationEquipe, type Ouvrier } from '@/lib/programme-chantier';
 import { LIBELLES_STATIONS, type StationChantier } from '@/lib/interieur-chantier';
 import { aUnProgramme, LIEUX_PROGRAMME, serviceA, type TypeServiceLieu } from '@/lib/lieux-programme';
 import type { BilanSeance } from '@/lib/programme-lieu';
@@ -60,6 +60,9 @@ import { LieuMarche } from './lieu-marche';
 import { LieuMarina } from './lieu-marina';
 import { LieuSport } from './lieu-sport';
 import { LieuUniversite } from './lieu-universite';
+import { PanneauChezToi, PanneauMatin } from './panneau-chez-toi';
+import { dormirJusquAuMatin, HEURE_REVEIL, programmeDuJour } from '@/lib/journee-joueur';
+import { articleMaison } from '@/lib/lieux-vie/maison';
 import { FournisseurPersonnage, HumainJoueur } from './personnage-joueur';
 import { personnageChoisi, personnageDe, personnageProche } from '@/lib/personnages-joueur';
 import { LIEUX_MONDE } from '@/lib/liens-modes';
@@ -120,10 +123,6 @@ const ANNONCES_PHASES: Record<PhaseJournee, string> = {
 };
 /** Libellé d'une tâche, figé à l'ouverture (la journée peut avancer pendant que le retour s'affiche). */
 const libelleTache = (t: TacheJour, journee: Journee) => t.type === 'epi' ? 'Équipement' : t.type === 'livraison' ? 'Réception' : t.type === 'securite' ? 'Sécurité' : `${PROGRAMME.find(e => e.id === journee.etape)?.nom ?? 'Travaux'} · jour ${journee.jourEtape}/${journee.joursEtape}`;
-const GROS_OEUVRE: Metier[] = ['Chef d’équipe', 'Maçon', 'Manœuvre', 'Ferrailleur', 'Coffreur'];
-/** Équipe du Chantier du Plateau, qu'on visite sans y travailler. */
-const EQUIPE_VISITE: Ouvrier[] = candidats(7, GROS_OEUVRE).filter(o => o.id.endsWith('-q'));
-const ETAT_VISITE = etatVisuel(11);
 const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
@@ -444,6 +443,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const parler = useCallback((nom: string) => { setDialogueLibre(false); setInterlocuteur(nom); setSelection(null); directionsRef.current.clear(); destination.current = null; }, []);
   const [plan, setPlan] = useState(false);
   const [options, setOptions] = useState(false);
+  // Au réveil, après une nuit dans son lit : le programme de la journée.
+  const [matin, setMatin] = useState(false);
   const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
@@ -521,6 +522,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     horlogeRef.current = { heure: cible, instant: Date.now(), pause: horlogeRef.current.pause };
     setHeure(cible);
   }, []);
+  /** Dormir le soir (dans son lit ou depuis la fiche de la résidence) fait passer la nuit jusqu'au réveil. */
+  const dormirLaNuit = () => { if (!dormirJusquAuMatin(heure)) return; passerA(HEURE_REVEIL); setMatin(true); };
   // Lieux à programme (laboratoire, dépôt, hôtel de ville) : une séance par jour, guidée par le mentor du lieu.
   const recompenserLieu = useCallback((bilan: BilanSeance) => {
     if (!demo) return;
@@ -742,6 +745,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const couleurSauvegarde = etatSauvegarde === 'erreur' ? '#E2653C' : etatSauvegarde === 'sauvegarde-ok' ? '#4CC3A5' : 'rgb(251 245 234 / .3)';
   const hautHud = immersif ? 'top-20' : 'top-3';
   const allerVers = (slug: string) => { const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
+  /** On sort de chez soi pour un rendez-vous de la journée : le joueur repart vers le lieu. */
+  const quitterPour = (slug: string) => { directions.clear(); setInterieur(null); allerVers(slug); };
   // Cible de l'objectif : la porte du lieu à rejoindre, ou le repère non découvert le plus proche.
   const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
   const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
@@ -945,13 +950,14 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <label className="my-3 block text-xs font-bold">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-xl border border-white/15 bg-[#2A211B] p-2.5 text-jeu-ivoire"><option className="bg-[#2A211B]">Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom} className="bg-[#2A211B]">{q.nom}</option>)}</select></label>
       {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/10 bg-white/[.03] p-2"><h3 className="text-sm font-bold text-jeu-or">{q.nom}</h3><p className="my-1 text-xs text-jeu-ivoire/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-semibold hover:bg-white/[.06]">{b.nom}<span className="hud-chiffre mt-0.5 block text-[10.5px] font-semibold text-jeu-ivoire/55">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
-    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); notifier(`${action.label} : besoin restauré (démo, non sauvegardé).`, 'succes'); }} />}
+    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); notifier(`${action.label} : besoin restauré (démo, non sauvegardé).`, 'succes'); if (action.besoin === 'repos') dormirLaNuit(); }}
+      onFait={action => { if (action.besoin === 'repos') dormirLaNuit(); }} />}
     {/* Les deux chantiers ont un vrai intérieur de chantier ; on ne travaille qu'au Grand chantier, le Chantier du Plateau se visite. */}
-    {interieur && (interieur.slug === 'chantier' || interieur.slug === 'construction-nord') ? <InterieurChantier3D
-      nomChantier={interieur.slug === 'chantier' ? nomChantier : interieur.nom} etat={interieur.slug === 'chantier' ? etatChantier : ETAT_VISITE} equipe={interieur.slug === 'chantier' ? equipeChantier : EQUIPE_VISITE}
-      journee={interieur.slug === 'chantier' ? journee : null} statut={statutJournee} postes={interieur.slug === 'chantier' ? postesInterieur : []} livraison={interieur.slug === 'chantier' ? livraisonEnCours : null}
-      demo={demo} visite={interieur.slug !== 'chantier'} onPoste={surStation} onSortir={() => sortirDuChantier(interieur.nom)} onPlanning={() => setPlanningOuvert(true)} onEchap={fermerPanneauChantier}>
-      {interieur.slug === 'chantier' && panneauxChantier}
+    {interieur && interieur.slug === 'chantier' ? <InterieurChantier3D
+      nomChantier={nomChantier} etat={etatChantier} equipe={equipeChantier}
+      journee={journee} statut={statutJournee} postes={postesInterieur} livraison={livraisonEnCours}
+      demo={demo} visite={false} onPoste={surStation} onSortir={() => sortirDuChantier(interieur.nom)} onPlanning={() => setPlanningOuvert(true)} onEchap={fermerPanneauChantier}>
+      {panneauxChantier}
       {pileInterieur}
     </InterieurChantier3D>
     : interieur && aUnProgramme(interieur.slug) ? <InterieurLieuProgramme key={interieur.slug} nom={interieur.nom} href={interieur.href} programme={LIEUX_PROGRAMME[interieur.slug].programme} plan={LIEUX_PROGRAMME[interieur.slug].plan}
@@ -987,12 +993,25 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuAzur>
     : interieur && interieur.slug === 'galerie-palmiers' ? <LieuGalerie demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={passerA}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuGalerie>
-    : interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
-      <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
-        const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
-        setDemoStats(s => ({ ...s, [cible]: 100 }));
-      }} />
+    : interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))}
+      onDemoArticle={id => {
+        const article = articleMaison(id);
+        if (!article) return null;
+        if (progresDemo.argent < article.prix) return `Pas assez d’argent : ${article.prix.toLocaleString('fr-FR')} F requis.`;
+        setProgresDemo(p => ({ ...p, argent: p.argent - article.prix }));
+        setDemoStats(s => appliquerArticle(s, article));
+        return null;
+      }}
+      onDormi={dormirLaNuit} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
+      {interieur.slug === 'residence'
+        ? <PanneauChezToi demo={demo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))} onAller={quitterPour} />
+        : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
+          const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
+          setDemoStats(s => ({ ...s, [cible]: 100 }));
+        }} />}
     </InterieurLieu3D>}
+    {matin && <PanneauMatin heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))}
+      onAller={slug => { setMatin(false); quitterPour(slug); }} onFermer={() => setMatin(false)} />}
     {/* Bas d'écran : besoins, rappel des commandes sur grand écran, croix de déplacement sur téléphone. */}
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3">
       <JaugesBesoins besoins={stats} compacte={!large} />

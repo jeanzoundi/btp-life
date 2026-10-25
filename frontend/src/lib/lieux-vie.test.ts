@@ -5,6 +5,7 @@ import { CAFE, conseilsObtenus, conversationDu, niveauRelation, POINTS_RELATION,
 import { BOUTIQUE_DE, BOUTIQUES, GALERIE } from './lieux-vie/galerie';
 import { COLLEGUES_PRESENTS, MAQUIS, NOUVELLES, nouvelleDuRepas } from './lieux-vie/maquis';
 import { ETALS, MARCHE, proposer, seuilVendeuse } from './lieux-vie/marche';
+import { ARTICLES_MAISON } from './lieux-vie/maison';
 import { MARINA, PONTONS, STATION_MARINA, surLeTour, TOUR_PIROGUE } from './lieux-vie/marina';
 import { butMarque, coinAdverse, issueTirs, PARCOURS_MATCH, scoreDuMatch, SPORT, STATION_SPORT, TOUR_FOOTING } from './lieux-vie/sport';
 import { creerNavigation, type Point } from './navigation-plan';
@@ -37,6 +38,10 @@ describe('lieux de vie', () => {
       coiffure: 'social 1500', 'credit-telephone': 'social 500', pressing: 'social 1000', patisserie: 'repas 800',
     });
     expect(LIEUX.flatMap(l => l.carte).filter(a => a.moralPrincipal).map(a => a.id).sort()).toEqual(['coiffure', 'footing', 'match-foot', 'musculation', 'pirogue', 'pressing']);
+  });
+  it('chez soi, cuisiner et recevoir coûtent les prix du serveur, moins chers qu’au maquis et au café', () => {
+    expect(ARTICLES_MAISON.map(a => `${a.id} ${a.action} ${a.prix}`)).toEqual(['cuisine-maison repas 600', 'voisin-maison social 700']);
+    expect(ARTICLES_MAISON[0].prix).toBeLessThan(MAQUIS.carte.find(a => a.id === 'garba')!.prix);
   });
   it('le sport fatigue mais remonte le moral ; à bout de forces, il est refusé', () => {
     const match = SPORT.carte.find(a => a.id === 'match-foot')!;

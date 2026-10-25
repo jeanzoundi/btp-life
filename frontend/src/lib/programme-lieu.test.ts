@@ -144,6 +144,7 @@ describe('séances et progression', () => {
   it('compte autant d’étapes que le serveur (ETAPES_LIEUX, backend/src/carriere/lieux.service.ts)', () => {
     expect(Object.fromEntries(Object.entries(LIEUX_PROGRAMME).map(([slug, { programme }]) => [slug, programme.etapes.length]))).toEqual({
       laboratoire: 7, fournisseur: 5, mairie: 6, banque: 5, agence: 5, 'bureau-etudes': 6, atelier: 5, logistique: 5, entreprise: 5,
+      'jardins-residence': 5, 'construction-nord': 5,
     });
   });
   it('relie chaque service de lieu à une station de son plan', () => {
