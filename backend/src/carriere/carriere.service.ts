@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, ChoisirPersonnageDto } from './dto/carriere.dto';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
 import { xpRequisPourNiveau } from './progression.service';
@@ -88,6 +88,17 @@ export class CarriereService {
       create: { userId, ...data },
       update: data,
     });
+  }
+
+  /** Personnage du monde vivant : fusionné dans la configuration d'avatar, sans toucher au dressing ni aux couleurs
+   * choisies à l'inscription. Un joueur sans avatar en reçoit un, à son nom. */
+  async choisirPersonnage(userId: string, dto: ChoisirPersonnageDto) {
+    const avatar = await this.prisma.avatar.findUnique({ where: { userId } });
+    const config = { ...((avatar?.config as Record<string, unknown> | null) ?? {}), personnage: dto.personnage } as Prisma.InputJsonValue;
+    const nom = dto.nomPersonnage?.trim();
+    if (avatar) return this.prisma.avatar.update({ where: { userId }, data: { config, ...(nom ? { nomPersonnage: nom } : {}) } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { pseudo: true, nom: true } });
+    return this.prisma.avatar.create({ data: { userId, nomPersonnage: nom || user?.pseudo || user?.nom || 'Bâtisseur', config } });
   }
 
   async setProfilActuel(userId: string, dto: SetProfilActuelDto) {

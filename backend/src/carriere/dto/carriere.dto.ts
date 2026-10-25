@@ -1,4 +1,5 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Length, Max, MaxLength, Min } from 'class-validator';
+import { PERSONNAGES_JOUEUR } from '../personnages';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -29,6 +30,17 @@ export class UpdateAvatarDto {
 export class EquiperItemAvatarDto {
   @IsString()
   itemId: string;
+}
+
+/** Choix du personnage au début du monde vivant (ou plus tard) : le nom du personnage peut changer en même temps. */
+export class ChoisirPersonnageDto {
+  @IsIn(PERSONNAGES_JOUEUR)
+  personnage: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 24)
+  nomPersonnage?: string;
 }
 
 export class SetProfilActuelDto {

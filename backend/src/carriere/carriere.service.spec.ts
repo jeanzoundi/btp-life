@@ -496,6 +496,35 @@ describe('CarriereService.upsertAvatar', () => {
   });
 });
 
+describe('CarriereService.choisirPersonnage', () => {
+  it('range le personnage dans la configuration, sans effacer le dressing ni le nom', async () => {
+    const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
+    const prisma = fakePrisma({
+      avatar: { findUnique: jest.fn().mockResolvedValue({ nomPersonnage: 'Kouassi', config: { peau: '#C68642', casque: '#C1502E', couleurTenue: '#6B7A3F' } }), update },
+    });
+    const { svc } = await service(prisma);
+    await svc.choisirPersonnage('u1', { personnage: 'tailleur' });
+    expect(update).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { config: { peau: '#C68642', casque: '#C1502E', couleurTenue: '#6B7A3F', personnage: 'tailleur' } } });
+  });
+  it('change le nom du personnage avec le choix, quand il est donné', async () => {
+    const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
+    const prisma = fakePrisma({ avatar: { findUnique: jest.fn().mockResolvedValue({ nomPersonnage: 'Ancien', config: null }), update } });
+    const { svc } = await service(prisma);
+    await svc.choisirPersonnage('u1', { personnage: 'jean', nomPersonnage: '  Yasmine  ' });
+    expect(update).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { config: { personnage: 'jean' }, nomPersonnage: 'Yasmine' } });
+  });
+  it('crée l’avatar au nom du joueur s’il n’en avait pas encore', async () => {
+    const create = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
+    const prisma = fakePrisma({
+      avatar: { findUnique: jest.fn().mockResolvedValue(null), create },
+      user: { findUnique: jest.fn().mockResolvedValue({ pseudo: null, nom: 'Awa Koné' }) },
+    });
+    const { svc } = await service(prisma);
+    await svc.choisirPersonnage('u1', { personnage: 'combinaison' });
+    expect(create).toHaveBeenCalledWith({ data: { userId: 'u1', nomPersonnage: 'Awa Koné', config: { personnage: 'combinaison' } } });
+  });
+});
+
 describe('CarriereService.streak', () => {
   it("compte les jours consécutifs jusqu'à aujourd'hui quand une mission a déjà été terminée aujourd'hui", async () => {
     const aujourdhui = new Date();

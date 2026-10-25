@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
@@ -89,6 +89,11 @@ export class CarriereController {
   @Patch('avatar')
   avatar(@CurrentUser() user: RequestUser, @Body() dto: UpdateAvatarDto) {
     return this.carriereService.upsertAvatar(user.userId, dto);
+  }
+
+  @Patch('avatar/personnage')
+  choisirPersonnage(@CurrentUser() user: RequestUser, @Body() dto: ChoisirPersonnageDto) {
+    return this.carriereService.choisirPersonnage(user.userId, dto);
   }
 
   @Get('avatar/dressing')
