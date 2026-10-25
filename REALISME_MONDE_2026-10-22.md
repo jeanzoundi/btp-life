@@ -1,5 +1,43 @@
 # Monde 3D — style « carnet » et réalisme des personnages et de la ville (22 octobre 2026)
 
+## Besoins au rythme du monde, hygiène, loisirs et humeurs (25 octobre)
+
+Chantier n° 1 de la comparaison avec GTA et Les Sims. Ni commité ni déployé. Le serveur change avec une migration (deux colonnes) : backend d'abord (`prisma migrate deploy` en mode session, port 5432), puis le frontend.
+
+- **Le temps du monde fait baisser les besoins.**
+  - Pendant qu'on joue dans le monde, chaque heure de jeu (une minute réelle à ×1) compte : énergie −4, faim −6, social −3, moral −1, hygiène −4, loisirs −4.
+  - Le jeu déclare ces heures au serveur par heures entières (`POST /carriere/temps-monde`, 24 h au plus par appel) et affiche le déclin entre deux déclarations. La démonstration fait le même calcul seule.
+  - Attendre l'ouverture d'un lieu, finir une journée de chantier ou regarder la télé fait passer le temps, et les besoins baissent avec lui.
+  - Pendant le sommeil, l'énergie ne baisse pas et le reste baisse deux fois moins vite. Le soir, le lit fait passer la nuit jusqu'à 6 h 30 ; le jour, c'est une sieste de 2 h (+35 énergie), depuis le lit comme depuis la fiche de la résidence.
+  - Hors du monde (mode classique, absence), le déclin en temps réel continue comme avant. L'horloge du monde avance hors ligne, mais ce temps-là ne compte pas pour les besoins.
+  - Correction : le déclin en temps réel se perdait dans les arrondis à chaque lecture (un moral à 1 point par heure ne baissait jamais pour un joueur qui recharge souvent). Il compte désormais par heures entières.
+- **Deux nouveaux besoins.**
+  - **Hygiène** : la douche de l'appartement (gratuite) la remet à 100. Le sport fait transpirer (match −25, musculation −20, footing −15) ; le coiffeur et le pressing rafraîchissent.
+  - **Loisirs** (divertissement) : la télé de l'appartement (gratuite, une heure de jeu, +30), la pirogue (+45), le match (+35), la tournée au café, la glace, les brochettes face à la lagune…
+  - En mode classique : « Se doucher » (gratuit) et « Se divertir » (800 F). La fiche de la résidence gagne « Prendre une douche ».
+  - Les alertes, l'objectif du moment, la bulle de pensée et les conseils du matin tiennent compte des deux jauges : la douche se prend chez soi sans trajet, les loisirs mènent au complexe sportif ou à la marina.
+- **Les humeurs.**
+  - Au-dessus des jauges : l'humeur du moment et la forme.
+  - Une humeur par jauge très haute (« Bien reposé(e) », « Frais et dispo »…) ou très basse (« Affamé(e) », « Pas très frais », « S'ennuie »…), les difficultés d'abord.
+  - La forme est le facteur appliqué aux gains d'XP : de 70 % à 100 % selon la moyenne des six jauges, et 5 % de plus en pleine forme (toutes les jauges à 70 ou plus).
+- **Vérifié** (sur l'arbre de travail actuel, qui contient aussi le travail en cours de l'autre outil sur le personnage) :
+  - TypeScript, frontend et backend.
+  - Vitest 301/301 (55 fichiers), dont :
+    - le déclin et la forme, miroirs du serveur ;
+    - le compte des heures de jeu (une journée jouée pas à pas déclare ses 24 heures sans rien perdre) ;
+    - les meubles de la maison et la fiche de la résidence.
+  - Jest 276/276 (19 suites), dont le temps du monde, le sommeil, les bornes, la douche, la soirée détente, la sieste, le sport qui fait transpirer, la forme et le déclin réel par heures entières.
+  - `npm run test:migrations` : toutes les migrations rejouées depuis zéro, puis le seed complet. Un premier essai est resté bloqué au démarrage du Postgres embarqué (souci d'environnement) ; le second passe. Le SQL écrit à la main est identique à celui que Prisma attend.
+  - En jeu, en démonstration :
+    - les six jauges et la ligne d'humeur (« Ça va · Forme 90 % ») ; de 16 h à 17 h 40, la faim passe de 64 à 54 ;
+    - la douche remet l'hygiène à 99 (100 moins les minutes passées depuis) ;
+    - la sieste à 18 h 30 : énergie 69 → 96, et l'horloge avance de 2 h ;
+    - la télé : loisirs 50 → 73, et une heure passe ;
+    - la nuit à 22 h 49 : réveil « Bonjour ! Il est 6 h 30 », énergie 97, faim 4, humeur « Affamé(e) · Forme 87 % », conseil du café et objectif « Mange au maquis » ;
+    - la fiche de la résidence en journée propose « Faire une sieste (2 h) » et « Prendre une douche » ;
+    - aucune erreur dans la console.
+- **Non vérifié** : avec un vrai compte, il faudrait le serveur local, qui pointe sur la base de production. L'envoi des heures depuis le monde n'a donc pas été vu tourner ; le calcul côté jeu et la route côté serveur sont testés séparément.
+
 ## Liaisons du jeu vérifiées, Résidences des Jardins, Chantier du Plateau et chez soi (25 octobre)
 
 Ni commité ni déployé. Le serveur change (compétences de deux lieux, deux articles « maison », sans migration) : backend d'abord.

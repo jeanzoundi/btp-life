@@ -7,7 +7,7 @@ import type { ArticleCarte, LieuVie } from '.';
 export const ARTICLES_AZUR: ArticleCarte[] = [
   { id: 'shawarma', nom: 'Shawarma poulet', detail: 'Pain libanais, crudités, sauce ail', categorie: 'plat', action: 'repas', prix: 2000, effets: { faim: 60 }, moral: 3, preparation: 4, message: 'Un shawarma poulet bien garni.' },
   { id: 'cocktail-fruits', nom: 'Cocktail de fruits', detail: 'Mangue, passion, ananas, sans sucre ajouté', categorie: 'boisson', action: 'repas', prix: 1200, effets: { faim: 15, energie: 5 }, moral: 3, preparation: 2, message: 'Un cocktail de fruits frais, sans sucre ajouté.' },
-  { id: 'glace', nom: 'Glace deux boules', detail: 'Coco et mangue', categorie: 'plat', action: 'repas', prix: 1000, effets: { faim: 10 }, moral: 4, preparation: 1, message: 'Une glace deux boules à l’ombre de la galerie climatisée.' },
+  { id: 'glace', nom: 'Glace deux boules', detail: 'Coco et mangue', categorie: 'plat', action: 'repas', prix: 1000, effets: { faim: 10, divertissement: 10 }, moral: 4, preparation: 1, message: 'Une glace deux boules à l’ombre de la galerie climatisée.' },
 ];
 
 export const TABLES_AZUR: [number, number][] = [[2, -1], [6, -1], [2, 2.5], [6, 2.5]];

@@ -34,6 +34,14 @@ export class EquiperItemAvatarDto {
 
 /** Choix du personnage au début du monde vivant (ou plus tard) : le nom du personnage peut changer en même temps. */
 export class ChoisirPersonnageDto {
+  @IsOptional()
+  @IsIn(['petite', 'moyenne', 'grande'])
+  stature?: string;
+
+  @IsOptional()
+  @IsIn(['fine', 'standard', 'large'])
+  silhouette?: string;
+
   @IsIn(PERSONNAGES_JOUEUR)
   personnage: string;
 
@@ -109,6 +117,19 @@ export class ActionBesoinDto {
   @IsOptional()
   @IsBoolean()
   victoire?: boolean;
+}
+
+/** Heures de jeu passées dans le monde vivant depuis la dernière déclaration (bornées à une journée). */
+export class TempsMondeDto {
+  @IsNumber()
+  @Min(0)
+  @Max(24)
+  heures: number;
+
+  /** Ces heures ont été dormies : l'énergie ne baisse pas, le reste deux fois moins vite. */
+  @IsOptional()
+  @IsBoolean()
+  sommeil?: boolean;
 }
 
 /** Séance terminée dans un lieu du quartier : l'étape jouée et la note du bilan (0-100). */

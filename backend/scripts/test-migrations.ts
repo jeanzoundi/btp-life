@@ -35,7 +35,8 @@ async function main() {
     user: 'postgres',
     password: 'postgres',
     port: PORT,
-    persistent: false,
+    // Le nettoyage est géré ci-dessous avec des tentatives adaptées aux verrous Windows.
+    persistent: true,
     // Sans ça, initdb échoue sur Windows dès que la locale système contient des caractères
     // non-ASCII (ex. "French_Côte d'Ivoire.1252") — sans rapport avec la locale des données
     // de jeu elles-mêmes, seulement avec celle du cluster Postgres de test.

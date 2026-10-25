@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { personnageDe, type PersonnageJoueur } from '@/lib/personnages-joueur';
 import { HumainMonde } from './humain-monde';
+import { echelleGabarit } from '@/lib/gabarit-personnage';
 
 // Le personnage choisi par le joueur, fourni une fois autour du monde : la ville, le chantier, la résidence et chaque
 // intérieur le dessinent pareil (le contexte traverse les Canvas de React Three Fiber).
@@ -21,5 +22,5 @@ export function HumainJoueur({ casque = true, nom, marche, assis, prof, allure, 
 }) {
   const personnage = usePersonnageJoueur();
   const design = casque ? { ...personnage.design, casque: personnage.design.casque ?? '#f4c430' } : { ...personnage.design, casque: undefined };
-  return <HumainMonde modele={personnage.modele} design={design} casque={casque} sansCasque={!casque} nom={nom} marche={marche} assis={assis} prof={prof} allure={allure} scale={scale} />;
+  return <group scale={echelleGabarit(personnage.gabarit)}><HumainMonde modele={personnage.modele} design={design} casque={casque} sansCasque={!casque} nom={nom} marche={marche} assis={assis} prof={prof} allure={allure} scale={scale} /></group>;
 }

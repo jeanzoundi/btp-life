@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { besoinsDe } from '@/lib/humeurs';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/app/ui';
 import { Quartier3D } from '@/components/app/quartier-3d';
@@ -101,7 +102,7 @@ function Monde() {
         <div className={immersif ? 'h-full w-full' : '-mx-3 sm:-mx-4 md:-mx-6'}>
           <Quartier3D
             nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
-            besoins={carriere ? { energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social } : undefined}
+            besoins={carriere ? besoinsDe(carriere) : undefined}
             profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom, xp: carriere.xp, reputation: carriere.reputation } : undefined}
             avatar={carriere ? carriere.avatar ?? null : undefined}
             lieuInitial={lieuInitial}

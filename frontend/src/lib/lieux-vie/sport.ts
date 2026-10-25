@@ -6,11 +6,11 @@ import type { ArticleCarte, LieuVie } from '.';
 export const ARTICLES_SPORT: ArticleCarte[] = [
   {
     id: 'match-foot', nom: 'Match à cinq', detail: 'Avec les collègues du chantier, puis les tirs au but', categorie: 'activite', action: 'social', prix: 500,
-    effets: { energie: -20, social: 30 }, moral: 8, preparation: 3, moralPrincipal: true, message: 'Le match à cinq avec les collègues est fini.',
+    effets: { energie: -20, social: 30, hygiene: -25, divertissement: 35 }, moral: 8, preparation: 3, moralPrincipal: true, message: 'Le match à cinq avec les collègues est fini.',
     bonusVictoire: { social: 10, moral: 4, message: 'Et vous l’avez gagné aux tirs au but !' },
   },
-  { id: 'musculation', nom: 'Séance de musculation', detail: 'Banc, haltères, une heure d’effort', categorie: 'activite', action: 'social', prix: 1000, effets: { energie: -15, social: 5 }, moral: 10, preparation: 2, moralPrincipal: true, message: 'Séance de musculation terminée : les bras tremblent, le moral est au beau fixe.' },
-  { id: 'footing', nom: 'Footing', detail: 'Un tour de piste, vestiaire compris', categorie: 'activite', action: 'social', prix: 300, effets: { energie: -10, social: 5 }, moral: 8, preparation: 1, duree: 9, moralPrincipal: true, message: 'Footing au bord de la lagune : tu reviens léger(e).' },
+  { id: 'musculation', nom: 'Séance de musculation', detail: 'Banc, haltères, une heure d’effort', categorie: 'activite', action: 'social', prix: 1000, effets: { energie: -15, social: 5, hygiene: -20, divertissement: 10 }, moral: 10, preparation: 2, moralPrincipal: true, message: 'Séance de musculation terminée : les bras tremblent, le moral est au beau fixe.' },
+  { id: 'footing', nom: 'Footing', detail: 'Un tour de piste, vestiaire compris', categorie: 'activite', action: 'social', prix: 300, effets: { energie: -10, social: 5, hygiene: -15, divertissement: 10 }, moral: 8, preparation: 1, duree: 9, moralPrincipal: true, message: 'Footing au bord de la lagune : tu reviens léger(e).' },
   { id: 'jus-buvette', nom: 'Jus de la buvette', detail: 'Orange et gingembre pressés', categorie: 'boisson', action: 'repas', prix: 300, effets: { energie: 8, faim: 5 }, moral: 1, preparation: 1, message: 'Un jus frais à la buvette, après l’effort.' },
 ];
 

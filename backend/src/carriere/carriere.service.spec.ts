@@ -488,7 +488,7 @@ describe('CarriereService.me', () => {
 describe('CarriereService.upsertAvatar', () => {
   it("crée ou met à jour la configuration d'avatar du joueur", async () => {
     const prisma = fakePrisma({
-      avatar: { upsert: jest.fn().mockImplementation(({ create }: { create: object }) => Promise.resolve(create)) },
+      avatar: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockImplementation(({ create }: { create: object }) => Promise.resolve(create)) },
     });
     const { svc } = await service(prisma);
     const resultat = await svc.upsertAvatar('u1', { nomPersonnage: 'Kouassi', config: { peau: 'clair' } } as never);
@@ -497,6 +497,24 @@ describe('CarriereService.upsertAvatar', () => {
 });
 
 describe('CarriereService.choisirPersonnage', () => {
+  it('conserve les proportions et la formation lors d’un changement de dressing', async () => {
+    const config = { personnage: 'tailleur', stature: 'grande', silhouette: 'fine', formationDepart: 'BTS' };
+    const prisma = fakePrisma({ avatar: {
+      findUnique: jest.fn().mockResolvedValue({ config }),
+      upsert: jest.fn().mockImplementation(({ update }: { update: object }) => Promise.resolve(update)),
+    } });
+    const { svc } = await service(prisma);
+    expect(await svc.upsertAvatar('u1', { nomPersonnage: 'Awa', config: { couleurTenue: '#123456' } }))
+      .toEqual({ nomPersonnage: 'Awa', config: { ...config, couleurTenue: '#123456' } });
+  });
+  it('persiste les proportions sans modifier la carrière', async () => {
+    const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
+    const prisma = fakePrisma({ avatar: { findUnique: jest.fn().mockResolvedValue({ config: { couleurTenue: '#123456' } }), update } });
+    const { svc } = await service(prisma);
+    const resultat = await svc.choisirPersonnage('u1', { personnage: 'jean', stature: 'petite', silhouette: 'large' });
+    expect(resultat.config).toEqual({ couleurTenue: '#123456', personnage: 'jean', stature: 'petite', silhouette: 'large' });
+    expect(prisma.userCarriere.update).not.toHaveBeenCalled();
+  });
   it('range le personnage dans la configuration, sans effacer le dressing ni le nom', async () => {
     const update = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data));
     const prisma = fakePrisma({

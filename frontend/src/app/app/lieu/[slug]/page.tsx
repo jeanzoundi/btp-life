@@ -4,6 +4,7 @@ import { use, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { besoinsDe } from '@/lib/humeurs';
 import { api, ApiError } from '@/lib/api';
 import { adresseMonde } from '@/lib/liens-modes';
 import { lieuParSlug, type ActionLieu } from '@/lib/lieux';
@@ -96,7 +97,7 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
 
       {/* Les lieux de vie montrent l'état des besoins pour voir l'effet de l'action */}
       {aBesoin && carriere && (
-        <PanneauBesoins besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} compact />
+        <PanneauBesoins besoins={besoinsDe(carriere)} compact />
       )}
     </div>
   );
@@ -123,7 +124,7 @@ function CarteDuLieu({ lieu, carriere, slug }: { lieu: LieuVie; carriere: Carrie
     },
     onError: (err) => { jouerSon('echec'); setRetour({ texte: err instanceof ApiError ? err.message : 'Une erreur est survenue.', erreur: true }); },
   });
-  const besoins = { energie: carriere.energie, faim: carriere.faim, social: carriere.social, moral: carriere.moral };
+  const besoins = besoinsDe(carriere);
   return (
     <section className="rounded-2xl border-2 border-terracotta/30 bg-white p-4 sm:p-5" aria-label={`Carte : ${lieu.nom}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">

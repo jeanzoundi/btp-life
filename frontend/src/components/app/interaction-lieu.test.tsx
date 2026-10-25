@@ -32,13 +32,22 @@ describe('Interactions dans la ville', () => {
     vi.mocked(api.post).mockResolvedValue({ message: 'Bien dormi', coutPaye: 0 });
     const { client, onFait } = setup(false);
     const invalidate = vi.spyOn(client, 'invalidateQueries');
-    expect(screen.getByText('Gratuit')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Dormir et récupérer/ })).toHaveTextContent('Gratuit');
     fireEvent.click(screen.getByRole('button', { name: /Dormir et récupérer/ }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Bien dormi'));
     expect(api.post).toHaveBeenCalledWith('/carriere/besoins/repos');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['carriere', 'me'] });
     // Le monde en est prévenu : dormir le soir y fait passer la nuit.
     expect(onFait).toHaveBeenCalledWith(expect.objectContaining({ besoin: 'repos' }));
+  });
+  it('en journée dans le monde, dormir depuis la fiche est une sieste ; la douche est gratuite', async () => {
+    vi.mocked(api.post).mockResolvedValue({ message: 'Une petite sieste', coutPaye: 0 });
+    const onFait = vi.fn();
+    render(<QueryClientProvider client={new QueryClient()}><InteractionLieu slug="residence" nom="Résidence Lagune" href="/app/lieu/residence" demo={false} sieste onDemo={vi.fn()} onFait={onFait} onClose={() => {}} /></QueryClientProvider>);
+    expect(screen.getByRole('button', { name: /Prendre une douche/ })).toHaveTextContent('Gratuit');
+    fireEvent.click(screen.getByRole('button', { name: /Faire une sieste \(2 h\)/ }));
+    await waitFor(() => expect(onFait).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledWith('/carriere/besoins/repos', { article: 'sieste-maison' });
   });
   it('signale un échec sans afficher de réussite', async () => {
     vi.mocked(api.post).mockRejectedValue(new Error('Serveur indisponible'));

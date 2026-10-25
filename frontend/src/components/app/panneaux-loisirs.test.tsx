@@ -10,7 +10,7 @@ import { PanneauCabine, PanneauEtal, PanneauTirsAuBut, PanneauVitrine } from './
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const avecClient = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>);
-const BESOINS = { energie: 60, faim: 30, social: 50, moral: 50 };
+const BESOINS = { energie: 60, faim: 30, social: 50, moral: 50, hygiene: 70, divertissement: 70 };
 const choukouya = MARCHE.carte.find(a => a.id === 'choukouya')!;
 
 function etal(options: { salue?: boolean; fachee?: boolean } = {}) {

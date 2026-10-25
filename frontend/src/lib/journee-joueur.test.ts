@@ -18,8 +18,13 @@ describe('la journée vue de chez soi', () => {
     expect(jour.find(r => r.slug === 'jardins-residence')?.nom).toBe('Résidences des Jardins');
   });
   it('conseille selon les besoins, et ne fait sauter la nuit que le soir', () => {
-    expect(conseilsDuMatin({ faim: 30, social: 80, moral: 80 }).map(c => c.slug)).toEqual(['cafe']);
-    expect(conseilsDuMatin({ faim: 90, social: 20, moral: 30 }).map(c => c.slug)).toEqual(['sports', 'marina']);
+    const frais = { hygiene: 90, divertissement: 90 };
+    expect(conseilsDuMatin({ faim: 30, social: 80, moral: 80, ...frais }).map(c => c.slug)).toEqual(['cafe']);
+    expect(conseilsDuMatin({ faim: 90, social: 20, moral: 30, ...frais }).map(c => c.slug)).toEqual(['sports', 'marina']);
+    // La douche d'abord, chez soi (sans trajet) ; l'ennui passe avant le moral pour la marina.
+    const reveil = conseilsDuMatin({ faim: 90, social: 90, moral: 30, hygiene: 20, divertissement: 10 });
+    expect(reveil.map(c => c.slug)).toEqual([undefined, 'marina']);
+    expect(reveil[1].texte).toMatch(/changer les idées/);
     expect([22, 2, 19, 14, 6.5].map(dormirJusquAuMatin)).toEqual([true, true, true, false, false]);
   });
 });

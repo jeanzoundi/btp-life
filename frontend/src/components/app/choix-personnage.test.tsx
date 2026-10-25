@@ -16,6 +16,13 @@ function ouvrir(options: { premierChoix?: boolean; nom?: string } = {}) {
 }
 
 describe('le choix du personnage', () => {
+  it('transmet la taille et la morphologie sélectionnées', () => {
+    const { onValider } = ouvrir();
+    fireEvent.change(screen.getByLabelText('Taille'), { target: { value: 'grande' } });
+    fireEvent.change(screen.getByLabelText('Morphologie'), { target: { value: 'large' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
+    expect(onValider).toHaveBeenCalledWith('combinaison', 'Kouassi', { stature: 'grande', silhouette: 'large' });
+  });
   it('montre les sept personnages, celui proposé déjà coché, et le plateau 3D', () => {
     ouvrir();
     expect(screen.getAllByRole('radio')).toHaveLength(7);
@@ -31,7 +38,7 @@ describe('le choix du personnage', () => {
     expect(screen.getByRole('radio', { name: /Costume/ })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('radio', { name: /Tailleur sombre/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
-    expect(onValider).toHaveBeenCalledWith('tailleur', 'Yasmine');
+    expect(onValider).toHaveBeenCalledWith('tailleur', 'Yasmine', { stature: 'moyenne', silhouette: 'standard' });
   });
   it('demande un nom d’au moins deux lettres', () => {
     ouvrir({ nom: 'K' });

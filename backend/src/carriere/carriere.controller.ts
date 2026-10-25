@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto, TempsMondeDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
@@ -154,6 +154,12 @@ export class CarriereController {
   @Post('besoins/:action')
   agirBesoin(@CurrentUser() user: RequestUser, @Param('action') action: ActionBesoin, @Body() dto: ActionBesoinDto) {
     return this.besoinsService.agir(user.userId, action, { article: dto?.article, tablee: dto?.tablee, remise: dto?.remise, victoire: dto?.victoire });
+  }
+
+  /** Le monde vivant déclare les heures de jeu passées : les besoins y baissent au rythme du monde. */
+  @Post('temps-monde')
+  passerTempsMonde(@CurrentUser() user: RequestUser, @Body() dto: TempsMondeDto) {
+    return this.besoinsService.passerTemps(user.userId, dto.heures, dto.sommeil);
   }
 
   @Post('epargne/deposer')

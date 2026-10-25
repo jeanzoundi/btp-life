@@ -3,6 +3,7 @@
 // (`Avatar.config.personnage`, PATCH /carriere/avatar/personnage), à côté des réglages du dressing.
 import type { DesignPersonnage } from './identites-personnages';
 import type { ModeleRealiste } from './personnages-realistes';
+import { gabaritDepuis, type GabaritPersonnage } from './gabarit-personnage';
 
 export type IdPersonnage = 'combinaison' | 'bleu-travail' | 'tailleur' | 'tenue-ville' | 'jean' | 'capuche' | 'costume';
 
@@ -10,6 +11,7 @@ export type IdPersonnage = 'combinaison' | 'bleu-travail' | 'tailleur' | 'tenue-
 export interface Apparence2D { peau: string; cheveux: 'court' | 'afro' | 'tresses' | 'chauve'; pilosite?: 'aucune' }
 
 export interface PersonnageJoueur {
+  gabarit?: GabaritPersonnage;
   id: IdPersonnage; titre: string; detail: string;
   /** Modèle 3D réaliste (de près) ; `design` habille la version stylisée (de loin, ou pendant le chargement). */
   modele: ModeleRealiste; design: DesignPersonnage;
@@ -70,7 +72,7 @@ export function personnageChoisi(config: unknown): IdPersonnage | null {
 }
 
 /** Le personnage à afficher : celui choisi, sinon celui d'origine. */
-export const personnageDe = (config: unknown): PersonnageJoueur => parId(personnageChoisi(config) ?? PERSONNAGE_DEFAUT);
+export const personnageDe = (config: unknown): PersonnageJoueur => ({ ...parId(personnageChoisi(config) ?? PERSONNAGE_DEFAUT), gabarit: gabaritDepuis(config) });
 
 /** Avant le premier choix, on propose le personnage le plus proche de l'avatar 2D : même teint, cheveux longs pour les tresses. */
 export function personnageProche(config: unknown): IdPersonnage {

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { adresseMonde, LIEUX_MONDE } from '@/lib/liens-modes';
 import { LIEUX_PROGRAMME } from '@/lib/lieux-programme';
@@ -43,6 +44,7 @@ export function CarteMondeVivant({ avatar }: { avatar?: { nomPersonnage?: string
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
+        <Link href="/onboarding" className="rounded-full border border-pierre px-4 py-2 text-xs font-semibold text-graphite hover:border-terracotta">Découvrir les deux modes</Link>
         <button type="button" onClick={() => setChoix(true)} className="rounded-full border border-pierre px-4 py-2 text-xs font-semibold text-graphite hover:border-terracotta">{choisi ? 'Changer de personnage' : 'Choisir mon personnage'}</button>
         <button type="button" onClick={() => entrer()} className="rounded-full bg-terracotta px-4 py-2 text-xs font-semibold text-ivoire">🌍 Entrer dans le quartier</button>
       </div>
@@ -62,6 +64,6 @@ export function CarteMondeVivant({ avatar }: { avatar?: { nomPersonnage?: string
     })}</ul>}
     {choix && <ChoixPersonnage initial={choisi ?? personnageProche(avatar?.config)} nomInitial={avatar?.nomPersonnage ?? ''} avatarConfig={avatar?.config} premierChoix={false} demo={false}
       enCours={enregistrer.isPending} erreur={enregistrer.error ? (enregistrer.error as Error).message || 'Enregistrement impossible pour l’instant.' : null}
-      onAnnuler={() => setChoix(false)} onValider={(id, nom) => enregistrer.mutate({ personnage: id, nom }, { onSuccess: () => setChoix(false) })} />}
+      onAnnuler={() => setChoix(false)} onValider={(id, nom, gabarit) => enregistrer.mutate({ personnage: id, nom, ...gabarit }, { onSuccess: () => setChoix(false) })} />}
   </section>;
 }

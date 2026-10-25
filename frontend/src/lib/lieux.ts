@@ -2,7 +2,7 @@
 // Data-driven pour que la page /app/lieu/[slug] et le quartier iso partagent la même source.
 
 export type ActionLieu =
-  | { type: 'besoin'; besoin: 'repas' | 'social' | 'repos'; label: string; icone: string; description: string; cout: number }
+  | { type: 'besoin'; besoin: 'repas' | 'social' | 'repos' | 'hygiene' | 'divertissement'; label: string; icone: string; description: string; cout: number }
   | { type: 'lien'; href: string; label: string; icone: string; description: string }
   | { type: 'info'; label: string; icone: string; description: string }
   | { type: 'epargne'; label: string; icone: string; description: string };
@@ -100,6 +100,7 @@ export const LIEUX: Record<string, Lieu> = {
     ambiance: ['Le ventilateur qui ronronne', 'Tes plans étalés sur la table', 'Le calme après le vacarme du chantier'],
     actions: [
       { type: 'besoin', besoin: 'repos', label: 'Dormir et récupérer', icone: '😴', description: 'Restaure complètement ton énergie et remonte ton moral. Gratuit — c\'est chez toi.', cout: 0 },
+      { type: 'besoin', besoin: 'hygiene', label: 'Prendre une douche', icone: '🚿', description: 'Te voilà frais et dispo, surtout après le chantier ou le sport. Gratuit — c\'est chez toi.', cout: 0 },
     ],
   },
 };

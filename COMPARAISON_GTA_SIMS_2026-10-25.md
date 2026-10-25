@@ -135,3 +135,14 @@ Ordre proposé, du meilleur rapport entre effet et effort au plus lourd. L'effor
     - Des métiers au-delà du niveau 9.
     - Une trentaine d'offres d'emploi au lieu de 5.
     - Des certificats délivrés à la fin des parcours.
+
+## Suivi
+
+- **25 octobre — chantier n° 1 fait** (détails dans `REALISME_MONDE_2026-10-22.md`) :
+  - les besoins suivent l'horloge du monde pendant qu'on joue (le sommeil coûte deux fois moins, l'énergie se repose) ;
+  - deux jauges en plus : l'hygiène et les loisirs ;
+  - des humeurs et une forme qui règle les gains d'XP (+5 % en pleine forme).
+- Incohérences du § 5 réglées :
+  - besoins et horloge ;
+  - douche et télévision sans effet (« étudier tes plans » reste un moment sans effet) ;
+  - en plus, le déclin en temps réel qui se perdait dans les arrondis.

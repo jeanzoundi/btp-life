@@ -6,7 +6,7 @@ import { PanneauCarte, PanneauReseau } from './panneaux-lieux-vie';
 import { useServiceLieu } from './service-lieu';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
-const BESOINS = { energie: 60, faim: 30, social: 50, moral: 50 };
+const BESOINS = { energie: 60, faim: 30, social: 50, moral: 50, hygiene: 70, divertissement: 70 };
 const garba = MAQUIS.carte.find(a => a.id === 'garba')!;
 
 describe('la carte du maquis', () => {

@@ -3,15 +3,15 @@
 // le marchandage au marché, la pirogue à la marina, les tirs au but au complexe sportif. Sans Three.js ni React.
 import type { PlanLieu } from '../programme-lieu';
 
-export type JaugeBesoin = 'energie' | 'faim' | 'social';
-export interface Besoins { energie: number; faim: number; social: number; moral: number }
+export type JaugeBesoin = 'energie' | 'faim' | 'social' | 'hygiene' | 'divertissement';
+export interface Besoins { energie: number; faim: number; social: number; moral: number; hygiene: number; divertissement: number }
 
 /** Article d'une carte : miroir de CARTE (backend/src/carriere/besoins.service.ts), pour l'affichage et la démonstration. */
 export interface ArticleCarte {
   id: string; nom: string; detail: string; categorie: 'plat' | 'boisson' | 'activite' | 'service';
   /** Action serveur qui porte l'article : POST /carriere/besoins/:action, corps { article }. */
-  action: 'repas' | 'social';
-  /** Effets sur les jauges : positifs, ou négatifs pour ce qui fatigue (le sport). */
+  action: 'repas' | 'social' | 'divertissement' | 'repos';
+  /** Effets sur les jauges : positifs, ou négatifs pour ce qui fatigue et fait transpirer (le sport). */
   prix: number; effets: Partial<Record<JaugeBesoin, number>>; moral: number;
   /** Temps de préparation, en secondes réelles. */
   preparation: number;
@@ -62,9 +62,9 @@ export function appliquerArticle<T extends Besoins>(besoins: T, article: Article
   return suivant;
 }
 
-/** Ce qui fatigue ne se fait pas à bout de forces : le serveur le refuse. */
+/** Ce qui fatigue ne se fait pas à bout de forces : le serveur le refuse (transpirer, si : l'hygiène s'arrête à 0). */
 export const articleTropFatigant = (besoins: Besoins, article: ArticleCarte) =>
-  (Object.entries(article.effets) as [JaugeBesoin, number][]).some(([j, points]) => points < 0 && besoins[j] + points < 0);
+  (article.effets.energie ?? 0) < 0 && besoins.energie + (article.effets.energie ?? 0) < 0;
 
 /** Le serveur ne débite rien quand toutes les jauges gagnées sont pleines ; ce qui vise d'abord le moral sert tant qu'il n'est pas au plus haut. */
 export function articleUtile(besoins: Besoins, article: ArticleCarte, options: OptionsArticle = {}) {
@@ -76,4 +76,5 @@ export const lieuVieOuvert = (lieu: Pick<LieuVie, 'horaires'>, heure: number) =>
 
 export const LIBELLES_JAUGES: Record<JaugeBesoin, { icone: string; nom: string }> = {
   faim: { icone: '🍽', nom: 'faim' }, energie: { icone: '⚡', nom: 'énergie' }, social: { icone: '💬', nom: 'social' },
+  hygiene: { icone: '🚿', nom: 'hygiène' }, divertissement: { icone: '🎉', nom: 'loisirs' },
 };

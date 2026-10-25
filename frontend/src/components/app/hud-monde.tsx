@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
 import type * as THREE from 'three';
+import { humeurDuMoment, humeursDe, type BesoinsComplets } from '@/lib/humeurs';
 import { angleEcran, distance, distanceLisible, type Point2 } from '@/lib/minicarte';
 import { AvatarBtp } from './avatar-btp';
 
@@ -15,6 +16,8 @@ export const ICONES = {
   energie: <Svg taille={16}><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></Svg>,
   moral: <Svg taille={16}><circle cx="12" cy="12" r="9" /><path d="M8.5 14.5s1.3 1.8 3.5 1.8 3.5-1.8 3.5-1.8M9 10h.01M15 10h.01" /></Svg>,
   social: <Svg taille={16}><path d="M14 9a5 5 0 0 1-7.1 4.5L4 15l.8-2.6A5 5 0 1 1 14 9Z" /><path d="M10.5 16.5A5 5 0 0 0 17 18.5l3 1.5-.8-2.7A5 5 0 0 0 17 10" /></Svg>,
+  hygiene: <Svg taille={16}><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11Z" /><path d="M9.5 15a2.5 2.5 0 0 0 2.5 2.5" /></Svg>,
+  divertissement: <Svg taille={16}><path d="M9 18V6l11-2v12" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></Svg>,
   piece: <Svg taille={15}><circle cx="12" cy="12" r="9" /><path d="M14.8 9.2A3 3 0 0 0 12 8c-1.7 0-3 .9-3 2s1.3 1.6 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-2.8-1.2M12 6v2M12 16v2" /></Svg>,
   medaille: <Svg taille={15}><circle cx="12" cy="14" r="5" /><path d="M8.5 9.5 6 3h4l2 4 2-4h4l-2.5 6.5" /></Svg>,
   cible: <Svg taille={17}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="1" fill="currentColor" /></Svg>,
@@ -130,13 +133,23 @@ export function HorlogeMonde({ heure, meteo, pause, vitesse, vitesses, onPause, 
 const BESOINS = [
   { cle: 'faim', label: 'Faim', couleur: '#F08A4B' },
   { cle: 'energie', label: 'Énergie', couleur: '#F2C14E' },
-  { cle: 'moral', label: 'Moral', couleur: '#4CC3A5' },
+  { cle: 'hygiene', label: 'Hygiène', couleur: '#5BB8E8' },
+  { cle: 'divertissement', label: 'Loisirs', couleur: '#B38BEA' },
   { cle: 'social', label: 'Social', couleur: '#F07A9A' },
+  { cle: 'moral', label: 'Moral', couleur: '#4CC3A5' },
 ] as const;
 
-/** Les quatre besoins : icône, valeur et barre qui s'illumine quand le besoin devient critique. Sans libellés en version compacte. */
-export function JaugesBesoins({ besoins, compacte = false }: { besoins: Record<(typeof BESOINS)[number]['cle'], number>; compacte?: boolean }) {
+/** Les six besoins : l'humeur du moment et la forme (qui règle les gains d'XP), puis icône, valeur et barre qui
+ * s'illumine quand le besoin devient critique. Sans libellés en version compacte. */
+export function JaugesBesoins({ besoins, compacte = false }: { besoins: BesoinsComplets; compacte?: boolean }) {
+  const humeur = humeurDuMoment(besoins);
+  const humeurs = humeursDe(besoins);
   return <div role="group" aria-label="Besoins" className={`hud-verre pointer-events-auto grid grid-cols-2 ${compacte ? 'w-[196px] gap-x-2.5 gap-y-2 p-2.5' : 'w-[252px] gap-x-3 gap-y-2.5 p-3'}`}>
+    <p role="status" aria-label={`Humeur : ${humeur.nom}, forme ${humeur.forme} %`} title={humeurs.length ? humeurs.map(h => `${h.icone} ${h.nom}`).join(' · ') : 'Rien de particulier'}
+      className="col-span-2 flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-[11px] font-bold">
+      <span className="min-w-0 truncate">{humeur.icone} {humeur.nom}</span>
+      <span className={`hud-chiffre shrink-0 ${humeur.pleineForme ? 'text-jeu-lagune' : humeur.forme < 85 ? 'text-[#F08A4B]' : 'text-jeu-ivoire/70'}`}>{humeur.pleineForme ? 'XP +5 %' : `Forme ${humeur.forme} %`}</span>
+    </p>
     {BESOINS.map(b => {
       const valeur = Math.max(0, Math.min(100, besoins[b.cle]));
       const bas = valeur < 25;

@@ -1,9 +1,11 @@
-export interface BesoinsObjectif { energie: number; moral: number; faim: number; social: number }
+export interface BesoinsObjectif { energie: number; moral: number; faim: number; social: number; hygiene: number; divertissement: number }
 export interface ObjectifMoment { texte: string; etiquette?: string; lieu?: string }
 
 const URGENCES: Array<{ cle: keyof BesoinsObjectif; texte: string; lieu: string }> = [
   { cle: 'faim', texte: 'Mange au maquis', lieu: 'maquis' },
   { cle: 'energie', texte: 'Repose-toi chez toi', lieu: 'residence' },
+  { cle: 'hygiene', texte: 'Douche-toi chez toi', lieu: 'residence' },
+  { cle: 'divertissement', texte: 'Défoule-toi au complexe sportif', lieu: 'sports' },
   { cle: 'social', texte: 'Passe au café', lieu: 'cafe' },
   { cle: 'moral', texte: 'Souffle à la marina', lieu: 'marina' },
 ];
@@ -14,6 +16,8 @@ export interface AlerteBesoin { cle: CleBesoin; texte: string; action: string; l
 const ALERTES: Record<CleBesoin, Omit<AlerteBesoin, 'cle'>> = {
   faim: { texte: 'Tu as faim', action: 'Aller manger', lieu: 'maquis' },
   energie: { texte: 'Tu tombes de fatigue', action: 'Rentrer dormir', lieu: 'residence' },
+  hygiene: { texte: 'Tu ne te sens pas très frais', action: 'Rentrer te doucher', lieu: 'residence' },
+  divertissement: { texte: 'Tu t’ennuies', action: 'Aller te défouler', lieu: 'sports' },
   social: { texte: 'Tu as besoin de voir du monde', action: 'Aller au café', lieu: 'cafe' },
   moral: { texte: 'Ton moral baisse', action: 'Souffler à la marina', lieu: 'marina' },
 };

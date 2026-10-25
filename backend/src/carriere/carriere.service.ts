@@ -65,7 +65,10 @@ export class CarriereService {
       where: { userId },
       orderBy: { genereLe: 'desc' },
     });
-    return { ...complet, energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social, avatar, parcours };
+    return {
+      ...complet, energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social,
+      hygiene: carriere.hygiene, divertissement: carriere.divertissement, avatar, parcours,
+    };
   }
 
   async etatMonde(userId: string) {
@@ -82,7 +85,9 @@ export class CarriereService {
 
   async upsertAvatar(userId: string, dto: UpdateAvatarDto) {
     const { config, ...champs } = dto;
-    const data = { ...champs, ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}) };
+    // Le dressing et l'accueil n'effacent plus le personnage 3D ni les choix de départ.
+    const avatar = config !== undefined ? await this.prisma.avatar.findUnique({ where: { userId } }) : null;
+    const data = { ...champs, ...(config !== undefined ? { config: { ...((avatar?.config as Record<string, unknown> | null) ?? {}), ...config } as Prisma.InputJsonValue } : {}) };
     return this.prisma.avatar.upsert({
       where: { userId },
       create: { userId, ...data },
@@ -94,7 +99,10 @@ export class CarriereService {
    * choisies à l'inscription. Un joueur sans avatar en reçoit un, à son nom. */
   async choisirPersonnage(userId: string, dto: ChoisirPersonnageDto) {
     const avatar = await this.prisma.avatar.findUnique({ where: { userId } });
-    const config = { ...((avatar?.config as Record<string, unknown> | null) ?? {}), personnage: dto.personnage } as Prisma.InputJsonValue;
+    const config = { ...((avatar?.config as Record<string, unknown> | null) ?? {}), personnage: dto.personnage,
+      ...(dto.stature !== undefined ? { stature: dto.stature } : {}),
+      ...(dto.silhouette !== undefined ? { silhouette: dto.silhouette } : {}),
+    } as Prisma.InputJsonValue;
     const nom = dto.nomPersonnage?.trim();
     if (avatar) return this.prisma.avatar.update({ where: { userId }, data: { config, ...(nom ? { nomPersonnage: nom } : {}) } });
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { pseudo: true, nom: true } });

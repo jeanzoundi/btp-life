@@ -67,7 +67,9 @@ import { FournisseurPersonnage, HumainJoueur } from './personnage-joueur';
 import { personnageChoisi, personnageDe, personnageProche } from '@/lib/personnages-joueur';
 import { LIEUX_MONDE } from '@/lib/liens-modes';
 import type { ConsommationLieu } from './service-lieu';
-import { appliquerEffet } from '@/lib/objets-interieurs';
+import { appliquerEffet, DUREE_SIESTE, EFFETS_DEMO } from '@/lib/objets-interieurs';
+import { declinMonde, type BesoinsComplets } from '@/lib/humeurs';
+import { ajouterTemps, ecartHorloge, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
 import type { IdentitePersonnage } from '@/lib/identites-personnages';
@@ -81,7 +83,9 @@ const IDENTITES_PNJ: Record<string, IdentitePersonnage> = { Awa: 'awa', Yao: 'ya
 type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 type PointMonde = [number, number];
 
-export interface BesoinsJoueur { energie: number; moral: number; faim: number; social: number; }
+export type BesoinsJoueur = BesoinsComplets;
+/** Besoins de la démonstration au premier pas dans le monde (et d'un compte encore en chargement). */
+const BESOINS_DEPART: BesoinsJoueur = { energie: 78, moral: 82, faim: 64, social: 70, hygiene: 72, divertissement: 66 };
 interface Batiment3D {
   slug: string; nom: string; href: string;
   position: [number, number, number]; taille: [number, number, number]; couleur: string;
@@ -412,12 +416,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [choixDemoLu, setChoixDemoLu] = useState(false);
   useEffect(() => { if (demo) { setChoixDemo(lireChoixDemo()); setChoixDemoLu(true); } }, [demo]);
   const idPersonnage = demo ? choixDemo?.personnage ?? null : personnageChoisi(avatar?.config);
-  const personnage = useMemo(() => personnageDe({ personnage: idPersonnage }), [idPersonnage]);
+  const personnage = useMemo(() => personnageDe(demo ? choixDemo : avatar?.config), [demo, choixDemo, avatar?.config]);
   const nomJoueur = demo ? choixDemo?.nom || nomCompte : nomCompte;
   const [choixPersonnageOuvert, setChoixPersonnageOuvert] = useState(false);
   const premierChoix = demo ? choixDemoLu && !choixDemo : avatar !== undefined && !idPersonnage;
   const enregistrerPersonnage = useEnregistrerPersonnage(demo, setChoixDemo);
-  const configPortrait = demo ? { personnage: idPersonnage } : avatar?.config;
+  const configPortrait = demo ? choixDemo : avatar?.config;
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
@@ -447,7 +451,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [matin, setMatin] = useState(false);
   const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
-  const [demoStats, setDemoStats] = useState(besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 });
+  const [demoStats, setDemoStats] = useState(besoins ?? BESOINS_DEPART);
   const [notifications, setNotifications] = useState<NotificationMonde[]>([]);
   const compteurNotifications = useRef(0);
   const fermerNotification = useCallback((id: number) => setNotifications(n => n.filter(x => x.id !== id)), []);
@@ -517,13 +521,57 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     if (!demo) try { window.history.replaceState(null, '', '/app/monde'); } catch { /* L'adresse reste telle quelle. */ }
   }, [demo]);
   useEffect(() => { if (demo) ouvrirLieuDemande(); }, [demo, ouvrirLieuDemande]);
-  /** Laisse passer le temps jusqu'à une heure (le lendemain si elle est passée) : attendre l'ouverture d'un lieu, revenir le lendemain. */
-  const passerA = useCallback((cible: number) => {
+  // Le temps du monde fait baisser les besoins à son rythme, mais seulement pendant qu'on y joue (hors ligne, le
+  // serveur garde son déclin lent en temps réel). L'horloge compte les heures de jeu passées, pas à pas ou d'un coup
+  // quand on attend ou qu'on dort ; le serveur les reçoit par heures entières, la démonstration les applique seule.
+  const derniereHeure = useRef<number | null>(demo ? 16 : null);
+  const tempsEnAttente = useRef({ eveil: 0, sommeil: 0 });
+  const tempsEnVol = useRef({ eveil: 0, sommeil: 0 });
+  const [tempsAffiche, setTempsAffiche] = useState({ eveil: 0, sommeil: 0 });
+  const rafraichirTemps = useCallback(() => setTempsAffiche({
+    eveil: tempsEnAttente.current.eveil + tempsEnVol.current.eveil, sommeil: tempsEnAttente.current.sommeil + tempsEnVol.current.sommeil,
+  }), []);
+  const envoyerTemps = useCallback(async (heures: number, sommeil: boolean) => {
+    const cle = sommeil ? 'sommeil' : 'eveil';
+    tempsEnVol.current[cle] += heures;
+    try {
+      const carriere = await api.post<Record<string, unknown>>('/carriere/temps-monde', { heures, sommeil });
+      client.setQueryData(['carriere', 'me'], (ancienne: Record<string, unknown> | undefined) => ancienne ? { ...ancienne, ...carriere } : ancienne);
+    } catch { tempsEnAttente.current[cle] += heures; }
+    finally { tempsEnVol.current[cle] -= heures; rafraichirTemps(); }
+  }, [client, rafraichirTemps]);
+  const compterTemps = useCallback((heures: number, sommeil = false) => {
+    const { attente, aDeclarer } = ajouterTemps(tempsEnAttente.current, heures, sommeil);
+    tempsEnAttente.current = attente;
+    const { eveil, sommeil: dormi } = aDeclarer;
+    if (demo) { if (eveil || dormi) setDemoStats(s => declinMonde(declinMonde(s, dormi, true), eveil)); }
+    else { if (dormi) void envoyerTemps(dormi, true); if (eveil) void envoyerTemps(eveil, false); }
+    rafraichirTemps();
+  }, [demo, envoyerTemps, rafraichirTemps]);
+  /** Chaque pas de l'horloge (cinq minutes de jeu) compte ; un grand saut (onglet endormi, horloge recalée) non. */
+  const suivreHorloge = useCallback((h: number) => {
+    const avant = derniereHeure.current;
+    derniereHeure.current = h;
+    if (avant === null || document.visibilityState === 'hidden') return;
+    const ecart = ecartHorloge(avant, h);
+    if (ecart <= PAS_HORLOGE_MAX) compterTemps(ecart);
+  }, [compterTemps]);
+  /** Laisse passer le temps jusqu'à une heure (le lendemain si elle est passée) : attendre l'ouverture d'un lieu, revenir le
+   * lendemain, dormir. Les besoins baissent pendant ce temps, deux fois moins vite en dormant. */
+  const passerA = useCallback((cible: number, sommeil = false) => {
+    const maintenant = avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure;
+    suivreHorloge(maintenant);
+    compterTemps(ecartHorloge(maintenant, cible), sommeil);
+    derniereHeure.current = cible;
     horlogeRef.current = { heure: cible, instant: Date.now(), pause: horlogeRef.current.pause };
     setHeure(cible);
-  }, []);
-  /** Dormir le soir (dans son lit ou depuis la fiche de la résidence) fait passer la nuit jusqu'au réveil. */
-  const dormirLaNuit = () => { if (!dormirJusquAuMatin(heure)) return; passerA(HEURE_REVEIL); setMatin(true); };
+  }, [suivreHorloge, compterTemps]);
+  const passerDuree = (heures: number, sommeil = false) => passerA((avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure + heures) % 24, sommeil);
+  /** Dormir : le soir, la nuit passe jusqu'au réveil et le programme du jour s'affiche ; le jour, c'est une sieste. */
+  const dormir = () => {
+    if (dormirJusquAuMatin(heure)) { passerA(HEURE_REVEIL, true); setMatin(true); }
+    else passerDuree(DUREE_SIESTE, true);
+  };
   // Lieux à programme (laboratoire, dépôt, hôtel de ville) : une séance par jour, guidée par le mentor du lieu.
   const recompenserLieu = useCallback((bilan: BilanSeance) => {
     if (!demo) return;
@@ -623,6 +671,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     setDecouvertes(etat.decouvertes ?? []); setRecords(etat.records ?? {});
     setHeure(etat.heure); setPause(etat.pause);
     horlogeRef.current = { heure: etat.heure, instant: Date.now(), pause: etat.pause };
+    // Le temps passé hors ligne avance l'horloge, mais pas les besoins : le serveur l'a déjà compté en temps réel.
+    derniereHeure.current = etat.heure;
     etatRef.current = etat;
     pretRef.current = true;
     ouvrirLieuDemande();
@@ -691,17 +741,21 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     if (pause) return;
     // Toujours cinq minutes de jeu par pas, quelle que soit la vitesse : le soleil avance sans à-coups visibles.
     const timer = window.setInterval(() => {
-      if (pretRef.current) setHeure(avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure);
+      if (!pretRef.current) return;
+      const h = avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure;
+      suivreHorloge(h);
+      setHeure(h);
     }, 5000 / vitesse);
     return () => window.clearInterval(timer);
-  }, [pause, vitesse]);
+  }, [pause, vitesse, suivreHorloge]);
   const changerVitesse = useCallback((nouvelle: (typeof VITESSES)[number]) => {
     // Recale l'horloge à l'ancienne vitesse avant de changer, pour ne pas réécrire le temps déjà écoulé.
     const maintenant = Date.now();
     horlogeRef.current = { ...avancerHorloge(horlogeRef.current, maintenant, vitesseRef.current), pause: false };
     vitesseRef.current = nouvelle;
+    suivreHorloge(horlogeRef.current.heure);
     setVitesse(nouvelle); setPause(false); setHeure(horlogeRef.current.heure);
-  }, []);
+  }, [suivreHorloge]);
   useEffect(() => {
     if (pause || secondes === null || secondes <= 0 || etapeMode >= modeActif.etapes.length) return;
     const timer = window.setInterval(() => setSecondes(s => s === null ? null : Math.max(0, s - 1)), 1000);
@@ -720,7 +774,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const setDirection = (d: Direction, actif: boolean) => { if (actif) { lieuEnApproche.current = null; directions.add(d); } else directions.delete(d); rafraichir((v) => v + 1); };
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
-  const stats = demo ? demoStats : besoins ?? { energie: 78, moral: 82, faim: 64, social: 70 };
+  // Les besoins affichés suivent l'horloge entre deux déclarations au serveur (ou deux heures pleines en démonstration).
+  const stats = declinMonde(declinMonde(demo ? demoStats : besoins ?? BESOINS_DEPART, tempsAffiche.sommeil, true), tempsAffiche.eveil);
   const humeur = humeurDepuisBesoins(stats);
   const critique = besoinCritique(stats);
   const meteo = meteoForcee ?? meteoDuMoment(new Date(), heure);
@@ -839,8 +894,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const terminerJournee = () => {
     const r = resultatJournee;
     setResultatJournee(null); setJournee(null); setRecrues([]); setInterlocuteur(null);
-    // Fin de journée à 17 h, comme une vraie journée de chantier.
-    if (horlogeRef.current.heure < FIN_DE_JOURNEE && horlogeRef.current.heure >= 6) { horlogeRef.current = { heure: FIN_DE_JOURNEE, instant: Date.now(), pause: horlogeRef.current.pause }; setHeure(FIN_DE_JOURNEE); }
+    // Fin de journée à 17 h, comme une vraie journée de chantier : l'horloge y passe, et les besoins avec elle.
+    if (horlogeRef.current.heure < FIN_DE_JOURNEE && horlogeRef.current.heure >= 6) passerA(FIN_DE_JOURNEE);
     if (!r) return;
     if (r.recompenses === 'simulateur') notifier(`Journée terminée : le chantier est à ${Math.round(r.apres)} %.`, 'succes');
     else if (!r.bilan.compte) notifier('Journée à refaire : le chantier n’a pas avancé.', 'alerte');
@@ -950,8 +1005,14 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <label className="my-3 block text-xs font-bold">Explorer par zone<select value={zonePlan} onChange={e => setZonePlan(e.target.value)} className="mt-2 w-full rounded-xl border border-white/15 bg-[#2A211B] p-2.5 text-jeu-ivoire"><option className="bg-[#2A211B]">Toutes les zones</option>{QUARTIERS.map(q => <option key={q.nom} className="bg-[#2A211B]">{q.nom}</option>)}</select></label>
       {QUARTIERS.filter(q => zonePlan === 'Toutes les zones' || q.nom === zonePlan).map(q => <section key={q.nom} className="my-3 rounded-xl border border-white/10 bg-white/[.03] p-2"><h3 className="text-sm font-bold text-jeu-or">{q.nom}</h3><p className="my-1 text-xs text-jeu-ivoire/60">{q.description}</p>{BATIMENTS.filter(b => [...QUARTIERS].sort((a, c) => Math.hypot(b.position[0] - a.x, b.position[2] - a.z) - Math.hypot(b.position[0] - c.x, b.position[2] - c.z))[0].nom === q.nom).map(b => <button key={b.slug} onClick={() => { setInterlocuteur(null); choisir(b); }} className="block w-full rounded-lg p-2.5 text-left text-sm font-semibold hover:bg-white/[.06]">{b.nom}<span className="hud-chiffre mt-0.5 block text-[10.5px] font-semibold text-jeu-ivoire/55">{Math.round(Math.hypot(b.position[0] - positionCourante[0], b.position[2] - positionCourante[1]))} m · Rejoindre</span></button>)}</section>)}
     </nav>}
-    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} onDemo={action => { const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social'; setDemoStats(s => ({ ...s, [cible]: 100, moral: Math.min(100, s.moral + (action.besoin === 'repos' ? 4 : action.besoin === 'repas' ? 3 : 6)) })); notifier(`${action.label} : besoin restauré (démo, non sauvegardé).`, 'succes'); if (action.besoin === 'repos') dormirLaNuit(); }}
-      onFait={action => { if (action.besoin === 'repos') dormirLaNuit(); }} />}
+    {selection && <InteractionLieu key={selection.slug} {...selection} demo={demo} onClose={() => setSelection(null)} onEnter={() => { setInterieur(selection); setSelection(null); directionsRef.current.clear(); destination.current = null; }} sieste={!dormirJusquAuMatin(heure)} onDemo={action => {
+        // En journée, dormir depuis la fiche de la résidence est une sieste, comme dans le lit.
+        const sieste = action.besoin === 'repos' && !dormirJusquAuMatin(heure);
+        setDemoStats(s => sieste ? appliquerArticle(s, articleMaison('sieste-maison')!) : appliquerEffet(s, EFFETS_DEMO[action.besoin]));
+        notifier(`${sieste ? 'Sieste' : action.label} : ${sieste ? 'énergie en hausse' : 'besoin restauré'} (démo, non sauvegardé).`, 'succes');
+        if (action.besoin === 'repos') dormir();
+      }}
+      onFait={action => { if (action.besoin === 'repos') dormir(); }} />}
     {/* Les deux chantiers ont un vrai intérieur de chantier ; on ne travaille qu'au Grand chantier, le Chantier du Plateau se visite. */}
     {interieur && interieur.slug === 'chantier' ? <InterieurChantier3D
       nomChantier={nomChantier} etat={etatChantier} equipe={equipeChantier}
@@ -1002,13 +1063,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         setDemoStats(s => appliquerArticle(s, article));
         return null;
       }}
-      onDormi={dormirLaNuit} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
+      onDormi={dormir} nuit={dormirJusquAuMatin(heure)} onTempsPasse={h => passerDuree(h)} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       {interieur.slug === 'residence'
         ? <PanneauChezToi demo={demo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))} onAller={quitterPour} />
-        : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => {
-          const cible = action.besoin === 'repos' ? 'energie' : action.besoin === 'repas' ? 'faim' : 'social';
-          setDemoStats(s => ({ ...s, [cible]: 100 }));
-        }} />}
+        : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
     {matin && <PanneauMatin heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))}
       onAller={slug => { setMatin(false); quitterPour(slug); }} onFermer={() => setMatin(false)} />}
@@ -1019,9 +1077,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       {large ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1.5"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
     </div>
     <p role="status" className="sr-only">{libelleSauvegarde}</p>
-    {(premierChoix || choixPersonnageOuvert) && <ChoixPersonnage initial={idPersonnage ?? personnageProche(avatar?.config)} nomInitial={nomJoueur ?? ''} avatarConfig={demo ? undefined : avatar?.config}
+    {(premierChoix || choixPersonnageOuvert) && <ChoixPersonnage initial={idPersonnage ?? personnageProche(avatar?.config)} nomInitial={nomJoueur ?? ''} avatarConfig={configPortrait}
       premierChoix={premierChoix} demo={demo} enCours={enregistrerPersonnage.isPending} erreur={enregistrerPersonnage.error ? (enregistrerPersonnage.error as Error).message || 'Enregistrement impossible pour l’instant.' : null}
       onAnnuler={premierChoix ? undefined : () => setChoixPersonnageOuvert(false)}
-      onValider={(id, nom) => enregistrerPersonnage.mutate({ personnage: id, nom }, { onSuccess: () => { setChoixPersonnageOuvert(false); notifier(`${nom} est prêt pour les Palmiers. Le même personnage t’attend en mode classique.`, 'succes'); } })} />}
+      onValider={(id, nom, gabarit) => enregistrerPersonnage.mutate({ personnage: id, nom, ...gabarit }, { onSuccess: () => { setChoixPersonnageOuvert(false); notifier(`${nom} est prêt pour les Palmiers. Le même personnage t’attend en mode classique.`, 'succes'); } })} />}
   </div></FournisseurPersonnage>;
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import { besoinsDe } from '@/lib/humeurs';
 import { api } from '@/lib/api';
 import { AnneauProgression, ICONES_TYPE, Skeleton } from '@/components/app/ui';
 import { AvatarBtp } from '@/components/app/avatar-btp';
@@ -143,7 +144,7 @@ export default function DashboardPage() {
                 <span className="aura-avatar absolute left-1/2 top-1/2 -z-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sable/50 blur-2xl md:h-28 md:w-28" />
                 <Plumbob
                   taille={18}
-                  humeur={carriere ? humeurDepuisBesoins({ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }) : 'bien'}
+                  humeur={carriere ? humeurDepuisBesoins(besoinsDe(carriere)) : 'bien'}
                 />
                 <span className="anim-float relative">
                   <AvatarBtp config={carriere?.avatar?.config} taille={92} className="shadow-2xl ring-4 ring-ivoire/25" />
@@ -208,7 +209,7 @@ export default function DashboardPage() {
 
       {/* ── Besoins façon jeu de simulation ── */}
       {carriere && (
-        <PanneauBesoins besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} />
+        <PanneauBesoins besoins={besoinsDe(carriere)} />
       )}
 
       {/* ── Le monde vivant : le même personnage, et la progression dans les lieux du quartier ── */}

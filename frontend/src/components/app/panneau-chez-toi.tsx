@@ -12,7 +12,7 @@ import { PanneauCabine } from './panneaux-loisirs';
 // courrier du joueur et sa garde-robe ; au réveil, le même programme s'affiche de lui-même.
 
 interface Message { id: string; contenu: string; lu: boolean; createdAt: string; pnj: { nom: string; role: string } }
-interface Besoins { faim: number; social: number; moral: number }
+interface Besoins { faim: number; social: number; moral: number; hygiene: number; divertissement: number }
 
 function EnTete({ surtitre, titre, onFermer }: { surtitre: string; titre: string; onFermer?: () => void }) {
   return <div className="flex items-start justify-between gap-3">
@@ -38,7 +38,9 @@ function ContenuJournee({ heure, rendezVous, besoins, onAller }: { heure: number
     })}</ul>
     {conseils.length > 0 && <div className="mt-3 rounded-xl bg-black/20 p-3">
       <p className="hud-legende mb-1">Tes besoins conseillent</p>
-      {conseils.map(c => <button key={c.slug} type="button" onClick={() => onAller(c.slug)} className="block w-full py-1 text-left text-[12px] leading-snug text-jeu-ivoire/80 hover:text-jeu-or">{c.texte} →</button>)}
+      {conseils.map(c => c.slug
+        ? <button key={c.texte} type="button" onClick={() => onAller(c.slug!)} className="block w-full py-1 text-left text-[12px] leading-snug text-jeu-ivoire/80 hover:text-jeu-or">{c.texte} →</button>
+        : <p key={c.texte} className="py-1 text-[12px] leading-snug text-jeu-ivoire/80">{c.texte}</p>)}
     </div>}
   </>;
 }
@@ -80,6 +82,6 @@ export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller }: {
         <p className="line-clamp-2 text-[12px] leading-snug text-jeu-ivoire/75">{m.contenu}</p>
       </li>)}</ul>}
     {onglet === 'courrier' && !demo && <Link href="/app/messages" className="hud-bouton hud-bouton-or mt-3 flex w-full p-2.5 text-center text-[12.5px]">Tout lire →</Link>}
-    <p className="mt-2 text-[10.5px] leading-snug text-jeu-ivoire/50">Le lit fait passer la nuit jusqu’à 6 h 30. Cuisiner et recevoir un voisin coûtent moins cher que le maquis et le café.</p>
+    <p className="mt-2 text-[10.5px] leading-snug text-jeu-ivoire/50">Le soir, le lit fait passer la nuit jusqu’à 6 h 30 ; le jour, c’est une sieste de 2 h. La douche et la télé sont gratuites ; cuisiner et recevoir un voisin coûtent moins cher que le maquis et le café.</p>
   </section>;
 }

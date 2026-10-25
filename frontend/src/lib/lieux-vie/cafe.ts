@@ -9,7 +9,7 @@ export const ARTICLES_CAFE: ArticleCarte[] = [
   { id: 'the-menthe', nom: 'Thé à la menthe', detail: 'Servi en trois verres, on prend le temps', categorie: 'boisson', action: 'social', prix: 300, effets: { social: 20 }, moral: 1, preparation: 3, message: 'Le thé à la menthe, servi en trois verres : on prend le temps.' },
   { id: 'jus-passion', nom: 'Jus de passion', detail: 'Pressé minute, bien frais', categorie: 'boisson', action: 'social', prix: 500, effets: { faim: 5, social: 15 }, moral: 2, preparation: 2, message: 'Un jus de passion frais en terrasse.' },
   { id: 'cafe-croissant', nom: 'Café et croissant', detail: 'La pause des bâtisseurs', categorie: 'plat', action: 'social', prix: 900, effets: { faim: 20, energie: 12, social: 10 }, moral: 2, preparation: 3, message: 'Café et croissant : la pause des bâtisseurs.' },
-  { id: 'tournee', nom: 'Tournée pour la table', detail: 'Tu offres à boire à toute la table', categorie: 'boisson', action: 'social', prix: 2500, effets: { social: 60 }, moral: 6, preparation: 4, message: 'Tu offres la tournée : toute la table trinque avec toi.' },
+  { id: 'tournee', nom: 'Tournée pour la table', detail: 'Tu offres à boire à toute la table', categorie: 'boisson', action: 'social', prix: 2500, effets: { social: 60, divertissement: 20 }, moral: 6, preparation: 4, message: 'Tu offres la tournée : toute la table trinque avec toi.' },
 ];
 
 export const TABLES_CAFE: Point[] = [[-6.2, -1.6], [-2.5, -1.6], [1.6, -1.6], [-6.2, 2.2], [-2.5, 2.2]];

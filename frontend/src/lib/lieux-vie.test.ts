@@ -10,7 +10,7 @@ import { MARINA, PONTONS, STATION_MARINA, surLeTour, TOUR_PIROGUE } from './lieu
 import { butMarque, coinAdverse, issueTirs, PARCOURS_MATCH, scoreDuMatch, SPORT, STATION_SPORT, TOUR_FOOTING } from './lieux-vie/sport';
 import { creerNavigation, type Point } from './navigation-plan';
 
-const PLEIN = { energie: 100, faim: 100, social: 100, moral: 100 };
+const PLEIN = { energie: 100, faim: 100, social: 100, moral: 100, hygiene: 100, divertissement: 100 };
 const LIEUX = [MAQUIS, CAFE, MARCHE, MARINA, SPORT, AZUR, GALERIE];
 
 describe('lieux de vie', () => {
@@ -39,22 +39,35 @@ describe('lieux de vie', () => {
     });
     expect(LIEUX.flatMap(l => l.carte).filter(a => a.moralPrincipal).map(a => a.id).sort()).toEqual(['coiffure', 'footing', 'match-foot', 'musculation', 'pirogue', 'pressing']);
   });
-  it('chez soi, cuisiner et recevoir coûtent les prix du serveur, moins chers qu’au maquis et au café', () => {
-    expect(ARTICLES_MAISON.map(a => `${a.id} ${a.action} ${a.prix}`)).toEqual(['cuisine-maison repas 600', 'voisin-maison social 700']);
+  it('chez soi, cuisiner et recevoir coûtent les prix du serveur, moins chers qu’au maquis et au café ; télé et sieste sont gratuites', () => {
+    expect(ARTICLES_MAISON.map(a => `${a.id} ${a.action} ${a.prix}`)).toEqual(['cuisine-maison repas 600', 'voisin-maison social 700', 'tele-maison divertissement 0', 'sieste-maison repos 0']);
     expect(ARTICLES_MAISON[0].prix).toBeLessThan(MAQUIS.carte.find(a => a.id === 'garba')!.prix);
+    expect(Object.fromEntries(ARTICLES_MAISON.map(a => [a.id, a.effets]))).toEqual({
+      'cuisine-maison': { faim: 55 }, 'voisin-maison': { social: 35, divertissement: 10 }, 'tele-maison': { divertissement: 30 }, 'sieste-maison': { energie: 35 },
+    });
+  });
+  it('garde les effets d’hygiène et de divertissement du serveur : le sport fait transpirer, les loisirs amusent', () => {
+    const effets = (cle: 'hygiene' | 'divertissement') => Object.fromEntries(LIEUX.flatMap(l => l.carte).filter(a => a.effets[cle] !== undefined).map(a => [a.id, a.effets[cle]]));
+    expect(effets('hygiene')).toEqual({ 'match-foot': -25, musculation: -20, footing: -15, coiffure: 30, pressing: 20 });
+    expect(effets('divertissement')).toEqual({
+      'poulet-braise': 10, tournee: 20, coco: 5, 'brochettes-crevettes': 10, pirogue: 45, 'match-foot': 35, musculation: 10, footing: 10, glace: 10, 'credit-telephone': 10,
+    });
   });
   it('le sport fatigue mais remonte le moral ; à bout de forces, il est refusé', () => {
     const match = SPORT.carte.find(a => a.id === 'match-foot')!;
-    expect(appliquerArticle({ energie: 60, faim: 50, social: 40, moral: 50 }, match, { victoire: true })).toEqual({ energie: 40, faim: 50, social: 80, moral: 62 });
+    // Le match fait aussi transpirer et amuse (hygiène −25, divertissement +35), comme au serveur.
+    expect(appliquerArticle({ energie: 60, faim: 50, social: 40, moral: 50, hygiene: 60, divertissement: 40 }, match, { victoire: true })).toEqual({ energie: 40, faim: 50, social: 80, moral: 62, hygiene: 35, divertissement: 75 });
     expect(articleTropFatigant({ ...PLEIN, energie: 10 }, SPORT.carte.find(a => a.id === 'musculation')!)).toBe(true);
+    // Transpirer n'est jamais refusé : l'hygiène s'arrête simplement à 0.
+    expect(articleTropFatigant({ ...PLEIN, hygiene: 5 }, SPORT.carte.find(a => a.id === 'musculation')!)).toBe(false);
     expect(articleUtile({ ...PLEIN, moral: 80 }, SPORT.carte.find(a => a.id === 'musculation')!)).toBe(true);
   });
   it('applique un article comme le serveur : points ajoutés jusqu’à 100, bonus de la tablée pour un repas', () => {
-    const avant = { energie: 60, faim: 30, social: 50, moral: 50 };
+    const avant = { energie: 60, faim: 30, social: 50, moral: 50, hygiene: 70, divertissement: 70 };
     const garba = MAQUIS.carte.find(a => a.id === 'garba')!, cafe = CAFE.carte.find(a => a.id === 'cafe-noir')!;
-    expect(appliquerArticle(avant, garba)).toEqual({ energie: 60, faim: 80, social: 50, moral: 51 });
-    expect(appliquerArticle(avant, garba, { tablee: true })).toEqual({ energie: 60, faim: 80, social: 70, moral: 53 });
-    expect(appliquerArticle(avant, cafe, { tablee: true })).toEqual({ energie: 75, faim: 30, social: 60, moral: 51 });
+    expect(appliquerArticle(avant, garba)).toEqual({ ...avant, faim: 80, moral: 51 });
+    expect(appliquerArticle(avant, garba, { tablee: true })).toEqual({ ...avant, faim: 80, social: 70, moral: 53 });
+    expect(appliquerArticle(avant, cafe, { tablee: true })).toEqual({ ...avant, energie: 75, social: 60, moral: 51 });
     expect(appliquerArticle({ ...avant, faim: 90 }, MAQUIS.carte.find(a => a.id === 'foutou-graine')!).faim).toBe(100);
     expect(articleUtile(PLEIN, garba)).toBe(false);
     expect(articleUtile({ ...PLEIN, social: 50 }, garba, { tablee: true })).toBe(true);

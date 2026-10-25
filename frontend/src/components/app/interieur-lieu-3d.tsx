@@ -6,8 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { LIBELLES_JAUGES, type JaugeBesoin } from '@/lib/lieux-vie';
 import { articleMaison } from '@/lib/lieux-vie/maison';
-import { avancement, COUTS_BESOINS, EFFETS_DEMO, objetsPour, type ActionObjet, type BesoinServeur, type EffetBesoins, type ObjetInterieur } from '@/lib/objets-interieurs';
+import { actionSelonHeure, avancement, COUTS_BESOINS, EFFETS_DEMO, objetsPour, type ActionObjet, type BesoinServeur, type EffetBesoins, type ObjetInterieur } from '@/lib/objets-interieurs';
 import type { InteractionsInterieur, UsageObjet } from './objets-interieurs-3d';
 import { avancerInterieur, MOBILIER_INTERIEUR } from '@/lib/navigation-interieur';
 import * as THREE from 'three';
@@ -101,23 +102,28 @@ function Bouton({ d, symbole, directions }: { d: Direction; symbole: string; dir
   return <button aria-label={d} className="hud-verre hud-bouton h-11 w-11 rounded-xl text-lg" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); actualiser(v => v + 1); }} onPointerUp={() => { directions.delete(d); actualiser(v => v + 1); }} onPointerCancel={() => { directions.delete(d); actualiser(v => v + 1); }}>{symbole}</button>;
 }
 
-const JAUGE_BESOIN: Record<BesoinServeur, string> = { repos: 'Énergie', repas: 'Faim', social: 'Social' };
+const JAUGE_BESOIN: Record<BesoinServeur, string> = { repos: 'Énergie', repas: 'Faim', social: 'Social', hygiene: 'Hygiène', divertissement: 'Loisirs' };
 
-/** Ce que coûte et rapporte une action, affiché avant de la lancer. */
+/** Ce que coûte et rapporte une action, affiché avant de la lancer (et le temps de jeu qu'elle prend). */
 function effetAction(action: ActionObjet, demo: boolean) {
   if (!action.besoin) return 'Moment de vie · sans effet sur les jauges';
   const article = articleMaison(action.article);
-  if (article) return `${article.prix.toLocaleString('fr-FR')} F · ${Object.entries(article.effets).map(([j, n]) => `+${n} ${j === 'faim' ? 'faim' : j === 'social' ? 'social' : 'énergie'}`).join(', ')}${demo ? ' (démo)' : ''}`;
-  const cout = COUTS_BESOINS[action.besoin];
-  return `${cout ? `${cout.toLocaleString('fr-FR')} F` : 'Gratuit'} · ${JAUGE_BESOIN[action.besoin]} au maximum${demo ? ' (démo)' : ''}`;
+  const prix = (cout: number) => cout ? `${cout.toLocaleString('fr-FR')} F` : 'Gratuit';
+  const temps = action.heures ? ` · ${action.heures} h passe${action.heures > 1 ? 'nt' : ''}` : '';
+  if (article) return `${prix(article.prix)} · ${(Object.entries(article.effets) as [JaugeBesoin, number][]).map(([j, n]) => `+${n} ${LIBELLES_JAUGES[j].nom}`).join(', ')}${temps}${demo ? ' (démo)' : ''}`;
+  return `${prix(COUTS_BESOINS[action.besoin])} · ${JAUGE_BESOIN[action.besoin]} au maximum${temps}${demo ? ' (démo)' : ''}`;
 }
 
 export interface ProprietesInterieur {
   slug: string; nom: string; onSortir: () => void; children?: ReactNode; demo?: boolean; onDemo?: (effet: EffetBesoins) => void;
   /** Démonstration : un article de la maison payé et consommé, avec ses effets réels ; renvoie le motif d'un refus. */
   onDemoArticle?: (article: string) => string | null;
-  /** Le joueur s'est réveillé dans son lit (la nuit peut passer). */
+  /** Le joueur s'est réveillé dans son lit (la nuit, ou la sieste, peut passer). */
   onDormi?: () => void;
+  /** Le soir venu, le lit offre la nuit complète ; le jour, une sieste. */
+  nuit?: boolean;
+  /** Une action a fait passer des heures de jeu (la télé). */
+  onTempsPasse?: (heures: number) => void;
 }
 
 export function InterieurLieu3D(props: ProprietesInterieur) {
@@ -125,7 +131,7 @@ export function InterieurLieu3D(props: ProprietesInterieur) {
   return <InterieurStandard {...props}/>;
 }
 
-function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemoArticle, onDormi }: ProprietesInterieur) {
+function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemoArticle, onDormi, nuit = true, onTempsPasse }: ProprietesInterieur) {
   const directions = useMemo(() => new Set<Direction>(), []);
   const [activites, setActivites] = useState(false);
   const residence = slug === 'residence';
@@ -155,8 +161,8 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemo
       client.invalidateQueries({ queryKey: ['carriere', 'me'] });
     },
   });
-  const etat = useRef({ usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi });
-  etat.current = { usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi };
+  const etat = useRef({ usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi, onTempsPasse });
+  etat.current = { usage, selection, estDemo, mutate: agir.mutate, onDemo, onDemoArticle, onDormi, onTempsPasse };
   const objetChoisi = objets.find(o => o.id === selection) ?? null;
   // Sur téléphone, le panneau des pièces se replie pour laisser voir (et toucher) les meubles.
   const [panneauOuvert, setPanneauOuvert] = useState(() => objets.length === 0 || typeof window === 'undefined' || window.matchMedia?.('(min-width: 640px)').matches !== false);
@@ -192,6 +198,7 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemo
         setRetour({ texte: `${message} (démo : rien n'est sauvegardé)` });
       } else setRetour({ texte: cout ? `${message} · −${cout.toLocaleString('fr-FR')} F` : message });
       if (usage.action.id === 'dormir') etat.current.onDormi?.();
+      if (usage.action.heures) etat.current.onTempsPasse?.(usage.action.heures);
     }, 120);
     return () => window.clearInterval(minuteur);
   }, [usage]);
@@ -238,7 +245,7 @@ function InterieurStandard({ slug, nom, onSortir, children, demo, onDemo, onDemo
     </div>}
     {objetChoisi && !usage && <section aria-label={`Actions : ${objetChoisi.nom}`} className="hud-verre absolute inset-x-3 bottom-3 z-30 mx-auto max-w-md p-4 sm:left-auto sm:right-5 sm:mx-0 sm:w-[340px]">
       <div className="flex items-start justify-between gap-3"><div><p className="hud-legende text-jeu-or">Que veux-tu faire ?</p><h2 className="hud-titre text-xl leading-tight">{objetChoisi.nom}</h2></div><button aria-label="Fermer le menu" onClick={() => setSelection(null)} className="hud-bouton hud-bouton-verre h-8 w-8 shrink-0 rounded-full text-xs">✕</button></div>
-      <div className="mt-3 grid gap-2">{objetChoisi.actions.map(action => <button key={action.id} onClick={() => lancer(objetChoisi, action)} className={`hud-bouton w-full flex-col items-start p-3 text-left text-sm ${action.besoin ? 'hud-bouton-principal' : 'hud-bouton-verre'}`}>
+      <div className="mt-3 grid gap-2">{objetChoisi.actions.map(choix => actionSelonHeure(choix, nuit)).map(action => <button key={action.id} onClick={() => lancer(objetChoisi, action)} className={`hud-bouton w-full flex-col items-start p-3 text-left text-sm ${action.besoin ? 'hud-bouton-principal' : 'hud-bouton-verre'}`}>
         <span>{action.icone} {action.label}</span>
         <span className="mt-0.5 text-[11.5px] font-semibold opacity-85">{effetAction(action, estDemo)} · {action.duree} s</span>
       </button>)}</div>

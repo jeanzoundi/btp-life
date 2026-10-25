@@ -4,14 +4,16 @@ import { PLAN_RESIDENCE as PLAN } from './plan-residence';
 
 export type PoseObjet = 'allonge' | 'assis' | 'debout' | 'parle';
 /** Actions déjà proposées par le serveur (`POST /carriere/besoins/:action`). */
-export type BesoinServeur = 'repos' | 'repas' | 'social';
-export type EffetBesoins = Partial<Record<'energie' | 'faim' | 'social' | 'moral', number>>;
+export type BesoinServeur = 'repos' | 'repas' | 'social' | 'hygiene' | 'divertissement';
+type JaugeEffet = 'energie' | 'faim' | 'social' | 'moral' | 'hygiene' | 'divertissement';
+export type EffetBesoins = Partial<Record<JaugeEffet, number>>;
 
 /** Miroir des coûts du serveur (backend/src/carriere/besoins.service.ts, EFFETS_ACTION) pour l'affichage. */
-export const COUTS_BESOINS: Record<BesoinServeur, number> = { repos: 0, repas: 1200, social: 900 };
+export const COUTS_BESOINS: Record<BesoinServeur, number> = { repos: 0, repas: 1200, social: 900, hygiene: 0, divertissement: 800 };
 /** Effet appliqué en démonstration, identique au serveur : besoin ciblé remis à 100, petit bonus de moral. */
 export const EFFETS_DEMO: Record<BesoinServeur, EffetBesoins> = {
   repos: { energie: 100, moral: 4 }, repas: { faim: 100, moral: 3 }, social: { social: 100, moral: 6 },
+  hygiene: { hygiene: 100, moral: 2 }, divertissement: { divertissement: 100, moral: 4 },
 };
 
 export interface ActionObjet {
@@ -23,7 +25,17 @@ export interface ActionObjet {
   besoin?: BesoinServeur;
   /** Article de la carte du serveur (prix et effets réels, ARTICLES_MAISON) plutôt que l'ancien tarif unique du besoin. */
   article?: string;
+  /** Heures de jeu que l'action fait passer dans le monde (la télé) ; les besoins baissent pendant ce temps. */
+  heures?: number;
   message: string;
+}
+
+/** Dormir en journée : une sieste de deux heures de jeu, qui ajoute de l'énergie sans valoir une nuit. */
+export const DUREE_SIESTE = 2;
+/** L'action du lit selon l'heure : la nuit complète le soir, la sieste le jour. */
+export function actionSelonHeure(action: ActionObjet, nuit: boolean): ActionObjet {
+  if (action.id !== 'dormir' || nuit) return action;
+  return { ...action, label: `Faire une sieste (${DUREE_SIESTE} h)`, article: 'sieste-maison', message: 'Une petite sieste : tu repars avec un peu plus d’énergie.' };
 }
 
 export interface ObjetInterieur {
@@ -48,7 +60,7 @@ export const OBJETS_RESIDENCE: ObjetInterieur[] = [
   { id: 'canape', nom: 'Canapé', acces: { x: -1.95, z: 2.2 }, usage: { x: -3.4, z: 2.15, y: .1, rotation: SUD }, regard: -EST,
     zone: { x: PLAN.canape.x, z: PLAN.canape.z, largeur: PLAN.canape.largeur, profondeur: PLAN.canape.profondeur, hauteur: 1.1 },
     actions: [
-      { id: 'tele', label: 'Regarder la télévision', icone: '📺', duree: 6, pose: 'assis', message: 'Un bon match à la télé : tu souffles un peu.' },
+      { id: 'tele', label: 'Regarder la télévision (1 h)', icone: '📺', duree: 6, pose: 'assis', besoin: 'divertissement', article: 'tele-maison', heures: 1, message: 'Un bon match à la télé : tu souffles un peu.' },
       { id: 'voisin', label: 'Inviter un voisin', icone: '🍹', duree: 7, pose: 'assis', besoin: 'social', article: 'voisin-maison', message: 'Ton voisin est passé : vous avez bien discuté.' },
     ] },
   { id: 'table', nom: 'Table et chaise', acces: { x: 2.5, z: 1.2 }, usage: { x: 2.5, z: 1.55, y: 0, rotation: SUD }, regard: SUD,
@@ -59,7 +71,7 @@ export const OBJETS_RESIDENCE: ObjetInterieur[] = [
     actions: [{ id: 'cuisiner', label: 'Cuisiner un repas', icone: '🍳', duree: 7, pose: 'debout', besoin: 'repas', article: 'cuisine-maison', message: 'Ça sent bon ! Tu as cuisiné et bien mangé.' }] },
   { id: 'douche', nom: 'Douche', acces: { x: 3.55, z: -2.6 }, usage: { x: 4.65, z: -3.55, y: .2, rotation: -EST }, regard: EST,
     zone: { x: PLAN.douche.x, z: PLAN.douche.z, largeur: PLAN.douche.largeur, profondeur: PLAN.douche.profondeur, hauteur: 2.2 },
-    actions: [{ id: 'douche', label: 'Prendre une douche', icone: '🚿', duree: 5, pose: 'debout', message: 'Une douche fraîche, ça réveille !' }] },
+    actions: [{ id: 'douche', label: 'Prendre une douche', icone: '🚿', duree: 5, pose: 'debout', besoin: 'hygiene', message: 'Une douche fraîche, ça réveille !' }] },
 ];
 
 /** Comptoir d'accueil commun à tous les autres lieux (voir Mobilier dans autres-lieux-realistes). */
@@ -90,7 +102,7 @@ export function avancement(debut: number, maintenant: number, duree: number) {
 }
 
 /** Applique un effet de démonstration sur les jauges, bornées entre 0 et 100 (bonus de moral additif, autres valeurs absolues). */
-export function appliquerEffet<T extends Record<'energie' | 'faim' | 'social' | 'moral', number>>(besoins: T, effet: EffetBesoins): T {
+export function appliquerEffet<T extends Record<JaugeEffet, number>>(besoins: T, effet: EffetBesoins): T {
   const suivant = { ...besoins };
   for (const [cle, valeur] of Object.entries(effet) as [keyof EffetBesoins, number][]) {
     suivant[cle] = Math.max(0, Math.min(100, cle === 'moral' ? besoins.moral + valeur : valeur)) as T[typeof cle];

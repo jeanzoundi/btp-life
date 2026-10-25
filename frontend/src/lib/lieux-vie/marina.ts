@@ -4,9 +4,9 @@ import { zone, type Assise, type Point } from '../navigation-plan';
 import type { ArticleCarte, LieuVie } from '.';
 
 export const ARTICLES_MARINA: ArticleCarte[] = [
-  { id: 'coco', nom: 'Noix de coco', detail: 'Fraîche, ouverte à la machette', categorie: 'boisson', action: 'repas', prix: 500, effets: { faim: 5, energie: 5, social: 5 }, moral: 2, preparation: 2, message: 'Une noix de coco fraîche, ouverte à la machette.' },
-  { id: 'brochettes-crevettes', nom: 'Brochettes de crevettes', detail: 'Grillées, citron vert, attiéké', categorie: 'plat', action: 'repas', prix: 3000, effets: { faim: 70, social: 5 }, moral: 4, preparation: 6, message: 'Brochettes de crevettes en terrasse, face à la lagune.' },
-  { id: 'pirogue', nom: 'Balade en pirogue', detail: 'Le tour du plan d’eau avec le capitaine', categorie: 'activite', action: 'social', prix: 2000, effets: { social: 35, energie: -5 }, moral: 8, preparation: 3, duree: 18, moralPrincipal: true, message: 'Le tour de la lagune en pirogue : le vent du large remet les idées en place.' },
+  { id: 'coco', nom: 'Noix de coco', detail: 'Fraîche, ouverte à la machette', categorie: 'boisson', action: 'repas', prix: 500, effets: { faim: 5, energie: 5, social: 5, divertissement: 5 }, moral: 2, preparation: 2, message: 'Une noix de coco fraîche, ouverte à la machette.' },
+  { id: 'brochettes-crevettes', nom: 'Brochettes de crevettes', detail: 'Grillées, citron vert, attiéké', categorie: 'plat', action: 'repas', prix: 3000, effets: { faim: 70, social: 5, divertissement: 10 }, moral: 4, preparation: 6, message: 'Brochettes de crevettes en terrasse, face à la lagune.' },
+  { id: 'pirogue', nom: 'Balade en pirogue', detail: 'Le tour du plan d’eau avec le capitaine', categorie: 'activite', action: 'social', prix: 2000, effets: { social: 35, energie: -5, divertissement: 45 }, moral: 8, preparation: 3, duree: 18, moralPrincipal: true, message: 'Le tour de la lagune en pirogue : le vent du large remet les idées en place.' },
 ];
 
 /** Où chaque commande se prend : la coco au kiosque, les brochettes en terrasse, la pirogue au bout du ponton. */

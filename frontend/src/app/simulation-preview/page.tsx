@@ -13,7 +13,7 @@ const Quartier = dynamic(() => import('@/components/app/quartier-3d').then(m => 
 /** /simulation-preview?lieu=marina ouvre directement un lieu, comme /app/monde?lieu=… pour un joueur connecté. */
 function Apercu() {
   const lieu = useSearchParams().get('lieu');
-  return <Quartier nomJoueur="Jean" demo besoins={{ energie: 78, moral: 82, faim: 64, social: 70 }} lieuInitial={lieu} />;
+  return <Quartier nomJoueur="Jean" demo besoins={{ energie: 78, moral: 82, faim: 64, social: 70, hygiene: 72, divertissement: 66 }} lieuInitial={lieu} />;
 }
 
 export default function SimulationPreviewPage() {

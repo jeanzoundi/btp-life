@@ -5,9 +5,9 @@ import { zone, type Assise } from '../navigation-plan';
 import type { ArticleCarte, LieuVie } from '.';
 
 export const ARTICLES_GALERIE: ArticleCarte[] = [
-  { id: 'coiffure', nom: 'Coupe chez le coiffeur', detail: 'Coupe, contours, et la conversation du salon', categorie: 'service', action: 'social', prix: 1500, effets: { social: 10 }, moral: 8, preparation: 2, moralPrincipal: true, message: 'Une coupe nette chez le coiffeur : tu te sens prêt(e) pour un entretien.' },
-  { id: 'credit-telephone', nom: 'Crédit téléphone', detail: 'Pour appeler la famille et les amis', categorie: 'service', action: 'social', prix: 500, effets: { social: 20 }, moral: 2, preparation: 1, message: 'Du crédit pour appeler la famille et les amis.' },
-  { id: 'pressing', nom: 'Pressing de la tenue', detail: 'Lavée, repassée, prête pour lundi', categorie: 'service', action: 'social', prix: 1000, effets: { social: 5 }, moral: 4, preparation: 2, moralPrincipal: true, message: 'Ta tenue revient du pressing, impeccable.' },
+  { id: 'coiffure', nom: 'Coupe chez le coiffeur', detail: 'Coupe, contours, et la conversation du salon', categorie: 'service', action: 'social', prix: 1500, effets: { social: 10, hygiene: 30 }, moral: 8, preparation: 2, moralPrincipal: true, message: 'Une coupe nette chez le coiffeur : tu te sens prêt(e) pour un entretien.' },
+  { id: 'credit-telephone', nom: 'Crédit téléphone', detail: 'Pour appeler la famille et les amis', categorie: 'service', action: 'social', prix: 500, effets: { social: 20, divertissement: 10 }, moral: 2, preparation: 1, message: 'Du crédit pour appeler la famille et les amis.' },
+  { id: 'pressing', nom: 'Pressing de la tenue', detail: 'Lavée, repassée, prête pour lundi', categorie: 'service', action: 'social', prix: 1000, effets: { social: 5, hygiene: 20 }, moral: 4, preparation: 2, moralPrincipal: true, message: 'Ta tenue revient du pressing, impeccable.' },
   { id: 'patisserie', nom: 'Pâtisserie et café', detail: 'Croissant aux amandes, café crème', categorie: 'plat', action: 'repas', prix: 800, effets: { faim: 15, energie: 8 }, moral: 3, preparation: 2, message: 'Une pâtisserie et un café à la galerie.' },
 ];
 

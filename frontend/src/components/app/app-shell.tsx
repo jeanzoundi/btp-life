@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { besoinsDe } from '@/lib/humeurs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { JaugeImmeuble } from './ui';
@@ -257,7 +258,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-3">
               {carriere && (
-                <BesoinsMini besoins={{ energie: carriere.energie, moral: carriere.moral, faim: carriere.faim, social: carriere.social }} />
+                <BesoinsMini besoins={besoinsDe(carriere)} />
               )}
               {/* Bloc niveau — HUD : jauge immeuble + mini-barre d'XP lumineuse toujours visible */}
               <div className="flex items-center gap-2 rounded-full border border-pierre bg-white/60 px-3 py-1.5">

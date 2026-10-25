@@ -428,11 +428,14 @@ model UserCarriere {
   ancienneteVirtuelleJours Int          @default(0)
   referentielPaysId        String?
   referentielPays          Pays?        @relation(fields: [referentielPaysId], references: [id])
-  // Besoins façon "jeu de simulation de vie" — se dégradent avec le temps réel, se restaurent par des actions.
+  // Besoins façon "jeu de simulation de vie" — se dégradent avec le temps (réel hors du monde, celui du monde
+  // pendant qu'on y joue), se restaurent par des actions.
   energie                  Int          @default(100)
   moral                    Int          @default(80)
   faim                     Int          @default(100)
   social                   Int          @default(80)
+  hygiene                  Int          @default(100)
+  divertissement           Int          @default(80)
   derniereMajBesoins       DateTime     @default(now())
   // Traits de personnalité choisis à la création (2-3 slugs), donnent de petits bonus thématiques.
   traits                   Json?

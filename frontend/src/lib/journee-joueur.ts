@@ -19,12 +19,15 @@ export function programmeDuJour(progresDe: (slug: string) => { etapes: number; c
   return [...chantier, ...lieux];
 }
 
-/** Ce que les besoins conseillent pour bien commencer : où manger, voir du monde, se changer les idées. */
-export function conseilsDuMatin(besoins: { faim: number; social: number; moral: number }): { texte: string; slug: string }[] {
-  const conseils: { texte: string; slug: string }[] = [];
+/** Ce que les besoins conseillent pour bien commencer : se doucher (chez soi, sans quitter l'appartement), où manger,
+ * voir du monde, se changer les idées. */
+export function conseilsDuMatin(besoins: { faim: number; social: number; moral: number; hygiene: number; divertissement: number }): { texte: string; slug?: string }[] {
+  const conseils: { texte: string; slug?: string }[] = [];
+  if (besoins.hygiene < 50) conseils.push({ texte: 'Pas très frais après la nuit : la douche t’attend dans la salle d’eau.' });
   if (besoins.faim < 50) conseils.push({ texte: 'Ventre creux : un café-croissant au Café des Bâtisseurs dès 7 h, ou le garba du maquis à midi.', slug: 'cafe' });
   if (besoins.social < 40) conseils.push({ texte: 'Envie de voir du monde : le match à cinq au complexe sportif, ou la table du réseau au café.', slug: 'sports' });
-  if (besoins.moral < 45) conseils.push({ texte: 'Moral en berne : un tour de lagune en pirogue à la marina remet les idées en place.', slug: 'marina' });
+  if (besoins.divertissement < 40) conseils.push({ texte: 'Besoin de te changer les idées : la télé ce soir, ou la pirogue à la marina.', slug: 'marina' });
+  else if (besoins.moral < 45) conseils.push({ texte: 'Moral en berne : un tour de lagune en pirogue à la marina remet les idées en place.', slug: 'marina' });
   return conseils;
 }
 

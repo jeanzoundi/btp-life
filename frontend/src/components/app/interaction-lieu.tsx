@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { lieuParSlug, type ActionLieu } from '@/lib/lieux';
+import { DUREE_SIESTE } from '@/lib/objets-interieurs';
 import { AZUR } from '@/lib/lieux-vie/azur';
 import { GALERIE } from '@/lib/lieux-vie/galerie';
 import { MARCHE } from '@/lib/lieux-vie/marche';
@@ -18,18 +19,23 @@ const ACCROCHES: Record<string, string> = {
   'jardins-residence': 'Une fuite, une prise qui chauffe, une fissure : Gustave, le gardien, t’envoie dépanner les voisins. Chaque réparation paie et forme une compétence.',
   'construction-nord': 'Un immeuble en R+3 et son échafaudage : avec Ibrahim, le coordinateur sécurité, tu traques les risques un à un jusqu’au rapport d’inspection.',
 };
-export function InteractionLieu({ slug, nom, href, demo, onDemo, onFait, onClose, onEnter }: {
+export function InteractionLieu({ slug, nom, href, demo, onDemo, onFait, onClose, onEnter, sieste = false }: {
   slug: string; nom: string; href: string; demo: boolean;
   onDemo: (action: ActionBesoin) => void;
   /** Action validée par le serveur (dormir le soir fait passer la nuit, par exemple). */
   onFait?: (action: ActionBesoin) => void;
   onClose: () => void; onEnter?: () => void;
+  /** Dans le monde, en journée : dormir est une sieste de deux heures (l'article « sieste-maison »), pas une nuit. */
+  sieste?: boolean;
 }) {
   const client = useQueryClient();
   const alias: Record<string, string> = {};
   const lieu = lieuParSlug(alias[slug] ?? slug);
+  const enSieste = (action: ActionBesoin) => sieste && action.besoin === 'repos';
   const agir = useMutation({
-    mutationFn: (action: ActionBesoin) => api.post<{ message: string; carriere: BesoinsJoueur; coutPaye: number }>(`/carriere/besoins/${action.besoin}`),
+    mutationFn: (action: ActionBesoin) => enSieste(action)
+      ? api.post<{ message: string; carriere: BesoinsJoueur; coutPaye: number }>(`/carriere/besoins/${action.besoin}`, { article: 'sieste-maison' })
+      : api.post<{ message: string; carriere: BesoinsJoueur; coutPaye: number }>(`/carriere/besoins/${action.besoin}`),
     onSuccess: (res, action) => {
       client.setQueryData(['carriere', 'me'], (ancienne: Record<string, unknown> | undefined) => ({ ...ancienne, ...res.carriere }));
       client.invalidateQueries({ queryKey: ['carriere', 'me'] });
@@ -44,7 +50,7 @@ export function InteractionLieu({ slug, nom, href, demo, onDemo, onFait, onClose
     <p className="mt-1.5 text-xs leading-relaxed text-jeu-ivoire/70">{lieu?.intro ?? ACCROCHES[slug] ?? 'Ouvrez cet établissement pour retrouver les activités de votre carrière.'}</p>
     {onEnter && <button type="button" onClick={onEnter} className="hud-bouton hud-bouton-principal mt-3 w-full justify-start p-3 text-left text-sm">🚪 Entrer dans le bâtiment</button>}
     <div className="mt-3 space-y-2">{lieu?.actions.filter((a): a is ActionBesoin => a.type === 'besoin').map(action => <button key={action.besoin} disabled={agir.isPending} onClick={() => demo ? onDemo(action) : agir.mutate(action)} className="hud-bouton hud-bouton-verre w-full flex-col items-start p-3 text-left text-sm">
-      {action.icone} {agir.isPending ? 'Action en cours…' : action.label}<span className="mt-1 block text-[11.5px] font-semibold text-jeu-or">{demo ? 'Essai gratuit · non sauvegardé' : action.cout ? `${action.cout.toLocaleString('fr-FR')} FCFA virtuels` : 'Gratuit'}</span>
+      {action.icone} {agir.isPending ? 'Action en cours…' : enSieste(action) ? `Faire une sieste (${DUREE_SIESTE} h)` : action.label}<span className="mt-1 block text-[11.5px] font-semibold text-jeu-or">{demo ? 'Essai gratuit · non sauvegardé' : enSieste(action) ? 'Gratuit · un peu d’énergie' : action.cout ? `${action.cout.toLocaleString('fr-FR')} FCFA virtuels` : 'Gratuit'}</span>
     </button>)}</div>
     {agir.isSuccess && <p role="status" className="mt-3 text-sm font-bold text-jeu-lagune">{agir.data.message}{agir.data.coutPaye > 0 && ` (−${agir.data.coutPaye} F)`}</p>}
     {agir.isError && <p role="alert" className="mt-3 text-sm font-bold text-jeu-terre">{agir.error.message || 'Action impossible. Réessayez.'}</p>}

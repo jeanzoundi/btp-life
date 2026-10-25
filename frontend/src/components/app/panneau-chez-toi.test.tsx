@@ -13,15 +13,18 @@ const JOUR = programmeDuJour(() => ({ etapes: 0, cycles: 0 }), true);
 describe('chez soi', () => {
   it('au réveil, la journée commence par le chantier de Yao, avec les conseils des besoins', () => {
     const onAller = vi.fn();
-    render(<PanneauMatin heure={6.5} rendezVous={JOUR} besoins={{ faim: 30, social: 80, moral: 80 }} onAller={onAller} onFermer={vi.fn()} />);
+    render(<PanneauMatin heure={6.5} rendezVous={JOUR} besoins={{ faim: 30, social: 80, moral: 80, hygiene: 30, divertissement: 80 }} onAller={onAller} onFermer={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Bonjour ! Il est 6 h 30' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Grand chantier');
     expect(screen.getByRole('button', { name: /Ventre creux/ })).toBeInTheDocument();
+    // La douche se prend sans quitter l'appartement : un conseil, pas un trajet.
+    expect(screen.getByText(/la douche t’attend/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /la douche/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: 'Y aller' })[0]);
     expect(onAller).toHaveBeenCalledWith('chantier');
   });
   it('donne accès au courrier et à la garde-robe', () => {
-    avecClient(<PanneauChezToi demo heure={10} rendezVous={JOUR} besoins={{ faim: 80, social: 80, moral: 80 }} onAller={vi.fn()} />);
+    avecClient(<PanneauChezToi demo heure={10} rendezVous={JOUR} besoins={{ faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 }} onAller={vi.fn()} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Courrier' }));
     expect(screen.getByText(/Connecte-toi pour lire les tiens/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Garde-robe' }));
