@@ -169,4 +169,29 @@ Ordre proposé, du meilleur rapport entre effet et effort au plus lourd. L'effor
   - La parcelle existe dans la ville, au Plateau Nord, entre l'hôtel de ville et le laboratoire :
     - l'immeuble y monte à chaque chapitre validé : bornage, sondages, implantation, permis affiché sur la palissade, base vie, fouilles, gros œuvre avec grue et échafaudage, immeuble fini, puis livré avec ses habitants ;
     - elle figure sur la minicarte, dans l'objectif du HUD et en tête du programme du matin.
-  - Reste à faire pour ce chantier : le concurrent (`PnjRole.CONCURRENT`) et des plans de caméra aux moments clés.
+  - Complété le même jour, voir plus bas : le concurrent et les plans de caméra.
+- **26 octobre — la ville à l'échelle, le téléphone et les transports** (demande hors liste) :
+  - véhicules aux vraies dimensions et à l'échelle des personnages (`lib/echelle-monde.ts`) : voiture, taxi orange, gbaka, bus de 11 m, moto ;
+  - circulation à droite, files d'attente aux feux, bus à ses abris ; manguiers et flamboyants, lampadaires, ligne électrique, étals, gare des gbakas ;
+  - le téléphone (touche T) : messages, appels, GPS, taxi et gbaka payés, banque, offres, fil rouge, agenda, défis, patrimoine.
+- **26 octobre — chantier n° 2 fait.** Six défis du jour et quatre de la semaine, réclamés au téléphone ; six imprévus à choix au Grand chantier, lus dans les tables `Evenement` et `Imprevu` (migration `20261026120000_defis`, contenu dans `seed-data/defis-data.ts`).
+- **26 octobre — chantier n° 3 fait.** Les huit traits ont leurs effets, au serveur et dans le jeu (XP, réputation, fatigue, social, prix) ; l'affinité passe des paliers à 20, 50 et 80.
+- **26 octobre — chantier n° 4 fait.** Le téléphone, ci-dessus.
+- **26 octobre — chantier n° 5 fait.** Les habitants suivent les horaires de leurs lieux, la foule et la circulation varient selon l'heure, la pluie sort les parapluies et ralentit la marche ; l'orage ferme le chantier et la météo pèse sur les besoins.
+- **26 octobre — chantier n° 6 fait.**
+  - Un loyer chaque semaine à la Résidence Lagune, trois logements (studio, deux-pièces, villa) qui reposent plus ou moins bien, des arriérés qui pèsent sur le moral (migration `20261026130000_patrimoine`).
+  - De l'outillage qui rend le travail plus efficace ; l'épargne ramenée à 0,06 % par jour sur 500 000 F au plus.
+  - Une entreprise avec capital, employés, chiffre d'affaires et charges, sur `EntrepriseVirtuelle`.
+- **26 octobre — chantier n° 7 fait.** Quatre travaux chez soi (peinture, carrelage, cloison, terrasse) : le métré à partir des cotes, le devis du dépôt, la commande, puis une journée de travaux par journée du monde, à la Résidence Lagune. Finis, ils donnent du moral à chaque réveil.
+- **26 octobre — chantier n° 8 terminé.**
+  - Le concurrent, Serge Ahoussou de Bâti-Express (entreprise fictive), rôde devant la parcelle aux heures de chantier, commente les étapes et appelle le joueur.
+  - À chaque chapitre validé, la caméra tourne autour de l'immeuble qui vient de franchir une étape, avec un bandeau de cinéma ; le plan attend que le bilan soit refermé.
+- **26 octobre — chantier n° 9, première partie faite.**
+  - Présence en direct : chaque joueur connecté signale sa position toutes les dix secondes et voit ses voisins marcher dans la ville avec leur personnage.
+  - Six émotes au-dessus des têtes, et un chat de quartier sans liens, sans rafales et sans nom réel (migration `20261026150000_monde_en_ligne`).
+  - Reste à faire : les chantiers à plusieurs et les entreprises de joueurs.
+- **26 octobre — chantier n° 10 fait.**
+  - Seize métiers au-delà du niveau 20, deux par filière, qu'on n'atteint que par promotion.
+  - 33 offres d'emploi au lieu de 5, de l'entrée dans chaque filière aux échelons experts (`seed-data/carriere-data.ts`).
+  - Des certificats enfin délivrés : une attestation par module de l'académie, un certificat par métier visé et par échelon expert, rattrapés pour les joueurs qui les méritaient déjà (migration `20261026140000_certificats_uniques`).
+  - En plus : une embauche ne fait plus reculer dans sa filière.
