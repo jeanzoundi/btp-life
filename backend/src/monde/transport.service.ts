@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { facteurPrix, lireTraits } from '../carriere/traits';
+import { DefisService } from './defis.service';
 
 // Les courses du quartier : le gbaka au forfait, le taxi compteur au kilomètre (et plus cher sous la pluie, comme à Abidjan).
 // Même barème que le téléphone du jeu (frontend/src/lib/transports.ts) : un mètre du jeu vaut 25 m de la vraie ville.
@@ -23,19 +24,30 @@ export function prixTrajet(mode: ModePaye, distance: number, pluie = false) {
 
 @Injectable()
 export class TransportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly defis: DefisService) {}
 
   /** Paie une course : le solde n'est débité que s'il suffit, en une seule écriture (deux courses simultanées ne peuvent
    * pas faire passer le solde sous zéro). */
   async payer(userId: string, mode: ModePaye, distance: number, pluie = false) {
     if (!MODES_PAYES.includes(mode)) throw new BadRequestException('Mode de transport inconnu');
-    // L'économe négocie sa course : 10 % de moins, arrondi aux 50 F.
-    const traits = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { traits: true } });
-    const prix = Math.round(prixTrajet(mode, distance, pluie) * facteurPrix(lireTraits(traits?.traits)) / 50) * 50;
-    const debit = await this.prisma.userCarriere.updateMany({ where: { userId, argentVirtuel: { gte: prix } }, data: { argentVirtuel: { decrement: prix } } });
-    const carriere = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { argentVirtuel: true } });
-    if (!carriere) throw new NotFoundException('Carrière introuvable');
-    if (!debit.count) throw new BadRequestException(`Pas assez d’argent pour ce trajet : ${prix.toLocaleString('fr-FR')} F.`);
-    return { mode, prix, argentVirtuel: carriere.argentVirtuel };
+    if (!Number.isFinite(distance) || distance < 0) throw new BadRequestException('Distance invalide');
+    for (let tentative = 0; ; tentative++) {
+      try {
+        return await this.prisma.$transaction(async tx => {
+          // L'économe négocie sa course : 10 % de moins, arrondi aux 50 F.
+          const traits = await tx.userCarriere.findUnique({ where: { userId }, select: { traits: true } });
+          const prix = Math.round(prixTrajet(mode, distance, pluie) * facteurPrix(lireTraits(traits?.traits)) / 50) * 50;
+          const debit = await tx.userCarriere.updateMany({ where: { userId, argentVirtuel: { gte: prix } }, data: { argentVirtuel: { decrement: prix } } });
+          const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { argentVirtuel: true } });
+          if (!carriere) throw new NotFoundException('Carrière introuvable');
+          if (!debit.count) throw new BadRequestException(`Pas assez d’argent pour ce trajet : ${prix.toLocaleString('fr-FR')} F.`);
+          // Le débit et le compteur sont indivisibles : aucun trajet payé ne se perd.
+          await this.defis.compterTrajet(userId, tx);
+          return { mode, prix, argentVirtuel: carriere.argentVirtuel };
+        }, { isolationLevel: 'Serializable', timeout: 10_000 });
+      } catch (erreur) {
+        if ((erreur as { code?: string }).code !== 'P2034' || tentative >= 2) throw erreur;
+      }
+    }
   }
 }

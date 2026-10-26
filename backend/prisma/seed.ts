@@ -541,21 +541,33 @@ async function main() {
       create: { slug: m.slug, titre: m.titre, domaine: m.domaine, ordre: m.ordre, publie: true },
       update: { titre: m.titre, domaine: m.domaine, ordre: m.ordre, publie: true },
     });
-    await prisma.cours.deleteMany({ where: { moduleId: module.id } });
-    for (const c of [...m.cours, ...(coursSupplementaires[m.slug] ?? [])]) {
+    // Chaque cours est repéré par son titre dans le module et mis à jour sur place : son id ne change pas, donc les cours
+    // lus des joueurs (UserCours, supprimés en cascade avec leur cours) survivent au seed. Seuls les cours retirés des
+    // données sont supprimés.
+    const existants = new Map(
+      (await prisma.cours.findMany({ where: { moduleId: module.id }, select: { id: true, titre: true } })).map((c) => [c.titre, c.id]),
+    );
+    const titres = new Set<string>();
+    const gardes: string[] = [];
+    for (const [i, c] of [...m.cours, ...(coursSupplementaires[m.slug] ?? [])].entries()) {
+      if (titres.has(c.titre)) throw new Error(`Deux cours « ${c.titre} » dans ${m.slug} : le seed repère chaque cours par son titre.`);
+      titres.add(c.titre);
       const enrichi = enrichissementCours[c.titre];
       const blocs = [...(enrichi?.avant ?? []), ...c.blocs, ...(enrichi?.apres ?? [])];
-      await prisma.cours.create({
-        data: {
-          moduleId: module.id,
-          titre: c.titre,
-          contenu: { blocs },
-          competenceId: competences[m.competence].id,
-          dureeMin: c.dureeMin + (enrichi ? 8 : 0),
-          missionPratiqueId: c.missionPratique ? missions[c.missionPratique]?.id : undefined,
-        },
-      });
+      const data = {
+        ordre: i + 1,
+        contenu: { blocs },
+        competenceId: competences[m.competence].id,
+        dureeMin: c.dureeMin + (enrichi ? 8 : 0),
+        missionPratiqueId: c.missionPratique ? (missions[c.missionPratique]?.id ?? null) : null,
+      };
+      const id = existants.get(c.titre);
+      const cours = id
+        ? await prisma.cours.update({ where: { id }, data })
+        : await prisma.cours.create({ data: { ...data, moduleId: module.id, titre: c.titre } });
+      gardes.push(cours.id);
     }
+    await prisma.cours.deleteMany({ where: { moduleId: module.id, id: { notIn: gardes } } });
   }
 
   console.log('Seed — PNJ...');

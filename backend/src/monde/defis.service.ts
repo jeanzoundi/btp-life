@@ -100,14 +100,14 @@ export class DefisService {
   constructor(private readonly prisma: PrismaService, private readonly progression: ProgressionService) {}
 
   /** Les défis tirés pour ce joueur aujourd'hui et cette semaine (un défi du fil rouge n'est proposé que s'il reste des chapitres). */
-  private async programme(db: Client, userId: string, etat: EtatDefis, totaux: Totaux, maintenant: Date) {
+  private async programme(db: Client, userId: string, etat: EtatDefis, maintenant: Date) {
     const actifs = await db.evenement.findMany({ where: {
       type: { in: ['DEFI_JOUR', 'DEFI_SEMAINE'] },
       AND: [{ OR: [{ actifDu: null }, { actifDu: { lte: maintenant } }] }, { OR: [{ actifAu: null }, { actifAu: { gte: maintenant } }] }],
     } });
-    const possible = (d: DefiConfig) => d.objectif.type !== 'chapitres' || totaux.chapitres + d.objectif.cible <= CAMPAGNE.chapitres;
-    const pool = (type: 'DEFI_JOUR' | 'DEFI_SEMAINE') => actifs.filter(e => e.type === type).map(e => lireDefi(e.config)).filter((d): d is DefiConfig => d !== null && possible(d));
-    return { jour: tirer(pool('DEFI_JOUR'), DEFIS_PAR_JOUR, `${userId}:${etat.jour}`), semaine: tirer(pool('DEFI_SEMAINE'), DEFIS_PAR_SEMAINE, `${userId}:${etat.semaine}`) };
+    // Le tirage reste stable après la réussite, y compris au dernier chapitre.
+    const pool = (type: 'DEFI_JOUR' | 'DEFI_SEMAINE', base: Totaux) => actifs.filter(e => e.type === type).map(e => lireDefi(e.config)).filter((d): d is DefiConfig => d !== null && (d.objectif.type !== 'chapitres' || base.chapitres + d.objectif.cible <= CAMPAGNE.chapitres));
+    return { jour: tirer(pool('DEFI_JOUR', etat.baseJour), DEFIS_PAR_JOUR, `${userId}:${etat.jour}`), semaine: tirer(pool('DEFI_SEMAINE', etat.baseSemaine), DEFIS_PAR_SEMAINE, `${userId}:${etat.semaine}`) };
   }
 
   private async progres(db: Client, userId: string, d: DefiConfig, periode: Periode, etat: EtatDefis, totaux: Totaux, maintenant: Date) {
@@ -130,18 +130,20 @@ export class DefisService {
 
   async etat(userId: string) {
     const maintenant = new Date();
-    const { etat, change, totaux } = await this.lire(this.prisma, userId, maintenant);
-    if (change) await this.prisma.userCarriere.update({ where: { userId }, data: { defis: etat as unknown as Prisma.InputJsonValue } });
-    const { jour, semaine } = await this.programme(this.prisma, userId, etat, totaux, maintenant);
-    const avecProgres = async (d: DefiConfig, periode: Periode) => ({
-      ...d, periode, progres: Math.min(d.objectif.cible, await this.progres(this.prisma, userId, d, periode, etat, totaux, maintenant)),
-      reclame: etat.reclames[d.slug] === (periode === 'jour' ? etat.jour : etat.semaine),
+    return this.serializable(async tx => {
+      const { etat, change, totaux } = await this.lire(tx, userId, maintenant);
+      if (change) await tx.userCarriere.update({ where: { userId }, data: { defis: etat as unknown as Prisma.InputJsonValue } });
+      const { jour, semaine } = await this.programme(tx, userId, etat, maintenant);
+      const avecProgres = async (d: DefiConfig, periode: Periode) => ({
+        ...d, periode, progres: Math.min(d.objectif.cible, await this.progres(tx, userId, d, periode, etat, totaux, maintenant)),
+        reclame: etat.reclames[d.slug] === (periode === 'jour' ? etat.jour : etat.semaine),
+      });
+      return {
+        jour: await Promise.all(jour.map(d => avecProgres(d, 'jour'))),
+        semaine: await Promise.all(semaine.map(d => avecProgres(d, 'semaine'))),
+        cleJour: etat.jour, cleSemaine: etat.semaine,
+      };
     });
-    return {
-      jour: await Promise.all(jour.map(d => avecProgres(d, 'jour'))),
-      semaine: await Promise.all(semaine.map(d => avecProgres(d, 'semaine'))),
-      cleJour: etat.jour, cleSemaine: etat.semaine,
-    };
   }
 
   /** Verse la récompense d'un défi réussi, une seule fois par période. */
@@ -149,7 +151,7 @@ export class DefisService {
     const maintenant = new Date();
     const r = await this.transaction(userId, async (tx) => {
       const { etat, totaux, carriere } = await this.lire(tx, userId, maintenant);
-      const { jour, semaine } = await this.programme(tx, userId, etat, totaux, maintenant);
+      const { jour, semaine } = await this.programme(tx, userId, etat, maintenant);
       const trouve = [...jour.map(d => ({ d, periode: 'jour' as const })), ...semaine.map(d => ({ d, periode: 'semaine' as const }))].find(x => x.d.slug === slug);
       if (!trouve) throw new NotFoundException('Ce défi n’est pas au programme du moment');
       const cle = trouve.periode === 'jour' ? etat.jour : etat.semaine;
@@ -166,10 +168,13 @@ export class DefisService {
   }
 
   /** Un trajet payé compte pour les défis de transport. */
-  async compterTrajet(userId: string) {
-    const { etat } = await this.lire(this.prisma, userId, new Date());
-    const suivant: EtatDefis = { ...etat, trajets: { jour: etat.trajets.jour + 1, semaine: etat.trajets.semaine + 1 } };
-    await this.prisma.userCarriere.update({ where: { userId }, data: { defis: suivant as unknown as Prisma.InputJsonValue } });
+  async compterTrajet(userId: string, transaction?: Prisma.TransactionClient) {
+    const compter = async (tx: Prisma.TransactionClient) => {
+      const { etat } = await this.lire(tx, userId, new Date());
+      const suivant: EtatDefis = { ...etat, trajets: { jour: etat.trajets.jour + 1, semaine: etat.trajets.semaine + 1 } };
+      await tx.userCarriere.update({ where: { userId }, data: { defis: suivant as unknown as Prisma.InputJsonValue } });
+    };
+    return transaction ? compter(transaction) : this.serializable(compter);
   }
 
   private async imprevuDuJour(db: Client, userId: string, jour: string) {
@@ -213,17 +218,21 @@ export class DefisService {
     return { option: r.option, retour: r.retour, effets: r.effets };
   }
 
-  private async transaction<T extends { ancienNiveau: number; nouveauNiveau: number }>(userId: string, operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  private async serializable<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     for (let tentative = 0; ; tentative++) {
       try {
-        const resultat = await this.prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 10_000 });
-        // Les notifications ne doivent pas transformer un paiement validé en erreur HTTP.
-        try { await this.progression.notifierNiveau(userId, resultat.ancienNiveau, resultat.nouveauNiveau); }
-        catch { this.logger.warn('Notification de niveau indisponible après un défi ou un imprévu'); }
-        return resultat;
+        return await this.prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 10_000 });
       } catch (erreur) {
         if ((erreur as { code?: string }).code !== 'P2034' || tentative >= 2) throw erreur;
       }
     }
+  }
+
+  private async transaction<T extends { ancienNiveau: number; nouveauNiveau: number }>(userId: string, operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+    const resultat = await this.serializable(operation);
+    // Les notifications ne doivent pas transformer un paiement validé en erreur HTTP.
+    try { await this.progression.notifierNiveau(userId, resultat.ancienNiveau, resultat.nouveauNiveau); }
+    catch { this.logger.warn('Notification de niveau indisponible après un défi ou un imprévu'); }
+    return resultat;
   }
 }

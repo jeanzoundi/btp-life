@@ -12,7 +12,7 @@ const MAINTENANT = new Date('2026-10-26T12:00:00.000Z');
 const ilYa = (jours: number) => new Date(MAINTENANT.getTime() - jours * 86_400_000).toISOString();
 
 function fakePrisma(overrides: { patrimoine?: unknown; argent?: number; traits?: string[] } = {}) {
-  const etat: Record<string, unknown> = { userId: 'u1', patrimoine: 'patrimoine' in overrides ? overrides.patrimoine : null, argentVirtuel: overrides.argent ?? 100_000, moral: 70, niveau: 4, traits: overrides.traits ?? [] };
+  const etat: Record<string, unknown> = { userId: 'u1', patrimoine: 'patrimoine' in overrides ? overrides.patrimoine : null, argentVirtuel: overrides.argent ?? 100_000, moral: 70, niveau: 4, energie: 80, traits: overrides.traits ?? [] };
   const prisma = {
     userCarriere: {
       findUnique: jest.fn().mockImplementation(() => Promise.resolve({ ...etat })),
@@ -144,15 +144,18 @@ describe('les travaux chez soi', () => {
     const svc = await service(prisma);
     await expect(svc.acheterMateriaux('u1')).resolves.toMatchObject({ argent: 50_000 - 21_150, chantier: { etape: 'travaux' } });
     await expect(svc.journeeTravaux('u1')).resolves.toMatchObject({ termine: false, chantier: { journees: 1 } });
-    expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: ENERGIE_JOURNEE_TRAVAUX });
+    expect(etat.energie).toBe(80 - ENERGIE_JOURNEE_TRAVAUX);
+    expect(besoins.consommer).not.toHaveBeenCalled();
     await expect(svc.journeeTravaux('u1')).rejects.toThrow('reviens demain');
     jest.setSystemTime(new Date(MAINTENANT.getTime() + INTERVALLE_JOURNEE_TRAVAUX_MS));
+    progression.notifierNiveau.mockRejectedValueOnce(new Error('Notification indisponible'));
     const fini = await svc.journeeTravaux('u1');
     expect(fini).toMatchObject({ termine: true, chantier: null, logement: { confortTotal: 2 } });
     expect(fini.renovations.find(r => r.slug === 'peinture-sejour')?.faite).toBe(true);
     expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: RENOVATIONS['peinture-sejour'].xp }, prisma);
     expect(progression.notifierNiveau).toHaveBeenCalledWith('u1', 4, 5);
     expect(etat.patrimoine).toMatchObject({ chantier: null, renovations: [{ slug: 'peinture-sejour', logement: 'studio' }] });
+    expect(etat.energie).toBe(80 - 2 * ENERGIE_JOURNEE_TRAVAUX);
   });
   it('refuse une journée de travaux à un joueur épuisé, et un déménagement en plein chantier', async () => {
     const { prisma } = fakePrisma({ patrimoine: studio({ chantier: { slug: 'peinture-sejour', logement: 'studio', etape: 'travaux', essais: 0, journees: 0, derniereJourneeLe: null } }) });

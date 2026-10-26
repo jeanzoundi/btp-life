@@ -545,6 +545,7 @@ model Cours {
   moduleId          String
   module            ModuleAcademie @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   titre             String
+  ordre             Int            @default(0)
   contenu           Json
   quizMissionId     String?
   quizMission       Mission?       @relation("CoursQuiz", fields: [quizMissionId], references: [id])

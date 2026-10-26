@@ -70,7 +70,11 @@ async function main() {
     console.log('✔ Le seed s\'exécute sans erreur après migration.');
 
     execSync('npx ts-node scripts/test-campagne-transaction.ts', { cwd, env, stdio: 'inherit' });
-    console.log('\nOK — migrations, seed et transactions campagne valides sur une base neuve.');
+
+    console.log('\n— Rejoue le seed sur des cours déjà lus —');
+    execSync('npx ts-node scripts/test-seed-cours.ts', { cwd, env, stdio: 'inherit' });
+    execSync('npx ts-node scripts/test-monde-transactions.ts', { cwd, env, stdio: 'inherit' });
+    console.log('\nOK — migrations, seed rejouable et transactions campagne valides sur une base neuve.');
   } finally {
     await pg.stop();
     // Un dossier encore verrouillé ne doit ni masquer l'erreur d'une migration, ni faire échouer un

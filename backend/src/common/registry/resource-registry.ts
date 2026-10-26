@@ -7,8 +7,8 @@ export interface ResourceConfig {
   model: string;
   /** Fields that can be used with a "contains" search via ?q= */
   searchFields?: string[];
-  /** Default relations to include */
-  include?: Record<string, boolean>;
+  /** Default relations to include (true, or Prisma include args such as an orderBy) */
+  include?: Record<string, boolean | object>;
   /** Default order */
   orderBy?: Record<string, 'asc' | 'desc'>;
   /**
@@ -33,7 +33,8 @@ export const CATALOG_RESOURCES: Record<string, ResourceConfig> = {
     model: 'moduleAcademie',
     searchFields: ['titre'],
     orderBy: { ordre: 'asc' },
-    include: { cours: true },
+    // Cours dans l'ordre des données du seed ; à égalité (matière du générateur, toute à 0), dans l'ordre de création.
+    include: { cours: { orderBy: [{ ordre: 'asc' }, { id: 'asc' }] } },
     publicWhere: { publie: true },
     filterableFields: ['domaine'],
   },

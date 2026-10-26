@@ -104,6 +104,30 @@ describe('DefisService.etat', () => {
 });
 
 describe('DefisService.reclamer', () => {
+  it('garde le défi du dernier chapitre jusqu’au versement de sa récompense', async () => {
+    const { prisma, etat } = fakePrisma({ campagne: { chapitres: 8 } });
+    const defis = etat.defis as { baseJour: { chapitres: number } };
+    defis.baseJour.chapitres = 8;
+    prisma.evenement.findMany.mockResolvedValue([{ id: 'final', type: 'DEFI_JOUR', config: {
+      slug: 'chapitre', titre: 'Finir un chapitre', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 25, argent: 1000 },
+    } }] as typeof EVENEMENTS);
+    const { svc } = await service(prisma);
+    expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', progres: 0 });
+    etat.campagne = { chapitres: 9 };
+    expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', progres: 1 });
+    await expect(svc.reclamer('u1', 'chapitre')).resolves.toMatchObject({ slug: 'chapitre' });
+    expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', reclame: true });
+  });
+  it('réessaie une lecture initiale en conflit sans écraser une récompense', async () => {
+    const { prisma, etat } = fakePrisma();
+    const { svc } = await service(prisma);
+    prisma.$transaction.mockImplementationOnce(async () => {
+      (etat.defis as { reclames: Record<string, string> }).reclames.seance = cleJour(new Date());
+      throw { code: 'P2034' };
+    });
+    expect((await svc.etat('u1')).jour.find(d => d.slug === 'seance')?.reclame).toBe(true);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+  });
   it('verse la récompense d’un défi réussi dans la transaction, une seule fois', async () => {
     const { prisma, etat } = fakePrisma();
     const { svc, progression } = await service(prisma);

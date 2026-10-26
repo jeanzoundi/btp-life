@@ -1,11 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from '../carriere/besoins.service';
 import { ProgressionService } from '../carriere/progression.service';
-import { facteurPrix, lireTraits } from '../carriere/traits';
+import { facteurEnergieTravail, facteurPrix, lireTraits } from '../carriere/traits';
 import {
-  confortLogement, coutMateriaux, ENERGIE_JOURNEE_TRAVAUX, ESSAIS_METRE, INTERVALLE_JOURNEE_TRAVAUX_MS, LOGEMENTS, lirePatrimoine, NIVEAUX_LOGEMENT, OUTILS,
+  confortLogement, coutMateriaux, ENERGIE_JOURNEE_TRAVAUX, ESSAIS_METRE, facteurFatigueOutils, INTERVALLE_JOURNEE_TRAVAUX_MS, LOGEMENTS, lirePatrimoine, NIVEAUX_LOGEMENT, OUTILS,
   reglerLoyer, RENOVATIONS, SEMAINE_MS, type NiveauLogement, type Patrimoine,
 } from '../carriere/patrimoine';
 
@@ -19,6 +19,7 @@ export const MORAL_LOYER_IMPAYE = 10;
 
 @Injectable()
 export class PatrimoineService {
+  private readonly logger = new Logger(PatrimoineService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly besoins: BesoinsService,
@@ -196,20 +197,25 @@ export class PatrimoineService {
         throw new BadRequestException('Une journée de travaux par journée du monde : reviens demain.');
       }
       const renovation = RENOVATIONS[c.slug];
+      const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { energie: true, traits: true } });
+      if (!carriere) throw new NotFoundException('Carrière introuvable');
+      if (carriere.energie < ENERGIE_JOURNEE_TRAVAUX) throw new BadRequestException('Trop fatigué pour les travaux.');
+      const fatigue = Math.round(ENERGIE_JOURNEE_TRAVAUX * facteurEnergieTravail(lireTraits(carriere.traits)) * facteurFatigueOutils(patrimoine.outils));
       const journees = c.journees + 1;
       const termine = journees >= renovation.journees;
       const suivant: Patrimoine = termine
         ? { ...patrimoine, chantier: null, renovations: [...patrimoine.renovations, { slug: c.slug, logement: c.logement }] }
         : { ...patrimoine, chantier: { ...c, journees, derniereJourneeLe: maintenant.toISOString() } };
-      await tx.userCarriere.update({ where: { userId }, data: { patrimoine: suivant as unknown as Prisma.InputJsonValue } });
+      await tx.userCarriere.update({ where: { userId }, data: { patrimoine: suivant as unknown as Prisma.InputJsonValue, energie: Math.max(0, carriere.energie - fatigue) } });
       if (!termine) return { patrimoine: suivant, argent, termine, niveaux: null };
       const avant = await tx.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
       const apres = await this.progression.appliquerDelta(userId, { xp: renovation.xp }, tx);
       return { patrimoine: suivant, argent, termine, niveaux: avant && apres ? { avant: avant.niveau, apres: apres.niveau } : null };
     });
-    if (r.niveaux) await this.progression.notifierNiveau(userId, r.niveaux.avant, r.niveaux.apres);
-    // La fatigue passe après la journée enregistrée (l'équipement et le bosseur la réduisent, comme au travail).
-    await this.besoins.consommer(userId, { energie: ENERGIE_JOURNEE_TRAVAUX });
+    if (r.niveaux) {
+      try { await this.progression.notifierNiveau(userId, r.niveaux.avant, r.niveaux.apres); }
+      catch { this.logger.warn('Notification indisponible après livraison des travaux'); }
+    }
     return { ...this.vue(r.patrimoine, r.argent, { preleve: 0, impaye: 0 }), termine: r.termine };
   }
 

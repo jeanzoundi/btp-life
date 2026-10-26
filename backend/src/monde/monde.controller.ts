@@ -41,10 +41,7 @@ export class MondeController {
 
   @Post('transport')
   async payerTransport(@CurrentUser() user: RequestUser, @Body() dto: TransportDto) {
-    const course = await this.transport.payer(user.userId, dto.mode, dto.distance, dto.pluie ?? false);
-    // Le trajet compte pour les défis ; un compteur indisponible ne doit pas faire échouer une course payée.
-    await this.defis.compterTrajet(user.userId).catch(() => undefined);
-    return course;
+    return this.transport.payer(user.userId, dto.mode, dto.distance, dto.pluie ?? false);
   }
 
   @Get('defis')
