@@ -63,10 +63,12 @@ function consigne(p: ProgrammeLieu, nomJoueur: string, etape: number, cycle: num
 }
 
 /** Le mentor du lieu : consigne de l'étape, suivi de la séance, bilan. */
-export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, seance, resultat, demo, enregistrement = false, onCommencer, onBilan, onTerminer, onAbandonner, onProgramme, onAttendre, onFermer }: {
+export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, seance, resultat, demo, enregistrement = false, filRouge = null, onCommencer, onBilan, onTerminer, onAbandonner, onProgramme, onAttendre, onFermer }: {
   programme: ProgrammeLieu; statut: StatutSeance; nomJoueur: string; etape: number; cycle: number; seance: SeanceLieu | null; resultat: ResultatSeance | null; demo: boolean;
   /** Bilan envoyé au serveur, réponse attendue. */
   enregistrement?: boolean;
+  /** Un chapitre du fil rouge attend chez ce mentor : il le rappelle en tête du panneau. */
+  filRouge?: { libelle: string; onOuvrir: () => void } | null;
   onCommencer: () => void; onBilan: () => void; onTerminer: () => void; onAbandonner: () => void; onProgramme: () => void; onAttendre?: () => void; onFermer: () => void;
 }) {
   const { mentor, horaires } = programme;
@@ -82,6 +84,11 @@ export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, sean
       <div className="flex-1"><h2 className="hud-titre text-lg leading-tight">{mentor.nom}</h2><p className="text-[12px] font-semibold text-jeu-ivoire/65">{mentor.role}</p></div>
       <button aria-label="Fermer" onClick={onFermer} className="hud-bouton hud-bouton-verre h-8 w-8 shrink-0 rounded-full text-xs">✕</button>
     </div>
+    {filRouge && statut !== 'resultat' && <button onClick={filRouge.onOuvrir} className="mt-3 flex w-full items-center gap-2.5 rounded-xl bg-jeu-or/[.14] px-3 py-2.5 text-left ring-1 ring-jeu-or/50 hover:bg-jeu-or/25">
+      <span aria-hidden="true" className="text-lg">📜</span>
+      <span className="min-w-0 flex-1"><span className="hud-legende block text-jeu-or">Fil rouge · Résidence Akwaba</span><span className="block truncate text-[13px] font-bold">{filRouge.libelle}</span></span>
+      <span className="text-[12px] font-bold text-jeu-or">Ouvrir →</span>
+    </button>}
     <p className="my-3 rounded-2xl rounded-tl-sm bg-white/[.08] p-3 text-sm leading-relaxed">{replique}</p>
     {statut !== 'resultat' && <div className="rounded-xl bg-black/20 p-3">
       <div className="flex items-baseline justify-between gap-2"><span className="hud-legende">{programme.titre} · {programme.cycle} {cycle + 1}</span><b className="hud-chiffre text-sm text-jeu-or">{Math.min(etape + 1, programme.etapes.length)}/{programme.etapes.length}</b></div>
@@ -117,19 +124,19 @@ export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, sean
 }
 
 /** Une tâche du lieu, quel que soit son type : situation, mesure à calculer ou pièces à choisir. */
-export function TacheLieu({ etape, contenu, onScore, onFermer }: { etape: string; contenu: ContenuTache; onScore: (score: number) => void; onFermer: () => void }) {
-  if (contenu.type === 'situation') return <TacheChantier etape={etape} situation={contenu.situation} onRepondre={choix => onScore(scoreSituation(contenu.situation, choix))} onFermer={onFermer} />;
-  if (contenu.type === 'mesure') return <TacheMesureLieu etape={etape} mesure={contenu.mesure} onScore={onScore} onFermer={onFermer} />;
-  return <TacheSelectionLieu etape={etape} selection={contenu.selection} onScore={onScore} onFermer={onFermer} />;
+export function TacheLieu({ etape, contenu, onScore, onFermer, onReponse }: { etape: string; contenu: ContenuTache; onScore: (score: number) => void; onFermer: () => void; onReponse?: (reponse: number | number[]) => void }) {
+  if (contenu.type === 'situation') return <TacheChantier etape={etape} situation={contenu.situation} onRepondre={choix => { onReponse?.(choix); onScore(scoreSituation(contenu.situation, choix)); }} onFermer={onFermer} />;
+  if (contenu.type === 'mesure') return <TacheMesureLieu etape={etape} mesure={contenu.mesure} onScore={onScore} onReponse={onReponse} onFermer={onFermer} />;
+  return <TacheSelectionLieu etape={etape} selection={contenu.selection} onScore={onScore} onReponse={onReponse} onFermer={onFermer} />;
 }
 
 const nombre = (n: number, unite: string) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${unite}`;
 
-export function TacheMesureLieu({ etape, mesure, onScore, onFermer }: { etape: string; mesure: TacheMesure; onScore: (score: number) => void; onFermer: () => void }) {
+export function TacheMesureLieu({ etape, mesure, onScore, onFermer, onReponse }: { etape: string; mesure: TacheMesure; onScore: (score: number) => void; onFermer: () => void; onReponse?: (reponse: number) => void }) {
   const [saisie, setSaisie] = useState('');
   const [score, setScore] = useState<number | null>(null);
   const valeur = lireNombre(saisie.replace('−', '-'));
-  const valider = () => { if (!Number.isFinite(valeur) || saisie.trim() === '') return; const s = scoreMesure(mesure, valeur); setScore(s); onScore(s); };
+  const valider = () => { if (!Number.isFinite(valeur) || saisie.trim() === '') return; const s = scoreMesure(mesure, valeur); setScore(s); onReponse?.(valeur); onScore(s); };
   return <section role="dialog" aria-label={`Mesure : ${mesure.titre}`} className="hud-verre absolute inset-x-3 bottom-3 z-40 mx-auto max-w-md p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[390px]">
     <div className="flex items-start justify-between gap-3">
       <div><p className="hud-legende text-jeu-or">{etape} · mesure</p><h2 className="hud-titre mt-0.5 text-xl leading-tight">{mesure.titre}</h2></div>
@@ -142,7 +149,7 @@ export function TacheMesureLieu({ etape, mesure, onScore, onFermer }: { etape: s
       <div className="mt-1.5 flex gap-2">
         <div className="flex flex-1 items-center rounded-xl border border-white/15 bg-white/[.06] pr-3 focus-within:border-jeu-or/60">
           <input id="reponse-mesure" inputMode="decimal" autoComplete="off" value={saisie} onChange={e => setSaisie(e.target.value)} className="hud-chiffre w-full bg-transparent p-3 text-base outline-none" placeholder="Ta réponse" />
-          <span className="text-sm text-jeu-ivoire/60">{mesure.unite}</span>
+          <span className="whitespace-nowrap text-sm text-jeu-ivoire/60">{mesure.unite}</span>
         </div>
         <button type="submit" disabled={!saisie.trim() || !Number.isFinite(valeur)} className="hud-bouton hud-bouton-principal px-4 text-sm">Valider</button>
       </div>
@@ -157,11 +164,11 @@ export function TacheMesureLieu({ etape, mesure, onScore, onFermer }: { etape: s
   </section>;
 }
 
-export function TacheSelectionLieu({ etape, selection, onScore, onFermer }: { etape: string; selection: TacheSelection; onScore: (score: number) => void; onFermer: () => void }) {
+export function TacheSelectionLieu({ etape, selection, onScore, onFermer, onReponse }: { etape: string; selection: TacheSelection; onScore: (score: number) => void; onFermer: () => void; onReponse?: (reponse: number[]) => void }) {
   const [coches, setCoches] = useState<number[]>([]);
   const [score, setScore] = useState<number | null>(null);
   const basculer = (i: number) => setCoches(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
-  const valider = () => { const s = scoreSelection(selection, coches); setScore(s); onScore(s); };
+  const valider = () => { const s = scoreSelection(selection, coches); setScore(s); onReponse?.([...coches]); onScore(s); };
   return <section role="dialog" aria-label={`Sélection : ${selection.titre}`} className="hud-verre absolute inset-x-3 bottom-3 top-24 z-40 mx-auto flex max-w-md flex-col p-4 sm:left-auto sm:right-3 sm:top-5 sm:mx-0 sm:w-[410px]">
     <div className="flex items-start justify-between gap-3">
       <div><p className="hud-legende text-jeu-or">{etape}</p><h2 className="hud-titre mt-0.5 text-xl leading-tight">{selection.titre}</h2></div>

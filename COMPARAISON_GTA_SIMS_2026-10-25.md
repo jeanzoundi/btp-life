@@ -146,3 +146,27 @@ Ordre proposé, du meilleur rapport entre effet et effort au plus lourd. L'effor
   - besoins et horloge ;
   - douche et télévision sans effet (« étudier tes plans » reste un moment sans effet) ;
   - en plus, le déclin en temps réel qui se perdait dans les arrondis.
+- **26 octobre — chantier n° 8 commencé : le fil rouge de la Résidence Akwaba.**
+  - Une campagne en neuf chapitres suit le même immeuble (R+3, huit logements, pour Mme Touré) de lieu en lieu :
+    1. l'offre clé en main à la Tour BTP Life ;
+    2. le sol au laboratoire ;
+    3. les fondations à la Maison des ingénieurs ;
+    4. le permis à l'hôtel de ville ;
+    5. le prêt à la banque ;
+    6. la commande au dépôt ;
+    7. le coulage à la plateforme logistique ;
+    8. la sécurité du gros œuvre au Chantier du Plateau ;
+    9. la réception sur la parcelle, avec Mme Touré.
+  - Les chiffres se suivent d'un chapitre à l'autre :
+    - le sol à 200 kPa du laboratoire donne les semelles de 2 m du bureau d'études ;
+    - ces semelles font les 32 m³ commandés au dépôt, puis les quatre toupies du coulage ;
+    - la retenue de garantie apprise à la banque est rendue à la réception.
+  - Chaque chapitre se joue chez le mentor du lieu, à ses heures d'ouverture. Ses trois tâches se font aux vrais postes de l'intérieur.
+  - Le chapitre est validé à 50/100, une seule fois :
+    - 2 500 F et jusqu'à 80 XP par chapitre ;
+    - 25 000 F, 280 XP et 15 de réputation à la réception.
+  - Le serveur tient la progression, dans une nouvelle colonne `UserCarriere.campagne` (migration `20261026090000_campagne`). Il paie dans une transaction sérialisable, et Mme Touré écrit au joueur au permis et à la remise des clés.
+  - La parcelle existe dans la ville, au Plateau Nord, entre l'hôtel de ville et le laboratoire :
+    - l'immeuble y monte à chaque chapitre validé : bornage, sondages, implantation, permis affiché sur la palissade, base vie, fouilles, gros œuvre avec grue et échafaudage, immeuble fini, puis livré avec ses habitants ;
+    - elle figure sur la minicarte, dans l'objectif du HUD et en tête du programme du matin.
+  - Reste à faire pour ce chantier : le concurrent (`PnjRole.CONCURRENT`) et des plans de caméra aux moments clés.

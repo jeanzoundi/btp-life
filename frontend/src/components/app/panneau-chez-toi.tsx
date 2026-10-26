@@ -27,7 +27,7 @@ function ContenuJournee({ heure, rendezVous, besoins, onAller }: { heure: number
   return <>
     <ul className="mt-3 space-y-1.5">{rendezVous.map(r => {
       const ouvert = heure >= r.ouverture && heure < r.fermeture;
-      return <li key={r.slug} className="flex items-center gap-3 rounded-xl bg-white/[.05] p-2.5">
+      return <li key={`${r.slug}:${r.titre}`} className="flex items-center gap-3 rounded-xl bg-white/[.05] p-2.5">
         <span className={`hud-chiffre w-[78px] shrink-0 text-[12px] ${ouvert ? 'text-jeu-lagune' : 'text-jeu-or'}`}>{heureLisible(r.ouverture)} – {heureLisible(r.fermeture)}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-bold">{r.nom}</span>

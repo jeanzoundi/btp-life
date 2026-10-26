@@ -11,6 +11,13 @@ describe('la journée vue de chez soi', () => {
     expect(ouvertures).toEqual([...ouvertures].sort((a, b) => a - b));
     expect(programmeDuJour(() => ({ etapes: 0, cycles: 0 }), false)[0].slug).not.toBe('chantier');
   });
+  it('met le chapitre du fil rouge en tête, avant le chantier de Yao', () => {
+    const filRouge = { slug: 'mairie', nom: 'Hôtel de ville', ouverture: 7.5, fermeture: 16, titre: 'Fil rouge · Le permis de construire', detail: 'Résidence Akwaba, chapitre 4/9' };
+    const jour = programmeDuJour(() => ({ etapes: 0, cycles: 0 }), true, filRouge);
+    expect(jour[0]).toBe(filRouge);
+    expect(jour[1].slug).toBe('chantier');
+    expect(jour).toHaveLength(Object.keys(LIEUX_PROGRAMME).length + 2);
+  });
   it('annonce l’étape qui attend dans chaque lieu, sans dépasser la dernière', () => {
     const jour = programmeDuJour(slug => ({ etapes: slug === 'banque' ? 2 : slug === 'mairie' ? 99 : 0, cycles: 0 }), false);
     expect(jour.find(r => r.slug === 'banque')).toMatchObject({ titre: 'Monter le dossier de crédit', detail: 'Financer son projet · étape 3/5' });

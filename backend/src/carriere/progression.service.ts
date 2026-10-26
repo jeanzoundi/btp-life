@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvatarItemsService } from './avatar-items.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -38,10 +38,10 @@ export class ProgressionService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async appliquerDelta(userId: string, delta: ProgressionDelta) {
+  async appliquerDelta(userId: string, delta: ProgressionDelta, transaction?: Prisma.TransactionClient) {
     // Lecture et écriture dans la même transaction : deux récompenses arrivant presque en
     // même temps ne peuvent plus s'écraser en repartant toutes les deux de l'ancien solde.
-    const operation = await this.prisma.$transaction(async (tx) => {
+    const appliquer = async (tx: Prisma.TransactionClient) => {
       const carriere = await tx.userCarriere.findUnique({ where: { userId } });
       if (!carriere) return null;
 
@@ -49,17 +49,25 @@ export class ProgressionService {
       // Échelle 0-1000 — voir le commentaire sur UserCarriere.reputation dans schema.prisma.
       const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
       const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
-      const nouveauNiveau = xpToNiveau(nouvelleXp);
+      const nouveauNiveau = Math.max(carriere.niveau, xpToNiveau(nouvelleXp));
       const resultat = await tx.userCarriere.update({
         where: { userId },
         data: { xp: nouvelleXp, reputation: nouvelleReputation, argentVirtuel: nouvelArgent, niveau: nouveauNiveau },
       });
       return { carriere, resultat, nouveauNiveau };
-    }, { isolationLevel: 'Serializable' });
+    };
+    const operation = transaction ? await appliquer(transaction)
+      : await this.prisma.$transaction(appliquer, { isolationLevel: 'Serializable' });
     if (!operation) return null;
     const { carriere, resultat, nouveauNiveau } = operation;
 
-    if (nouveauNiveau > carriere.niveau) {
+    // Avec une transaction appelante, les effets externes attendent son commit.
+    if (!transaction) await this.notifierNiveau(userId, carriere.niveau, nouveauNiveau);
+    return resultat;
+  }
+
+  async notifierNiveau(userId: string, ancienNiveau: number, nouveauNiveau: number) {
+    if (nouveauNiveau > ancienNiveau) {
       await this.avatarItems.debloquerItemsEligibles(userId, `niveau:${nouveauNiveau}`);
       await this.notifications.envoyerNotification(userId, {
         type: NotificationType.NIVEAU,
@@ -69,7 +77,6 @@ export class ProgressionService {
       });
     }
 
-    return resultat;
   }
 
   async validerCompetence(userId: string, competenceId: string, xpGagne: number, source: string) {

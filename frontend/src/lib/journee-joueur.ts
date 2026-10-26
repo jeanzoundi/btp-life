@@ -5,9 +5,9 @@ import { LIEUX_PROGRAMME } from './lieux-programme';
 
 export interface RendezVous { slug: string; nom: string; ouverture: number; fermeture: number; titre: string; detail: string }
 
-/** Les rendez-vous du jour : le chantier de Yao d'abord quand une journée l'attend, puis chaque lieu à programme
- * avec l'étape qui attend, dans l'ordre des ouvertures. */
-export function programmeDuJour(progresDe: (slug: string) => { etapes: number; cycles: number }, journeeChantier: boolean): RendezVous[] {
+/** Les rendez-vous du jour : le chapitre du fil rouge en tête quand il y en a un, le chantier de Yao quand une journée
+ * l'attend, puis chaque lieu à programme avec l'étape qui attend, dans l'ordre des ouvertures. */
+export function programmeDuJour(progresDe: (slug: string) => { etapes: number; cycles: number }, journeeChantier: boolean, filRouge: RendezVous | null = null): RendezVous[] {
   const lieux = Object.entries(LIEUX_PROGRAMME).map(([slug, { programme }]): RendezVous => {
     const total = programme.etapes.length, faites = Math.min(progresDe(slug).etapes, total - 1);
     return {
@@ -16,7 +16,7 @@ export function programmeDuJour(progresDe: (slug: string) => { etapes: number; c
     };
   }).sort((a, b) => a.ouverture - b.ouverture || a.nom.localeCompare(b.nom));
   const chantier: RendezVous[] = journeeChantier ? [{ slug: 'chantier', nom: 'Grand chantier', ouverture: 6, fermeture: 18, titre: 'Journée de travail avec Yao', detail: 'Le chantier ouvre à 6 h' }] : [];
-  return [...chantier, ...lieux];
+  return [...(filRouge ? [filRouge] : []), ...chantier, ...lieux];
 }
 
 /** Ce que les besoins conseillent pour bien commencer : se doucher (chez soi, sans quitter l'appartement), où manger,

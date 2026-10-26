@@ -50,6 +50,10 @@ import { DECORS_LIEUX, MENTORS_LIEUX } from './registre-lieux';
 import { PanneauChantiers, PanneauCompetences, PanneauEpargne, PanneauLogiciels, PanneauMarches, PanneauOffres, type EpargneDemo } from './panneaux-services';
 import { InterieurLieuProgramme } from './interieur-lieu-programme';
 import { PanneauxLieu, useProgrammesLieux } from './programmes-lieux';
+import { CAMPAGNE, CHAPITRES, PARCELLE_AKWABA, type BilanChapitre } from '@/lib/campagne';
+import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
+import { ImmeubleAkwaba } from './immeuble-akwaba';
+import { heureLisible } from './panneau-programme-lieu';
 import { appliquerArticle, prixArticle, type ArticleCarte, type OptionsArticle } from '@/lib/lieux-vie';
 import { ChoixPersonnage, lireChoixDemo, useEnregistrerPersonnage, type ChoixPersonnageJoueur } from './choix-personnage';
 import { LieuAzur } from './lieu-azur';
@@ -115,6 +119,13 @@ const BATIMENTS: Batiment3D[] = [
   { slug: 'marina', ...LIEUX_MONDE['marina'], position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
   { slug: 'sports', ...LIEUX_MONDE['sports'], position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
+/** La parcelle du fil rouge, traitée comme un lieu pour y aller (porte côté avenue) ; on n'y entre pas, on y retrouve Mme Touré. */
+const PARCELLE_BATIMENT: Batiment3D = {
+  slug: PARCELLE_AKWABA.slug, nom: CAMPAGNE.nom, href: '', position: [PARCELLE_AKWABA.x, 1, PARCELLE_AKWABA.z],
+  taille: [PARCELLE_AKWABA.largeur, 2, PARCELLE_AKWABA.profondeur], couleur: '#A88C66', type: 'chantier',
+};
+/** La minicarte montre la parcelle avec les lieux, et la touche y envoie le joueur. */
+const BATIMENTS_CARTE = [...BATIMENTS, PARCELLE_BATIMENT];
 const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
 const POSTES_CHANTIER = postesChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2]);
@@ -127,7 +138,7 @@ const ANNONCES_PHASES: Record<PhaseJournee, string> = {
 };
 /** Libellé d'une tâche, figé à l'ouverture (la journée peut avancer pendant que le retour s'affiche). */
 const libelleTache = (t: TacheJour, journee: Journee) => t.type === 'epi' ? 'Équipement' : t.type === 'livraison' ? 'Réception' : t.type === 'securite' ? 'Sécurité' : `${PROGRAMME.find(e => e.id === journee.etape)?.nom ?? 'Travaux'} · jour ${journee.jourEtape}/${journee.joursEtape}`;
-const EMPRISES=[...BATIMENTS.map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
+const EMPRISES=[...[...BATIMENTS, PARCELLE_BATIMENT].map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
 const POINTS_DECOUVERTE = [
   { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
   { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
@@ -147,10 +158,11 @@ const ROUTES_PNJ: PointMonde[][] = [
 const ROUTES_PASSANTS: PointMonde[][] = [
   [[-112, -12], [-62, -12], [-62, 36], [-110, 36]],
   [[62, -12], [112, -12], [112, 37], [62, 37]],
-  [[-42, -73], [-42, -113], [42, -113], [42, -73]],
+  // Au Plateau Nord, les passants longent la parcelle Akwaba par le trottoir de l'avenue, sans traverser l'immeuble.
+  [[-42, -70.4], [-42, -113], [42, -113], [42, -70.4]],
   [[-108, 44], [-58, 44], [-58, 63], [-108, 63]],
   [[58, 44], [108, 44], [108, 63], [58, 63]],
-  [[-48, -58], [48, -58], [48, -74], [-48, -74]],
+  [[-48, -58], [48, -58], [48, -71.3], [-48, -71.3]],
 ];
 
 const TOUCHES: Record<string, Direction | undefined> = {
@@ -370,7 +382,9 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ joueur, vue, suiviPnj, chantier, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
+function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] };
+  /** La Résidence Akwaba : son stade (chapitres validés du fil rouge) et la balise du portail quand Mme Touré attend. */
+  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -389,6 +403,7 @@ function Scene({ joueur, vue, suiviPnj, chantier, onPoste, yaoAuChantier, nomJou
     {BATIMENTS.map((b) => b.slug === 'chantier'
       ? <ChantierVivant key={b.slug} centre={CENTRE_CHANTIER} largeur={b.taille[0]} profondeur={b.taille[2]} etat={chantier.etat} nomChantier={chantier.nom} livraison={chantier.livraison} postes={chantier.postes} pause={pause} rythme={rythme} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onPoste={onPoste} onSelect={() => onSelect(b)} />
       : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
+    <ImmeubleAkwaba stade={akwaba.stade} appel={akwaba.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_AKWABA.slug} onSelect={() => onSelect(PARCELLE_BATIMENT)} />
     <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} />
     {noms.map((nom, i) => <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={nom === 'Yao' && yaoAuChantier ? [POSTES_CHANTIER.yao] : ROUTES_PNJ[i]} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} />)}
     {ROUTES_PASSANTS.flatMap((route, i) => [0, 2].map((depart, j) => <Passant key={`passant-${i}-${j}`} route={route} depart={depart} pause={pause} rythme={rythme} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} />))}
@@ -578,7 +593,23 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     setProgresDemo(p => ({ argent: p.argent + bilan.paie, xp: p.xp + bilan.xp }));
     setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 5), faim: Math.max(0, s.faim - 4) }));
   }, [demo]);
-  const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA });
+  // Fil rouge et séances des lieux se partagent le joueur : une seule séance à la fois, lue au moment de commencer.
+  const campagneRef = useRef<EtatCampagne | null>(null);
+  const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA,
+    occupe: () => campagneRef.current?.seance ? `Un chapitre du fil rouge est en cours (${nomLieu(campagneRef.current.seance.slug)}) : termine-le d’abord.` : null });
+  // Le fil rouge : la Résidence Akwaba, de lieu en lieu jusqu'à sa réception sur la parcelle du Plateau Nord.
+  const recompenserChapitre = useCallback((bilan: BilanChapitre) => {
+    if (!demo) return;
+    setProgresDemo(p => ({ argent: p.argent + bilan.argent, xp: p.xp + bilan.xp }));
+    setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 5), faim: Math.max(0, s.faim - 4) }));
+  }, [demo]);
+  const campagne = useCampagne({ cle: `btp-life-campagne:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserChapitre,
+    occupe: lieux.seance ? nomLieu(lieux.seance.slug) : null });
+  campagneRef.current = campagne;
+  const { ouvrir: ouvrirFilRouge } = campagne;
+  // Échap dans la ville ferme aussi la tâche ou le panneau du fil rouge (lu à jour, le gestionnaire du clavier vit plus longtemps).
+  const fermerFilRougeRef = useRef<() => boolean>(() => false);
+  fermerFilRougeRef.current = campagne.fermerPanneau;
   // Services des lieux à programme (guichet d'épargne, mur des offres…), ouverts à tout moment.
   const [serviceLieu, setServiceLieu] = useState<TypeServiceLieu | null>(null);
   const [epargneDemo, setEpargneDemo] = useState(0);
@@ -618,6 +649,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       notifier(`En route vers ${b.nom}.`, 'trajet'); setPlan(false); return;
     }
     lieuEnApproche.current = null;
+    // Devant la parcelle Akwaba : pas de fiche de lieu, c'est le fil rouge qui s'ouvre (projet, ou réception avec Mme Touré).
+    if (b.slug === PARCELLE_AKWABA.slug) { setSelection(null); setPlan(false); directionsRef.current.clear(); destination.current = null; ouvrirFilRouge(b.slug); return; }
     setSelection(b); setPlan(false); directionsRef.current.clear(); destination.current = null;
     if (mode === 'libre' || secondes === 0) return;
     const resultat = avancerMode(MODES_JEU.find(m => m.id === mode)!, etapeMode, b.slug);
@@ -628,7 +661,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       if (resultat.termine) setRecords(r => ({ ...r, [mode]: Math.max(r[mode] ?? 0, nouveauScore) }));
       notifier(resultat.termine ? `Mission accomplie ! Bonus rapidité : ${bonus} points. Rejoue pour améliorer ton record.` : `Objectif validé ! +${resultat.points} points.`, 'succes');
     } else notifier(`Ce lieu n'est pas l'objectif actuel. Consulte le planning du jour.`, 'info');
-  }, [mode, secondes, etapeMode, score, positionCourante, notifier]);
+  }, [mode, secondes, etapeMode, score, positionCourante, notifier, ouvrirFilRouge]);
   useEffect(() => {
     const poste = posteEnApproche.current;
     if (poste && Math.hypot(positionCourante[0] - POSTES_CHANTIER[poste][0], positionCourante[1] - POSTES_CHANTIER[poste][1]) <= 4.5) {
@@ -764,7 +797,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   useEffect(() => {
     const changer = (code: string, actif: boolean) => { const direction = TOUCHES[code]; if (!direction) return; if (actif) directions.add(direction); else directions.delete(direction); };
     if (interieur) { directions.clear(); return; }
-    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); return; } if (e.ctrlKey || e.metaKey || e.altKey) return; const touche = e.key.toLowerCase(); if (touche === 'm') { setPlan(v => !v); setOptions(false); setSelection(null); } else if (touche === 'j') setMenuModes(v => !v); else if (touche === 'o') { setOptions(v => !v); setPlan(false); } else if (touche === 'p') setPause(v => !v); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') changerVitesse(Number(e.code.slice(-1)) as (typeof VITESSES)[number]); };
+    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { fermerFilRougeRef.current(); setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); return; } if (e.ctrlKey || e.metaKey || e.altKey) return; const touche = e.key.toLowerCase(); if (touche === 'm') { setPlan(v => !v); setOptions(false); setSelection(null); } else if (touche === 'j') setMenuModes(v => !v); else if (touche === 'o') { setOptions(v => !v); setPlan(false); } else if (touche === 'p') setPause(v => !v); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') changerVitesse(Number(e.code.slice(-1)) as (typeof VITESSES)[number]); };
     const up = (e: KeyboardEvent) => changer(e.code, false);
     const clear = () => directions.clear();
     window.addEventListener('blur', clear);
@@ -784,6 +817,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const etapeEnCours = mode !== 'libre' ? modeActif.etapes[etapeMode] : undefined;
   const objectifVie = objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
   const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && journeeDisponible(chantierQuartier, heure, Date.now());
+  // Le fil rouge passe avant la journée de Yao quand son interlocuteur reçoit à cette heure ; un besoin urgent passe avant tout.
+  const chapitreFilRouge = campagne.chapitre;
+  const horairesFilRouge = chapitreFilRouge ? interlocuteurChapitre(chapitreFilRouge).horaires : null;
+  const filRougePropose = Boolean(chapitreFilRouge && horairesFilRouge && !etapeEnCours && !journee && !lieux.seance && !campagne.seance && !objectifVie.lieu
+    && heure >= horairesFilRouge.ouverture && heure < horairesFilRouge.fermeture);
+  const yaoEnTete = travailPropose && !lieux.seance && !campagne.seance && !filRougePropose;
   const phase = journee ? phaseJournee(journee) : null;
   const surLeChantier = interieur?.slug === 'chantier';
   const travauxDuJour = journee ? journee.taches.filter(t => t.type !== 'epi' && t.type !== 'recrutement') : [];
@@ -791,7 +830,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     ? { texte: etapeEnCours.titre, etiquette: secondes !== null ? `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}` : `${etapeMode + 1}/${modeActif.etapes.length}` }
     : journee && phase ? (surLeChantier ? { texte: TITRES_PHASES[phase], etiquette: phase === 'travaux' ? `${travauxDuJour.filter(t => journee.reponses[t.id] !== undefined).length}/${travauxDuJour.length}` : undefined, lieu: 'chantier' } : { texte: 'Retourne sur le chantier', lieu: 'chantier' })
     : lieux.seance ? { texte: `Séance en cours · ${BATIMENTS.find(b => b.slug === lieux.seance!.slug)?.nom ?? LIEUX_PROGRAMME[lieux.seance.slug].programme.titre}`, etiquette: `${Object.keys(lieux.seance.scores).length}/${lieux.seance.taches.length}`, lieu: lieux.seance.slug }
-    : travailPropose ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
+    : campagne.seance ? { texte: `Fil rouge · ${CHAPITRES[campagne.seance.etape].titre}`, etiquette: `${Object.keys(campagne.seance.scores).length}/${campagne.seance.taches.length}`, lieu: campagne.seance.slug }
+    : filRougePropose && chapitreFilRouge ? { texte: `Fil rouge · ${chapitreFilRouge.titre}`, etiquette: `Ch. ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`, lieu: chapitreFilRouge.lieu }
+    : yaoEnTete ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
     : objectifVie;
   const argent = profil?.argent ?? (demo ? progresDemo.argent : undefined);
   const niveau = profil?.niveau ?? (demo ? 3 : 1);
@@ -799,16 +840,27 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const reputation = profil?.reputation ?? (demo ? 520 : undefined);
   const couleurSauvegarde = etatSauvegarde === 'erreur' ? '#E2653C' : etatSauvegarde === 'sauvegarde-ok' ? '#4CC3A5' : 'rgb(251 245 234 / .3)';
   const hautHud = immersif ? 'top-20' : 'top-3';
-  const allerVers = (slug: string) => { const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
+  const allerVers = (slug: string) => { const lieu = BATIMENTS_CARTE.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
   /** On sort de chez soi pour un rendez-vous de la journée : le joueur repart vers le lieu. */
   const quitterPour = (slug: string) => { directions.clear(); setInterieur(null); allerVers(slug); };
+  /** Ouvre le fil rouge dans un intérieur : le panneau du mentor, le programme et les services du lieu se ferment d'abord. */
+  const ouvrirFilRougeIci = (slug: string) => { lieux.sortir(); setServiceLieu(null); ouvrirFilRouge(slug); };
+  const attendreFilRouge = (h: number) => { notifier(`${heure >= h ? 'Le lendemain à' : 'Il est'} ${heureLisible(h)} : ton rendez-vous du fil rouge t’attend.`, 'info'); passerA(h); };
+  // Le chapitre du fil rouge figure en tête du programme du jour, au réveil comme chez soi.
+  const rendezVousFilRouge = chapitreFilRouge && horairesFilRouge ? {
+    slug: chapitreFilRouge.lieu, nom: nomLieu(chapitreFilRouge.lieu), ouverture: horairesFilRouge.ouverture, fermeture: horairesFilRouge.fermeture,
+    titre: `Fil rouge · ${chapitreFilRouge.titre}`, detail: `${CAMPAGNE.nom}, chapitre ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`,
+  } : null;
+  const akwabaScene = useMemo(() => ({ stade: campagne.progres.chapitres, appel: chapitreFilRouge?.lieu === PARCELLE_AKWABA.slug ? 'Réception · Mme Touré' : null }),
+    [campagne.progres.chapitres, chapitreFilRouge?.lieu]);
   // Cible de l'objectif : la porte du lieu à rejoindre, ou le repère non découvert le plus proche.
   const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
   const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
   const repereProche = useMemo(() => POINTS_DECOUVERTE.filter(p => !decouvertes.includes(p.id)).sort((a, b) => distanceEntre(a.position, positionCourante) - distanceEntre(b.position, positionCourante))[0], [decouvertes, positionCourante]);
-  // Pendant la journée, la flèche ramène à l'entrée du chantier ; avant, elle vise Yao.
-  const posteCible: PosteVille | null = journee ? 'entree' : travailPropose ? 'yao' : null;
+  // Pendant la journée, la flèche ramène à l'entrée du chantier ; avant, elle vise Yao (s'il est l'objectif affiché).
+  const posteCible: PosteVille | null = journee ? 'entree' : yaoEnTete ? 'yao' : null;
   const cibleObjectif: PointMonde | null = posteCible ? POSTES_CHANTIER[posteCible]
+    : lieuObjectif === PARCELLE_AKWABA.slug ? porteBatiment(PARCELLE_BATIMENT.position, PARCELLE_BATIMENT.taille, LIMITES_VILLE)
     : batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
     : !etapeEnCours && objectif.texte === 'Trouve les repères' && repereProche ? repereProche.position : null;
   // Pendant une journée, le chantier montre le jour joué (un nouvel ouvrage peut démarrer après une livraison).
@@ -946,7 +998,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
     {/* HUD « Lagune » : le bâtisseur et son objectif à gauche, l'heure et la minicarte à droite, le centre reste dégagé. */}
@@ -958,7 +1010,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
         <HorlogeMonde heure={affichageHeure} meteo={LIBELLES_METEO[meteo]} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
-        <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
+        <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS_CARTE} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
           onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />
         <div className="flex gap-1.5">
           <BoutonHud libelle="Planning du jour" raccourci="J" actif={menuModes} onClick={() => setMenuModes(v => !v)}>{ICONES.planning}</BoutonHud>
@@ -974,6 +1026,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
     {!surLeChantier && panneauxChantier}
+    {!interieur && <PanneauxFilRouge ici={PARCELLE_AKWABA.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo} onAller={slug => { campagne.fermer(); allerVers(slug); }} onAttendre={attendreFilRouge} />}
     {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />
@@ -1024,12 +1077,26 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : interieur && aUnProgramme(interieur.slug) ? <InterieurLieuProgramme key={interieur.slug} nom={interieur.nom} href={interieur.href} programme={LIEUX_PROGRAMME[interieur.slug].programme} plan={LIEUX_PROGRAMME[interieur.slug].plan}
       decor={DECORS_LIEUX[interieur.slug]} mentor={MENTORS_LIEUX[interieur.slug]}
       faites={lieux.faites(interieur.slug)} cycle={lieux.cycleAffiche(interieur.slug)} seance={lieux.seance} statut={lieux.statut(interieur.slug)} demo={demo}
-      postes={[...lieux.postes(interieur.slug), ...(LIEUX_PROGRAMME[interieur.slug].services ?? []).map(s => s.station)]}
-      onPoste={station => { const service = serviceA(interieur.slug, station); if (service) setServiceLieu(service.type); else lieux.surStation(interieur.slug, station); }}
+      postes={campagne.postes(interieur.slug) ?? [...lieux.postes(interieur.slug), ...(LIEUX_PROGRAMME[interieur.slug].services ?? []).map(s => s.station)]}
+      onPoste={station => {
+        // Pendant un chapitre ici, ses tâches et son bilan passent d'abord ; les services du lieu restent ouverts.
+        if (campagne.surStation(interieur.slug, station)) return;
+        const service = serviceA(interieur.slug, station);
+        if (service) { setServiceLieu(service.type); return; }
+        if (campagne.seance?.slug === interieur.slug) { notifier(`${LIEUX_PROGRAMME[interieur.slug].plan.libelles[station] ?? station} : rien à faire ici pour ce chapitre.`, 'info'); return; }
+        campagne.fermer(); lieux.surStation(interieur.slug, station);
+      }}
+      filRouge={campagne.concerne(interieur.slug) ? {
+        titre: `Chapitre ${(campagne.seance?.etape ?? campagne.progres.chapitres) + 1}/${CHAPITRES.length} · ${CHAPITRES[campagne.seance?.etape ?? campagne.progres.chapitres].titre}`,
+        seance: campagne.seance?.slug === interieur.slug ? campagne.seance : null, bilan: campagne.statut(interieur.slug) === 'bilan', onOuvrir: () => ouvrirFilRougeIci(interieur.slug),
+      } : null}
       onProgramme={() => lieux.setProgrammeOuvert(true)} onAttendre={() => lieux.attendreOuverture(interieur.slug)}
-      onEchap={() => { if (serviceLieu) { setServiceLieu(null); return true; } return lieux.fermerPanneau(); }}
-      onSortir={() => { directions.clear(); lieux.sortir(); setServiceLieu(null); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
-      <PanneauxLieu slug={interieur.slug} lieux={lieux} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo} />
+      onEchap={() => { if (serviceLieu) { setServiceLieu(null); return true; } if (campagne.fermerPanneau()) return true; return lieux.fermerPanneau(); }}
+      onSortir={() => { directions.clear(); lieux.sortir(); campagne.sortir(); setServiceLieu(null); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
+      <PanneauxLieu slug={interieur.slug} lieux={lieux} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo}
+        filRouge={campagne.concerne(interieur.slug) && !campagne.seance && campagne.chapitre ? { libelle: `Chapitre ${campagne.progres.chapitres + 1} · ${campagne.chapitre.titre}`, onOuvrir: () => ouvrirFilRougeIci(interieur.slug) } : null} />
+      <PanneauxFilRouge ici={interieur.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo}
+        onAller={slug => { campagne.fermer(); directions.clear(); lieux.sortir(); setServiceLieu(null); setInterieur(null); allerVers(slug); }} onAttendre={() => lieux.attendreOuverture(interieur.slug)} />
       {serviceLieu === 'epargne' && <PanneauEpargne demo={demo} epargneDemo={epargneDemoOps} onFermer={() => setServiceLieu(null)} />}
       {serviceLieu === 'offres' && <PanneauOffres demo={demo} niveau={niveau} onFermer={() => setServiceLieu(null)} />}
       {serviceLieu === 'competences' && <PanneauCompetences demo={demo} onFermer={() => setServiceLieu(null)} />}
@@ -1065,10 +1132,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       }}
       onDormi={dormir} nuit={dormirJusquAuMatin(heure)} onTempsPasse={h => passerDuree(h)} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       {interieur.slug === 'residence'
-        ? <PanneauChezToi demo={demo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))} onAller={quitterPour} />
+        ? <PanneauChezToi demo={demo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)} onAller={quitterPour} />
         : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
-    {matin && <PanneauMatin heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()))}
+    {matin && <PanneauMatin heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)}
       onAller={slug => { setMatin(false); quitterPour(slug); }} onFermer={() => setMatin(false)} />}
     {/* Bas d'écran : besoins, rappel des commandes sur grand écran, croix de déplacement sur téléphone. */}
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3">

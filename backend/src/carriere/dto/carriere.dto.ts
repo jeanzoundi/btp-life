@@ -137,6 +137,17 @@ export class TempsMondeDto {
   sommeil?: boolean;
 }
 
+/** Chapitre joué : réponses brutes à corriger côté serveur. */
+export class ChapitreCampagneDto {
+  @IsInt()
+  @Min(0)
+  @Max(8)
+  chapitre: number;
+
+  @IsObject()
+  reponses: Record<string, number | number[]>;
+}
+
 /** Séance terminée dans un lieu du quartier : l'étape jouée et la note du bilan (0-100). */
 export class SeanceLieuDto {
   @IsInt()

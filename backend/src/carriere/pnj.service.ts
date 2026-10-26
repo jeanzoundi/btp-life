@@ -42,6 +42,11 @@ export class PnjService {
     return this.prisma.userMessage.create({ data: { userId, pnjId, contenu } });
   }
 
+  /** Un message d'un PNJ précis (la cliente du fil rouge, par exemple) ; rien si ce PNJ n'existe pas. */
+  async messageDe(userId: string, slug: string, contenu: string) {
+    return this.envoyer(userId, (await this.parSlug(slug))?.id, contenu);
+  }
+
   // ─── Déclencheurs de progression ───
 
   async surPromotion(userId: string, ancienPoste: string, nouveauPoste: string) {

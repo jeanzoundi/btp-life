@@ -15,13 +15,15 @@ interface ReponseSeance { progres: ProgresLieuServeur; gains: GainsSeance }
 
 /** État des lieux à programme : progression de chacun, la séance en cours (une à la fois), la tâche ouverte, le bilan.
  * Connecté, la progression et les gains passent par le serveur ; en démonstration (ou serveur injoignable), tout reste dans le navigateur. */
-export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, passerA }: {
+export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, passerA, occupe }: {
   cle: string; demo: boolean; heure: number;
   notifier: (texte: string, type?: TypeNotification) => void;
   /** Gains de démonstration, appliqués aux jauges et au solde affichés. */
   recompenser: (bilan: BilanSeance) => void;
   /** Avance l'horloge du monde jusqu'à cette heure (le lendemain si elle est passée). */
   passerA: (heure: number) => void;
+  /** Lu au moment de commencer : la raison d'attendre (un chapitre du fil rouge en cours, une séance à la fois), ou rien. */
+  occupe?: () => string | null;
 }) {
   const client = useQueryClient();
   const { data: progresServeur, isError: serveurEnPanne } = useQuery({
@@ -76,6 +78,8 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
   const commencer = (slug: string) => {
     const { programme } = LIEUX_PROGRAMME[slug];
     if (seance && seance.slug !== slug) { notifier('Une séance est déjà en cours dans un autre lieu : termine-la d’abord.', 'alerte'); return; }
+    const attente = occupe?.();
+    if (attente) { notifier(attente, 'alerte'); return; }
     const nouvelle = nouvelleSeance(programme, progresDe(slug));
     setSeance(nouvelle); setMentor(null); setResultat(null);
     notifier(`Séance commencée : ${programme.etapes[nouvelle.etape].nom.toLowerCase()}. Les balises dorées montrent les postes.`, 'trajet');
@@ -152,12 +156,16 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
 export type EtatProgrammesLieux = ReturnType<typeof useProgrammesLieux>;
 
 /** Panneaux du lieu, posés par-dessus son intérieur : mentor, tâche ouverte, programme complet. */
-export function PanneauxLieu({ slug, lieux, nomJoueur, demo }: { slug: string; lieux: EtatProgrammesLieux; nomJoueur: string; demo: boolean }) {
+export function PanneauxLieu({ slug, lieux, nomJoueur, demo, filRouge }: {
+  slug: string; lieux: EtatProgrammesLieux; nomJoueur: string; demo: boolean;
+  /** Le chapitre du fil rouge qui attend chez ce mentor, s'il y en a un. */
+  filRouge?: { libelle: string; onOuvrir: () => void } | null;
+}) {
   const { programme } = LIEUX_PROGRAMME[slug];
   const progres = lieux.progresDe(slug), enCours = lieux.seance?.slug === slug;
   return <>
     {lieux.mentor === slug && <PanneauMentor programme={programme} statut={lieux.statut(slug)} nomJoueur={nomJoueur} etape={enCours ? lieux.seance!.etape : prochaineEtape(programme, progres)} cycle={enCours ? lieux.seance!.cycle : prochainCycle(progres)}
-      seance={enCours ? lieux.seance : null} resultat={lieux.resultat} demo={demo} enregistrement={lieux.enregistrement} onCommencer={() => lieux.commencer(slug)} onBilan={lieux.faireLeBilan} onTerminer={lieux.terminer}
+      seance={enCours ? lieux.seance : null} resultat={lieux.resultat} demo={demo} enregistrement={lieux.enregistrement} filRouge={filRouge} onCommencer={() => lieux.commencer(slug)} onBilan={lieux.faireLeBilan} onTerminer={lieux.terminer}
       onAbandonner={lieux.abandonner} onProgramme={() => lieux.setProgrammeOuvert(true)} onAttendre={() => lieux.attendreOuverture(slug)} onFermer={() => { if (lieux.resultat) lieux.terminer(); else lieux.setMentor(null); }} />}
     {lieux.tache && <TacheLieu key={lieux.tache.id} etape={lieux.tache.etape} contenu={lieux.tache.contenu} onScore={lieux.noterTache} onFermer={() => lieux.setTache(null)} />}
     {lieux.programmeOuvert && <PanneauProgrammeLieu programme={programme} progres={progres} seance={lieux.seance} onFermer={() => lieux.setProgrammeOuvert(false)} />}

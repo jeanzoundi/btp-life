@@ -1,0 +1,251 @@
+[
+  [
+    {
+      "id": "montant-offre",
+      "type": "mesure",
+      "reponse": 179.95,
+      "tolerance": 0.1
+    },
+    {
+      "id": "contenu-offre",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "delai-offre",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "sondages",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "admissible",
+      "type": "mesure",
+      "reponse": 200,
+      "tolerance": 2
+    },
+    {
+      "id": "nappe",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "descente",
+      "type": "mesure",
+      "reponse": 768,
+      "tolerance": 2
+    },
+    {
+      "id": "semelle",
+      "type": "mesure",
+      "reponse": 1.9595917942265424,
+      "tolerance": 0.025
+    },
+    {
+      "id": "plans-execution",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "dossier-immeuble",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "surface-plancher",
+      "type": "mesure",
+      "reponse": 432,
+      "tolerance": 1
+    },
+    {
+      "id": "toit",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "apport",
+      "type": "mesure",
+      "reponse": 54.00000000000001,
+      "tolerance": 0.1
+    },
+    {
+      "id": "deblocage",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "retenue-situation",
+      "type": "mesure",
+      "reponse": 25.65,
+      "tolerance": 0.05
+    }
+  ],
+  [
+    {
+      "id": "beton-semelles",
+      "type": "mesure",
+      "reponse": 32,
+      "tolerance": 0.1
+    },
+    {
+      "id": "aciers-semelles",
+      "type": "mesure",
+      "reponse": 1280,
+      "tolerance": 5
+    },
+    {
+      "id": "classe-beton",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "rotations",
+      "type": "mesure",
+      "reponse": 4,
+      "tolerance": 0
+    },
+    {
+      "id": "materiel-coulage",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "toupie-retard",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "tremie",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "charge-grue",
+      "type": "mesure",
+      "reponse": 1550,
+      "tolerance": 10
+    },
+    {
+      "id": "accueil-securite",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "reserves",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "proces-verbal",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "retenue-finale",
+      "type": "mesure",
+      "reponse": 7.625,
+      "tolerance": 0.02
+    }
+  ]
+]

@@ -98,6 +98,19 @@ describe('PnjService — déclencheurs de progression', () => {
     );
   });
 
+  it('messageDe écrit au nom du PNJ demandé, et se tait s’il n’existe pas', async () => {
+    const prisma = prismaAvecFamille(1, 5);
+    prisma.pnj.findUnique.mockResolvedValueOnce({ id: 'pnj-toure', slug: 'client-madame-toure', nom: 'Mme Touré — Cliente', role: 'CLIENT' });
+    const svc = await service(prisma);
+    await svc.messageDe('u1', 'client-madame-toure', 'Merci !');
+    expect(prisma.pnj.findUnique).toHaveBeenCalledWith({ where: { slug: 'client-madame-toure' } });
+    expect(prisma.userMessage.create).toHaveBeenCalledWith({ data: { userId: 'u1', pnjId: 'pnj-toure', contenu: 'Merci !' } });
+    prisma.pnj.findUnique.mockResolvedValueOnce(null);
+    prisma.userMessage.create.mockClear();
+    await expect(svc.messageDe('u1', 'inconnu', 'Rien')).resolves.toBeNull();
+    expect(prisma.userMessage.create).not.toHaveBeenCalled();
+  });
+
   it('surChantierLivre se rabat sur le PNJ hiérarchique si aucun client n’est fourni', async () => {
     const prisma = prismaAvecFamille(1, 5); // Maître de stage
     const svc = await service(prisma);

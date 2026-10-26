@@ -2,12 +2,13 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto, TempsMondeDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto, TempsMondeDto, ChapitreCampagneDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
 import { AvatarItemsService } from './avatar-items.service';
 import { LieuxService } from './lieux.service';
+import { CampagneService } from './campagne.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('carriere')
@@ -19,6 +20,7 @@ export class CarriereController {
     private readonly epargneService: EpargneService,
     private readonly avatarItemsService: AvatarItemsService,
     private readonly lieuxService: LieuxService,
+    private readonly campagneService: CampagneService,
   ) {}
 
   @Get('me')
@@ -149,6 +151,17 @@ export class CarriereController {
   @Post('lieux/:slug/seance')
   seanceLieu(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body() dto: SeanceLieuDto) {
     return this.lieuxService.seance(user.userId, slug, dto.etape, dto.note);
+  }
+
+  /** Le fil rouge : où en est la Résidence Akwaba. */
+  @Get('campagne')
+  campagne(@CurrentUser() user: RequestUser) {
+    return this.campagneService.etat(user.userId);
+  }
+
+  @Post('campagne/chapitre')
+  chapitreCampagne(@CurrentUser() user: RequestUser, @Body() dto: ChapitreCampagneDto) {
+    return this.campagneService.chapitre(user.userId, dto.chapitre, dto.reponses);
   }
 
   @Post('besoins/:action')

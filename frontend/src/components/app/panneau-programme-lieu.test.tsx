@@ -13,6 +13,14 @@ const resultat = (r: Partial<ResultatSeance>): ResultatSeance => ({ bilan: bilan
 const gains = { xp: 41, argent: 2000, reputation: 1, facteurBesoins: .82, entrainement: false, prochaineRecompenseLe: '2026-10-24T10:20:00.000Z' };
 
 describe('le mentor du lieu', () => {
+  it('rappelle le chapitre du fil rouge qui l’attend, sauf pendant un bilan', () => {
+    const onOuvrir = vi.fn();
+    const { rerender } = render(<PanneauMentor {...base} {...actions()} statut="disponible" filRouge={{ libelle: 'Chapitre 2 · Ce que dit le sol', onOuvrir }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Fil rouge · Résidence Akwaba\s*Chapitre 2 · Ce que dit le sol/ }));
+    expect(onOuvrir).toHaveBeenCalledOnce();
+    rerender(<PanneauMentor {...base} {...actions()} statut="resultat" resultat={resultat({})} filRouge={{ libelle: 'Chapitre 2 · Ce que dit le sol', onOuvrir }} />);
+    expect(screen.queryByText(/Fil rouge/)).not.toBeInTheDocument();
+  });
   it('annonce une séance payée quand le joueur est connecté', () => {
     const a = actions();
     render(<PanneauMentor {...base} {...a} statut="disponible" />);
