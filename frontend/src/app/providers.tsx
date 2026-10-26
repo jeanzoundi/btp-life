@@ -107,6 +107,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     canal.onmessage = (event: MessageEvent<{ type?: string; path?: string }>) => {
       if (event.data?.type !== 'mutation') return;
       const path = event.data.path ?? '';
+      // Présence et chat du monde en ligne : des relevés fréquents qui ne changent rien aux données du joueur.
+      if (path.startsWith('/monde/presence') || path.startsWith('/monde/chat')) return;
       if (path.includes('/carriere/monde')) {
         client.invalidateQueries({ queryKey: ['carriere', 'monde'] });
         return;

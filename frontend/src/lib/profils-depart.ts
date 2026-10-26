@@ -7,7 +7,9 @@ export const PROFILS_DEPART = [
   { id: 'ingenieur', nom: 'Ingénieur d’études', icone: '📊', description: 'Étudier, vérifier et choisir les solutions techniques.', quotidien: 'Calculs, études et échanges avec le terrain.', lieu: 'bureau-etudes', premiersPas: ['Visiter la Maison des ingénieurs', 'Travailler une compétence d’études', 'Consulter son parcours de carrière'] },
 ] as const;
 export type ProfilDepart = typeof PROFILS_DEPART[number]['id'];
-export interface ProfilCatalogue { id: string; slug: string; nom: string; famille: string; description: string | null }
+export interface ProfilCatalogue { id: string; slug: string; nom: string; famille: string; description: string | null; niveauDepart?: number }
+/** Comme le serveur (NIVEAU_DEPART_MAX dans backend/src/carriere/carriere.service.ts) : au-delà, les échelons experts se gagnent par promotion. */
+export const NIVEAU_DEPART_MAX = 9;
 export function porteDuProfil(slug: string): ProfilDepart | null {
   if (/^(etudiant|stagiaire|apprenti)-/.test(slug)) return 'etudiant';
   if (/^(ouvrier|manoeuvre)(-|$)/.test(slug)) return 'ouvrier';
@@ -17,6 +19,7 @@ export function porteDuProfil(slug: string): ProfilDepart | null {
   return null;
 }
 export function profilsPourPorte(profils: ProfilCatalogue[], porte: ProfilDepart | null) {
-  return porte ? profils.filter(p => porteDuProfil(p.slug) === porte) : profils;
+  const accessibles = profils.filter(p => (p.niveauDepart ?? 1) <= NIVEAU_DEPART_MAX);
+  return porte ? accessibles.filter(p => porteDuProfil(p.slug) === porte) : accessibles;
 }
 export const FORMATIONS_DEPART = ['BTS', 'ingenieur'] as const;

@@ -8,6 +8,7 @@ import type { BlocArchitecture, V3 } from '@/lib/architecture-ville';
 import { bungalowChantier, type PointPlan, type PosteVille } from '@/lib/journee-chantier';
 import type { ChargementLivraison, EtatVisuel, EtapeVisuelle } from '@/lib/programme-chantier';
 import { planChantier } from '@/lib/plan-chantier';
+import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import { BlocsInstances } from './blocs-instances';
 import { HumainMonde } from './humain-monde';
 import { MateriauMonde } from './materiaux-monde';
@@ -48,10 +49,10 @@ export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, pr
     {entreEtapes(etape, 'semelles', 'finitions') && <Betonniere position={[6.2, 0, 4.3]} pause={pause} rythme={rythme} />}
     {etape === 'fouilles' && <MiniPelle position={[1.5, 0, -2.4]} rotation={.6} pause={pause} rythme={rythme} />}
     {actif && <>
-      <OuvrierEnBoucle points={[[-6.6, 3.9], [-4.6, 2.4]]} depart={0} variante={0} porte pause={pause} rythme={rythme} />
-      <OuvrierEnBoucle points={[[-3.6, 4.7], [5, 3.6]]} depart={1} variante={2} porte pause={pause} rythme={rythme} />
-      <OuvrierPoste position={[6.7, 0, 3]} rotation={-1.2} variante={4} />
-      <OuvrierPoste position={[1.6, Math.max(.1, plan.hauteurTravail - .05), -1.2]} rotation={.4} variante={1} />
+      <OuvrierEnBoucle points={[[-6.6, 3.9], [-4.6, 2.4]]} depart={0} variante={0} porte pause={pause} rythme={rythme} echelle={ECHELLE_PERSONNAGES} />
+      <OuvrierEnBoucle points={[[-3.6, 4.7], [5, 3.6]]} depart={1} variante={2} porte pause={pause} rythme={rythme} echelle={ECHELLE_PERSONNAGES} />
+      <OuvrierPoste position={[6.7, 0, 3]} rotation={-1.2} variante={4} echelle={ECHELLE_PERSONNAGES} />
+      <OuvrierPoste position={[1.6, Math.max(.1, plan.hauteurTravail - .05), -1.2]} rotation={.4} variante={1} echelle={ECHELLE_PERSONNAGES} />
     </>}
     {livraison && <CamionLivraison position={[6.6, 0, hz + 4.3]} chargement={livraison} />}
     {postes.map(p => <Balise key={p.id} position={[p.position[0] - centre[0], 0, p.position[1] - centre[1]]} libelle={p.libelle} onClick={() => onPoste(p.id)} />)}
@@ -223,7 +224,8 @@ export function Balise({ position, libelle, onClick }: { position: V3; libelle: 
 }
 
 /** Ouvrier qui fait l'aller-retour entre deux points, un agglo, un sac ou une brouette à l'aller. */
-export function OuvrierEnBoucle({ points, depart, variante, porte = false, pause, rythme, nom, brouette = false }: { points: PointPlan[]; depart: number; variante: number; porte?: boolean; pause: boolean; rythme: number; nom?: string; brouette?: boolean }) {
+/** `echelle` : celle des personnages de la ville quand l'ouvrier y travaille (les intérieurs gardent la leur). */
+export function OuvrierEnBoucle({ points, depart, variante, porte = false, pause, rythme, nom, brouette = false, echelle = 1 }: { points: PointPlan[]; depart: number; variante: number; porte?: boolean; pause: boolean; rythme: number; nom?: string; brouette?: boolean; echelle?: number }) {
   const ref = useRef<THREE.Group>(null), cible = useRef(depart % points.length), charge = useRef<THREE.Group>(null);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, delta) => {
@@ -240,7 +242,7 @@ export function OuvrierEnBoucle({ points, depart, variante, porte = false, pause
     if (charge.current) charge.current.visible = brouette || (porte && cible.current === 1);
   });
   const [x, z] = points[depart % points.length];
-  return <group ref={ref} position={[x, 0, z]}>
+  return <group ref={ref} position={[x, 0, z]}><group scale={echelle}>
     <HumainMonde casque variante={variante} marche={!pause} allure={1.2 * rythme} />
     <group ref={charge}>
       {brouette ? <group position={[0, 0, .9]}>
@@ -250,11 +252,11 @@ export function OuvrierEnBoucle({ points, depart, variante, porte = false, pause
       </group> : <mesh position={[0, 1.15, .38]} castShadow><boxGeometry args={[.4, .2, .3]} /><meshStandardMaterial color="#9E9A91" /></mesh>}
     </group>
     {nom && <EtiquetteOuvrier texte={nom} />}
-  </group>;
+  </group></group>;
 }
 
-export function OuvrierPoste({ position, rotation, variante, nom }: { position: V3; rotation: number; variante: number; nom?: string }) {
-  return <group position={position} rotation={[0, rotation, 0]}><HumainMonde casque prof variante={variante} />{nom && <EtiquetteOuvrier texte={nom} />}</group>;
+export function OuvrierPoste({ position, rotation, variante, nom, echelle = 1 }: { position: V3; rotation: number; variante: number; nom?: string; echelle?: number }) {
+  return <group position={position} rotation={[0, rotation, 0]}><group scale={echelle}><HumainMonde casque prof variante={variante} />{nom && <EtiquetteOuvrier texte={nom} />}</group></group>;
 }
 
 function EtiquetteOuvrier({ texte }: { texte: string }) {

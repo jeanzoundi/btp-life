@@ -2,6 +2,8 @@
 // (backend/src/carriere/besoins.service.ts : TAUX_DECLIN_MONDE, declinMonde, pleineForme, facteurPerformance) :
 // le monde affiche le déclin entre deux déclarations au serveur, et la démonstration le joue seule.
 
+import type { Meteo } from './meteo-monde';
+
 export const JAUGES = ['energie', 'faim', 'social', 'moral', 'hygiene', 'divertissement'] as const;
 export type Jauge = (typeof JAUGES)[number];
 export type BesoinsComplets = Record<Jauge, number>;
@@ -11,12 +13,17 @@ export const TAUX_DECLIN_MONDE: Record<Jauge, number> = { energie: 4, faim: 6, s
 /** Pendant le sommeil, l'énergie ne baisse pas et le reste baisse deux fois moins vite. */
 const FACTEUR_SOMMEIL = .5;
 
+/** La météo pèse sur les heures passées debout : l'harmattan salit, la pluie et l'orage minent le moral, l'orage fatigue. */
+export const EFFETS_METEO_BESOINS: Partial<Record<Meteo, Partial<Record<Jauge, number>>>> = {
+  averse: { moral: 2 }, orage: { moral: 2, energie: 1.25 }, harmattan: { hygiene: 1.5 },
+};
+
 /** Le déclin de `heures` de jeu passées dans le monde, comme le calcule le serveur. */
-export function declinMonde<T extends BesoinsComplets>(besoins: T, heures: number, sommeil = false): T {
+export function declinMonde<T extends BesoinsComplets>(besoins: T, heures: number, sommeil = false, meteo?: Meteo): T {
   if (!(heures > 0)) return besoins;
   const suivant = { ...besoins };
   for (const j of JAUGES) {
-    const taux = sommeil ? (j === 'energie' ? 0 : TAUX_DECLIN_MONDE[j] * FACTEUR_SOMMEIL) : TAUX_DECLIN_MONDE[j];
+    const taux = sommeil ? (j === 'energie' ? 0 : TAUX_DECLIN_MONDE[j] * FACTEUR_SOMMEIL) : TAUX_DECLIN_MONDE[j] * (meteo ? EFFETS_METEO_BESOINS[meteo]?.[j] ?? 1 : 1);
     suivant[j] = Math.max(0, Math.round(besoins[j] - taux * heures)) as T[Jauge];
   }
   return suivant;

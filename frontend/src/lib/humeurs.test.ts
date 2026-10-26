@@ -37,3 +37,12 @@ describe('la forme et les humeurs', () => {
     expect(besoinsDe({ energie: 50, faim: 40, social: 30, moral: 20 })).toEqual({ energie: 50, faim: 40, social: 30, moral: 20, hygiene: 100, divertissement: 80 });
   });
 });
+
+describe('la météo sur les besoins, comme au serveur', () => {
+  const base = { energie: 80, faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 };
+  it('applique le même barème que le serveur', () => {
+    expect(declinMonde(base, 2, false, 'harmattan').hygiene).toBe(68);
+    expect(declinMonde(base, 2, false, 'orage')).toMatchObject({ moral: 76, energie: 70 });
+    expect(declinMonde(base, 2, true, 'orage')).toEqual(declinMonde(base, 2, true));
+  });
+});

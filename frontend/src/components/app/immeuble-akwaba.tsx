@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react';
 import { Billboard, Text } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { CAMPAGNE, PARCELLE_AKWABA, stadeAkwaba } from '@/lib/campagne';
+import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import type { V3 } from '@/lib/architecture-ville';
 import {
   bornageAkwaba, DEMI_LARGEUR, DEMI_PROFONDEUR, echafaudageAkwaba, elementsAkwaba, fouillesAkwaba, IMMEUBLE, implantationAkwaba, muretAkwaba, SONDAGES,
@@ -82,9 +83,9 @@ export const ImmeubleAkwaba = memo(function ImmeubleAkwaba({ stade, nuit, pause,
     {e.grosOeuvre && <>
       <Grue position={[8.3, 0, -4.4]} hauteurCharge={IMMEUBLE.niveaux * IMMEUBLE.hauteurNiveau} pause={pause} rythme={rythme} />
       <Betonniere position={[8.2, 0, 4.6]} pause={pause} rythme={rythme} />
-      <OuvrierEnBoucle points={[[7.4, 2.6], [3.2, 5.3]]} depart={0} variante={0} porte pause={pause} rythme={rythme} />
-      <OuvrierPoste position={[1.6, .4 + IMMEUBLE.niveaux * IMMEUBLE.hauteurNiveau, -1.4]} rotation={.4} variante={1} />
-      <OuvrierPoste position={[-3, .4 + 2 * IMMEUBLE.hauteurNiveau - .06, zFacade + .9]} rotation={Math.PI} variante={3} />
+      <OuvrierEnBoucle points={[[7.4, 2.6], [3.2, 5.3]]} depart={0} variante={0} porte pause={pause} rythme={rythme} echelle={ECHELLE_PERSONNAGES} />
+      <OuvrierPoste position={[1.6, .4 + IMMEUBLE.niveaux * IMMEUBLE.hauteurNiveau, -1.4]} rotation={.4} variante={1} echelle={ECHELLE_PERSONNAGES} />
+      <OuvrierPoste position={[-3, .4 + 2 * IMMEUBLE.hauteurNiveau - .06, zFacade + .9]} rotation={Math.PI} variante={3} echelle={ECHELLE_PERSONNAGES} />
     </>}
     {e.immeuble && <group position={[0, 0, IMMEUBLE.centreZ]}>
       <Architecture width={IMMEUBLE.largeur} height={IMMEUBLE.niveaux * IMMEUBLE.hauteurNiveau} depth={IMMEUBLE.profondeur} kind="maison" color="#E6CFA4" nuit={nuit} slug={CAMPAGNE.id} />
@@ -98,11 +99,11 @@ export const ImmeubleAkwaba = memo(function ImmeubleAkwaba({ stade, nuit, pause,
       {[-1, 1].map(s => <mesh key={s} position={[s * 2.75, 1.6, hz + .05]} castShadow><boxGeometry args={[.1, 3.2, .1]} /><meshStandardMaterial color="#6A6F72" /></mesh>)}
       <mesh position={[0, 2.85, hz + .08]}><planeGeometry args={[5.4, .55]} /><meshBasicMaterial color="#E8B04A" /></mesh>
       <Text position={[0, 2.85, hz + .1]} fontSize={.26} color="#2A1C0E" anchorX="center" anchorY="middle" letterSpacing={.08}>RÉCEPTION DES TRAVAUX</Text>
-      <group position={[-1.3, .08, hz - 1]}><HumainMonde nom="Mme Touré · Cliente" prof variante={0} sansCasque scale={1.1} /></group>
+      <group position={[-1.3, .08, hz - 1]}><HumainMonde nom="Mme Touré · Cliente" prof variante={0} sansCasque scale={ECHELLE_PERSONNAGES} /></group>
     </>}
     {e.livre && <>
-      <group position={[-1.8, .08, zFacade + 1.6]} rotation={[0, .5, 0]}><HumainMonde variante={1} sansCasque scale={1.1} /></group>
-      <group position={[1.5, .08, zFacade + 1.9]} rotation={[0, -.7, 0]}><HumainMonde variante={2} sansCasque scale={1.1} /></group>
+      <group position={[-1.8, .08, zFacade + 1.6]} rotation={[0, .5, 0]}><HumainMonde variante={1} sansCasque scale={ECHELLE_PERSONNAGES} /></group>
+      <group position={[1.5, .08, zFacade + 1.9]} rotation={[0, -.7, 0]}><HumainMonde variante={2} sansCasque scale={ECHELLE_PERSONNAGES} /></group>
     </>}
     {appel && <Balise position={[0, 0, hz + 2]} libelle={appel} onClick={onSelect} />}
     {selectionne && <Billboard position={[0, (e.immeuble ? IMMEUBLE.niveaux * IMMEUBLE.hauteurNiveau + 3.5 : e.grosOeuvre ? 17 : 5) + 2, 0]}>

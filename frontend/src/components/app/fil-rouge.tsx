@@ -53,8 +53,10 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
 
   // En démonstration, la progression vit dans le navigateur ; connecté, c'est la dernière copie reçue du serveur.
   const [local, setLocal] = useState<ProgresCampagne>(PROGRES_CAMPAGNE_INITIAL);
+  const [localLu, setLocalLu] = useState(false);
   useEffect(() => {
     try { setLocal(lireProgresCampagne(JSON.parse(localStorage.getItem(cle) ?? 'null'))); } catch { setLocal(PROGRES_CAMPAGNE_INITIAL); }
+    setLocalLu(true);
   }, [cle]);
   const enregistrer = useCallback((p: ProgresCampagne) => {
     setLocal(p);
@@ -62,6 +64,8 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
   }, [cle]);
   useEffect(() => { if (serveur) enregistrer(lireProgresCampagne(brut)); }, [serveur, brut, enregistrer]);
   const progres = serveur ? lireProgresCampagne(brut) : local;
+  /** La vraie progression est arrivée (serveur, ou navigateur en démonstration) : avant, elle vaut zéro et un saut ne veut rien dire. */
+  const pret = serveur || (localLu && (demo || isError));
   const chapitre = chapitreCourant(progres);
 
   const [seance, setSeance] = useState<SeanceLieu | null>(null);
@@ -161,7 +165,7 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
   /** Sortie d'un lieu : un bilan affiché est clos (déjà enregistré), une séance inachevée attend le retour du joueur. */
   const sortir = () => { if (resultat) terminer(); setTache(null); setPanneau(null); };
   return {
-    progres, chapitre, seance, tache, setTache, panneau, resultat, enregistrement: envoyer.isPending,
+    progres, pret, chapitre, seance, tache, setTache, panneau, resultat, enregistrement: envoyer.isPending,
     statut, concerne, postes, commencer, ouvrirTache, surStation, noterTache, repondreTache, faireLeBilan, terminer, abandonner, ouvrir, fermer, fermerPanneau, sortir,
   };
 }

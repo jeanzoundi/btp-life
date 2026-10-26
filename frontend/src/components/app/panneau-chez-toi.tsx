@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { conseilsDuMatin, type RendezVous } from '@/lib/journee-joueur';
 import { heureLisible } from './panneau-programme-lieu';
@@ -57,11 +57,13 @@ export function PanneauMatin({ heure, rendezVous, besoins, onAller, onFermer }: 
   </section>;
 }
 
-/** Les activités de chez soi : la journée, le courrier (les vrais messages du joueur), la garde-robe (le vrai dressing). */
-export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller }: {
+/** Les activités de chez soi : la journée, le courrier (les vrais messages du joueur), les travaux, la garde-robe (le vrai dressing). */
+export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller, travaux }: {
   demo: boolean; heure: number; rendezVous: RendezVous[]; besoins: Besoins; onAller: (slug: string) => void;
+  /** Les travaux chez soi : c'est ici que se font les journées de travaux. */
+  travaux?: ReactNode;
 }) {
-  const [onglet, setOnglet] = useState<'journee' | 'courrier'>('journee');
+  const [onglet, setOnglet] = useState<'journee' | 'courrier' | 'travaux'>('journee');
   const [garde, setGarde] = useState(false);
   const { data: messages } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<Message[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000 });
   const nonLus = (messages ?? []).filter(m => !m.lu).length;
@@ -69,12 +71,14 @@ export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller }: {
   const classeOnglet = (actif: boolean) => `rounded-xl px-2 py-2 text-[12px] font-semibold ${actif ? 'bg-jeu-or text-[#2A1C0E]' : 'bg-white/[.06] text-jeu-ivoire/80'}`;
   return <section role="dialog" aria-label="Chez toi" className="hud-verre absolute inset-x-3 bottom-3 z-40 mx-auto max-h-[70%] max-w-md overflow-y-auto p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[430px]">
     <EnTete surtitre="Résidence Lagune" titre="Chez toi" />
-    <div role="tablist" aria-label="Chez toi" className="mt-3 grid grid-cols-3 gap-1.5">
+    <div role="tablist" aria-label="Chez toi" className={`mt-3 grid ${travaux ? 'grid-cols-4' : 'grid-cols-3'} gap-1.5`}>
       <button type="button" role="tab" aria-selected={onglet === 'journee'} onClick={() => setOnglet('journee')} className={classeOnglet(onglet === 'journee')}>Ta journée</button>
       <button type="button" role="tab" aria-selected={onglet === 'courrier'} onClick={() => setOnglet('courrier')} className={classeOnglet(onglet === 'courrier')}>Courrier{nonLus ? ` · ${nonLus}` : ''}</button>
+      {travaux && <button type="button" role="tab" aria-selected={onglet === 'travaux'} onClick={() => setOnglet('travaux')} className={classeOnglet(onglet === 'travaux')}>Travaux</button>}
       <button type="button" onClick={() => setGarde(true)} className={classeOnglet(false)}>Garde-robe</button>
     </div>
-    {onglet === 'journee' ? <ContenuJournee heure={heure} rendezVous={rendezVous} besoins={besoins} onAller={onAller} />
+    {onglet === 'travaux' ? <div className="mt-3">{travaux}</div>
+      : onglet === 'journee' ? <ContenuJournee heure={heure} rendezVous={rendezVous} besoins={besoins} onAller={onAller} />
       : demo ? <p className="mt-3 text-[12.5px] leading-relaxed text-jeu-ivoire/75">Les messages de Yao, de tes formateurs et des employeurs arrivent ici. Connecte-toi pour lire les tiens.</p>
       : !messages?.length ? <p className="mt-3 text-[12.5px] text-jeu-ivoire/70">Boîte aux lettres vide pour l’instant.</p>
       : <ul className="mt-3 space-y-1.5">{messages.slice(0, 4).map(m => <li key={m.id} className={`rounded-xl p-2.5 ${m.lu ? 'bg-white/[.04]' : 'bg-jeu-or/[.12] ring-1 ring-jeu-or/40'}`}>

@@ -29,6 +29,8 @@ export const ICONES = {
   alerte: <Svg taille={17}><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4M12 17h.01" /></Svg>,
   etoile: <Svg taille={17}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></Svg>,
   info: <Svg taille={17}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></Svg>,
+  telephone: <Svg><rect x="7" y="2.5" width="10" height="19" rx="2.2" /><path d="M11 18.5h2" /></Svg>,
+  quartier: <Svg><path d="M4 5h16v11H10l-4.5 3.5V16H4Z" /><path d="M8 9.5h8M8 12.5h5" /></Svg>,
 } as const;
 
 const COULEURS_HUMEUR = { bien: '#4CC3A5', moyen: '#E8B04A', mal: '#E2653C' } as const;
