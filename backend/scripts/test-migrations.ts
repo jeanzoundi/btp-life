@@ -41,6 +41,11 @@ async function main() {
     // non-ASCII (ex. "French_Côte d'Ivoire.1252") — sans rapport avec la locale des données
     // de jeu elles-mêmes, seulement avec celle du cluster Postgres de test.
     initdbFlags: ['--locale=C'],
+    // Postgres 18 délègue ses lectures à des processus « io_worker ». Sous Windows, l'un d'eux survit
+    // parfois à l'arrêt du serveur, sans parent : il garde la sortie du serveur ouverte, pg.stop() ne
+    // rend jamais la main, et le port 5433 comme le dossier de données restent pris. En lectures
+    // synchrones, aucun io_worker n'est lancé.
+    postgresFlags: ['-c', 'io_method=sync'],
   });
 
   console.log('Démarrage de Postgres embarqué (première fois : téléchargement du binaire)...');
