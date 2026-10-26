@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { facteurReputation, lireTraits } from './traits';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MESSAGES_BADGE, MESSAGES_NIVEAU, messageAleatoire } from '../notifications/messages';
 
@@ -47,7 +48,9 @@ export class ProgressionService {
 
       const nouvelleXp = Math.max(0, carriere.xp + (delta.xp ?? 0));
       // Échelle 0-1000 — voir le commentaire sur UserCarriere.reputation dans schema.prisma.
-      const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + (delta.reputation ?? 0)));
+      // L'ambitieux tire 25 % de plus de chaque reconnaissance (les pertes, elles, ne sont pas amplifiées).
+      const gainReputation = (delta.reputation ?? 0) > 0 ? Math.round((delta.reputation ?? 0) * facteurReputation(lireTraits(carriere.traits))) : (delta.reputation ?? 0);
+      const nouvelleReputation = Math.min(1000, Math.max(0, carriere.reputation + gainReputation));
       const nouvelArgent = Math.max(0, carriere.argentVirtuel + (delta.argentVirtuel ?? 0));
       const nouveauNiveau = Math.max(carriere.niveau, xpToNiveau(nouvelleXp));
       const resultat = await tx.userCarriere.update({

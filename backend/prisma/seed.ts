@@ -2,7 +2,7 @@
  * Tout le contenu est data-driven (voir CONCEPTION.md) : ce script est
  * le "back-office initial" avant que l'admin web ne prenne le relais.
  */
-import { PrismaClient, ProfilFamille, QuestionType, Rarete } from '@prisma/client';
+import { Prisma, PrismaClient, ProfilFamille, QuestionType, Rarete } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { missionsData, questionsSupplementaires, questionsVague2 } from './seed-data/missions-data';
@@ -10,6 +10,8 @@ import { modulesAcademie, coursSupplementaires, enrichissementCours } from './se
 import { MATERIAUX, chantiersGestion } from './seed-data/chantiers-data';
 import { modulesGrandeEcole, missionsGrandeEcole } from './seed-data/grande-ecole-batiment-data';
 import { avatarItemsData } from './seed-data/avatar-items-data';
+import { DEFIS_JOUR, DEFIS_SEMAINE, IMPREVUS } from './seed-data/defis-data';
+import { OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS, certificatsDuJeu } from './seed-data/carriere-data';
 
 const prisma = new PrismaClient();
 
@@ -176,6 +178,9 @@ async function main() {
     { slug: 'ouvrier-qualifie', nom: 'Ouvrier qualifié', description: "Exécute les tâches d'un métier du bâtiment.", famille: 'ENTREPRENEUR', niveauDepart: 2, ordre: 1 },
     { slug: 'entrepreneur-debutant', nom: 'Entrepreneur débutant', description: 'Lance sa première activité.', famille: 'ENTREPRENEUR', niveauDepart: 5, ordre: 2 },
     { slug: 'gerant', nom: 'Gérant multi-chantiers', description: 'Dirige une entreprise en croissance.', famille: 'ENTREPRENEUR', niveauDepart: 8, ordre: 3 },
+
+    // Au-delà du niveau 9 : deux échelons experts par filière (seed-data/carriere-data.ts).
+    ...PROFILS_EXPERTS,
   ];
 
   const profils: Record<string, { id: string }> = {};
@@ -673,6 +678,47 @@ async function main() {
     }
     void slugSafe;
   }
+  // Les offres suivantes (seed-data/carriere-data.ts), de l'entrée dans chaque filière aux échelons experts.
+  for (const o of OFFRES_EMPLOI) {
+    const data = {
+      description: o.description,
+      profilRechercheId: profils[o.profil].id,
+      competencesRequises: o.competences ?? Prisma.JsonNull,
+      niveauMin: o.niveauMin,
+      chantiersRequis: o.chantiers ?? 0,
+      reputationMin: o.reputationMin,
+      testEntreeMissionId: missions[o.test].id,
+      entrepriseFictive: o.entreprise,
+    };
+    const existing = await prisma.offreEmploi.findFirst({ where: { titre: o.titre } });
+    if (existing) await prisma.offreEmploi.update({ where: { id: existing.id }, data });
+    else await prisma.offreEmploi.create({ data: { ...data, titre: o.titre, paysId: civ.id, statut: 'publiee' } });
+  }
+
+  console.log('Seed — certificats...');
+  // Une attestation par module de l'académie, un certificat par métier visé et par échelon expert : le serveur les
+  // délivre (src/certificats) quand tous les cours du module sont lus ou que le poste est atteint.
+  for (const c of certificatsDuJeu(modulesAcademie, metiersData)) {
+    await prisma.certificat.upsert({ where: { slug: c.slug }, create: c, update: { nom: c.nom, conditions: c.conditions } });
+  }
+
+  console.log('Seed — défis et imprévus...');
+  // Repérés par leur slug (dans config pour les défis, en tête de déclencheur pour les imprévus) : le seed met à jour
+  // ce qu'il a créé sans toucher aux défis ajoutés depuis l'administration.
+  for (const [type, defis] of [['DEFI_JOUR', DEFIS_JOUR], ['DEFI_SEMAINE', DEFIS_SEMAINE]] as const) {
+    for (const d of defis) {
+      const existant = await prisma.evenement.findFirst({ where: { type, config: { path: ['slug'], equals: d.slug } } });
+      const config = d as unknown as Prisma.InputJsonValue;
+      if (existant) await prisma.evenement.update({ where: { id: existant.id }, data: { config } });
+      else await prisma.evenement.create({ data: { type, config } });
+    }
+  }
+  for (const i of IMPREVUS) {
+    const existant = await prisma.imprevu.findFirst({ where: { declencheur: { path: ['slug'], equals: i.slug } } });
+    const data = { titre: i.titre, description: i.description, declencheur: { slug: i.slug, lieu: 'chantier' }, options: i.options as unknown as Prisma.InputJsonValue, consequences: { appliquees: 'effets de l’option choisie' } };
+    if (existant) await prisma.imprevu.update({ where: { id: existant.id }, data });
+    else await prisma.imprevu.create({ data });
+  }
 
   console.log('Seed — règles de promotion...');
   // Chaque famille a désormais un chemin d'évolution complet (aucun poste n'est un cul-de-sac,
@@ -720,6 +766,13 @@ async function main() {
     // ── ENTREPRENEUR ──
     { source: 'ouvrier-qualifie', cible: 'entrepreneur-debutant', conditions: { niveauMin: 6, reputationMin: 450, chantiersReussis: 1, competences: [{ slug: 'maconnerie', niveau: 2 }, { slug: 'gestion-humaine', niveau: 1 }] } },
     { source: 'entrepreneur-debutant', cible: 'gerant', conditions: { niveauMin: 15, reputationMin: 650, chantiersReussis: 2, competences: [{ slug: 'decision-chantier', niveau: 2 }, { slug: 'metre-devis', niveau: 2 }] } },
+
+    // ── ÉCHELONS EXPERTS (seed-data/carriere-data.ts) ──
+    ...REGLES_EXPERTS.map((r) => ({
+      source: r.source,
+      cible: r.cible,
+      conditions: { ...r.conditions, ...(r.examen ? { examenMissionId: missions[r.examen].id } : {}) },
+    })),
   ];
   for (const r of reglesData) {
     const existing = await prisma.reglePromotion.findFirst({

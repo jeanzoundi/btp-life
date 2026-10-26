@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { facteurEnergieTravail, facteurPrix, facteurSocial, lireTraits } from './traits';
+import { confortLogement, facteurFatigueOutils, lirePatrimoine } from './patrimoine';
 
 // Système de besoins façon "jeu de simulation de vie" : six jauges qui se dégradent avec le temps et se
 // restaurent par des actions. Deux horloges :
@@ -117,10 +119,30 @@ export function effetArticle(article: ArticleCarte, options: OptionsArticle = {}
   return { effets, moral, prix: Math.round(article.prix * (1 - remise) / 25) * 25, gagne };
 }
 
+/** Ce que les traits changent à un article : l'économe paie 10 % de moins (arrondi aux 25 F), le sociable se ressource
+ * 50 % plus vite au contact des autres. */
+export function selonTraits<T extends { effets: Partial<Record<JaugeBesoin, number>>; prix: number }>(article: T, traits: readonly string[]): T {
+  const lus = lireTraits(traits);
+  const social = article.effets.social;
+  return {
+    ...article,
+    prix: Math.round(article.prix * facteurPrix(lus) / 25) * 25,
+    effets: social && social > 0 ? { ...article.effets, social: Math.round(social * facteurSocial(lus)) } : article.effets,
+  };
+}
+
 /** Le déclin de `heures` de jeu passées dans le monde, au rythme du monde (le sommeil épargne l'énergie). */
-export function declinMonde(besoins: Record<Jauge, number>, heures: number, sommeil = false): Record<Jauge, number> {
+/** La météo du monde pèse sur les besoins quand on est debout dehors : l'harmattan salit (poussière), la pluie et l'orage
+ * minent le moral, l'orage fatigue. Le sommeil, à l'abri, n'y est pas sensible. Même barème que le jeu (lib/humeurs.ts). */
+export const METEOS_MONDE = ['soleil', 'nuageux', 'averse', 'orage', 'harmattan'] as const;
+export type MeteoMonde = (typeof METEOS_MONDE)[number];
+export const EFFETS_METEO_BESOINS: Partial<Record<MeteoMonde, Partial<Record<Jauge, number>>>> = {
+  averse: { moral: 2 }, orage: { moral: 2, energie: 1.25 }, harmattan: { hygiene: 1.5 },
+};
+
+export function declinMonde(besoins: Record<Jauge, number>, heures: number, sommeil = false, meteo?: MeteoMonde): Record<Jauge, number> {
   return Object.fromEntries(JAUGES_BESOINS.map((j) => {
-    const taux = sommeil ? (j === 'energie' ? 0 : TAUX_DECLIN_MONDE[j] * FACTEUR_SOMMEIL) : TAUX_DECLIN_MONDE[j];
+    const taux = sommeil ? (j === 'energie' ? 0 : TAUX_DECLIN_MONDE[j] * FACTEUR_SOMMEIL) : TAUX_DECLIN_MONDE[j] * (meteo ? EFFETS_METEO_BESOINS[meteo]?.[j] ?? 1 : 1);
     return [j, Math.max(0, Math.round(besoins[j] - taux * heures))];
   })) as Record<Jauge, number>;
 }
@@ -160,19 +182,18 @@ export class BesoinsService {
   }
 
   /** Le temps du monde vivant : `heures` de jeu passées (déclarées par le client, bornées à une journée). */
-  async passerTemps(userId: string, heures: number, sommeil = false) {
+  async passerTemps(userId: string, heures: number, sommeil = false, meteo?: MeteoMonde) {
     const actualisee = await this.actualiser(userId);
     const duree = Math.max(0, Math.min(HEURES_MONDE_MAX, Number.isFinite(heures) ? heures : 0));
     if (duree === 0) return actualisee;
-    return this.prisma.userCarriere.update({ where: { userId }, data: declinMonde(actualisee, duree, sommeil) });
+    return this.prisma.userCarriere.update({ where: { userId }, data: declinMonde(actualisee, duree, sommeil, meteo) });
   }
 
   async agir(userId: string, action: ActionBesoin, options: OptionsArticle & { article?: string } = {}) {
     if (!Object.prototype.hasOwnProperty.call(EFFETS_ACTION, action)) throw new BadRequestException('Action inconnue');
     if (options.article !== undefined) return this.consommerArticle(userId, action, options.article, options);
-    const effet = EFFETS_ACTION[action];
-
     const actualisee = await this.actualiser(userId);
+    const effet = { ...EFFETS_ACTION[action], cout: Math.round(EFFETS_ACTION[action].cout * facteurPrix(lireTraits(actualisee.traits)) / 25) * 25 };
     const valeurActuelle = actualisee[effet.cible];
     if (valeurActuelle >= 98) {
       return { carriere: actualisee, message: "C'est déjà au maximum !", change: false, coutPaye: 0 };
@@ -187,7 +208,8 @@ export class BesoinsService {
       where: { userId, ...(effet.cout > 0 ? { argentVirtuel: { gte: effet.cout } } : {}) },
       data: {
         [effet.cible]: effet.valeur,
-        moral: Math.min(100, actualisee.moral + effet.bonusMoral),
+        // Au réveil, le confort du logement s'ajoute au moral (deux-pièces +4, villa +10).
+        moral: Math.min(100, actualisee.moral + effet.bonusMoral + (action === 'repos' ? confortLogement(lirePatrimoine(actualisee.patrimoine, new Date())) : 0)),
         ...(effet.cout > 0 ? { argentVirtuel: { decrement: effet.cout } } : {}),
       },
     });
@@ -203,10 +225,10 @@ export class BesoinsService {
   private async consommerArticle(userId: string, action: ActionBesoin, id: string, options: OptionsArticle) {
     const article = Object.prototype.hasOwnProperty.call(CARTE, id) ? CARTE[id] : undefined;
     if (!article || article.action !== action) throw new BadRequestException('Article inconnu');
-    const { effets, moral, prix, gagne } = effetArticle(article, options);
-    const jauges = Object.keys(effets) as JaugeBesoin[];
-
+    const base = effetArticle(article, options);
     const actualisee = await this.actualiser(userId);
+    const { effets, moral, prix, gagne } = selonTraits(base, lireTraits(actualisee.traits));
+    const jauges = Object.keys(effets) as JaugeBesoin[];
     // Ce qui fatigue n'est pas permis à bout de forces ; transpirer, si (l'hygiène s'arrête simplement à 0).
     if ((effets.energie ?? 0) < 0 && actualisee.energie + (effets.energie ?? 0) < 0) {
       throw new BadRequestException('Trop fatigué(e) pour ça : repose-toi d’abord.');
@@ -240,10 +262,13 @@ export class BesoinsService {
   /** Consommation d'énergie/faim par le jeu (missions, journées de chantier…) — sans dépasser 0. */
   async consommer(userId: string, delta: { energie?: number; faim?: number }) {
     const actualisee = await this.actualiser(userId);
+    // Le bosseur tient mieux la cadence : 30 % de fatigue en moins au travail.
+    // L'équipement de qualité (EPI haut de gamme) réduit aussi la fatigue.
+    const fatigue = Math.round((delta.energie ?? 0) * facteurEnergieTravail(lireTraits(actualisee.traits)) * facteurFatigueOutils(lirePatrimoine(actualisee.patrimoine, new Date()).outils));
     return this.prisma.userCarriere.update({
       where: { userId },
       data: {
-        energie: Math.max(0, Math.min(100, actualisee.energie - (delta.energie ?? 0))),
+        energie: Math.max(0, Math.min(100, actualisee.energie - fatigue)),
         faim: Math.max(0, Math.min(100, actualisee.faim - (delta.faim ?? 0))),
       },
     });

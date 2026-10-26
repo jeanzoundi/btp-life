@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CertificatsService } from '../certificats/certificats.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly delivrance: CertificatsService,
+  ) {}
 
   async update(userId: string, dto: UpdateUserDto) {
     const { passwordHash: _omit, ...user } = await this.prisma.user.update({
@@ -36,7 +40,9 @@ export class UsersService {
     });
   }
 
-  certificats(userId: string) {
+  async certificats(userId: string) {
+    // Les certificats mérités avant leur mise en place (modules finis, métier déjà atteint) arrivent à la première lecture.
+    await this.delivrance.delivrer(userId);
     return this.prisma.userCertificat.findMany({
       where: { userId },
       include: { certificat: true },

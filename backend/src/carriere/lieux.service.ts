@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { ProgressionService } from './progression.service';
+import { facteurXpLieu, lireTraits } from './traits';
+import { facteurXpOutils, lirePatrimoine } from './patrimoine';
 
 // Programmes des lieux du quartier : le contenu des séances (situations, mesures, sélections) vit
 // côté client, dans frontend/src/lib/lieux-programme/ ; le serveur tient la progression de chaque
@@ -71,7 +73,12 @@ export class LieuxService {
     const total = ETAPES_LIEUX[slug];
     if (!total) throw new BadRequestException('Lieu inconnu');
     // L'état du personnage module l'XP, comme pour les missions (jamais sous 70 %).
-    const facteurBesoins = BesoinsService.facteurPerformance(await this.besoins.actualiser(userId));
+    const actualisee = await this.besoins.actualiser(userId);
+    const facteurBesoins = BesoinsService.facteurPerformance(actualisee);
+    // Les traits du personnage : 15 % de plus dans les lieux de son trait, 20 % sur un sans-faute pour le perfectionniste.
+    const facteurTraits = facteurXpLieu(lireTraits(actualisee.traits), slug, note);
+    // L'outillage acheté (mètre laser, niveau laser, ordinateur…) rend le travail plus efficace dans ses lieux.
+    const facteurOutils = facteurXpOutils(lirePatrimoine(actualisee.patrimoine, new Date()).outils, slug);
     const gains = gainsSeance(note);
     const maintenant = Date.now();
 
@@ -94,7 +101,7 @@ export class LieuxService {
       return { apres, payee, boucle };
     }, { isolationLevel: 'Serializable' });
 
-    const xp = Math.round(gains.xp * facteurBesoins * (payee ? 1 : TAUX_ENTRAINEMENT));
+    const xp = Math.round(gains.xp * facteurBesoins * facteurTraits * facteurOutils * (payee ? 1 : TAUX_ENTRAINEMENT));
     const argent = payee ? gains.argent : 0;
     const reputation = !payee ? 0 : boucle ? 3 : gains.compte && note >= 60 ? 1 : 0;
     await this.progression.appliquerDelta(userId, { xp, argentVirtuel: argent, reputation });

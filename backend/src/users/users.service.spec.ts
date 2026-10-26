@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CertificatsService } from '../certificats/certificats.service';
 
 function fakePrisma(overrides: Record<string, object> = {}) {
   const defaut: Record<string, object> = {
@@ -20,9 +21,10 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   return fusion;
 }
 
+const delivrance = { delivrer: jest.fn().mockResolvedValue([]) };
 async function service(prisma: ReturnType<typeof fakePrisma>) {
   const module = await Test.createTestingModule({
-    providers: [UsersService, { provide: PrismaService, useValue: prisma }],
+    providers: [UsersService, { provide: PrismaService, useValue: prisma }, { provide: CertificatsService, useValue: delivrance }],
   }).compile();
   return { svc: module.get(UsersService), prisma };
 }
@@ -56,10 +58,11 @@ describe('UsersService — listes annexes (compétences, logiciels, badges, cert
     expect(await svc.badges('u1')).toEqual([{ badge: { nom: 'Sécurité' } }]);
   });
 
-  it('renvoie les certificats du joueur', async () => {
+  it('délivre d’abord les certificats mérités, puis renvoie ceux du joueur', async () => {
     const prisma = fakePrisma({ userCertificat: { findMany: jest.fn().mockResolvedValue([{ certificat: { nom: 'HSE' } }]) } });
     const { svc } = await service(prisma);
     expect(await svc.certificats('u1')).toEqual([{ certificat: { nom: 'HSE' } }]);
+    expect(delivrance.delivrer).toHaveBeenCalledWith('u1');
   });
 });
 

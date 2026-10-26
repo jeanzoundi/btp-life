@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 // Épargne à la Banque : un vrai produit financier plutôt qu'une page vitrine — déposer de
 // l'argent personnel le met à l'abri ET le fait fructifier, calculé paresseusement (comme les
 // besoins) pour fonctionner sans tâche planifiée en environnement serverless.
-export const TAUX_INTERET_JOURNALIER = 0.004; // 0,4 %/jour, composé
+// Un taux de jeu raisonnable : 0,06 % par jour composé, soit environ 1,8 % par mois et 24 % par an (l'ancien 0,4 %/jour
+// faisait plus que tripler l'épargne en un an). Au-delà de 500 000 F, l'épargne reste à l'abri mais ne rapporte plus.
+export const TAUX_INTERET_JOURNALIER = 0.0006;
+export const CAPITAL_REMUNERE_MAX = 500_000;
 export const JOURS_INTERET_MAX_PRIS_EN_COMPTE = 60; // plafond pour éviter un retour après des mois
 
 @Injectable()
@@ -24,7 +27,8 @@ export class EpargneService {
     );
     if (joursEcoules < 1) return carriere;
 
-    const nouvelleEpargne = Math.round(carriere.epargne * Math.pow(1 + TAUX_INTERET_JOURNALIER, joursEcoules));
+    const remunere = Math.min(carriere.epargne, CAPITAL_REMUNERE_MAX);
+    const nouvelleEpargne = carriere.epargne + Math.round(remunere * (Math.pow(1 + TAUX_INTERET_JOURNALIER, joursEcoules) - 1));
     return this.prisma.userCarriere.update({
       where: { userId },
       data: { epargne: nouvelleEpargne, epargneMajLe: maintenant },

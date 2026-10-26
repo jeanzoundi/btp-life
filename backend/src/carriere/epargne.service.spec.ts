@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EpargneService, TAUX_INTERET_JOURNALIER } from './epargne.service';
+import { CAPITAL_REMUNERE_MAX, EpargneService, TAUX_INTERET_JOURNALIER } from './epargne.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 function carriereAvec(overrides: Record<string, unknown>) {
@@ -117,5 +117,15 @@ describe('EpargneService.deposer / retirer', () => {
     const resultat = await svc.retirer('u1', 200);
     expect(resultat.argentVirtuel).toBe(1200);
     expect(resultat.epargne).toBe(300);
+  });
+});
+
+describe('le taux de l’épargne', () => {
+  it('reste un taux de jeu raisonnable : moins de 30 % sur un an', () => {
+    expect(Math.pow(1 + TAUX_INTERET_JOURNALIER, 365) - 1).toBeLessThan(.3);
+    expect(Math.pow(1 + TAUX_INTERET_JOURNALIER, 30) - 1).toBeGreaterThan(.01);
+  });
+  it('ne rémunère pas l’épargne au-delà du plafond', () => {
+    expect(CAPITAL_REMUNERE_MAX).toBe(500_000);
   });
 });

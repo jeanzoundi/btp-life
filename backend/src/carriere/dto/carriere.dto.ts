@@ -1,5 +1,6 @@
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Length, Max, MaxLength, Min } from 'class-validator';
 import { COULEURS_CASQUE, PERSONNAGES_JOUEUR } from '../personnages';
+import { METEOS_MONDE, type MeteoMonde } from '../besoins.service';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -135,6 +136,11 @@ export class TempsMondeDto {
   @IsOptional()
   @IsBoolean()
   sommeil?: boolean;
+
+  /** La météo du moment, qui pèse sur les besoins des heures passées debout. */
+  @IsOptional()
+  @IsIn(METEOS_MONDE)
+  meteo?: MeteoMonde;
 }
 
 /** Chapitre joué : réponses brutes à corriger côté serveur. */

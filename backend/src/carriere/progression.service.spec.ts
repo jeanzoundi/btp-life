@@ -96,6 +96,13 @@ describe('ProgressionService.appliquerDelta', () => {
     expect((await svcBas.appliquerDelta('u1', { reputation: -20 }))?.reputation).toBe(0);
   });
 
+  it('donne 25 % de réputation de plus à l’ambitieux, sans amplifier ses pertes', async () => {
+    const prisma = prismaMock({ xp: 0, reputation: 500, argentVirtuel: 0, traits: ['ambitieux'] } as never);
+    const svc = await service(prisma);
+    expect((await svc.appliquerDelta('u1', { reputation: 4 }))?.reputation).toBe(505);
+    expect((await svc.appliquerDelta('u1', { reputation: -4 }))?.reputation).toBe(496);
+  });
+
   it('renvoie null sans planter si la carrière n’existe pas', async () => {
     const prisma = { userCarriere: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() }, $transaction: jest.fn() };
     prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));

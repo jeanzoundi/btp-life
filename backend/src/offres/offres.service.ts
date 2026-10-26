@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CertificatsService } from '../certificats/certificats.service';
 
 @Injectable()
 export class OffresService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly certificats: CertificatsService,
+  ) {}
 
   mesCandidatures(userId: string) {
     return this.prisma.candidature.findMany({
@@ -84,13 +88,28 @@ export class OffresService {
     });
 
     if (acceptee && offre.profilRechercheId) {
-      await this.prisma.userCarriere.update({
-        where: { userId },
-        data: { profilActuelId: offre.profilRechercheId },
-      });
+      // Jamais de recul : un poste de la même filière et de rang égal ou inférieur ne remplace pas le poste actuel, le
+      // joueur change seulement d'employeur (même réflexe que Math.max sur le niveau dans setProfilActuel).
+      const actuel = carriere?.profilActuelId
+        ? await this.prisma.profil.findUnique({ where: { id: carriere.profilActuelId }, select: { famille: true, ordre: true } })
+        : null;
+      const recul = !!actuel && !!offre.profilRecherche && actuel.famille === offre.profilRecherche.famille && actuel.ordre >= offre.profilRecherche.ordre;
+      if (!recul) {
+        await this.prisma.userCarriere.update({
+          where: { userId },
+          data: { profilActuelId: offre.profilRechercheId },
+        });
+      }
       await this.prisma.carriereHistorique.create({
-        data: { userId, type: 'EMBAUCHE', profilId: offre.profilRechercheId, details: { offreId } },
+        data: {
+          userId,
+          type: 'EMBAUCHE',
+          profilId: recul ? carriere!.profilActuelId : offre.profilRechercheId,
+          details: { offreId, ...(recul ? { posteConserve: true } : {}) },
+        },
       });
+      // Une embauche au métier visé, ou plus haut dans la filière, termine aussi le parcours.
+      await this.certificats.delivrer(userId);
     }
 
     return candidature;

@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BesoinsService, CARTE, declinMonde, effetArticle, pleineForme } from './besoins.service';
+import { BesoinsService, CARTE, declinMonde, effetArticle, pleineForme, selonTraits } from './besoins.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const PLEIN = { energie: 100, faim: 100, social: 100, moral: 100, hygiene: 100, divertissement: 100 };
@@ -423,5 +423,29 @@ describe('BesoinsService.agir : articles qui touchent l’hygiène et le diverti
     expect((await svc.agir('u1', 'divertissement', { article: 'tele-maison' })).change).toBe(false);
     expect(CARTE.coiffure.effets.hygiene).toBeGreaterThan(0);
     expect(Object.values(CARTE).filter((a) => (a.effets.hygiene ?? 0) < 0).length).toBe(3);
+  });
+});
+
+describe('les traits sur les achats', () => {
+  it('fait payer 10 % de moins à l’économe, arrondi aux 25 F, et ressource 50 % plus vite le sociable', () => {
+    const tournee = effetArticle(CARTE.tournee);
+    expect(selonTraits(tournee, ['econome']).prix).toBe(2250);
+    expect(selonTraits(tournee, ['sociable']).effets.social).toBe(90);
+    expect(selonTraits(tournee, []).prix).toBe(2500);
+    // Un effet social négatif ou absent n’est pas amplifié.
+    expect(selonTraits(effetArticle(CARTE['poulet-braise']), ['sociable']).effets.faim).toBe(100);
+  });
+});
+
+describe('la météo sur les besoins', () => {
+  const base = { energie: 80, faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 };
+  it('salit plus vite sous l’harmattan, mine le moral sous la pluie, fatigue sous l’orage', () => {
+    expect(declinMonde(base, 2).hygiene).toBe(72);
+    expect(declinMonde(base, 2, false, 'harmattan').hygiene).toBe(68);
+    expect(declinMonde(base, 2, false, 'averse').moral).toBe(76);
+    expect(declinMonde(base, 2, false, 'orage')).toMatchObject({ moral: 76, energie: 70 });
+  });
+  it('épargne le sommeil, à l’abri', () => {
+    expect(declinMonde(base, 2, true, 'orage')).toEqual(declinMonde(base, 2, true));
   });
 });

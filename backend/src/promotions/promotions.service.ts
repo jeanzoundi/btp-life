@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { PnjService } from '../carriere/pnj.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CertificatsService } from '../certificats/certificats.service';
 import { MESSAGES_PROMOTION, messageAleatoire } from '../notifications/messages';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class PromotionsService {
     private readonly progression: ProgressionService,
     private readonly pnj: PnjService,
     private readonly notifications: NotificationsService,
+    private readonly certificats: CertificatsService,
   ) {}
 
   async eligibles(userId: string) {
@@ -114,6 +116,8 @@ export class PromotionsService {
         contenu: messageAleatoire(MESSAGES_PROMOTION),
         lien: '/app/parcours',
       });
+      // Le métier visé ou un échelon expert atteint : son certificat part tout de suite.
+      await this.certificats.delivrer(userId);
     }
 
     return demande;

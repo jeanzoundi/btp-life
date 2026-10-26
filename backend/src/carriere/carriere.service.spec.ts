@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CarriereService, nettoyerEtatMonde, SEUIL_ENTREPRENEUR } from './carriere.service';
+import { CarriereService, nettoyerEtatMonde, NIVEAU_DEPART_MAX, SEUIL_ENTREPRENEUR } from './carriere.service';
+import { CertificatsService } from '../certificats/certificats.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
@@ -43,7 +44,7 @@ describe('nettoyerEtatMonde', () => {
 
 async function service(
   prisma: ReturnType<typeof fakePrisma>,
-  overrides: { besoins?: Record<string, unknown>; epargne?: Record<string, unknown>; avatarItems?: Record<string, unknown> } = {},
+  overrides: { besoins?: Record<string, unknown>; epargne?: Record<string, unknown>; avatarItems?: Record<string, unknown>; certificats?: Record<string, unknown> } = {},
 ) {
   const besoins = overrides.besoins ?? {};
   const epargne = overrides.epargne ?? {};
@@ -55,6 +56,7 @@ async function service(
       { provide: BesoinsService, useValue: besoins },
       { provide: EpargneService, useValue: epargne },
       { provide: AvatarItemsService, useValue: avatarItems },
+      { provide: CertificatsService, useValue: overrides.certificats ?? { delivrer: jest.fn().mockResolvedValue([]) } },
     ],
   }).compile();
   return { svc: module.get(CarriereService), prisma };
@@ -191,6 +193,13 @@ describe('CarriereService.setProfilActuel', () => {
     });
     const { svc } = await service(prisma);
     await expect(svc.setProfilActuel('u1', { profilId: 'inconnu' } as never)).rejects.toThrow(NotFoundException);
+  });
+
+  it('refuse un échelon expert comme poste de départ : il se gagne par promotion', async () => {
+    const prisma = fakePrisma({ profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-directeur-travaux', niveauDepart: NIVEAU_DEPART_MAX + 19 }) } });
+    const { svc } = await service(prisma);
+    await expect(svc.setProfilActuel('u1', { profilId: 'profil-directeur-travaux' } as never)).rejects.toThrow(BadRequestException);
+    expect(prisma.userCarriere.update).not.toHaveBeenCalled();
   });
 });
 
@@ -400,6 +409,17 @@ describe('CarriereService.setMetierCible', () => {
     const { svc } = await service(prisma);
     const resultat = await svc.setMetierCible('u1', { metierCibleId: 'metier-1' } as never);
     expect(resultat).toEqual({ metierCibleId: 'metier-1' });
+  });
+});
+
+describe('CarriereService.marquerCoursTermine', () => {
+  it('marque le cours lu et renvoie les attestations délivrées dans la foulée', async () => {
+    const prisma = fakePrisma({ cours: { findUnique: jest.fn().mockResolvedValue({ id: 'c2' }) }, userCours: { upsert: jest.fn().mockResolvedValue({}) } });
+    const delivrer = jest.fn().mockResolvedValue([{ slug: 'attestation-lecture-de-plans', nom: 'Attestation de formation — Lecture de plans', numeroUnique: 'BTPL-2026-00000001' }]);
+    const { svc } = await service(prisma, { certificats: { delivrer } });
+    await expect(svc.marquerCoursTermine('u1', 'c2')).resolves.toEqual({ statut: 'ok', certificats: ['Attestation de formation — Lecture de plans'] });
+    expect(prisma.userCours.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: { userId: 'u1', coursId: 'c2' } }));
+    expect(delivrer).toHaveBeenCalledWith('u1');
   });
 });
 

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { PnjService } from '../carriere/pnj.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CertificatsService } from '../certificats/certificats.service';
 
 function fakePrisma(overrides: Record<string, object> = {}) {
   // Fusion clé par clé (pas un simple spread final, qui écraserait entièrement une clé déjà
@@ -37,6 +38,7 @@ async function service(prisma: ReturnType<typeof fakePrisma>) {
   const progression = { appliquerDelta: jest.fn().mockResolvedValue({}) };
   const pnj = { surPromotion: jest.fn().mockResolvedValue(undefined) };
   const notifications = { envoyerNotification: jest.fn().mockResolvedValue(undefined) };
+  const certificats = { delivrer: jest.fn().mockResolvedValue([]) };
   const module = await Test.createTestingModule({
     providers: [
       PromotionsService,
@@ -44,9 +46,10 @@ async function service(prisma: ReturnType<typeof fakePrisma>) {
       { provide: ProgressionService, useValue: progression },
       { provide: PnjService, useValue: pnj },
       { provide: NotificationsService, useValue: notifications },
+      { provide: CertificatsService, useValue: certificats },
     ],
   }).compile();
-  return { svc: module.get(PromotionsService), progression, pnj, notifications };
+  return { svc: module.get(PromotionsService), progression, pnj, notifications, certificats };
 }
 
 describe('PromotionsService.eligibles', () => {
@@ -123,11 +126,12 @@ describe('PromotionsService.demander', () => {
 
   it('accepte la promotion quand les conditions sont remplies : met à jour le profil, l’historique, l’XP et prévient le PNJ', async () => {
     const prisma = fakePrisma({ reglePromotion: { findUnique: jest.fn().mockResolvedValue(regle) } });
-    const { svc, progression, pnj } = await service(prisma);
+    const { svc, progression, pnj, certificats } = await service(prisma);
 
     const demande = await svc.demander('u1', 'r1');
 
     expect(demande.statut).toBe('ACCEPTEE');
+    expect(certificats.delivrer).toHaveBeenCalledWith('u1');
     expect(prisma.userCarriere.update).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { profilActuelId: 'profil-cible' } });
     expect(prisma.carriereHistorique.create).toHaveBeenCalled();
     expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 100, reputation: 5, argentVirtuel: 2000 });

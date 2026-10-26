@@ -332,6 +332,8 @@ model User {
   missionsCreated       Mission[]             @relation("MissionCreatedBy")
   itemsAvatar           UserItemAvatar[]
   coursTermines         UserCours[]
+  presenceMonde         PresenceMonde?
+  messagesQuartier      MessageQuartier[]
 }
 
 model Avatar {
@@ -447,6 +449,11 @@ model UserCarriere {
   // Fil rouge : la campagne qui suit la Résidence Akwaba de lieu en lieu (chapitres validés,
   // date de livraison) — voir CampagneService.
   campagne                 Json?
+  // Défis du jour et de la semaine, imprévu du jour au Grand chantier : instantanés de début de
+  // période, compteurs, défis déjà réclamés — voir DefisService (module monde).
+  defis                    Json?
+  // Logement (niveau, loyer payé jusqu'au, arriérés) et outillage acheté — voir PatrimoineService (module monde).
+  patrimoine               Json?
   // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
   // et pour candidater aux marchés (voir Chantier.typeMarche).
   nomEntreprise            String?
@@ -900,6 +907,8 @@ model UserCertificat {
   numeroUnique    String     @unique
   delivreLe       DateTime   @default(now())
   urlVerification String?
+
+  @@unique([userId, certificatId])
 }
 
 model CvVirtuel {
@@ -1124,6 +1133,31 @@ model Notification {
   createdAt   DateTime         @default(now())
 
   @@index([userId, lue])
+}
+
+// Le monde en ligne : où se trouve chaque joueur connecté et sa dernière émote (relevé toutes les quelques secondes,
+// sans connexion permanente sur des fonctions serverless), et le chat du quartier.
+model PresenceMonde {
+  userId  String    @id
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  x       Float
+  z       Float
+  lieu    String? // intérieur visité (slug du lieu), absent dans la rue
+  emote   String?
+  emoteLe DateTime?
+  majLe   DateTime  @updatedAt
+
+  @@index([majLe])
+}
+
+model MessageQuartier {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  texte     String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // Un abonnement Web Push par appareil/navigateur — un même joueur peut en avoir plusieurs.

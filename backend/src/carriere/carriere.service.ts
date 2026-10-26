@@ -6,9 +6,12 @@ import { BesoinsService } from './besoins.service';
 import { EpargneService } from './epargne.service';
 import { xpRequisPourNiveau } from './progression.service';
 import { AvatarItemsService } from './avatar-items.service';
+import { CertificatsService } from '../certificats/certificats.service';
 
 /** Seuil pour se reconvertir en entrepreneur — voir CarriereService.devenirEntrepreneur. */
 export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
+/** Plus haut niveau de départ qu'on peut choisir à la création : au-delà (échelons experts), le métier se gagne par promotion. */
+export const NIVEAU_DEPART_MAX = 9;
 const MODES_MONDE = new Set(['libre', 'carriere', 'urgence', 'entrepreneur', 'exploration', 'communaute']);
 
 function nombreBorne(value: unknown, min: number, max: number, fallback = 0) {
@@ -48,6 +51,7 @@ export class CarriereService {
     private readonly besoins: BesoinsService,
     private readonly epargne: EpargneService,
     private readonly avatarItems: AvatarItemsService,
+    private readonly certificats: CertificatsService,
   ) {}
 
   async me(userId: string) {
@@ -113,6 +117,7 @@ export class CarriereService {
   async setProfilActuel(userId: string, dto: SetProfilActuelDto) {
     const profil = await this.prisma.profil.findUnique({ where: { id: dto.profilId } });
     if (!profil) throw new NotFoundException('Profil introuvable');
+    if (profil.niveauDepart > NIVEAU_DEPART_MAX) throw new BadRequestException('Ce métier se gagne par promotion : choisis un poste de départ.');
     const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true, xp: true } });
     // Ne jamais rétrograder : cette route est censée servir à l'onboarding (premier choix de
     // profil), mais si elle est rappelée plus tard (onglet resté ouvert, retour arrière) sur un
@@ -453,7 +458,9 @@ export class CarriereService {
       create: { userId, coursId },
       update: {},
     });
-    return { statut: 'ok' };
+    // Le dernier cours d'un module lu : son attestation est délivrée sur-le-champ.
+    const certificats = await this.certificats.delivrer(userId);
+    return { statut: 'ok', certificats: certificats.map((c) => c.nom) };
   }
 
   /** Série de jours consécutifs avec au moins une mission terminée. */

@@ -172,7 +172,7 @@ export class CarriereController {
   /** Le monde vivant déclare les heures de jeu passées : les besoins y baissent au rythme du monde. */
   @Post('temps-monde')
   passerTempsMonde(@CurrentUser() user: RequestUser, @Body() dto: TempsMondeDto) {
-    return this.besoinsService.passerTemps(user.userId, dto.heures, dto.sommeil);
+    return this.besoinsService.passerTemps(user.userId, dto.heures, dto.sommeil, dto.meteo);
   }
 
   @Post('epargne/deposer')
