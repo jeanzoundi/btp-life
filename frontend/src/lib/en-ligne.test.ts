@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, emoteParId, messagePret, messagesDemo, surBoucle, voisinsDemo } from './en-ligne';
+import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, REGLES_EQUIPE, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, surBoucle, voisinsDemo } from './en-ligne';
 
 describe('le monde en ligne vu du jeu', () => {
   it('parcourt une boucle à vitesse constante et revient au départ', () => {
@@ -23,5 +23,21 @@ describe('le monde en ligne vu du jeu', () => {
     expect(messagePret('  On   coule\ndemain  ')).toBe('On coule demain');
     expect(messagePret('   ')).toBeNull();
     expect(messagePret('a'.repeat(300))).toHaveLength(LONGUEUR_MESSAGE);
+  });
+});
+
+describe('les équipes de quartier', () => {
+  const moi = { userId: 'moi', nom: 'Koffi' };
+  it('propose les voisins qui ne sont pas déjà de l’équipe, tant qu’il reste de la place', () => {
+    const voisins = voisinsDemo(0);
+    expect(invitables(voisins, null).map(v => v.nom)).toEqual(['Aya', 'Kader', 'Inès']);
+    const equipe = equipeAvec(null, moi, voisins[0]);
+    expect(equipe.chefId).toBe('moi');
+    expect(estCoequipier(equipe, 'demo-aya')).toBe(true);
+    expect(invitables(voisins, equipe).map(v => v.nom)).toEqual(['Kader', 'Inès']);
+    const complete = voisins.reduce((e, v) => equipeAvec(e, moi, v), equipe);
+    expect(complete.membres).toHaveLength(REGLES_EQUIPE.membresMax);
+    expect(invitables(voisins, complete)).toEqual([]);
+    expect(equipeAvec(complete, moi, { userId: 'autre', nom: 'Autre' }).membres).toHaveLength(REGLES_EQUIPE.membresMax);
   });
 });

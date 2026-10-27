@@ -39,6 +39,11 @@ describe('le mentor du lieu', () => {
     expect(screen.getByText(/\+1 de réputation/)).toBeInTheDocument();
     expect(screen.getByText(/Forme du moment : 82 %/)).toBeInTheDocument();
     expect(screen.queryByText(/Démonstration/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Travail d’équipe/)).not.toBeInTheDocument();
+  });
+  it('dit quand un coéquipier présent a valu un bonus d’XP', () => {
+    render(<PanneauMentor {...base} {...actions()} statut="resultat" resultat={resultat({ gains: { ...gains, xp: 45, equipe: { coequipiers: ['Kader'], bonus: .1 } } })} />);
+    expect(screen.getByText('🤝 Travail d’équipe avec Kader : +10 % d’XP')).toBeInTheDocument();
   });
   it('explique l’entraînement quand la séance n’est pas payée', () => {
     render(<PanneauMentor {...base} {...actions()} statut="resultat" resultat={resultat({ gains: { ...gains, xp: 13, argent: 0, reputation: 0, facteurBesoins: 1, entrainement: true } })} />);

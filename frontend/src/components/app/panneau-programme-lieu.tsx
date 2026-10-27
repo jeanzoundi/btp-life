@@ -31,6 +31,7 @@ function GainsResultat({ resultat }: { resultat: ResultatSeance }) {
     <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-lagune">+{xp}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">points d’expérience</span></div>
     {gains && gains.reputation > 0 && <p className="col-span-2 text-[12px] font-semibold text-jeu-or">+{gains.reputation} de réputation{resultat.cycleBoucle ? ' : cycle bouclé' : ''}</p>}
     {gains?.competence && <p className="col-span-2 rounded-lg bg-jeu-lagune/10 px-2 py-1.5 text-[12px] font-semibold text-jeu-lagune">Compétence « {gains.competence.nom} » : +{gains.competence.xp} XP</p>}
+    {gains?.equipe && <p className="col-span-2 rounded-lg bg-jeu-or/10 px-2 py-1.5 text-[12px] font-semibold text-jeu-or">🤝 Travail d’équipe avec {gains.equipe.coequipiers.join(', ')} : +{Math.round(gains.equipe.bonus * 100)} % d’XP</p>}
     {gains?.entrainement && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Entraînement : la progression avance, mais une seule séance est payée ici toutes les 20 minutes. Prochaine séance payée vers {heureReelle(gains.prochaineRecompenseLe)}.</p>}
     {gains && gains.facteurBesoins < .99 && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Forme du moment : {Math.round(gains.facteurBesoins * 100)} % de l’XP. Mange, dors et vois du monde pour tout gagner.</p>}
     {!gains && <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : salaire et expérience non sauvegardés.</p>}

@@ -7,8 +7,8 @@ import * as THREE from 'three';
 import { api } from '@/lib/api';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import {
-  DUREE_EMOTE_MS, EMOTES, LONGUEUR_MESSAGE, PERIODE_CHAT_MS, PERIODE_PRESENCE_MS, emoteParId, messagePret, messagesDemo, voisinsDemo,
-  type Emote, type MessageQuartier, type VoisinEnLigne,
+  DUREE_EMOTE_MS, EMOTES, ETAT_EQUIPE_VIDE, LONGUEUR_MESSAGE, PERIODE_CHAT_MS, PERIODE_PRESENCE_MS, REGLES_EQUIPE, emoteParId, equipeAvec, invitables,
+  messagePret, messagesDemo, voisinsDemo, type Emote, type EtatEquipe, type InvitationEquipe, type MessageQuartier, type VoisinEnLigne,
 } from '@/lib/en-ligne';
 import { echelleGabarit } from '@/lib/gabarit-personnage';
 import { personnageDe } from '@/lib/personnages-joueur';
@@ -16,17 +16,29 @@ import { HumainMonde } from './humain-monde';
 import { BullePensee } from './humeur-monde';
 
 // Le quartier partagé : les autres joueurs connectés marchent dans la ville avec leur personnage, lancent des émotes,
-// et tout le monde se parle dans le chat du quartier. Les relevés passent par le serveur toutes les quelques secondes.
+// tout le monde se parle dans le chat du quartier, et l'on fait équipe à quatre au plus. Les relevés passent par le
+// serveur toutes les quelques secondes.
 
 /**
- * Signale la position du joueur et tient la liste des voisins présents. Le relevé s'arrête quand l'onglet est caché ;
- * en démonstration, trois voisins simulés se promènent sur la place.
+ * Signale la position du joueur et tient la liste des voisins présents, son équipe et ses invitations. Le relevé s'arrête
+ * quand l'onglet est caché ; en démonstration, trois voisins simulés se promènent sur la place et font équipe.
  */
-export function useMondeEnLigne({ demo, position, lieu, actif = true }: { demo: boolean; position: React.MutableRefObject<THREE.Vector3>; lieu: string | null; actif?: boolean }) {
+export function useMondeEnLigne({ demo, position, lieu, nom = 'Moi', actif = true }: {
+  demo: boolean; position: React.MutableRefObject<THREE.Vector3>; lieu: string | null; nom?: string; actif?: boolean;
+}) {
   const [voisins, setVoisins] = useState<VoisinEnLigne[]>([]);
   const [monEmote, setMonEmote] = useState<Emote | null>(null);
+  const [equipe, setEquipe] = useState<EtatEquipe>(ETAT_EQUIPE_VIDE);
   const lieuRef = useRef(lieu);
   lieuRef.current = lieu;
+  const moi = useMemo(() => ({ userId: 'moi', nom }), [nom]);
+
+  // Démonstration : Kader propose de faire équipe au bout de quarante secondes, si le joueur n'en a pas encore.
+  useEffect(() => {
+    if (!demo || !actif) return;
+    const id = window.setTimeout(() => setEquipe(e => e.equipe || e.invitations.length ? e : { ...e, invitations: [{ id: 'demo-kader', de: 'Kader' }] }), 40_000);
+    return () => window.clearTimeout(id);
+  }, [demo, actif]);
 
   useEffect(() => {
     if (!demo || !actif) return;
@@ -40,8 +52,9 @@ export function useMondeEnLigne({ demo, position, lieu, actif = true }: { demo: 
   const signaler = useCallback(async (emote?: Emote) => {
     const p = position.current;
     try {
-      const liste = await api.post<VoisinEnLigne[]>('/monde/presence', { x: p.x, z: p.z, ...(lieuRef.current ? { lieu: lieuRef.current } : {}), ...(emote ? { emote } : {}) });
-      setVoisins(Array.isArray(liste) ? liste : []);
+      const r = await api.post<{ voisins?: VoisinEnLigne[] } & Partial<EtatEquipe>>('/monde/presence?equipe=1', { x: p.x, z: p.z, ...(lieuRef.current ? { lieu: lieuRef.current } : {}), ...(emote ? { emote } : {}) });
+      setVoisins(Array.isArray(r?.voisins) ? r.voisins : []);
+      setEquipe({ equipe: r?.equipe ?? null, invitations: Array.isArray(r?.invitations) ? r.invitations : [] });
     } catch { /* réseau coupé : la dernière liste reste affichée */ }
   }, [position]);
 
@@ -51,6 +64,14 @@ export function useMondeEnLigne({ demo, position, lieu, actif = true }: { demo: 
     const id = window.setInterval(() => { if (document.visibilityState === 'visible') void signaler(); }, PERIODE_PRESENCE_MS);
     return () => window.clearInterval(id);
   }, [demo, actif, signaler]);
+
+  // En entrant dans un lieu (ou en en sortant), le relevé part tout de suite : les coéquipiers le voient sans attendre.
+  const lieuSignale = useRef(lieu);
+  useEffect(() => {
+    if (demo || !actif || lieuSignale.current === lieu) return;
+    lieuSignale.current = lieu;
+    void signaler();
+  }, [demo, actif, lieu, signaler]);
 
   useEffect(() => {
     if (!monEmote) return;
@@ -63,13 +84,45 @@ export function useMondeEnLigne({ demo, position, lieu, actif = true }: { demo: 
     if (!demo) void signaler(id);
   }, [demo, signaler]);
 
-  return { voisins, monEmote, emote };
+  /** Une action d'équipe au serveur : renvoie le message d'erreur à afficher, ou rien. */
+  const agirEquipe = useCallback(async (chemin: string, corps?: unknown): Promise<string | null> => {
+    try {
+      const etat = await api.post<EtatEquipe>(chemin, corps);
+      setEquipe({ equipe: etat?.equipe ?? null, invitations: Array.isArray(etat?.invitations) ? etat.invitations : [] });
+      return null;
+    } catch (e) { return e instanceof Error ? e.message : 'Action refusée.'; }
+  }, []);
+  const inviter = useCallback(async (voisin: VoisinEnLigne): Promise<string | null> => {
+    if (!demo) return agirEquipe('/monde/equipe/inviter', { userId: voisin.userId });
+    // Le voisin simulé accepte après un instant.
+    window.setTimeout(() => setEquipe(e => ({ ...e, equipe: equipeAvec(e.equipe, moi, voisin) })), 1500);
+    return null;
+  }, [demo, agirEquipe, moi]);
+  const repondre = useCallback(async (invitation: InvitationEquipe, accepter: boolean): Promise<string | null> => {
+    if (!demo) return agirEquipe('/monde/equipe/repondre', { invitationId: invitation.id, accepter });
+    setEquipe(e => ({
+      invitations: e.invitations.filter(i => i.id !== invitation.id),
+      equipe: !accepter ? e.equipe : { id: `equipe-${invitation.id}`, chefId: invitation.id, membres: [
+        { userId: invitation.id, nom: invitation.de, enLigne: true, lieu: null }, { ...moi, enLigne: true, lieu: null },
+      ] },
+    }));
+    return null;
+  }, [demo, agirEquipe, moi]);
+  const quitter = useCallback(async (): Promise<string | null> => {
+    if (!demo) return agirEquipe('/monde/equipe/quitter');
+    setEquipe(e => ({ ...e, equipe: null }));
+    return null;
+  }, [demo, agirEquipe]);
+
+  return { voisins, monEmote, emote, equipe, inviter, repondre, quitter };
 }
+export type MondeEnLigne = ReturnType<typeof useMondeEnLigne>;
 
 const bulleEmote = (id: string | null | undefined) => { const e = emoteParId(id); return e ? { icone: e.icone, texte: e.texte } : null; };
 
-/** Un voisin connecté : il rejoint sa dernière position à son pas (ou y saute s'il vient de prendre un taxi). */
-function VoisinMonde({ voisin }: { voisin: VoisinEnLigne }) {
+/** Un voisin connecté : il rejoint sa dernière position à son pas (ou y saute s'il vient de prendre un taxi). Un coéquipier
+ * porte un anneau doré ; un clic ouvre le chat, d'où l'on peut l'inviter. */
+function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; coequipier: boolean; onSelect?: () => void }) {
   const ref = useRef<THREE.Group>(null);
   const cible = useMemo(() => new THREE.Vector3(), []);
   const ecart = useMemo(() => new THREE.Vector3(), []);
@@ -93,17 +146,18 @@ function VoisinMonde({ voisin }: { voisin: VoisinEnLigne }) {
     const bouge = distance > .15;
     if (bouge !== marcheRef.current) { marcheRef.current = bouge; setMarche(bouge); }
   });
-  return <group ref={ref} position={[voisin.x, 0, voisin.z]}>
+  return <group ref={ref} position={[voisin.x, 0, voisin.z]} onClick={e => { e.stopPropagation(); if (e.delta < 5) onSelect?.(); }}>
     <group scale={echelleGabarit(personnage.gabarit)}>
-      <HumainMonde modele={personnage.modele} design={design} casque nom={`${voisin.nom} · en ligne`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} />
+      <HumainMonde modele={personnage.modele} design={design} casque nom={`${voisin.nom} · ${coequipier ? 'équipe' : 'en ligne'}`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} />
     </group>
+    {coequipier && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .04, 0]}><ringGeometry args={[.6, .78, 40]} /><meshBasicMaterial color="#E8B84A" transparent opacity={.85} /></mesh>}
     <BullePensee pensee={bulleEmote(voisin.emote)} hauteur={3.2} />
   </group>;
 }
 
 /** Les voisins dans la rue (ceux qui sont dans un intérieur n'y apparaissent pas). */
-export function VoisinsEnLigne3D({ voisins }: { voisins: VoisinEnLigne[] }) {
-  return <>{voisins.filter(v => !v.lieu).map(v => <VoisinMonde key={v.userId} voisin={v} />)}</>;
+export function VoisinsEnLigne3D({ voisins, coequipiers = [], onSelect }: { voisins: VoisinEnLigne[]; coequipiers?: readonly string[]; onSelect?: () => void }) {
+  return <>{voisins.filter(v => !v.lieu).map(v => <VoisinMonde key={v.userId} voisin={v} coequipier={coequipiers.includes(v.userId)} onSelect={onSelect} />)}</>;
 }
 
 /** L'émote du joueur, au-dessus de sa tête (au-dessus de ses pensées). */
@@ -115,9 +169,45 @@ export function EmoteJoueur3D({ position, emote }: { position: React.MutableRefO
 
 const heureCourte = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-/** Le chat du quartier et les émotes, ouverts depuis le HUD. */
-export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer }: {
+/** L'équipe du joueur, les invitations reçues et les voisins à inviter, en tête du chat. */
+function SectionEquipe({ moi, voisins, etat, onInviter, onRepondre, onQuitter, onErreur }: {
+  moi: string; voisins: VoisinEnLigne[]; etat: EtatEquipe;
+  onInviter: (voisin: VoisinEnLigne) => Promise<string | null>; onRepondre: (invitation: InvitationEquipe, accepter: boolean) => Promise<string | null>;
+  onQuitter: () => Promise<string | null>; onErreur: (message: string | null) => void;
+}) {
+  const [invites, setInvites] = useState<string[]>([]);
+  const { equipe, invitations } = etat;
+  const aInviter = invitables(voisins, equipe);
+  const agir = async (action: Promise<string | null>) => onErreur(await action);
+  return <div className="space-y-1.5 border-b border-white/10 px-3 py-2 text-[12px]">
+    {invitations.map(i => <div key={i.id} className="flex items-center gap-1.5 rounded-lg bg-jeu-or/[.12] px-2 py-1.5 ring-1 ring-jeu-or/40">
+      <span className="flex-1">🤝 <b>{i.de}</b> t’invite dans son équipe</span>
+      <button type="button" onClick={() => void agir(onRepondre(i, true))} className="rounded-md bg-jeu-or/25 px-2 py-0.5 text-[11px] font-bold text-jeu-or hover:bg-jeu-or/35">Accepter</button>
+      <button type="button" onClick={() => void agir(onRepondre(i, false))} className="rounded-md px-1.5 py-0.5 text-[11px] text-jeu-ivoire/60 hover:bg-white/10">Refuser</button>
+    </div>)}
+    {equipe ? <div className="flex flex-wrap items-center gap-1" aria-label="Ton équipe">
+      <span className="mr-1 text-[11px] font-bold text-jeu-or">Ton équipe ({equipe.membres.length}/{REGLES_EQUIPE.membresMax})</span>
+      {equipe.membres.map(m => <span key={m.userId} className="rounded-full bg-white/[.08] px-2 py-0.5 text-[11px]">
+        <span aria-hidden className={m.enLigne ? 'text-jeu-lagune' : 'text-jeu-ivoire/35'}>●</span> {m.nom === moi ? 'toi' : m.nom}
+      </span>)}
+      <button type="button" onClick={() => { setInvites([]); void agir(onQuitter()); }} className="ml-auto text-[10.5px] text-jeu-ivoire/50 hover:underline">Quitter l’équipe</button>
+    </div> : <p className="text-[11px] leading-snug text-jeu-ivoire/60">Fais équipe avec un voisin : à deux dans le même lieu, chaque séance rapporte +{Math.round(REGLES_EQUIPE.bonusXp * 100)} % d’XP.</p>}
+    {aInviter.length > 0 && <div className="flex flex-wrap gap-1" aria-label="Voisins à inviter">
+      {aInviter.map(v => invites.includes(v.userId)
+        ? <span key={v.userId} className="rounded-full px-2 py-0.5 text-[11px] text-jeu-ivoire/50">{v.nom} : invité</span>
+        : <button key={v.userId} type="button" aria-label={`Inviter ${v.nom} dans ton équipe`} onClick={() => { setInvites(l => [...l, v.userId]); void agir(onInviter(v)); }}
+            className="rounded-full border border-jeu-or/40 px-2 py-0.5 text-[11px] text-jeu-or hover:bg-jeu-or/10">+ {v.nom}</button>)}
+    </div>}
+  </div>;
+}
+
+/** Le chat du quartier, les émotes et l'équipe, ouverts depuis le HUD. */
+export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter }: {
   demo: boolean; moi: string; voisins: VoisinEnLigne[]; onEmote: (emote: Emote) => void; onFermer: () => void;
+  equipe?: EtatEquipe;
+  onInviter?: (voisin: VoisinEnLigne) => Promise<string | null>;
+  onRepondre?: (invitation: InvitationEquipe, accepter: boolean) => Promise<string | null>;
+  onQuitter?: () => Promise<string | null>;
 }) {
   const client = useQueryClient();
   const [brouillon, setBrouillon] = useState('');
@@ -157,6 +247,7 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer }: {
       <span className="text-[11px] text-jeu-ivoire/70">{voisins.length ? `${voisins.length} voisin${voisins.length > 1 ? 's' : ''} connecté${voisins.length > 1 ? 's' : ''}` : 'Personne d’autre pour l’instant'}</span>
       <button type="button" aria-label="Fermer le chat" onClick={onFermer} className="rounded-full px-2 py-0.5 text-[15px] leading-none hover:bg-white/10">×</button>
     </header>
+    {onInviter && onRepondre && onQuitter && <SectionEquipe moi={moi} voisins={voisins} etat={equipe} onInviter={onInviter} onRepondre={onRepondre} onQuitter={onQuitter} onErreur={setErreur} />}
     <ol ref={fil} aria-live="polite" className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
       {messages.length ? messages.map(m => <li key={m.id} className="text-[12.5px] leading-snug">
         <span className="mr-1 text-[10.5px] text-jeu-ivoire/45">{heureCourte(m.envoyeLe)}</span>

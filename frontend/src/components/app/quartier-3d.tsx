@@ -433,9 +433,9 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] };
+function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] };
   /** La Résidence Akwaba : son stade (chapitres validés du fil rouge) et la balise du portail quand Mme Touré attend. */
-  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void }) {
+  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void; coequipiers: string[]; onVoisin: () => void }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -459,7 +459,7 @@ function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuChantier
     {/* Le concurrent du fil rouge rôde devant la parcelle Akwaba aux heures de chantier, jusqu'à la livraison. */}
     {presenceConcurrent(akwaba.stade, heure) && <Concurrent3D pause={pause} rythme={rythme} bulles={bulles} onParler={onConcurrent} />}
     {/* Les autres joueurs connectés, avec leur personnage et leurs émotes (monde en ligne). */}
-    <VoisinsEnLigne3D voisins={voisins} /><EmoteJoueur3D position={joueur} emote={monEmote} />
+    <VoisinsEnLigne3D voisins={voisins} coequipiers={coequipiers} onSelect={onVoisin} /><EmoteJoueur3D position={joueur} emote={monEmote} />
     {/* Chaque habitant suit sa journée (lib/vie-urbaine) : au travail aux heures de son lieu, en sortie le soir, chez lui la nuit. */}
     {noms.map((nom, i) => {
       const route = nom === 'Yao' && yaoAuChantier ? [POSTES_CHANTIER.yao] : creneauPnj(nom, heure)?.route;
@@ -545,7 +545,17 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Lues par la minicarte et la flèche d'objectif, écrites par la scène à chaque image : aucun rendu React en plus.
   const joueurRef = useRef(new THREE.Vector3());
   // Le quartier partagé : position signalée toutes les dix secondes, voisins connectés et chat (C).
-  const enLigne = useMondeEnLigne({ demo, position: joueurRef, lieu: interieur?.slug ?? null });
+  const enLigne = useMondeEnLigne({ demo, position: joueurRef, lieu: interieur?.slug ?? null, nom: nomJoueur ?? 'Moi' });
+  const coequipiers = useMemo(() => enLigne.equipe.equipe?.membres.map(m => m.userId) ?? [], [enLigne.equipe.equipe]);
+  // Une invitation d'équipe reçue : une notification pour accepter tout de suite (refuser se fait dans le chat).
+  const invitationsVues = useRef(new Set<string>());
+  useEffect(() => {
+    for (const invitation of enLigne.equipe.invitations) {
+      if (invitationsVues.current.has(invitation.id)) continue;
+      invitationsVues.current.add(invitation.id);
+      notifier(`🤝 ${invitation.de} t’invite dans son équipe : à deux dans le même lieu, +10 % d’XP.`, 'info', { label: 'Accepter', executer: () => { void enLigne.repondre(invitation, true); } });
+    }
+  }, [enLigne.equipe.invitations, enLigne.repondre, notifier]);
   const [chat, setChat] = useState(false);
   // Plans de caméra des moments clés : le plan en cours (lu image par image par la caméra) et son bandeau.
   const planRef = useRef<PlanEnCours | null>(null);
@@ -1188,7 +1198,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={enLigne.voisins} monEmote={enLigne.monEmote} plan={planRef}
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={enLigne.voisins} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
@@ -1331,7 +1341,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
     {planCinema && !interieur && <BandeauCinema titre={planCinema.titre} sousTitre={planCinema.sousTitre} onPasser={passerPlan} />}
-    {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)} />}
+    {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
+      equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} />}
     {telephone && !interieur && <Telephone appInitiale={telephone} demo={demo} heure={affichageHeure} meteo={LIBELLES_METEO[meteo].nom} pluie={pluie} position={positionCourante}
       destinations={destinationsTelephone} argent={argent ?? 0} epargne={epargneDemo} niveau={niveau} appels={appelsTelephone}
       rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)}

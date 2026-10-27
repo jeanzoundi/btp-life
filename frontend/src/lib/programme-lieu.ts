@@ -134,6 +134,8 @@ export interface GainsSeance {
   xp: number; argent: number; reputation: number; facteurBesoins: number; entrainement: boolean; prochaineRecompenseLe: string;
   /** Compétence travaillée à l'étape, et l'XP qu'elle a gagnée (absente à l'entraînement ou sous 40). */
   competence?: { slug: string; nom: string; xp: number } | null;
+  /** Coéquipiers présents dans le lieu pendant la séance, et le bonus d'XP qu'ils ont valu. */
+  equipe?: { coequipiers: string[]; bonus: number } | null;
 }
 
 export function fusionnerProgres(p: ProgrammeLieu, local: ProgresLieu, serveur: ProgresLieuServeur | undefined): ProgresLieu {

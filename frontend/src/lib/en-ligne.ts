@@ -73,3 +73,29 @@ export function messagePret(brut: string) {
   const texte = brut.replace(/\s+/g, ' ').trim().slice(0, LONGUEUR_MESSAGE);
   return texte || null;
 }
+
+// ─── Les équipes de quartier ───
+// Des joueurs connectés s'invitent (quatre au plus) ; une séance faite pendant qu'un coéquipier est dans le même lieu
+// rapporte 10 % d'XP de plus. Mêmes règles qu'au serveur (backend/src/monde/equipe.service.ts).
+
+export const REGLES_EQUIPE = { membresMax: 4, bonusXp: .1 } as const;
+
+export interface MembreEquipe { userId: string; nom: string; enLigne: boolean; lieu: string | null }
+export interface EquipeQuartier { id: string; chefId: string; membres: MembreEquipe[] }
+export interface InvitationEquipe { id: string; de: string }
+export interface EtatEquipe { equipe: EquipeQuartier | null; invitations: InvitationEquipe[] }
+export const ETAT_EQUIPE_VIDE: EtatEquipe = { equipe: null, invitations: [] };
+
+export const estCoequipier = (equipe: EquipeQuartier | null, userId: string) => Boolean(equipe?.membres.some(m => m.userId === userId));
+/** Les voisins à qui proposer l'équipe : ceux qui n'en font pas déjà partie, tant qu'il reste de la place. */
+export function invitables(voisins: readonly VoisinEnLigne[], equipe: EquipeQuartier | null) {
+  if ((equipe?.membres.length ?? 1) >= REGLES_EQUIPE.membresMax) return [];
+  return voisins.filter(v => !estCoequipier(equipe, v.userId));
+}
+
+/** L'équipe de démonstration : le joueur la dirige, et un voisin simulé qu'il invite accepte. */
+export function equipeAvec(equipe: EquipeQuartier | null, moi: { userId: string; nom: string }, voisin: Pick<VoisinEnLigne, 'userId' | 'nom'>): EquipeQuartier {
+  const base = equipe ?? { id: 'equipe-demo', chefId: moi.userId, membres: [{ ...moi, enLigne: true, lieu: null }] };
+  if (estCoequipier(base, voisin.userId) || base.membres.length >= REGLES_EQUIPE.membresMax) return base;
+  return { ...base, membres: [...base.membres, { userId: voisin.userId, nom: voisin.nom, enLigne: true, lieu: null }] };
+}
