@@ -73,11 +73,14 @@ describe('PatrimoineService', () => {
     expect(r.outils.every(o => !o.possede)).toBe(true);
     expect(etat.patrimoine).toMatchObject({ logement: { niveau: 'studio' } });
   });
-  it('fait perdre du moral quand un loyer reste impayé', async () => {
+  it('pardonne le premier loyer impayé, puis fait perdre du moral quand les arriérés s’accumulent', async () => {
     const { prisma, etat } = fakePrisma({ patrimoine: { logement: { niveau: 'villa', payeJusquau: ilYa(1), arrieres: 0 } }, argent: 1000 });
     const svc = await service(prisma);
     await expect(svc.etat('u1')).resolves.toMatchObject({ impaye: 55_000, logement: { arrieres: 55_000 } });
-    expect(etat.moral).toBe(70 - MORAL_LOYER_IMPAYE);
+    expect(etat.moral).toBe(70);
+    const endette = fakePrisma({ patrimoine: { logement: { niveau: 'villa', payeJusquau: ilYa(1), arrieres: 55_000 } }, argent: 1000 });
+    await expect((await service(endette.prisma)).etat('u1')).resolves.toMatchObject({ logement: { arrieres: 110_000 } });
+    expect(endette.etat.moral).toBe(70 - MORAL_LOYER_IMPAYE);
   });
   it('déménage contre frais d’agence et première semaine, mais pas avec des arriérés', async () => {
     const { prisma, etat } = fakePrisma({ argent: 100_000 });

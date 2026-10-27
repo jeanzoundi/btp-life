@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { AchatOutilDto, CreationEntrepriseDto, DecisionImprevuDto, DemenagementDto, EmbaucheDto, InvitationEquipeDto, LicenciementDto, MessageQuartierDto, MetreDto, MouvementEntrepriseDto, PresenceDto, RenovationDto, ReponseEquipeDto, TransportDto } from './dto/monde.dto';
 import { EquipeService } from './equipe.service';
+import { PremiersPasService } from './premiers-pas.service';
 import { EnLigneService } from './en-ligne.service';
 import { EntrepriseService } from './entreprise.service';
 import { PatrimoineService } from './patrimoine.service';
@@ -21,7 +22,18 @@ export class MondeController {
     private readonly entreprise: EntrepriseService,
     private readonly enLigne: EnLigneService,
     private readonly equipe: EquipeService,
+    private readonly premiersPas: PremiersPasService,
   ) {}
+
+  @Get('premiers-pas')
+  etatPremiersPas(@CurrentUser() user: RequestUser) {
+    return this.premiersPas.etat(user.userId);
+  }
+
+  @Post('premiers-pas/:etape')
+  validerPremierPas(@CurrentUser() user: RequestUser, @Param('etape') etape: string) {
+    return this.premiersPas.valider(user.userId, etape);
+  }
 
   // Toutes les dix secondes environ par joueur connecté ; la limite laisse de la marge pour les émotes.
   @Post('presence')

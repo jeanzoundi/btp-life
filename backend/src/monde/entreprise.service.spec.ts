@@ -54,6 +54,10 @@ async function service(prisma: ReturnType<typeof fakePrisma>['prisma']) {
 }
 
 describe('EntrepriseService', () => {
+  // Le service lit l'heure réelle : figée sur le jour des données, aucune journée d'activité ne s'écoule pendant le test.
+  beforeEach(() => jest.useFakeTimers().setSystemTime(MAINTENANT));
+  afterEach(() => jest.useRealTimers());
+
   it('crée l’entreprise avec l’apport du joueur, une seule fois, à partir du niveau requis', async () => {
     const { prisma, carriere } = fakePrisma();
     const svc = await service(prisma);

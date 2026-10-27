@@ -14,7 +14,7 @@ import {
 // Les travaux chez soi suivent le Grand chantier en petit : métré, commande au dépôt, puis une journée de travaux par
 // journée du monde ; finis, ils rendent le logement plus confortable.
 
-/** Moral perdu quand un loyer reste impayé. */
+/** Moral perdu quand un loyer reste impayé alors que des arriérés courent déjà : le premier impayé est pardonné. */
 export const MORAL_LOYER_IMPAYE = 10;
 
 @Injectable()
@@ -36,7 +36,7 @@ export class PatrimoineService {
     if (neuf) {
       await tx.userCarriere.update({ where: { userId }, data: {
         patrimoine: r.patrimoine as unknown as Prisma.InputJsonValue, argentVirtuel: r.argent,
-        ...(r.impaye > 0 ? { moral: Math.max(0, carriere.moral - MORAL_LOYER_IMPAYE) } : {}),
+        ...(r.impaye > 0 && avant.logement.arrieres > 0 ? { moral: Math.max(0, carriere.moral - MORAL_LOYER_IMPAYE) } : {}),
       } });
     }
     return { patrimoine: r.patrimoine, argent: r.argent, preleve: r.preleve, impaye: r.impaye };

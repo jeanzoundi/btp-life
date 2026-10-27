@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CarriereService, nettoyerEtatMonde, NIVEAU_DEPART_MAX, SEUIL_ENTREPRENEUR } from './carriere.service';
+import { CarriereService, nettoyerEtatMonde, NIVEAU_DEPART_MAX, PRIME_INSTALLATION, SEUIL_ENTREPRENEUR } from './carriere.service';
 import { CertificatsService } from '../certificats/certificats.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
@@ -148,6 +148,8 @@ describe('CarriereService.setProfilActuel', () => {
       profilActuelId: 'profil-chef-equipe',
       niveau: 6,
       xp: xpRequisPourNiveau(6),
+      // Premier choix de poste : la prime d'installation est versée.
+      argentVirtuel: { increment: PRIME_INSTALLATION },
     });
   });
 
@@ -156,7 +158,7 @@ describe('CarriereService.setProfilActuel', () => {
     const prisma = fakePrisma({
       profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-chef-equipe', niveauDepart: 6 }) },
       userCarriere: {
-        findUnique: jest.fn().mockResolvedValue({ xp: xpDejaAcquis }),
+        findUnique: jest.fn().mockResolvedValue({ xp: xpDejaAcquis, profilActuelId: 'profil-stagiaire' }),
         update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
       },
     });
@@ -174,7 +176,7 @@ describe('CarriereService.setProfilActuel', () => {
     const prisma = fakePrisma({
       profil: { findUnique: jest.fn().mockResolvedValue({ id: 'profil-etudiant-chantier', niveauDepart: 1 }) },
       userCarriere: {
-        findUnique: jest.fn().mockResolvedValue({ niveau: 12, xp: xpActuel }),
+        findUnique: jest.fn().mockResolvedValue({ niveau: 12, xp: xpActuel, profilActuelId: 'profil-chef-chantier' }),
         update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
       },
     });

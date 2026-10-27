@@ -12,6 +12,8 @@ import { CertificatsService } from '../certificats/certificats.service';
 export const SEUIL_ENTREPRENEUR = { niveauMin: 30, ordreMin: 3 };
 /** Plus haut niveau de départ qu'on peut choisir à la création : au-delà (échelons experts), le métier se gagne par promotion. */
 export const NIVEAU_DEPART_MAX = 9;
+/** Versée au premier choix de poste (la création du personnage) : de quoi payer les premiers loyers et trajets. */
+export const PRIME_INSTALLATION = 25_000;
 const MODES_MONDE = new Set(['libre', 'carriere', 'urgence', 'entrepreneur', 'exploration', 'communaute']);
 
 function nombreBorne(value: unknown, min: number, max: number, fallback = 0) {
@@ -118,7 +120,7 @@ export class CarriereService {
     const profil = await this.prisma.profil.findUnique({ where: { id: dto.profilId } });
     if (!profil) throw new NotFoundException('Profil introuvable');
     if (profil.niveauDepart > NIVEAU_DEPART_MAX) throw new BadRequestException('Ce métier se gagne par promotion : choisis un poste de départ.');
-    const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true, xp: true } });
+    const carriereActuelle = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true, xp: true, profilActuelId: true } });
     // Ne jamais rétrograder : cette route est censée servir à l'onboarding (premier choix de
     // profil), mais si elle est rappelée plus tard (onglet resté ouvert, retour arrière) sur un
     // joueur qui a déjà progressé, niveauDepart du profil ne doit jamais faire reculer son niveau.
@@ -133,6 +135,8 @@ export class CarriereService {
         profilActuelId: profil.id,
         niveau,
         xp: Math.max(carriereActuelle?.xp ?? 0, xpMinimum),
+        // Premier choix de poste : la prime d'installation, une seule fois (un nouveau choix de poste ne la reverse pas).
+        ...(carriereActuelle?.profilActuelId ? {} : { argentVirtuel: { increment: PRIME_INSTALLATION } }),
       },
     });
     await this.avatarItems.debloquerItemsEligibles(userId, `metier:${profil.slug}`);

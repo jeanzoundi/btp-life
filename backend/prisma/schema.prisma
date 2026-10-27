@@ -458,6 +458,8 @@ model UserCarriere {
   defis                    Json?
   // Logement (niveau, loyer payé jusqu'au, arriérés) et outillage acheté — voir PatrimoineService (module monde).
   patrimoine               Json?
+  // Étapes du premier quart d’heure guidé déjà faites, récompensées une seule fois — voir PremiersPasService (module monde).
+  premiersPas              Json?
   // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
   // et pour candidater aux marchés (voir Chantier.typeMarche).
   nomEntreprise            String?
