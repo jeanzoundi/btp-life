@@ -66,7 +66,7 @@ describe('accueil unifié', () => {
     expect(mocks.patch).toHaveBeenCalledWith('/carriere/avatar', { nomPersonnage: 'Koffi', config: { voieDepart: 'etudiant', formationDepart: 'ingenieur' } });
     fireEvent.click(screen.getByRole('button', { name: /Ingénieur structure/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Générer mon parcours' }));
-    await screen.findByText(/Aucun logement ni argent supplémentaire/);
+    await screen.findByText(/prime d’installation de 25 000 F/);
     fireEvent.click(screen.getByRole('button', { name: /Entrer dans le monde vivant/ }));
     expect(mocks.push).toHaveBeenCalledWith('/app/monde?lieu=universite');
   });

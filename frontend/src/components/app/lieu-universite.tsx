@@ -12,6 +12,7 @@ import type { TypeNotification } from './hud-monde';
 import { InterieurLieuVie, type CommandesLieu } from './interieur-lieu-vie';
 import { LecteurSlides } from './lecteur-slides';
 import { PanneauBibliotheque, PanneauDoyen } from './panneaux-lieux-vie';
+import { celebrer } from './celebration';
 
 const LIEU = { ...UNIVERSITE, plan: PLAN_UNIVERSITE };
 const HOTE = { prof: true, variante: 1, nom: UNIVERSITE.hote.nom };
@@ -39,7 +40,7 @@ export function LieuUniversite({ demo, heure, cleLocale, notifier, passerA, onSo
   // Même mutation que la page de l'Académie (clé « cours-termine ») : optimiste, rejouée au retour du réseau.
   const marquer = useMutation({
     mutationKey: ['cours-termine'],
-    mutationFn: (coursId: string) => api.post(`/carriere/cours/${coursId}/termine`),
+    mutationFn: (coursId: string) => api.post<{ certificats?: string[] }>(`/carriere/cours/${coursId}/termine`),
     onMutate: async (coursId: string) => {
       await client.cancelQueries({ queryKey: ['carriere', 'cours-termines'] });
       const avant = client.getQueryData<string[]>(['carriere', 'cours-termines']);
@@ -48,6 +49,8 @@ export function LieuUniversite({ demo, heure, cleLocale, notifier, passerA, onSo
     },
     onError: (_e, _id, ctx) => { if (ctx?.avant) client.setQueryData(['carriere', 'cours-termines'], ctx.avant); },
     onSettled: () => client.invalidateQueries({ queryKey: ['carriere', 'cours-termines'] }),
+    // Le dernier cours d'un module : son attestation vient d'être délivrée.
+    onSuccess: r => { if (r?.certificats?.length) celebrer({ icone: '📜', titre: 'Certificat obtenu !', sousTitre: r.certificats.join(' · '), partage: `J’ai obtenu « ${r.certificats[0]} » sur BTP Life 🏗️`, son: 'badge' }); },
   });
 
   const [panneau, setPanneau] = useState<'doyen' | 'bibliotheque' | null>(null);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, REGLES_EQUIPE, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, surBoucle, voisinsDemo } from './en-ligne';
+import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, PROMENEURS_MAX, REGLES_EQUIPE, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, promeneurs, surBoucle, voisinsDemo } from './en-ligne';
 
 describe('le monde en ligne vu du jeu', () => {
   it('parcourt une boucle à vitesse constante et revient au départ', () => {
@@ -39,5 +39,19 @@ describe('les équipes de quartier', () => {
     expect(complete.membres).toHaveLength(REGLES_EQUIPE.membresMax);
     expect(invitables(voisins, complete)).toEqual([]);
     expect(equipeAvec(complete, moi, { userId: 'autre', nom: 'Autre' }).membres).toHaveLength(REGLES_EQUIPE.membresMax);
+  });
+});
+
+describe('les promeneurs de la place', () => {
+  const recents = ['a', 'b', 'c', 'd', 'e'].map((id, i) => ({ userId: id, nom: id.toUpperCase(), avatarConfig: null, niveau: i + 2 }));
+  it('fait promener jusqu’à trois joueurs récents tant que presque personne n’est connecté, sans les dire en ligne', () => {
+    const liste = promeneurs(recents, [], 30);
+    expect(liste).toHaveLength(PROMENEURS_MAX);
+    expect(liste.every(p => p.promeneur && p.lieu === null && p.emote === null && Math.abs(p.x) <= 20 && Math.abs(p.z) <= 12)).toBe(true);
+    expect(liste[0].promeneur).toEqual({ niveau: 2 });
+  });
+  it('n’affiche pas en promeneur un joueur connecté, et disparaît dès que deux joueurs sont en ligne', () => {
+    expect(promeneurs(recents, [{ userId: 'a' }], 0).map(p => p.userId)).toEqual(['b', 'c', 'd']);
+    expect(promeneurs(recents, [{ userId: 'x' }, { userId: 'y' }], 0)).toEqual([]);
   });
 });

@@ -13,7 +13,11 @@ export const EMOTES = [
 export type Emote = (typeof EMOTES)[number]['id'];
 export const emoteParId = (id: string | null | undefined) => EMOTES.find(e => e.id === id) ?? null;
 
-export interface VoisinEnLigne { userId: string; nom: string; avatarConfig: unknown; x: number; z: number; lieu: string | null; emote: Emote | null }
+export interface VoisinEnLigne {
+  userId: string; nom: string; avatarConfig: unknown; x: number; z: number; lieu: string | null; emote: Emote | null;
+  /** Promeneur : un joueur passé récemment, montré sur la place quand presque personne n'est connecté (niveau affiché). */
+  promeneur?: { niveau: number };
+}
 export interface MessageQuartier { id: string; userId: string; nom: string; texte: string; envoyeLe: string }
 
 /** Rythme des relevés : la position part toutes les dix secondes, le chat ouvert se relit toutes les cinq. */
@@ -98,4 +102,27 @@ export function equipeAvec(equipe: EquipeQuartier | null, moi: { userId: string;
   const base = equipe ?? { id: 'equipe-demo', chefId: moi.userId, membres: [{ ...moi, enLigne: true, lieu: null }] };
   if (estCoequipier(base, voisin.userId) || base.membres.length >= REGLES_EQUIPE.membresMax) return base;
   return { ...base, membres: [...base.membres, { userId: voisin.userId, nom: voisin.nom, enLigne: true, lieu: null }] };
+}
+
+// ─── Les promeneurs ───
+// Quand moins de deux autres joueurs sont connectés, la place reste vivante : quelques joueurs passés récemment s'y
+// promènent avec leur personnage, présentés comme tels (leur niveau, jamais « en ligne »), et sans les inviter.
+
+export const SEUIL_PROMENEURS = 2;
+export const PROMENEURS_MAX = 3;
+const BOUCLES_PLACE: Point[][] = [
+  [[-20, 11], [-6, 11], [-6, -11], [20, -11], [20, 11]],
+  [[20, 9], [-4, 9], [-4, -9], [-20, -9], [-20, 9]],
+  [[-18, -12], [18, -12], [18, 12], [-18, 12]],
+];
+export interface JoueurRecent { userId: string; nom: string; avatarConfig: unknown; niveau: number }
+
+/** Les promeneurs de la place à l'instant t (secondes) : aucun dès que deux autres joueurs sont connectés. */
+export function promeneurs(recents: readonly JoueurRecent[], connectes: readonly Pick<VoisinEnLigne, 'userId'>[], t: number): VoisinEnLigne[] {
+  if (connectes.length >= SEUIL_PROMENEURS) return [];
+  const enLigne = new Set(connectes.map(v => v.userId));
+  return recents.filter(j => !enLigne.has(j.userId)).slice(0, PROMENEURS_MAX).map((j, i) => {
+    const [x, z] = surBoucle(BOUCLES_PLACE[i % BOUCLES_PLACE.length], 1 + i * .15, t + i * 23);
+    return { userId: j.userId, nom: j.nom, avatarConfig: j.avatarConfig, x, z, lieu: null, emote: null, promeneur: { niveau: j.niveau } };
+  });
 }

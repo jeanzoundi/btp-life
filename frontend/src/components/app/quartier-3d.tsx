@@ -34,7 +34,7 @@ import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-mond
 import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif-monde';
 import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, type NotificationMonde, type TypeNotification } from './hud-monde';
 import { Minicarte } from './minicarte';
-import { ChatQuartier, EmoteJoueur3D, useMondeEnLigne, VoisinsEnLigne3D } from './monde-en-ligne';
+import { ChatQuartier, EmoteJoueur3D, useMondeEnLigne, usePromeneurs, VoisinsEnLigne3D } from './monde-en-ligne';
 import type { Emote, VoisinEnLigne } from '@/lib/en-ligne';
 import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
 import { InterieurChantier3D } from './interieur-chantier-3d';
@@ -57,6 +57,11 @@ import { CONCURRENT, PENSEES_CONCURRENT, ROUTE_CONCURRENT, nouvelleReplique, pre
 import { planChapitre, positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { BandeauCinema } from './bandeau-cinema';
 import { EcranTravaux, useTravauxMaison } from './renovation-maison';
+import { PanneauPremiersPas, usePremiersPas } from './premiers-pas';
+import { PanneauFinCampagne, finCampagneAMontrer, type SuiteCampagne } from './fin-campagne';
+import { EcranCelebration, celebrationsEntre, celebrer, useCelebrations } from './celebration';
+import { useRouter } from 'next/navigation';
+import { DISTANCE_PREMIERS_PAS, ETAPES_PREMIERS_PAS, type EtapePremiersPas } from '@/lib/premiers-pas';
 import { ENERGIE_JOURNEE_TRAVAUX, type NiveauLogement } from '@/lib/patrimoine';
 import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
@@ -683,6 +688,34 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const campagneRef = useRef<EtatCampagne | null>(null);
   const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA,
     occupe: () => campagneRef.current?.seance ? `Un chapitre du fil rouge est en cours (${nomLieu(campagneRef.current.seance.slug)}) : termine-le d’abord.` : null });
+  // Le premier quart d'heure guidé : chaque geste découvert est validé, et récompensé, au moment où il est fait.
+  const premiersPas = usePremiersPas({ demo, onEtape: useCallback((etape: EtapePremiersPas, termine: boolean, r: { argent: number; xp: number }) => {
+    const titre = ETAPES_PREMIERS_PAS.find(e => e.id === etape)?.titre ?? etape;
+    if (demo) setProgresDemo(p => ({ argent: p.argent + r.argent, xp: p.xp + r.xp }));
+    if (termine) celebrer({ icone: '🎉', titre: 'Premiers pas terminés !', sousTitre: `+${r.argent.toLocaleString('fr-FR')} F et +${r.xp} XP. Le quartier est à toi.`, son: 'succes' });
+    else notifier(`✓ ${titre} : +${r.argent.toLocaleString('fr-FR')} F et +${r.xp} XP.`, 'succes');
+  }, [demo, notifier]) });
+  const validerGuide = useRef(premiersPas.valider);
+  validerGuide.current = premiersPas.valider;
+  const departGuide = useRef<PointMonde | null>(null);
+  useEffect(() => { if (positionInitiale && !departGuide.current) departGuide.current = positionInitiale; }, [positionInitiale]);
+  useEffect(() => {
+    const d = departGuide.current;
+    if (d && Math.hypot(positionCourante[0] - d[0], positionCourante[1] - d[1]) > DISTANCE_PREMIERS_PAS) void validerGuide.current('deplacement');
+  }, [positionCourante]);
+  useEffect(() => { if (telephone) void validerGuide.current('telephone'); }, [telephone]);
+  useEffect(() => { if (interieur) void validerGuide.current('lieu'); }, [interieur]);
+  useEffect(() => { const r = lieux.resultat; if (r && !r.erreur && r.bilan.compte) void validerGuide.current('seance'); }, [lieux.resultat]);
+  useEffect(() => { if (enLigne.monEmote) void validerGuide.current('quartier'); }, [enLigne.monEmote]);
+  const cleGuide = `btp-life-guide:${userId ?? 'demo'}`;
+  const [guide, setGuide] = useState({ ouvert: false, masque: false });
+  // Déplié seulement s'il tient sous le HUD : sur téléphone et sur les écrans bas, il reste replié sur l'étape en cours.
+  useEffect(() => {
+    let masque = false;
+    try { masque = localStorage.getItem(cleGuide) === 'masque'; } catch { /* Stockage facultatif. */ }
+    setGuide({ ouvert: window.matchMedia('(min-width: 640px) and (min-height: 820px)').matches, masque });
+  }, [cleGuide]);
+  const masquerGuide = () => { setGuide(g => ({ ...g, masque: true })); try { localStorage.setItem(cleGuide, 'masque'); } catch { /* Stockage facultatif. */ } };
   // Le fil rouge : la Résidence Akwaba, de lieu en lieu jusqu'à sa réception sur la parcelle du Plateau Nord.
   const recompenserChapitre = useCallback((bilan: BilanChapitre) => {
     if (!demo) return;
@@ -768,6 +801,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     setMode(id); setEtapeMode(0); setScore(0); setSecondes(nouveau.duree); setMenuModes(false); setSelection(null); notifier(id === 'libre' ? 'Exploration libre activée.' : `${nouveau.nom} lancé : suis les objectifs.`, 'info');
   }, [notifier]);
   const { data: joueurs = [] } = useQuery({ queryKey: ['carriere', 'joueurs-actifs'], queryFn: () => api.get<JoueurActif[]>('/carriere/joueurs-actifs'), staleTime: 45_000, refetchInterval: 45_000, enabled: !demo });
+  // Quand presque personne n'est connecté, des joueurs passés récemment se promènent sur la place (la démonstration a ses voisins).
+  const promeneursPlace = usePromeneurs({ actif: !demo, recents: joueurs, connectes: enLigne.voisins });
+  const voisins3d = useMemo(() => [...enLigne.voisins, ...promeneursPlace], [enLigne.voisins, promeneursPlace]);
   // Messages non lus : la pastille du téléphone dans le HUD (le téléphone lit la même liste).
   const { data: messages = [] } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<{ lu: boolean }[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000, refetchInterval: 60_000 });
   const messagesNonLus = demo ? 1 : messages.filter(m => !m.lu).length;
@@ -1178,6 +1214,33 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     const fin = window.setTimeout(() => setPlanCinema(null), planCinema.duree * 1000);
     return () => window.clearTimeout(fin);
   }, [planCinema]);
+  // La campagne finie, et son dernier plan de caméra passé : un écran salue le parcours et oriente vers la suite, une fois.
+  const router = useRouter();
+  const cleFinCampagne = `btp-life-fin-campagne:${userId ?? 'demo'}`;
+  const [finCampagne, setFinCampagne] = useState(false);
+  useEffect(() => {
+    let dejaVue = false;
+    try { dejaVue = localStorage.getItem(cleFinCampagne) === 'vue'; } catch { /* Stockage facultatif. */ }
+    const occupe = Boolean(interieur || campagne.panneau || planCinema || planAttente.current);
+    if (finCampagneAMontrer({ chapitres: campagne.progres.chapitres, total: CHAPITRES.length, pret: campagne.pret, dejaVue, occupe })) setFinCampagne(true);
+  }, [campagne.progres.chapitres, campagne.pret, campagne.panneau, interieur, planCinema, cleFinCampagne]);
+  // Les grands moments du joueur : niveau, promotion, équipe formée, comparés à l'état précédent (jamais au chargement).
+  const celebrations = useCelebrations();
+  const etatCelebre = useRef<{ niveau?: number; poste?: string; coequipiers?: number } | null>(null);
+  useEffect(() => {
+    if (!demo && (!profil || !enLigne.equipePrete)) return;
+    const membres = enLigne.equipe.equipe?.membres ?? [];
+    const apres = { niveau: profil?.niveau, poste: profil?.poste, coequipiers: membres.length, avec: membres.filter(m => m.nom !== nomJoueur).map(m => m.nom) };
+    celebrationsEntre(etatCelebre.current, apres).forEach(celebrer);
+    etatCelebre.current = apres;
+  }, [demo, profil, enLigne.equipePrete, enLigne.equipe.equipe, nomJoueur]);
+  const fermerFinCampagne = () => { setFinCampagne(false); try { localStorage.setItem(cleFinCampagne, 'vue'); } catch { /* Stockage facultatif. */ } };
+  const suiteCampagne = (suite: SuiteCampagne) => {
+    fermerFinCampagne();
+    if (suite === 'equipe') setChat(true);
+    else if (demo) notifier('Ta carrière et tes chantiers continuent dans le jeu complet : crée ton compte pour les jouer.', 'info');
+    else router.push(suite === 'carriere' ? '/app/parcours' : '/app/chantiers');
+  };
   // Fil d'événements dans les intérieurs : à droite sous « Sortir » sur grand écran, au-dessus des commandes sur téléphone.
   const pileInterieur = <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} /></div>;
   const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
@@ -1198,7 +1261,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={enLigne.voisins} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
@@ -1341,8 +1404,16 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
     {planCinema && !interieur && <BandeauCinema titre={planCinema.titre} sousTitre={planCinema.sousTitre} onPasser={passerPlan} />}
+    {finCampagne && !interieur && <PanneauFinCampagne nomJoueur={nomJoueur ?? 'Bâtisseur'} onSuite={suiteCampagne} onFermer={fermerFinCampagne} />}
+    {celebrations.courante && !planCinema && <EcranCelebration celebration={celebrations.courante} onFermer={celebrations.fermer} />}
+    {/* Le guide, sous la colonne de droite du HUD (68 px plus bas en mode immersif), sans descendre sur les commandes du bas. */}
+    {premiersPas.afficher && !guide.masque && !interieur && !telephone && !planCinema && <div className={`pointer-events-none absolute right-3 z-20 flex flex-col ${large
+      ? `w-[262px] ${immersif ? 'top-[420px] max-h-[calc(100%-476px)]' : 'top-[352px] max-h-[calc(100%-408px)]'}`
+      : `w-[230px] ${immersif ? 'top-[368px] max-h-[calc(100%-474px)]' : 'top-[300px] max-h-[calc(100%-406px)]'}`}`}>
+      <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />
+    </div>}
     {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
-      equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} />}
+      equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} onEnvoi={() => void validerGuide.current('quartier')} />}
     {telephone && !interieur && <Telephone appInitiale={telephone} demo={demo} heure={affichageHeure} meteo={LIBELLES_METEO[meteo].nom} pluie={pluie} position={positionCourante}
       destinations={destinationsTelephone} argent={argent ?? 0} epargne={epargneDemo} niveau={niveau} appels={appelsTelephone}
       rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)}

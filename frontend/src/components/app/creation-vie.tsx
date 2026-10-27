@@ -341,7 +341,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
           {voie && <div className="rounded-2xl bg-white/[.05] p-4">
             <h2 className="font-bold">Tes premiers repères · {voie.nom}</h2>
             <ol className="mt-2 list-inside list-decimal space-y-1.5 text-[13px] text-jeu-ivoire/75">{voie.premiersPas.map(p => <li key={p}>{p}</li>)}</ol>
-            <p className="mt-3 text-[11.5px] text-jeu-ivoire/55">Ce sont des repères pour explorer les activités existantes. Aucun logement ni argent supplémentaire n’est attribué par cet écran.</p>
+            <p className="mt-3 text-[11.5px] text-jeu-ivoire/55">Ce sont des repères pour explorer les activités existantes. À ton premier choix de poste, une prime d’installation de 25 000 F arrive sur ton compte, pour tes premiers loyers et trajets.</p>
           </div>}
           <BoutonSuite onClick={entrer}>{mode === 'monde' ? 'Entrer dans le monde vivant' : demo ? 'Créer mon compte pour jouer' : 'Ouvrir le mode classique'} →</BoutonSuite>
         </>}

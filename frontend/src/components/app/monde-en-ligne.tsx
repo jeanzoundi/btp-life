@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import {
   DUREE_EMOTE_MS, EMOTES, ETAT_EQUIPE_VIDE, LONGUEUR_MESSAGE, PERIODE_CHAT_MS, PERIODE_PRESENCE_MS, REGLES_EQUIPE, emoteParId, equipeAvec, invitables,
-  messagePret, messagesDemo, voisinsDemo, type Emote, type EtatEquipe, type InvitationEquipe, type MessageQuartier, type VoisinEnLigne,
+  messagePret, messagesDemo, promeneurs, voisinsDemo, type Emote, type EtatEquipe, type InvitationEquipe, type JoueurRecent, type MessageQuartier, type VoisinEnLigne,
 } from '@/lib/en-ligne';
 import { echelleGabarit } from '@/lib/gabarit-personnage';
 import { personnageDe } from '@/lib/personnages-joueur';
@@ -29,6 +29,8 @@ export function useMondeEnLigne({ demo, position, lieu, nom = 'Moi', actif = tru
   const [voisins, setVoisins] = useState<VoisinEnLigne[]>([]);
   const [monEmote, setMonEmote] = useState<Emote | null>(null);
   const [equipe, setEquipe] = useState<EtatEquipe>(ETAT_EQUIPE_VIDE);
+  // L'équipe est connue après le premier relevé (tout de suite en démonstration).
+  const [equipePrete, setEquipePrete] = useState(demo);
   const lieuRef = useRef(lieu);
   lieuRef.current = lieu;
   const moi = useMemo(() => ({ userId: 'moi', nom }), [nom]);
@@ -55,6 +57,7 @@ export function useMondeEnLigne({ demo, position, lieu, nom = 'Moi', actif = tru
       const r = await api.post<{ voisins?: VoisinEnLigne[] } & Partial<EtatEquipe>>('/monde/presence?equipe=1', { x: p.x, z: p.z, ...(lieuRef.current ? { lieu: lieuRef.current } : {}), ...(emote ? { emote } : {}) });
       setVoisins(Array.isArray(r?.voisins) ? r.voisins : []);
       setEquipe({ equipe: r?.equipe ?? null, invitations: Array.isArray(r?.invitations) ? r.invitations : [] });
+      setEquipePrete(true);
     } catch { /* réseau coupé : la dernière liste reste affichée */ }
   }, [position]);
 
@@ -114,9 +117,25 @@ export function useMondeEnLigne({ demo, position, lieu, nom = 'Moi', actif = tru
     return null;
   }, [demo, agirEquipe]);
 
-  return { voisins, monEmote, emote, equipe, inviter, repondre, quitter };
+  return { voisins, monEmote, emote, equipe, equipePrete, inviter, repondre, quitter };
 }
 export type MondeEnLigne = ReturnType<typeof useMondeEnLigne>;
+
+/** Les promeneurs de la place, recalculés chaque seconde tant que presque personne n'est connecté. */
+export function usePromeneurs({ actif, recents, connectes }: { actif: boolean; recents: readonly JoueurRecent[]; connectes: readonly VoisinEnLigne[] }) {
+  const [liste, setListe] = useState<VoisinEnLigne[]>([]);
+  const [debut] = useState(() => Date.now());
+  const vides = !actif || !recents.length || connectes.length >= 2;
+  useEffect(() => {
+    // Liste déjà vide : rien à changer (évite un rendu de plus à chaque nouvelle liste vide reçue).
+    if (vides) { setListe(l => (l.length ? [] : l)); return; }
+    const maj = () => setListe(promeneurs(recents, connectes, (Date.now() - debut) / 1000));
+    maj();
+    const id = window.setInterval(maj, 1000);
+    return () => window.clearInterval(id);
+  }, [vides, recents, connectes, debut]);
+  return liste;
+}
 
 const bulleEmote = (id: string | null | undefined) => { const e = emoteParId(id); return e ? { icone: e.icone, texte: e.texte } : null; };
 
@@ -146,9 +165,9 @@ function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; 
     const bouge = distance > .15;
     if (bouge !== marcheRef.current) { marcheRef.current = bouge; setMarche(bouge); }
   });
-  return <group ref={ref} position={[voisin.x, 0, voisin.z]} onClick={e => { e.stopPropagation(); if (e.delta < 5) onSelect?.(); }}>
+  return <group ref={ref} position={[voisin.x, 0, voisin.z]} onClick={e => { e.stopPropagation(); if (e.delta < 5 && !voisin.promeneur) onSelect?.(); }}>
     <group scale={echelleGabarit(personnage.gabarit)}>
-      <HumainMonde modele={personnage.modele} design={design} casque nom={`${voisin.nom} · ${coequipier ? 'équipe' : 'en ligne'}`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} />
+      <HumainMonde modele={personnage.modele} design={design} casque nom={voisin.promeneur ? `${voisin.nom} · niv. ${voisin.promeneur.niveau}` : `${voisin.nom} · ${coequipier ? 'équipe' : 'en ligne'}`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} />
     </group>
     {coequipier && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .04, 0]}><ringGeometry args={[.6, .78, 40]} /><meshBasicMaterial color="#E8B84A" transparent opacity={.85} /></mesh>}
     <BullePensee pensee={bulleEmote(voisin.emote)} hauteur={3.2} />
@@ -192,6 +211,7 @@ function SectionEquipe({ moi, voisins, etat, onInviter, onRepondre, onQuitter, o
       </span>)}
       <button type="button" onClick={() => { setInvites([]); void agir(onQuitter()); }} className="ml-auto text-[10.5px] text-jeu-ivoire/50 hover:underline">Quitter l’équipe</button>
     </div> : <p className="text-[11px] leading-snug text-jeu-ivoire/60">Fais équipe avec un voisin : à deux dans le même lieu, chaque séance rapporte +{Math.round(REGLES_EQUIPE.bonusXp * 100)} % d’XP.</p>}
+    {!voisins.length && <p className="text-[11px] leading-snug text-jeu-ivoire/50">Personne d’autre n’est connecté. Les promeneurs de la place sont des joueurs passés récemment : reviens plus tard pour faire équipe.</p>}
     {aInviter.length > 0 && <div className="flex flex-wrap gap-1" aria-label="Voisins à inviter">
       {aInviter.map(v => invites.includes(v.userId)
         ? <span key={v.userId} className="rounded-full px-2 py-0.5 text-[11px] text-jeu-ivoire/50">{v.nom} : invité</span>
@@ -202,8 +222,10 @@ function SectionEquipe({ moi, voisins, etat, onInviter, onRepondre, onQuitter, o
 }
 
 /** Le chat du quartier, les émotes et l'équipe, ouverts depuis le HUD. */
-export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter }: {
+export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter, onEnvoi }: {
   demo: boolean; moi: string; voisins: VoisinEnLigne[]; onEmote: (emote: Emote) => void; onFermer: () => void;
+  /** Un message est parti (sert au guide des premiers pas). */
+  onEnvoi?: () => void;
   equipe?: EtatEquipe;
   onInviter?: (voisin: VoisinEnLigne) => Promise<string | null>;
   onRepondre?: (invitation: InvitationEquipe, accepter: boolean) => Promise<string | null>;
@@ -224,7 +246,7 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
   const messages = demo ? [...messagesDemo(15 + (Date.now() - debutDemo) / 1000), ...envoyesDemo].sort((a, b) => a.envoyeLe.localeCompare(b.envoyeLe)) : data ?? [];
   const envoyer = useMutation({
     mutationFn: (texte: string) => api.post<MessageQuartier>('/monde/chat', { texte }),
-    onSuccess: message => { client.setQueryData<MessageQuartier[]>(['monde', 'chat'], liste => [...(liste ?? []).filter(m => m.id !== message.id), message]); setBrouillon(''); setErreur(null); },
+    onSuccess: message => { client.setQueryData<MessageQuartier[]>(['monde', 'chat'], liste => [...(liste ?? []).filter(m => m.id !== message.id), message]); setBrouillon(''); setErreur(null); onEnvoi?.(); },
     onError: e => setErreur(e instanceof Error ? e.message : 'Le message n’est pas parti.'),
   });
   useEffect(() => { if (fil.current) fil.current.scrollTop = fil.current.scrollHeight; }, [messages.length]);
@@ -236,6 +258,7 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
     if (demo) {
       setEnvoyesDemo(l => [...l, { id: `moi-${l.length}`, userId: 'moi', nom: moi, texte, envoyeLe: new Date(Date.UTC(2026, 9, 26, 8) + (15 + (Date.now() - debutDemo) / 1000) * 1000).toISOString() }]);
       setBrouillon('');
+      onEnvoi?.();
       return;
     }
     envoyer.mutate(texte);
