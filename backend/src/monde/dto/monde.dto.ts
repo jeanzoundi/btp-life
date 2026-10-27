@@ -114,3 +114,20 @@ export class MetreDto {
   @Max(100_000)
   reponse: number;
 }
+
+/** Inviter un voisin connecté dans son équipe. */
+export class InvitationEquipeDto {
+  @IsString()
+  @MaxLength(40)
+  userId: string;
+}
+
+/** Répondre à une invitation d'équipe. */
+export class ReponseEquipeDto {
+  @IsString()
+  @MaxLength(40)
+  invitationId: string;
+
+  @IsBoolean()
+  accepter: boolean;
+}

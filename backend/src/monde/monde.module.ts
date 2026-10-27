@@ -6,10 +6,11 @@ import { EntrepriseService } from './entreprise.service';
 import { PatrimoineService } from './patrimoine.service';
 import { TransportService } from './transport.service';
 import { EnLigneService } from './en-ligne.service';
+import { EquipeService } from './equipe.service';
 
 @Module({
   imports: [CarriereModule],
   controllers: [MondeController],
-  providers: [TransportService, DefisService, PatrimoineService, EntrepriseService, EnLigneService],
+  providers: [TransportService, DefisService, PatrimoineService, EntrepriseService, EnLigneService, EquipeService],
 })
 export class MondeModule {}

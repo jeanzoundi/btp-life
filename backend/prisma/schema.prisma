@@ -334,6 +334,10 @@ model User {
   coursTermines         UserCours[]
   presenceMonde         PresenceMonde?
   messagesQuartier      MessageQuartier[]
+  equipesDirigees       EquipeQuartier[]      @relation("EquipesDirigees")
+  membreEquipe          MembreEquipe?
+  invitationsEnvoyees   InvitationEquipe[]    @relation("InvitationsEnvoyees")
+  invitationsRecues     InvitationEquipe[]    @relation("InvitationsRecues")
 }
 
 model Avatar {
@@ -1159,6 +1163,43 @@ model MessageQuartier {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// Les équipes de quartier : des joueurs connectés qui s'invitent et travaillent ensemble (bonus d'XP quand un coéquipier
+// est dans le même lieu). Un joueur n'est que dans une équipe à la fois.
+model EquipeQuartier {
+  id          String             @id @default(cuid())
+  chefId      String
+  chef        User               @relation("EquipesDirigees", fields: [chefId], references: [id], onDelete: Cascade)
+  creeLe      DateTime           @default(now())
+  membres     MembreEquipe[]
+  invitations InvitationEquipe[]
+
+  @@index([chefId])
+}
+
+model MembreEquipe {
+  userId    String         @id
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipeId  String
+  equipe    EquipeQuartier @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  rejointLe DateTime       @default(now())
+
+  @@index([equipeId])
+}
+
+model InvitationEquipe {
+  id       String         @id @default(cuid())
+  equipeId String
+  equipe   EquipeQuartier @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  deId     String
+  de       User           @relation("InvitationsEnvoyees", fields: [deId], references: [id], onDelete: Cascade)
+  versId   String
+  vers     User           @relation("InvitationsRecues", fields: [versId], references: [id], onDelete: Cascade)
+  creeLe   DateTime       @default(now())
+
+  @@unique([equipeId, versId])
+  @@index([versId])
 }
 
 // Un abonnement Web Push par appareil/navigateur — un même joueur peut en avoir plusieurs.

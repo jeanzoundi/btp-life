@@ -7,14 +7,18 @@ import { ProgressionService } from './progression.service';
 
 const BESOINS_PLEINS = { energie: 100, moral: 100, faim: 100, social: 100 };
 
-function fakePrisma(overrides: { progresLieux?: unknown } = {}) {
-  const etat: Record<string, unknown> = { userId: 'u1', progresLieux: null, ...overrides };
+function fakePrisma(overrides: { progresLieux?: unknown; coequipiers?: string[] } = {}) {
+  const { coequipiers = [], ...champs } = overrides;
+  const etat: Record<string, unknown> = { userId: 'u1', progresLieux: null, ...champs };
   const prisma = {
     userCarriere: {
       findUnique: jest.fn().mockImplementation(() => Promise.resolve({ ...etat })),
       update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => { Object.assign(etat, data); return Promise.resolve({ ...etat }); }),
     },
     competence: { findUnique: jest.fn().mockImplementation(({ where }: { where: { slug: string } }) => Promise.resolve({ id: `c-${where.slug}`, nom: `Compétence ${where.slug}` })) },
+    // L'équipe du joueur et les coéquipiers présents dans le lieu (aucun par défaut).
+    membreEquipe: { findUnique: jest.fn().mockResolvedValue(coequipiers.length ? { equipeId: 'e1' } : null) },
+    presenceMonde: { findMany: jest.fn().mockResolvedValue(coequipiers.map((nom) => ({ user: { pseudo: nom, avatar: null } }))) },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
@@ -92,6 +96,17 @@ describe('LieuxService.seance', () => {
     // La compétence de l'étape (contrôle qualité au laboratoire) gagne 30 % de la note.
     expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'c-controle-qualite', 30, 'lieu:laboratoire');
     expect(resultat.gains.competence).toEqual({ slug: 'controle-qualite', nom: 'Compétence controle-qualite', xp: 30 });
+  });
+
+  it('avec un coéquipier dans le même lieu, la séance rapporte 10 % d’XP de plus, et le bilan le dit', async () => {
+    const prisma = fakePrisma({ coequipiers: ['Kader'] });
+    const { svc, progression } = await service(prisma, { energie: 40, moral: 40, faim: 40, social: 40 });
+    const resultat = await svc.seance('u1', 'laboratoire', 0, 100);
+    // 50 XP de base × 0,82 (besoins) × 1,1 (équipe) = 45,1 : 45 au lieu de 41 seul.
+    expect(resultat.gains).toMatchObject({ xp: 45, equipe: { coequipiers: ['Kader'], bonus: .1 } });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 45, argentVirtuel: 2000, reputation: 1 });
+    const seul = await (await service(fakePrisma(), { energie: 40, moral: 40, faim: 40, social: 40 })).svc.seance('u1', 'laboratoire', 0, 100);
+    expect(seul.gains).toMatchObject({ xp: 41, equipe: null });
   });
 
   it('fait travailler une compétence propre à chaque étape', async () => {

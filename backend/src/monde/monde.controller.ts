@@ -2,7 +2,8 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
-import { AchatOutilDto, CreationEntrepriseDto, DecisionImprevuDto, DemenagementDto, EmbaucheDto, LicenciementDto, MessageQuartierDto, MetreDto, MouvementEntrepriseDto, PresenceDto, RenovationDto, TransportDto } from './dto/monde.dto';
+import { AchatOutilDto, CreationEntrepriseDto, DecisionImprevuDto, DemenagementDto, EmbaucheDto, InvitationEquipeDto, LicenciementDto, MessageQuartierDto, MetreDto, MouvementEntrepriseDto, PresenceDto, RenovationDto, ReponseEquipeDto, TransportDto } from './dto/monde.dto';
+import { EquipeService } from './equipe.service';
 import { EnLigneService } from './en-ligne.service';
 import { EntrepriseService } from './entreprise.service';
 import { PatrimoineService } from './patrimoine.service';
@@ -19,13 +20,37 @@ export class MondeController {
     private readonly patrimoine: PatrimoineService,
     private readonly entreprise: EntrepriseService,
     private readonly enLigne: EnLigneService,
+    private readonly equipe: EquipeService,
   ) {}
 
   // Toutes les dix secondes environ par joueur connecté ; la limite laisse de la marge pour les émotes.
   @Post('presence')
   @Throttle({ default: { ttl: 60_000, limit: 40 } })
-  signalerPresence(@CurrentUser() user: RequestUser, @Body() dto: PresenceDto) {
-    return this.enLigne.signaler(user.userId, dto);
+  async signalerPresence(@CurrentUser() user: RequestUser, @Body() dto: PresenceDto, @Query('equipe') avecEquipe?: string) {
+    const voisins = await this.enLigne.signaler(user.userId, dto);
+    // Avec ?equipe=1, la réponse porte aussi l'équipe et les invitations reçues (les anciens clients gardent la liste seule).
+    return avecEquipe ? { voisins, ...(await this.equipe.etat(user.userId)) } : voisins;
+  }
+
+  @Get('equipe')
+  etatEquipe(@CurrentUser() user: RequestUser) {
+    return this.equipe.etat(user.userId);
+  }
+
+  @Post('equipe/inviter')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  inviterDansEquipe(@CurrentUser() user: RequestUser, @Body() dto: InvitationEquipeDto) {
+    return this.equipe.inviter(user.userId, dto.userId);
+  }
+
+  @Post('equipe/repondre')
+  repondreInvitation(@CurrentUser() user: RequestUser, @Body() dto: ReponseEquipeDto) {
+    return this.equipe.repondre(user.userId, dto.invitationId, dto.accepter);
+  }
+
+  @Post('equipe/quitter')
+  quitterEquipe(@CurrentUser() user: RequestUser) {
+    return this.equipe.quitter(user.userId);
   }
 
   @Get('chat')

@@ -5,6 +5,7 @@ import { BesoinsService } from './besoins.service';
 import { ProgressionService } from './progression.service';
 import { facteurXpLieu, lireTraits } from './traits';
 import { facteurXpOutils, lirePatrimoine } from './patrimoine';
+import { coequipiersPresents, facteurEquipe, REGLES_EQUIPE } from '../monde/equipe.service';
 
 // Programmes des lieux du quartier : le contenu des séances (situations, mesures, sélections) vit
 // côté client, dans frontend/src/lib/lieux-programme/ ; le serveur tient la progression de chaque
@@ -79,6 +80,8 @@ export class LieuxService {
     const facteurTraits = facteurXpLieu(lireTraits(actualisee.traits), slug, note);
     // L'outillage acheté (mètre laser, niveau laser, ordinateur…) rend le travail plus efficace dans ses lieux.
     const facteurOutils = facteurXpOutils(lirePatrimoine(actualisee.patrimoine, new Date()).outils, slug);
+    // Le travail d'équipe : un coéquipier dans le même lieu, et la séance rapporte 10 % d'XP de plus.
+    const coequipiers = await coequipiersPresents(this.prisma, userId, slug);
     const gains = gainsSeance(note);
     const maintenant = Date.now();
 
@@ -101,7 +104,7 @@ export class LieuxService {
       return { apres, payee, boucle };
     }, { isolationLevel: 'Serializable' });
 
-    const xp = Math.round(gains.xp * facteurBesoins * facteurTraits * facteurOutils * (payee ? 1 : TAUX_ENTRAINEMENT));
+    const xp = Math.round(gains.xp * facteurBesoins * facteurTraits * facteurOutils * facteurEquipe(coequipiers) * (payee ? 1 : TAUX_ENTRAINEMENT));
     const argent = payee ? gains.argent : 0;
     const reputation = !payee ? 0 : boucle ? 3 : gains.compte && note >= 60 ? 1 : 0;
     await this.progression.appliquerDelta(userId, { xp, argentVirtuel: argent, reputation });
@@ -123,6 +126,7 @@ export class LieuxService {
       progres: apres,
       gains: {
         xp, argent, reputation, facteurBesoins, entrainement: !payee, competence,
+        equipe: coequipiers.length ? { coequipiers, bonus: REGLES_EQUIPE.bonusXp } : null,
         prochaineRecompenseLe: new Date(Date.parse(apres.derniereRecompenseLe ?? new Date(maintenant).toISOString()) + DELAI_RECOMPENSE_MS).toISOString(),
       },
       carriere,
