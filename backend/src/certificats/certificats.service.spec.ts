@@ -4,6 +4,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CertificatsService, estMerite, lireCondition, numeroCertificat, type EtatJoueur } from './certificats.service';
 import { certificatsDuJeu, OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS } from '../../prisma/seed-data/carriere-data';
+import { modulesAcademie } from '../../prisma/seed-data/academie-data';
+import { modulesGrandeEcole } from '../../prisma/seed-data/grande-ecole-batiment-data';
+import { modulesAvecAttestation } from '../../scripts/publier-contenu-monde';
 import { NIVEAU_DEPART_MAX } from '../carriere/carriere.service';
 
 const etat = (surcharge: Partial<EtatJoueur> = {}): EtatJoueur => ({
@@ -64,6 +67,13 @@ describe('le contenu de carrière', () => {
     expect(certificats).toHaveLength(2 + PROFILS_EXPERTS.length);
     expect(certificats[0]).toEqual({ slug: 'attestation-lecture-de-plans', nom: 'Attestation de formation — Lecture de plans', conditions: { type: 'module', module: 'lecture-de-plans' } });
     expect(certificats[1].nom).toBe('Certificat de fin de parcours — Entrepreneur');
+  });
+  it('publie en production une attestation par module de l’académie et de la Grande École, comme le seed', () => {
+    const modules = modulesAvecAttestation();
+    expect(modules).toHaveLength(modulesAcademie.length + modulesGrandeEcole.length);
+    expect(new Set(modules.map((m) => m.slug)).size).toBe(modules.length);
+    const slugs = certificatsDuJeu(modules, []).map((c) => c.slug);
+    for (const m of modulesGrandeEcole) expect(slugs).toContain(`attestation-${m.slug}`);
   });
 });
 

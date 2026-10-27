@@ -2,11 +2,17 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { DEFIS_JOUR, DEFIS_SEMAINE, IMPREVUS } from '../prisma/seed-data/defis-data';
 import { OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS, certificatsDuJeu } from '../prisma/seed-data/carriere-data';
 import { modulesAcademie } from '../prisma/seed-data/academie-data';
+import { modulesGrandeEcole } from '../prisma/seed-data/grande-ecole-batiment-data';
 
 // Publication additive uniquement : aucun compte, progrès, cours ou contenu administré n'est remplacé.
 // --apply est obligatoire. Toutes les insertions sont validées ensemble ou annulées ensemble.
-const prisma = new PrismaClient();
-async function main() {
+
+/** Les modules qui délivrent une attestation : l'académie et la Grande École, comme dans le seed, qui ajoute la Grande
+ * École à l'académie avant de créer les certificats. */
+export const modulesAvecAttestation = () =>
+  [...modulesAcademie, ...modulesGrandeEcole].filter((m, i, liste) => liste.findIndex(x => x.slug === m.slug) === i);
+
+async function main(prisma: PrismaClient) {
   if (!process.argv.includes('--apply')) throw new Error('Ajouter --apply pour publier le contenu du monde.');
   const resultat = await prisma.$transaction(async tx => {
     const pays = await tx.pays.findUniqueOrThrow({ where: { codeIso: 'CIV' } });
@@ -37,7 +43,7 @@ async function main() {
       await tx.reglePromotion.create({ data: { ...paire, conditions: { ...r.conditions, ...(r.examen ? { examenMissionId: id(missions, r.examen) } : {}) } } }); ajouts.regles++;
     }
     const metiers = await tx.metierCible.findMany({ select: { slug: true, nom: true } });
-    for (const c of certificatsDuJeu(modulesAcademie, metiers)) {
+    for (const c of certificatsDuJeu(modulesAvecAttestation(), metiers)) {
       if (await tx.certificat.findUnique({ where: { slug: c.slug } })) continue;
       await tx.certificat.create({ data: c }); ajouts.certificats++;
     }
@@ -58,4 +64,8 @@ async function main() {
   }, { isolationLevel: 'Serializable', timeout: 120_000 });
   console.log('Contenu ajouté sans modifier les joueurs :', JSON.stringify(resultat));
 }
-main().catch(e => { console.error(e.message); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+// Lancé en script seulement : un test peut importer la liste des modules sans ouvrir de connexion ni rien publier.
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  main(prisma).catch(e => { console.error(e.message); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+}

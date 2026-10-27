@@ -5,6 +5,7 @@ import { ProgressionService } from '../src/carriere/progression.service';
 import { DefisService, lireEtatDefis } from '../src/monde/defis.service';
 import { TransportService } from '../src/monde/transport.service';
 import { DEFIS_JOUR } from '../prisma/seed-data/defis-data';
+import { modulesGrandeEcole } from '../prisma/seed-data/grande-ecole-batiment-data';
 
 for (const cle of ['DATABASE_URL', 'DIRECT_URL']) {
   const url = new URL(process.env[cle] ?? 'http://absent');
@@ -30,13 +31,19 @@ async function main() {
 
   // La publication ciblée recrée un contenu manquant et reste sans effet au second passage.
   await prisma.evenement.deleteMany({ where: { type: 'DEFI_JOUR', config: { path: ['slug'], equals: DEFIS_JOUR[0].slug } } });
+  // Les attestations des modules de la Grande École aussi, comme en production avant leur ajout à la publication.
+  const attestationsGrandeEcole = modulesGrandeEcole.map(m => `attestation-${m.slug}`);
+  await prisma.certificat.deleteMany({ where: { slug: { in: attestationsGrandeEcole } } });
   const avantPublication = await prisma.userCarriere.findMany({ orderBy: { id: 'asc' } });
   const publier = () => execFileSync(process.execPath, ['-r', 'ts-node/register', 'scripts/publier-contenu-monde.ts', '--apply'], { stdio: 'inherit', env: process.env });
   publier();
   const nombre = await prisma.evenement.count();
+  const certificats = await prisma.certificat.count();
   publier();
   assert.equal(await prisma.evenement.count(), nombre);
+  assert.equal(await prisma.certificat.count(), certificats);
   assert.equal(await prisma.evenement.count({ where: { type: 'DEFI_JOUR', config: { path: ['slug'], equals: DEFIS_JOUR[0].slug } } }), 1);
+  assert.equal(await prisma.certificat.count({ where: { slug: { in: attestationsGrandeEcole } } }), attestationsGrandeEcole.length);
   assert.deepEqual(await prisma.userCarriere.findMany({ orderBy: { id: 'asc' } }), avantPublication);
   console.log('OK PostgreSQL : transports simultanés, rollback du débit, publication additive rejouable sans modifier les joueurs.');
 }
