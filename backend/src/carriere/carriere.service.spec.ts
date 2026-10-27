@@ -24,6 +24,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   for (const cle of new Set([...Object.keys(defaut), ...Object.keys(overrides)])) {
     fusion[cle] = { ...defaut[cle], ...(overrides[cle] ?? {}) };
   }
+  fusion.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(fusion));
   return fusion;
 }
 

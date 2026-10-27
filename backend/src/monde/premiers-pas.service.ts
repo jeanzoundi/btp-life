@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { ProgressionService } from '../carriere/progression.service';
 
 // Le premier quart d'heure guidé : cinq gestes pour découvrir le jeu, chacun récompensé une seule fois, et un bonus quand
@@ -24,6 +25,7 @@ export function lirePremiersPas(brut: unknown): PremiersPas {
 
 @Injectable()
 export class PremiersPasService {
+  private readonly logger = new Logger(PremiersPasService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
@@ -43,7 +45,7 @@ export class PremiersPasService {
   async valider(userId: string, etape: string) {
     if (!(ETAPES_PREMIERS_PAS as readonly string[]).includes(etape)) throw new BadRequestException('Étape inconnue');
     const maintenant = new Date();
-    const r = await this.prisma.$transaction(async (tx) => {
+    const r = await transactionSerializable(this.prisma, async (tx) => {
       const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { premiersPas: true, niveau: true } });
       if (!carriere) throw new NotFoundException('Carrière introuvable');
       const avant = lirePremiersPas(carriere.premiersPas);
@@ -56,8 +58,11 @@ export class PremiersPasService {
       const recompense = { argentVirtuel: base.argentVirtuel + (termine ? finale.argentVirtuel : 0), xp: base.xp + (termine ? finale.xp : 0) };
       const apres = await this.progression.appliquerDelta(userId, recompense, tx);
       return { premiersPas, recompense, niveau: apres?.niveau ?? carriere.niveau, niveaux: apres ? { avant: carriere.niveau, apres: apres.niveau } : null };
-    }, { isolationLevel: 'Serializable', timeout: 10_000 });
-    if (r.niveaux) await this.progression.notifierNiveau(userId, r.niveaux.avant, r.niveaux.apres);
+    });
+    if (r.niveaux) {
+      try { await this.progression.notifierNiveau(userId, r.niveaux.avant, r.niveaux.apres); }
+      catch { this.logger.warn('Notification indisponible après validation du guide'); }
+    }
     return { ...this.vue(r.premiersPas, r.niveau), recompense: r.recompense };
   }
 }

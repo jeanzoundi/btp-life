@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { nomPublic, REGLES_EN_LIGNE } from './en-ligne.service';
 
 // Les équipes de quartier : des joueurs connectés s'invitent, puis travaillent ensemble. Une séance faite pendant qu'un
@@ -33,7 +34,7 @@ export class EquipeService {
   constructor(private readonly prisma: PrismaService) {}
 
   private transaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
-    return this.prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 10_000 });
+    return transactionSerializable(this.prisma, operation);
   }
 
   /** L'équipe du joueur (ses membres, en ligne ou non, et leur lieu) et les invitations qu'il a reçues. */

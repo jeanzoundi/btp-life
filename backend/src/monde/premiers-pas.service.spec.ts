@@ -27,6 +27,21 @@ async function service(prisma: ReturnType<typeof fakePrisma>['prisma']) {
 }
 
 describe('le premier quart d’heure guidé', () => {
+  it('renvoie la récompense validée même si sa notification échoue', async () => {
+    const { prisma } = fakePrisma();
+    const svc = await service(prisma);
+    progression.notifierNiveau.mockRejectedValueOnce(new Error('Indisponible'));
+    await expect(svc.valider('u1', 'telephone')).resolves.toMatchObject({ faites: ['telephone'], recompense: RECOMPENSES_PREMIERS_PAS.etape });
+    await expect(svc.valider('u1', 'telephone')).resolves.toMatchObject({ recompense: null });
+    expect(progression.appliquerDelta).toHaveBeenCalledTimes(1);
+  });
+  it('recommence un conflit annulé par PostgreSQL', async () => {
+    const { prisma } = fakePrisma();
+    const svc = await service(prisma);
+    prisma.$transaction.mockRejectedValueOnce({ code: 'P2034' });
+    await expect(svc.valider('u1', 'telephone')).resolves.toMatchObject({ faites: ['telephone'] });
+    expect(progression.appliquerDelta).toHaveBeenCalledTimes(1);
+  });
   it('ne garde que les étapes connues, une fois chacune et dans l’ordre du guide', () => {
     expect(lirePremiersPas({ faites: ['quartier', 'inconnue', 'telephone', 'telephone'], termineLe: 'pas une date' })).toEqual({ faites: ['telephone', 'quartier'], termineLe: null });
     expect(lirePremiersPas(null)).toEqual({ faites: [], termineLe: null });

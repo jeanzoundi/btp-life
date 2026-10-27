@@ -26,7 +26,7 @@ function fakePrisma(overrides: { progresLieux?: unknown; coequipiers?: string[] 
 }
 
 async function service(prisma: ReturnType<typeof fakePrisma>, besoins = BESOINS_PLEINS) {
-  const progression = { appliquerDelta: jest.fn(), validerCompetence: jest.fn() };
+  const progression = { appliquerDelta: jest.fn(), validerCompetence: jest.fn(), notifierNiveau: jest.fn() };
   const besoinsService = { actualiser: jest.fn().mockResolvedValue(besoins), consommer: jest.fn() };
   const module = await Test.createTestingModule({
     providers: [
@@ -89,12 +89,12 @@ describe('LieuxService.seance', () => {
     const resultat = await svc.seance('u1', 'laboratoire', 0, 100);
     // Facteur des besoins réel (0,7 + 0,4 × 0,3 = 0,82) : c'est le mécanisme qu'on veut vérifier.
     expect(resultat.gains).toMatchObject({ xp: 41, argent: 2000, reputation: 1, entrainement: false, facteurBesoins: .82 });
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 41, argentVirtuel: 2000, reputation: 1 });
-    expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: 5, faim: 4 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 41, argentVirtuel: 2000, reputation: 1 }, prisma);
+    expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: 5, faim: 4 }, prisma);
     expect(progresEcrit(prisma, 'laboratoire')).toMatchObject({ etapes: 1, cycles: 0, seances: 1 });
     expect(resultat.progres.etapes).toBe(1);
     // La compétence de l'étape (contrôle qualité au laboratoire) gagne 30 % de la note.
-    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'c-controle-qualite', 30, 'lieu:laboratoire');
+    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'c-controle-qualite', 30, 'lieu:laboratoire', prisma);
     expect(resultat.gains.competence).toEqual({ slug: 'controle-qualite', nom: 'Compétence controle-qualite', xp: 30 });
   });
 
@@ -104,7 +104,7 @@ describe('LieuxService.seance', () => {
     const resultat = await svc.seance('u1', 'laboratoire', 0, 100);
     // 50 XP de base × 0,82 (besoins) × 1,1 (équipe) = 45,1 : 45 au lieu de 41 seul.
     expect(resultat.gains).toMatchObject({ xp: 45, equipe: { coequipiers: ['Kader'], bonus: .1 } });
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 45, argentVirtuel: 2000, reputation: 1 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 45, argentVirtuel: 2000, reputation: 1 }, prisma);
     const seul = await (await service(fakePrisma(), { energie: 40, moral: 40, faim: 40, social: 40 })).svc.seance('u1', 'laboratoire', 0, 100);
     expect(seul.gains).toMatchObject({ xp: 41, equipe: null });
   });
@@ -113,7 +113,7 @@ describe('LieuxService.seance', () => {
     const prisma = fakePrisma({ progresLieux: { 'bureau-etudes': { etapes: 2, cycles: 0, seances: 2 } } });
     const { svc, progression } = await service(prisma);
     await svc.seance('u1', 'bureau-etudes', 2, 80);
-    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'c-geotechnique', 24, 'lieu:bureau-etudes');
+    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'c-geotechnique', 24, 'lieu:bureau-etudes', prisma);
   });
 
   it('une séance sous 40 ne valide pas l’étape et ne paie pas', async () => {
@@ -121,7 +121,7 @@ describe('LieuxService.seance', () => {
     const { svc, progression } = await service(prisma);
     const resultat = await svc.seance('u1', 'mairie', 3, 30);
     expect(resultat.progres).toMatchObject({ etapes: 3, cycles: 1, seances: 10 });
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 6, argentVirtuel: 0, reputation: 0 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 6, argentVirtuel: 0, reputation: 0 }, prisma);
     expect(progression.validerCompetence).not.toHaveBeenCalled();
   });
 
@@ -143,7 +143,7 @@ describe('LieuxService.seance', () => {
     const { svc, progression } = await service(prisma);
     const resultat = await svc.seance('u1', 'laboratoire', 1, 100);
     expect(resultat.gains).toMatchObject({ xp: 13, argent: 0, reputation: 0, entrainement: true });
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 13, argentVirtuel: 0, reputation: 0 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 13, argentVirtuel: 0, reputation: 0 }, prisma);
     expect(progression.validerCompetence).not.toHaveBeenCalled();
     expect(progresEcrit(prisma, 'laboratoire')).toMatchObject({ etapes: 2, derniereRecompenseLe: recente });
     expect(Date.parse(resultat.gains.prochaineRecompenseLe)).toBe(Date.parse(recente) + DELAI_RECOMPENSE_MS);

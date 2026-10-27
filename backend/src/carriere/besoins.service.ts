@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { facteurEnergieTravail, facteurPrix, facteurSocial, lireTraits } from './traits';
 import { confortLogement, facteurFatigueOutils, lirePatrimoine } from './patrimoine';
@@ -260,12 +261,14 @@ export class BesoinsService {
   }
 
   /** Consommation d'énergie/faim par le jeu (missions, journées de chantier…) — sans dépasser 0. */
-  async consommer(userId: string, delta: { energie?: number; faim?: number }) {
-    const actualisee = await this.actualiser(userId);
+  async consommer(userId: string, delta: { energie?: number; faim?: number }, transaction?: Prisma.TransactionClient) {
+    // L'appelant transactionnel a déjà actualisé les besoins avant sa transaction.
+    const actualisee = transaction ? await transaction.userCarriere.findUnique({ where: { userId } }) : await this.actualiser(userId);
+    if (!actualisee) throw new NotFoundException('Carrière introuvable');
     // Le bosseur tient mieux la cadence : 30 % de fatigue en moins au travail.
     // L'équipement de qualité (EPI haut de gamme) réduit aussi la fatigue.
     const fatigue = Math.round((delta.energie ?? 0) * facteurEnergieTravail(lireTraits(actualisee.traits)) * facteurFatigueOutils(lirePatrimoine(actualisee.patrimoine, new Date()).outils));
-    return this.prisma.userCarriere.update({
+    return (transaction ?? this.prisma).userCarriere.update({
       where: { userId },
       data: {
         energie: Math.max(0, Math.min(100, actualisee.energie - fatigue)),

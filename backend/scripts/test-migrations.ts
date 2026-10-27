@@ -74,6 +74,7 @@ async function main() {
     console.log('\n— Rejoue le seed sur des cours déjà lus —');
     execSync('npx ts-node scripts/test-seed-cours.ts', { cwd, env, stdio: 'inherit' });
     execSync('npx ts-node scripts/test-monde-transactions.ts', { cwd, env, stdio: 'inherit' });
+    execSync('npx ts-node scripts/test-installation-transactions.ts', { cwd, env, stdio: 'inherit' });
     console.log('\nOK — migrations, seed rejouable et transactions campagne valides sur une base neuve.');
   } finally {
     await pg.stop();

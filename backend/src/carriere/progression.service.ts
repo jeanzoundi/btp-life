@@ -82,11 +82,12 @@ export class ProgressionService {
 
   }
 
-  async validerCompetence(userId: string, competenceId: string, xpGagne: number, source: string) {
-    const existing = await this.prisma.userCompetence.findUnique({
+  async validerCompetence(userId: string, competenceId: string, xpGagne: number, source: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    const existing = await db.userCompetence.findUnique({
       where: { userId_competenceId: { userId, competenceId } },
     });
-    const niveaux = await this.prisma.competenceNiveau.findMany({
+    const niveaux = await db.competenceNiveau.findMany({
       where: { competenceId },
       orderBy: { niveau: 'asc' },
     });
@@ -97,7 +98,7 @@ export class ProgressionService {
       if (xpTotal >= palier.xpRequis) niveauActuel = Math.max(niveauActuel, palier.niveau);
     }
 
-    return this.prisma.userCompetence.upsert({
+    return db.userCompetence.upsert({
       where: { userId_competenceId: { userId, competenceId } },
       create: {
         userId,
