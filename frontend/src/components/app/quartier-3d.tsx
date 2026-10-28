@@ -25,7 +25,7 @@ import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
 import { useModeExperienceStore } from '@/lib/mode-experience-store';
-import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
+import { avancerHorloge, heureDeDepart, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
 import { besoinCritique, humeurDepuisBesoins, type Humeur } from './besoins';
 import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
@@ -505,7 +505,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
-  const [heure, setHeure] = useState(16);
+  const [heure, setHeure] = useState(() => heureDeDepart(demo));
   const [qualite, setQualite] = useState<QualiteMonde>('auto');
   useEffect(() => {
     try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') setQualite(choix); } catch { /* Stockage facultatif. */ }
@@ -610,7 +610,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const modifieRef = useRef(false);
   const localModifieRef = useRef(false);
   const pretRef = useRef(demo);
-  const horlogeRef = useRef({ heure: 16, instant: Date.now(), pause: false });
+  const horlogeRef = useRef({ heure: heureDeDepart(demo), instant: Date.now(), pause: false });
   const hydratationRef = useRef(false);
   // Arrivée depuis le mode classique : on se présente à la porte du lieu demandé et on entre.
   const lieuDemande = useRef(lieuInitial ?? null);
@@ -627,7 +627,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Le temps du monde fait baisser les besoins à son rythme, mais seulement pendant qu'on y joue (hors ligne, le
   // serveur garde son déclin lent en temps réel). L'horloge compte les heures de jeu passées, pas à pas ou d'un coup
   // quand on attend ou qu'on dort ; le serveur les reçoit par heures entières, la démonstration les applique seule.
-  const derniereHeure = useRef<number | null>(demo ? 16 : null);
+  const derniereHeure = useRef<number | null>(demo ? heureDeDepart(true) : null);
   const tempsEnAttente = useRef({ eveil: 0, sommeil: 0 });
   const tempsEnVol = useRef({ eveil: 0, sommeil: 0 });
   const [tempsAffiche, setTempsAffiche] = useState({ eveil: 0, sommeil: 0 });
