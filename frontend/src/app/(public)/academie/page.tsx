@@ -14,6 +14,13 @@ interface Logiciel {
 
 import type { Metadata } from 'next';
 
+// Les domaines des modules, lisibles (le catalogue renvoie leurs identifiants).
+const DOMAINES: Record<string, string> = {
+  'grande-ecole-batiment': 'Grande École du bâtiment', general: 'Général', hse: 'Sécurité (HSE)', technique: 'Technique',
+  gestion: 'Gestion', logiciel: 'Logiciels', management: 'Management',
+};
+const libelleDomaine = (domaine: string) => DOMAINES[domaine] ?? domaine.replace(/-/g, ' ');
+
 export const metadata: Metadata = {
   title: 'Académie BTP',
   description: "Cours et quiz pour apprendre les métiers du bâtiment, du gros œuvre aux finitions — gratuitement sur BTP Life.",
@@ -40,12 +47,12 @@ export default async function AcademiePublicPage() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {(modules?.items ?? []).map((m) => (
             <div key={m.id} className="rounded-2xl border border-pierre bg-white p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-olive">{m.domaine}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-olive">{libelleDomaine(m.domaine)}</p>
               <p className="mt-1 font-display font-bold text-graphite">{m.titre}</p>
             </div>
           ))}
           {!modules?.items?.length && (
-            <p className="text-sm text-graphite/60">Les modules apparaîtront ici une fois l&apos;API démarrée.</p>
+            <p className="text-sm text-graphite/60">Les modules se chargent… reviens dans un instant.</p>
           )}
         </div>
       </section>

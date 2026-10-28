@@ -2,13 +2,17 @@
 
 import { useState } from 'react';
 
+const ADRESSE_CONTACT = 'contact@btplife.com';
+
 export default function ContactPage() {
   const [form, setForm] = useState({ nom: '', email: '', sujet: '', message: '' });
   const [envoye, setEnvoye] = useState(false);
 
+  // Le site n'envoie pas encore les messages lui-même : la messagerie du visiteur s'ouvre avec le message prêt à partir.
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Pas encore d'endpoint contact côté API — accusé de réception local en attendant.
+    const corps = `${form.message}\n\n— ${form.nom} (${form.email})`;
+    window.location.href = `mailto:${ADRESSE_CONTACT}?subject=${encodeURIComponent(form.sujet)}&body=${encodeURIComponent(corps)}`;
     setEnvoye(true);
   }
 
@@ -16,14 +20,17 @@ export default function ContactPage() {
     <div className="mx-auto max-w-xl px-4 py-16">
       <h1 className="font-display text-3xl font-bold text-graphite">Contact</h1>
       <p className="mt-2 text-graphite/70">
-        Une question, une école à équiper, un partenariat ? Écris-nous — réponse sous 24 h ouvrées.
+        Une question, une école à équiper, un partenariat ? Écris-nous à{' '}
+        <a href={`mailto:${ADRESSE_CONTACT}`} className="font-semibold text-terracotta underline">{ADRESSE_CONTACT}</a>.
+        Le formulaire ci-dessous prépare ton message dans ta messagerie : il te reste à l&apos;envoyer.
       </p>
 
       {envoye ? (
         <div className="mt-8 rounded-2xl border border-olive bg-olive/5 p-6 text-center">
-          <p className="font-display font-bold text-olive">Message bien noté ✔</p>
+          <p className="font-display font-bold text-olive">Ta messagerie s&apos;est ouverte ✔</p>
           <p className="mt-2 text-sm text-graphite/70">
-            L&apos;envoi automatique arrive bientôt — en attendant, écris-nous directement à contact@btplife.com.
+            Ton message y est prêt : envoie-le pour qu&apos;il nous parvienne. Rien ne s&apos;est ouvert ? Écris-nous
+            directement à {ADRESSE_CONTACT}.
           </p>
         </div>
       ) : (
@@ -47,7 +54,7 @@ export default function ContactPage() {
             <textarea required rows={5} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} className="w-full rounded-lg border border-pierre px-4 py-2 focus:border-terracotta focus:outline-none" />
           </div>
           <button type="submit" className="w-full rounded-full bg-terracotta py-3 font-semibold text-ivoire hover:bg-argile">
-            Envoyer
+            Préparer le message dans ma messagerie
           </button>
         </form>
       )}

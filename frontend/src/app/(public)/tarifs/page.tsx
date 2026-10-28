@@ -13,7 +13,7 @@ const INCLUS = [
 ];
 
 const FUTURS = [
-  { nom: 'Premium', desc: 'Certificats vérifiables PDF, contenus avancés, support prioritaire.' },
+  { nom: 'Premium', desc: 'Certificats en PDF, contenus avancés, support prioritaire.' },
   { nom: 'Écoles', desc: 'Dashboard de suivi des classes, challenges inter-classes, examens supervisés.' },
   { nom: 'Entreprises', desc: 'Tests de compétences, campagnes de formation, suivi des équipes.' },
 ];

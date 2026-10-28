@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-// Compteur animé qui grimpe quand il devient visible.
+// Compteur animé qui grimpe quand il devient visible. La page servie porte déjà le vrai chiffre (moteurs de recherche,
+// JavaScript coupé) : seul un compteur encore hors de l'écran au chargement repart de zéro pour l'animation.
 export function Compteur({ cible, suffixe = '', duree = 1400 }: { cible: number; suffixe?: string; duree?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [valeur, setValeur] = useState(0);
+  const [valeur, setValeur] = useState(cible);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === 'undefined' || el.getBoundingClientRect().top < window.innerHeight) return;
+    setValeur(0);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;

@@ -111,7 +111,7 @@ export default async function MetierDetailPage({ params }: Props) {
             <div className="rounded-xl border border-sable bg-ivoire p-4">
               <p className="font-display font-bold text-graphite">Évaluation</p>
               <p className="mt-1 text-sm text-graphite/60">
-                Score détaillé sur 12 axes, badges et certificats vérifiables à chaque étape.
+                Score détaillé sur 12 axes, badges et attestations à chaque étape.
               </p>
             </div>
           </div>

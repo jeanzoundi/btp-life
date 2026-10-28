@@ -7,10 +7,10 @@ import { useAuthStore } from '@/lib/auth-store';
 
 const LINKS = [
   { href: '/metiers', label: 'Métiers' },
+  { href: '/simulation-preview', label: 'Monde vivant' },
   { href: '/simulator', label: 'BTP Simulator' },
   { href: '/academie', label: 'Académie' },
   { href: '/tarifs', label: 'Tarifs' },
-  { href: '/blog', label: 'Blog' },
 ];
 
 export function PublicNavbar() {
