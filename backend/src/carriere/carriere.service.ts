@@ -110,6 +110,8 @@ export class CarriereService {
       ...(dto.stature !== undefined ? { stature: dto.stature } : {}),
       ...(dto.silhouette !== undefined ? { silhouette: dto.silhouette } : {}),
       ...(dto.casque !== undefined ? { casque: dto.casque } : {}),
+      // Gardée même si le joueur repasse à un modèle réaliste : il retrouve son personnage sur mesure ensuite.
+      ...(dto.apparence !== undefined ? { apparence: { ...dto.apparence } } : {}),
     } as Prisma.InputJsonValue;
     const nom = dto.nomPersonnage?.trim();
     if (avatar) return this.prisma.avatar.update({ where: { userId }, data: { config, ...(nom ? { nomPersonnage: nom } : {}) } });

@@ -1,5 +1,6 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Length, Max, MaxLength, Min } from 'class-validator';
-import { COULEURS_CASQUE, PERSONNAGES_JOUEUR } from '../personnages';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsPositive, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { COIFFURES_SUR_MESURE, COULEURS_CASQUE, PERSONNAGES_JOUEUR, PILOSITES, TENUES_SUR_MESURE } from '../personnages';
 import { METEOS_MONDE, type MeteoMonde } from '../besoins.service';
 
 export class UpdateAvatarDto {
@@ -33,6 +34,41 @@ export class EquiperItemAvatarDto {
   itemId: string;
 }
 
+const COULEUR = /^#[0-9a-fA-F]{6}$/;
+
+/** L'apparence du personnage sur mesure : chaque trait est validé, les couleurs sont des codes hexadécimaux. */
+export class ApparenceSurMesureDto {
+  @IsBoolean()
+  feminin: boolean;
+
+  @Matches(COULEUR)
+  peau: string;
+
+  @IsIn(COIFFURES_SUR_MESURE)
+  coiffure: string;
+
+  @Matches(COULEUR)
+  couleurCheveux: string;
+
+  @IsIn(PILOSITES)
+  pilosite: string;
+
+  @IsBoolean()
+  lunettes: boolean;
+
+  @IsBoolean()
+  casque: boolean;
+
+  @IsIn(TENUES_SUR_MESURE)
+  tenue: string;
+
+  @Matches(COULEUR)
+  haut: string;
+
+  @Matches(COULEUR)
+  bas: string;
+}
+
 /** Choix du personnage au début du monde vivant (ou plus tard) : le nom du personnage peut changer en même temps. */
 export class ChoisirPersonnageDto {
   @IsOptional()
@@ -50,6 +86,12 @@ export class ChoisirPersonnageDto {
 
   @IsIn(PERSONNAGES_JOUEUR)
   personnage: string;
+
+  /** Le réglage du personnage sur mesure (coiffure, barbe, teint, tenue…). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ApparenceSurMesureDto)
+  apparence?: ApparenceSurMesureDto;
 
   @IsOptional()
   @IsString()
