@@ -8,7 +8,7 @@ export const LIEUX_MONDE: Record<string, { nom: string; href: string }> = {
   chantier: { nom: 'Grand chantier', href: '/app/chantiers' },
   residence: { nom: 'Résidence Lagune', href: '/app/lieu/residence' },
   maquis: { nom: 'Le Maquis', href: '/app/lieu/maquis' },
-  cafe: { nom: 'Café social', href: '/app/lieu/cafe' },
+  cafe: { nom: 'Café des Bâtisseurs', href: '/app/lieu/cafe' },
   banque: { nom: 'Banque BTL', href: '/app/lieu/banque' },
   fournisseur: { nom: 'Dépôt matériaux', href: '/app/fournisseur' },
   mairie: { nom: 'Hôtel de ville', href: '/app/lieu/mairie' },

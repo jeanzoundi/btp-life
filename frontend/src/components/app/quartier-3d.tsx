@@ -699,8 +699,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const departGuide = useRef<PointMonde | null>(null);
   useEffect(() => { if (positionInitiale && !departGuide.current) departGuide.current = positionInitiale; }, [positionInitiale]);
   useEffect(() => {
-    const d = departGuide.current;
-    if (d && Math.hypot(positionCourante[0] - d[0], positionCourante[1] - d[1]) > DISTANCE_PREMIERS_PAS) void validerGuide.current('deplacement');
+    // Sans position restaurée (nouveau joueur, démonstration), le joueur apparaît au centre de la place.
+    const d = departGuide.current ?? [0, 0];
+    if (Math.hypot(positionCourante[0] - d[0], positionCourante[1] - d[1]) > DISTANCE_PREMIERS_PAS) void validerGuide.current('deplacement');
   }, [positionCourante]);
   useEffect(() => { if (telephone) void validerGuide.current('telephone'); }, [telephone]);
   useEffect(() => { if (interieur) void validerGuide.current('lieu'); }, [interieur]);
@@ -1438,6 +1439,6 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     {(premierChoix || choixPersonnageOuvert) && <ChoixPersonnage initial={idPersonnage ?? personnageProche(avatar?.config)} nomInitial={nomJoueur ?? ''} avatarConfig={configPortrait}
       premierChoix={premierChoix} demo={demo} enCours={enregistrerPersonnage.isPending} erreur={enregistrerPersonnage.error ? (enregistrerPersonnage.error as Error).message || 'Enregistrement impossible pour l’instant.' : null}
       onAnnuler={premierChoix ? undefined : () => setChoixPersonnageOuvert(false)}
-      onValider={(id, nom, gabarit) => enregistrerPersonnage.mutate({ personnage: id, nom, ...gabarit }, { onSuccess: () => { setChoixPersonnageOuvert(false); notifier(`${nom} est prêt pour les Palmiers. Le même personnage t’attend en mode classique.`, 'succes'); } })} />}
+      onValider={(id, nom, gabarit) => enregistrerPersonnage.mutate({ personnage: id, nom, ...gabarit }, { onSuccess: () => { setChoixPersonnageOuvert(false); notifier(demo ? `${nom} est prêt pour les Palmiers.` : `${nom} est prêt pour les Palmiers. Le même personnage t’attend en mode classique.`, 'succes'); } })} />}
   </div></FournisseurPersonnage>;
 }

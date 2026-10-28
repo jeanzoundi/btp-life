@@ -66,7 +66,7 @@ const GUIDES: Record<string, { titre: string; texte: string }> = {
   '/app/recompenses': {
     titre: 'Badges & certificats',
     texte:
-      'Ta vitrine ! Les badges arrivent automatiquement en jouant, les certificats demandent un peu plus de rigueur. Tout est vérifiable et s\'affiche sur ton CV.',
+      'Ta vitrine ! Les badges arrivent automatiquement en jouant, les certificats demandent un peu plus de rigueur. Tout s\'affiche sur ton CV.',
   },
   '/app/classements': {
     titre: 'Le classement',

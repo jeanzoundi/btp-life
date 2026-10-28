@@ -29,7 +29,7 @@ export const MODES_JEU: ModeJeu[] = [
     { lieu: 'marina', titre: 'Baie des Sables', instruction: 'Termine la visite sur la promenade de la marina.', points: 350 },
   ] },
   { id: 'communaute', nom: 'Vie de quartier', icone: '🤝', description: 'Améliore le quotidien des habitants et anime la communauté.', duree: 270, etapes: [
-    { lieu: 'cafe', titre: 'Écouter les habitants', instruction: 'Commence par recueillir les idées au Café social.', points: 150 },
+    { lieu: 'cafe', titre: 'Écouter les habitants', instruction: 'Commence par recueillir les idées au Café des Bâtisseurs.', points: 150 },
     { lieu: 'centre-azur', titre: 'Soutenir les commerces', instruction: 'Passe au Centre commercial Azur.', points: 200 },
     { lieu: 'sports', titre: 'Organiser une activité', instruction: 'Prépare un événement au Complexe sportif.', points: 250 },
     { lieu: 'maquis', titre: 'Fêter ensemble', instruction: 'Retrouve les voisins au Maquis.', points: 300 },
