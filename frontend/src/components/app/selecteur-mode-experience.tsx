@@ -4,7 +4,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { adresseMonde, lieuDuMonde, pageClassique } from '@/lib/liens-modes';
 import { routeAccueilPourMode, useModeExperienceStore, type ModeExperience } from '@/lib/mode-experience-store';
 
-export function SelecteurModeExperience({ compact = false }: { compact?: boolean }) {
+export function SelecteurModeExperience({ compact = false, libelles = false }: {
+  compact?: boolean;
+  /** Libellés visibles même sur téléphone (dans le menu du monde vivant). */
+  libelles?: boolean;
+}) {
   const router = useRouter();
   const chemin = usePathname();
   const mode = useModeExperienceStore((state) => state.mode);
@@ -41,7 +45,7 @@ export function SelecteurModeExperience({ compact = false }: { compact?: boolean
               : 'text-graphite/55 hover:bg-pierre/60 hover:text-graphite'
         }`}
       >
-        🌍 <span className={compact ? 'hidden sm:inline' : ''}>Monde vivant</span>
+        🌍 <span className={compact && !libelles ? 'hidden sm:inline' : ''}>Monde vivant</span>
       </button>
       <button
         type="button"
@@ -56,7 +60,7 @@ export function SelecteurModeExperience({ compact = false }: { compact?: boolean
               : 'text-graphite/55 hover:bg-pierre/60 hover:text-graphite'
         }`}
       >
-        ▦ <span className={compact ? 'hidden sm:inline' : ''}>Classique</span>
+        ▦ <span className={compact && !libelles ? 'hidden sm:inline' : ''}>Classique</span>
       </button>
     </div>
   );

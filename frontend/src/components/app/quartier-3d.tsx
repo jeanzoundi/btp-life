@@ -29,10 +29,10 @@ import { avancerHorloge, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMo
 import { besoinCritique, humeurDepuisBesoins, type Humeur } from './besoins';
 import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
-import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, METEOS, type Meteo } from '@/lib/meteo-monde';
+import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, saisonDuMoment, type Meteo } from '@/lib/meteo-monde';
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
 import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif-monde';
-import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, type NotificationMonde, type TypeNotification } from './hud-monde';
+import { BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, ReglageTemps, type NotificationMonde, type TypeNotification } from './hud-monde';
 import { Minicarte } from './minicarte';
 import { ChatQuartier, EmoteJoueur3D, useMondeEnLigne, usePromeneurs, VoisinsEnLigne3D } from './monde-en-ligne';
 import type { Emote, VoisinEnLigne } from '@/lib/en-ligne';
@@ -514,7 +514,6 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Vitesse et météo forcée restent propres à la session : le format de sauvegarde ne change pas.
   const [vitesse, setVitesse] = useState<(typeof VITESSES)[number]>(1);
   const vitesseRef = useRef(1);
-  const [meteoForcee, setMeteoForcee] = useState<Meteo | null>(null);
   const [selection, setSelection] = useState<Batiment3D | null>(null);
   const [interieur, setInterieur] = useState<Batiment3D | null>(null);
   // Le lieu où l'on est (dedans, ou devant avec sa fiche) : la bascule vers le mode classique ouvre sa page.
@@ -942,7 +941,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const stats = declinMonde(declinMonde(demo ? demoStats : besoins ?? BESOINS_DEPART, tempsAffiche.sommeil, true), tempsAffiche.eveil, false, meteoRef.current);
   const humeur = humeurDepuisBesoins(stats);
   const critique = besoinCritique(stats);
-  const meteo = meteoForcee ?? meteoDuMoment(new Date(), heure);
+  // Météo automatique : des épisodes tirés au hasard selon la saison, les mêmes pour tous au même instant.
+  const instantMeteo = new Date();
+  const meteo = meteoDuMoment(instantMeteo);
+  const saison = saisonDuMoment(instantMeteo);
   meteoRef.current = meteo;
   const nuit = heure >= 19 || heure < 6;
   const libelleSauvegarde = demo ? 'Aperçu libre' : etatSauvegarde === 'chargement' ? 'Chargement de la partie…' : etatSauvegarde === 'sauvegarde' ? 'Sauvegarde…' : etatSauvegarde === 'erreur' ? 'Sauvegarde locale · serveur à reprendre' : '✓ Partie sauvegardée';
@@ -1242,7 +1244,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     else router.push(suite === 'carriere' ? '/app/parcours' : '/app/chantiers');
   };
   // Fil d'événements dans les intérieurs : à droite sous « Sortir » sur grand écran, au-dessus des commandes sur téléphone.
-  const pileInterieur = <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} /></div>;
+  const pileInterieur = <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} max={large ? undefined : 1} /></div>;
   const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
   // Panneaux de la journée : dans la ville devant le portail, ou par-dessus l'intérieur du chantier.
   const panneauxChantier = <>
@@ -1272,11 +1274,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
           portrait={configPortrait} onPortrait={() => setChoixPersonnageOuvert(true)} />
         {cap}
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-2">
-        <HorlogeMonde heure={affichageHeure} meteo={LIBELLES_METEO[meteo]} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
+      <div className="relative flex shrink-0 flex-col items-end gap-2">
+        <HorlogeMonde heure={affichageHeure} meteo={{ icone: LIBELLES_METEO[meteo].icone, nom: `${LIBELLES_METEO[meteo].nom} · ${saison.nom}` }} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
         <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS_CARTE} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
           onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />
-        <div className="flex gap-1.5">
+        {/* Sur téléphone, la rangée de boutons passe sous la minicarte sans élargir la colonne : le bâtisseur et son objectif gardent leur place. */}
+        <div className={large ? 'flex gap-1.5' : 'absolute right-0 top-full mt-2 flex gap-1.5'}>
           <BoutonHud libelle="Planning du jour" raccourci="J" actif={menuModes} onClick={() => setMenuModes(v => !v)}>{ICONES.planning}</BoutonHud>
           <BoutonHud libelle="Plan et lieux" raccourci="M" actif={plan} onClick={() => { setPlan(v => !v); setOptions(false); setSelection(null); }}>{ICONES.carte}</BoutonHud>
           <span className="relative"><BoutonHud libelle="Téléphone" raccourci="T" actif={Boolean(telephone)} onClick={() => setTelephone(v => v ? null : 'accueil')}>{ICONES.telephone}</BoutonHud>
@@ -1289,7 +1292,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     </header>
     {/* Fil d'événements : sous le bâtisseur sur grand écran, au-dessus des besoins sur téléphone. */}
     <div className={`pointer-events-none absolute z-20 ${large ? `left-3 w-[320px] ${immersif ? 'top-[216px]' : 'top-[148px]'}` : 'inset-x-3 bottom-[120px]'}`}>
-      <PileNotifications notifications={notifications} onFermer={fermerNotification} />
+      <PileNotifications notifications={notifications} onFermer={fermerNotification} max={large ? undefined : 1} />
     </div>
     <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
     <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
@@ -1301,7 +1304,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <button type="button" onClick={() => { setOptions(false); setChoixPersonnageOuvert(true); }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">🧍 Changer de personnage · {personnage.titre}</button>
       <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
       <StatistiquesRendu />
-      <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la météo" onClick={() => setMeteoForcee(m => { const suivante = m === null ? 0 : METEOS.indexOf(m) + 1; return suivante >= METEOS.length ? null : METEOS[suivante]; })}>{meteoForcee ? `Météo : ${LIBELLES_METEO[meteoForcee].nom}` : `Météo automatique · ${LIBELLES_METEO[meteo].nom}`}</button>
+      <p className="rounded-xl bg-white/[.04] px-3 py-2.5 text-[13px] text-jeu-ivoire/80">{LIBELLES_METEO[meteo].icone} {LIBELLES_METEO[meteo].nom} · {saison.nom}<span className="mt-0.5 block text-[11px] text-jeu-ivoire/50">Météo automatique, au gré des saisons.</span></p>
+      {!large && <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[.04] px-3 py-2"><span className="text-[13px] text-jeu-ivoire/80">Temps</span><ReglageTemps pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} /></div>}
       <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche ? 'Passer en caméra libre' : 'Revenir à la vue d’ensemble'}</button>
       <p className="hud-legende px-1">{libelleSauvegarde}</p>
       <div className="rounded-xl bg-black/25 p-3 text-[11.5px] leading-relaxed text-jeu-ivoire/75">
@@ -1409,7 +1413,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     {/* Le guide, sous la colonne de droite du HUD (68 px plus bas en mode immersif), sans descendre sur les commandes du bas. */}
     {premiersPas.afficher && !guide.masque && !interieur && !telephone && !planCinema && <div className={`pointer-events-none absolute right-3 z-20 flex flex-col ${large
       ? `w-[262px] ${immersif ? 'top-[420px] max-h-[calc(100%-476px)]' : 'top-[352px] max-h-[calc(100%-408px)]'}`
-      : `w-[230px] ${immersif ? 'top-[368px] max-h-[calc(100%-474px)]' : 'top-[300px] max-h-[calc(100%-406px)]'}`}`}>
+      : `w-[230px] ${immersif ? 'top-[324px] max-h-[calc(100%-430px)]' : 'top-[256px] max-h-[calc(100%-362px)]'}`}`}>
       <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />
     </div>}
     {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}

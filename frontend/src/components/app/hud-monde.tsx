@@ -96,40 +96,56 @@ export function CapObjectif({ texte, etiquette, cible, joueur, vue, ouvert, onCl
     image = requestAnimationFrame(suivre);
     return () => cancelAnimationFrame(image);
   }, [cx, cz, joueur, vue]);
-  // Sur téléphone, la distance prime sur le compteur, déjà visible dans le planning.
-  const afficherEtiquette = etiquette && !(compacte && cible);
-  return <button type="button" aria-expanded={ouvert} aria-label={`Objectif : ${texte}`} onClick={onClick} className={`hud-verre pointer-events-auto flex min-w-0 max-w-full items-center text-left transition-colors hover:border-jeu-or/50 ${compacte ? 'gap-2 rounded-2xl py-1.5 pl-1.5 pr-2.5' : 'gap-2.5 rounded-full py-1.5 pl-1.5 pr-3.5'}`}>
-    <span className={`flex shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EE7A4E,#CF532D)] text-white ${compacte ? 'h-7 w-7' : 'h-8 w-8'}`}>{ICONES.cible}</span>
+  const direction = cible && <span className="flex shrink-0 items-center gap-1 text-[12.5px] font-bold text-jeu-or">
+    <span ref={fleche} className="inline-flex transition-transform duration-150">{ICONES.fleche}</span>
+    <span ref={metres} className="hud-chiffre">…</span>
+  </span>;
+  // Sur téléphone : la légende et la distance sur une ligne (la distance prime sur le compteur, déjà visible dans le
+  // planning), puis l'objectif sur toute la largeur.
+  if (compacte) return <button type="button" aria-expanded={ouvert} aria-label={`Objectif : ${texte}`} onClick={onClick} className="hud-verre pointer-events-auto flex w-full min-w-0 flex-col gap-0.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors hover:border-jeu-or/50">
+    <span className="flex items-center gap-1.5">
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EE7A4E,#CF532D)] text-white [&_svg]:h-3 [&_svg]:w-3">{ICONES.cible}</span>
+      <span className="hud-legende flex-1 text-[9px]">Objectif</span>
+      {direction || (etiquette && <span className="hud-chiffre shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{etiquette}</span>)}
+    </span>
+    <span className="line-clamp-2 text-[12px] font-bold leading-tight">{texte}</span>
+  </button>;
+  return <button type="button" aria-expanded={ouvert} aria-label={`Objectif : ${texte}`} onClick={onClick} className="hud-verre pointer-events-auto flex min-w-0 max-w-full items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-3.5 text-left transition-colors hover:border-jeu-or/50">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EE7A4E,#CF532D)] text-white">{ICONES.cible}</span>
     <span className="min-w-0">
       <span className="hud-legende block text-[9px]">Objectif</span>
-      <span className={`block font-bold leading-tight ${compacte ? 'line-clamp-2 text-[12.5px]' : 'truncate text-[13.5px]'}`}>{texte}</span>
+      <span className="block truncate text-[13.5px] font-bold leading-tight">{texte}</span>
     </span>
-    {afficherEtiquette && <span className="hud-chiffre shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[12px]">{etiquette}</span>}
-    {cible && <span className="flex shrink-0 items-center gap-1 text-[12.5px] font-bold text-jeu-or">
-      <span ref={fleche} className="inline-flex transition-transform duration-150">{ICONES.fleche}</span>
-      <span ref={metres} className="hud-chiffre">…</span>
-    </span>}
+    {etiquette && <span className="hud-chiffre shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[12px]">{etiquette}</span>}
+    {direction}
   </button>;
 }
 
-/** Heure, météo et vitesse du temps ; sur deux lignes en version compacte. */
+/** Pause et vitesses du temps : dans l'horloge sur grand écran, dans les options sur téléphone. */
+export function ReglageTemps({ pause, vitesse, vitesses, onPause, onVitesse }: {
+  pause: boolean; vitesse: number; vitesses: readonly number[]; onPause: () => void; onVitesse: (v: number) => void;
+}) {
+  return <div role="group" aria-label="Vitesse du temps" className="flex rounded-full bg-black/30 p-0.5">
+    <button type="button" onClick={onPause} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${pause ? 'bg-jeu-terre text-white' : 'text-jeu-ivoire/70 hover:text-jeu-ivoire'}`}>{ICONES.pause}</button>
+    {vitesses.map(v => <button key={v} type="button" onClick={() => onVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`hud-chiffre h-7 min-w-7 rounded-full px-1.5 text-[11px] transition-colors ${!pause && vitesse === v ? 'bg-jeu-ivoire text-[#2A1C0E]' : 'text-jeu-ivoire/70 hover:text-jeu-ivoire'}`}>{v}×</button>)}
+  </div>;
+}
+
+/** Heure et météo, avec la vitesse du temps ; en version compacte (téléphone), l'heure et la météo seules, et un repère
+ * quand le temps est en pause. */
 export function HorlogeMonde({ heure, meteo, pause, vitesse, vitesses, onPause, onVitesse, compacte = false }: {
   heure: string; meteo: { icone: string; nom: string }; pause: boolean; vitesse: number; vitesses: readonly number[];
   onPause: () => void; onVitesse: (v: number) => void; compacte?: boolean;
 }) {
-  const reglage = <div role="group" aria-label="Vitesse du temps" className={`flex rounded-full bg-black/30 p-0.5 ${compacte ? 'justify-between' : ''}`}>
-    <button type="button" onClick={onPause} aria-pressed={pause} aria-label={pause ? 'Reprendre le temps' : 'Mettre le temps en pause'} className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${pause ? 'bg-jeu-terre text-white' : 'text-jeu-ivoire/70 hover:text-jeu-ivoire'}`}>{ICONES.pause}</button>
-    {vitesses.map(v => <button key={v} type="button" onClick={() => onVitesse(v)} aria-pressed={!pause && vitesse === v} aria-label={`Vitesse ${v}x`} className={`hud-chiffre h-7 min-w-7 rounded-full px-1.5 text-[11px] transition-colors ${!pause && vitesse === v ? 'bg-jeu-ivoire text-[#2A1C0E]' : 'text-jeu-ivoire/70 hover:text-jeu-ivoire'}`}>{v}×</button>)}
-  </div>;
   const cadran = <>
     <span data-testid="meteo-monde" title={meteo.nom} className="text-[17px] leading-none">{meteo.icone}<span className="sr-only"> {meteo.nom}</span></span>
     <b className="hud-chiffre text-[17px] leading-none">{heure}</b>
   </>;
-  if (compacte) return <div className="hud-verre pointer-events-auto flex w-[130px] flex-col gap-1.5 rounded-2xl p-1.5">
-    <div className="flex items-center justify-center gap-2 pt-0.5">{cadran}</div>
-    {reglage}
+  if (compacte) return <div className="hud-verre pointer-events-auto flex items-center gap-2 rounded-full px-3 py-1.5">
+    {cadran}
+    {pause && <span title="Temps en pause" className="text-jeu-terre">{ICONES.pause}<span className="sr-only">Temps en pause</span></span>}
   </div>;
-  return <div className="hud-verre pointer-events-auto flex items-center gap-2 rounded-full py-1 pl-3 pr-1">{cadran}{reglage}</div>;
+  return <div className="hud-verre pointer-events-auto flex items-center gap-2 rounded-full py-1 pl-3 pr-1">{cadran}<ReglageTemps pause={pause} vitesse={vitesse} vitesses={vitesses} onPause={onPause} onVitesse={onVitesse} /></div>;
 }
 
 const BESOINS = [
@@ -142,27 +158,27 @@ const BESOINS = [
 ] as const;
 
 /** Les six besoins : l'humeur du moment et la forme (qui règle les gains d'XP), puis icône, valeur et barre qui
- * s'illumine quand le besoin devient critique. Sans libellés en version compacte. */
+ * s'illumine quand le besoin devient critique. Sans libellés et sur trois colonnes en version compacte. */
 export function JaugesBesoins({ besoins, compacte = false }: { besoins: BesoinsComplets; compacte?: boolean }) {
   const humeur = humeurDuMoment(besoins);
   const humeurs = humeursDe(besoins);
-  return <div role="group" aria-label="Besoins" className={`hud-verre pointer-events-auto grid grid-cols-2 ${compacte ? 'w-[196px] gap-x-2.5 gap-y-2 p-2.5' : 'w-[252px] gap-x-3 gap-y-2.5 p-3'}`}>
+  return <div role="group" aria-label="Besoins" className={`hud-verre pointer-events-auto grid ${compacte ? 'w-[186px] grid-cols-3 gap-x-2 gap-y-1.5 p-2' : 'w-[252px] grid-cols-2 gap-x-3 gap-y-2.5 p-3'}`}>
     <p role="status" aria-label={`Humeur : ${humeur.nom}, forme ${humeur.forme} %`} title={humeurs.length ? humeurs.map(h => `${h.icone} ${h.nom}`).join(' · ') : 'Rien de particulier'}
-      className="col-span-2 flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-[11px] font-bold">
+      className="col-span-full flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-[11px] font-bold">
       <span className="min-w-0 truncate">{humeur.icone} {humeur.nom}</span>
       <span className={`hud-chiffre shrink-0 ${humeur.pleineForme ? 'text-jeu-lagune' : humeur.forme < 85 ? 'text-[#F08A4B]' : 'text-jeu-ivoire/70'}`}>{humeur.pleineForme ? 'XP +5 %' : `Forme ${humeur.forme} %`}</span>
     </p>
     {BESOINS.map(b => {
       const valeur = Math.max(0, Math.min(100, besoins[b.cle]));
       const bas = valeur < 25;
-      return <div key={b.cle} role="meter" aria-label={b.label} title={b.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(valeur)} className="flex min-w-0 items-center gap-2">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] ${bas ? 'animate-pulse' : ''}`} style={{ backgroundColor: `${b.couleur}26`, color: b.couleur }}>{ICONES[b.cle]}</span>
+      return <div key={b.cle} role="meter" aria-label={b.label} title={b.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(valeur)} className={`flex min-w-0 items-center ${compacte ? 'gap-1.5' : 'gap-2'}`}>
+        <span className={`flex shrink-0 items-center justify-center ${compacte ? 'h-[22px] w-[22px] rounded-[7px] [&_svg]:h-3.5 [&_svg]:w-3.5' : 'h-7 w-7 rounded-[9px]'} ${bas ? 'animate-pulse' : ''}`} style={{ backgroundColor: `${b.couleur}26`, color: b.couleur }}>{ICONES[b.cle]}</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-1">
             {!compacte && <span className="truncate text-[10.5px] font-bold text-jeu-ivoire/75">{b.label}</span>}
-            <b className="hud-chiffre text-[12px]" style={bas ? { color: b.couleur } : undefined}>{Math.round(valeur)}</b>
+            <b className={`hud-chiffre ${compacte ? 'text-[11.5px]' : 'text-[12px]'}`} style={bas ? { color: b.couleur } : undefined}>{Math.round(valeur)}</b>
           </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className={`overflow-hidden rounded-full bg-white/10 ${compacte ? 'mt-0.5 h-1' : 'mt-1 h-1.5'}`}>
             <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${valeur}%`, background: `linear-gradient(90deg, ${b.couleur}99, ${b.couleur})`, boxShadow: bas ? `0 0 8px ${b.couleur}` : undefined }} />
           </div>
         </div>
@@ -182,9 +198,13 @@ const STYLES_NOTIFICATION: Record<TypeNotification, { couleur: string; icone: Re
 };
 
 /** Fil d'événements : découvertes, trajets, missions et besoins urgents, avec une action directe quand c'est utile. */
-export function PileNotifications({ notifications, onFermer }: { notifications: NotificationMonde[]; onFermer: (id: number) => void }) {
+export function PileNotifications({ notifications, onFermer, max }: {
+  notifications: NotificationMonde[]; onFermer: (id: number) => void;
+  /** Sur téléphone, seules les dernières restent visibles (les autres s'effacent d'elles-mêmes). */
+  max?: number;
+}) {
   return <div aria-live="polite" className="pointer-events-none flex w-full flex-col gap-2">
-    {notifications.map(n => {
+    {(max ? notifications.slice(-max) : notifications).map(n => {
       const style = STYLES_NOTIFICATION[n.type];
       return <div key={n.id} role={n.type === 'alerte' ? 'alert' : 'status'} className="hud-verre hud-entree pointer-events-auto flex items-start gap-2.5 p-2.5 pr-2">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${style.couleur}26`, color: style.couleur }}>{style.icone}</span>

@@ -16,6 +16,16 @@ import { IndicateurHorsLigne } from './indicateur-hors-ligne';
 import { progressionVersNiveauSuivant } from '@/lib/niveau';
 import { useModeExperienceStore } from '@/lib/mode-experience-store';
 import { SelecteurModeExperience } from './selecteur-mode-experience';
+import { MenuMondeMobile, type RaccourciMonde } from './menu-monde-mobile';
+
+// Raccourcis du monde vivant vers les pages du jeu.
+const RACCOURCIS_MONDE: readonly RaccourciMonde[] = [
+  { href: '/app/missions', icon: '🎯', label: 'Missions' },
+  { href: '/app/chantiers', icon: '🏗️', label: 'Chantiers' },
+  { href: '/app/academie', icon: '📚', label: 'Académie' },
+  { href: '/app/messages', icon: '💬', label: 'Social' },
+  { href: '/app/profil', icon: '👤', label: 'Profil' },
+];
 
 interface CarriereMe {
   niveau: number;
@@ -162,18 +172,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <IndicateurHorsLigne />
         <main className="absolute inset-0">{children}</main>
 
-        <div className="absolute left-3 top-3 z-40 sm:left-4 sm:top-4">
+        <div className="absolute left-4 top-4 z-40 hidden sm:block">
           <SelecteurModeExperience compact />
         </div>
+        {/* Sur téléphone, le mode et les raccourcis tiennent dans un menu : la croix de déplacement reste dégagée. */}
+        <MenuMondeMobile raccourcis={RACCOURCIS_MONDE} />
 
-        <nav aria-label="Centre de commande" className="absolute bottom-4 right-3 z-40 flex max-w-[calc(100%-180px)] items-center gap-1 overflow-x-auto rounded-2xl border border-white/20 bg-[#10262b]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl sm:bottom-24 sm:left-1/2 sm:right-auto sm:max-w-[calc(100%-24px)] sm:-translate-x-1/2 sm:gap-2 sm:p-2">
-          {[
-            { href: '/app/missions', icon: '🎯', label: 'Missions' },
-            { href: '/app/chantiers', icon: '🏗️', label: 'Chantiers' },
-            { href: '/app/academie', icon: '📚', label: 'Académie' },
-            { href: '/app/messages', icon: '💬', label: 'Social' },
-            { href: '/app/profil', icon: '👤', label: 'Profil' },
-          ].map((item) => (
+        <nav aria-label="Centre de commande" className="absolute bottom-4 right-3 z-40 hidden max-w-[calc(100%-180px)] items-center gap-1 overflow-x-auto rounded-2xl border border-white/20 bg-[#10262b]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl sm:bottom-24 sm:left-1/2 sm:right-auto sm:max-w-[calc(100%-24px)] sm:-translate-x-1/2 sm:flex sm:gap-2 sm:p-2">
+          {RACCOURCIS_MONDE.map((item) => (
             <Link key={item.href} href={item.href} title={item.label} aria-label={item.label} className="flex h-10 w-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white sm:h-auto sm:w-16 sm:flex-col sm:px-2 sm:py-1.5 sm:text-[10px] sm:font-semibold">
               <span className="text-lg sm:text-xl">{item.icon}</span>
               <span className="hidden sm:inline">{item.label}</span>
