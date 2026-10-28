@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, type PointerEvent as EvenementPointeur } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PERSONNAGES, type IdPersonnage } from '@/lib/personnages-joueur';
+import { personnageDuChoix, type ApparenceSurMesure, type IdPersonnage } from '@/lib/personnages-joueur';
 import { echelleGabarit, type GabaritPersonnage } from '@/lib/gabarit-personnage';
 import { HumainMonde } from './humain-monde';
 
@@ -23,14 +23,14 @@ function CameraPlateau() {
   return null;
 }
 
-function Plateau({ id, gabarit, couleurCasque, rotation }: { id: IdPersonnage; gabarit: GabaritPersonnage; couleurCasque?: string; rotation: { current: Rotation } }) {
+function Plateau({ id, apparence, gabarit, couleurCasque, rotation }: { id: IdPersonnage; apparence?: ApparenceSurMesure; gabarit: GabaritPersonnage; couleurCasque?: string; rotation: { current: Rotation } }) {
   const groupe = useRef<THREE.Group>(null);
   useFrame((_, delta) => {
     const r = rotation.current;
     if (r.glisse === null && performance.now() > r.reprise) r.angle += Math.min(delta, .05) * .45;
     if (groupe.current) groupe.current.rotation.y = r.angle;
   });
-  const p = PERSONNAGES.find(x => x.id === id)!;
+  const p = personnageDuChoix(id, apparence);
   const design = couleurCasque && p.casque ? { ...p.design, casque: couleurCasque } : p.design;
   return <>
     <CameraPlateau />
@@ -45,8 +45,11 @@ function Plateau({ id, gabarit, couleurCasque, rotation }: { id: IdPersonnage; g
   </>;
 }
 
-export function ScenePersonnage({ id, gabarit, couleurCasque, className = '' }: {
-  id: IdPersonnage; gabarit: GabaritPersonnage; couleurCasque?: string; className?: string;
+export function ScenePersonnage({ id, apparence, gabarit, couleurCasque, className = '' }: {
+  id: IdPersonnage;
+  /** Le réglage du personnage sur mesure, suivi en direct sur le plateau. */
+  apparence?: ApparenceSurMesure;
+  gabarit: GabaritPersonnage; couleurCasque?: string; className?: string;
 }) {
   const rotation = useRef<Rotation>({ angle: -.5, glisse: null, reprise: 0 });
   const saisir = (e: EvenementPointeur<HTMLDivElement>) => { rotation.current.glisse = e.clientX; e.currentTarget.setPointerCapture(e.pointerId); };
@@ -59,7 +62,7 @@ export function ScenePersonnage({ id, gabarit, couleurCasque, className = '' }: 
   return <div className={`cursor-grab touch-pan-y active:cursor-grabbing ${className}`} onPointerDown={saisir} onPointerMove={tourner} onPointerUp={lacher} onPointerCancel={lacher}
     aria-label="Personnage en 3D : glisse pour le faire tourner" role="img">
     <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.3, 3.5], fov: 34, near: .1, far: 50 }} onCreated={({ camera }) => camera.lookAt(0, .92, 0)} gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}>
-      <Plateau id={id} gabarit={gabarit} couleurCasque={couleurCasque} rotation={rotation} />
+      <Plateau id={id} apparence={apparence} gabarit={gabarit} couleurCasque={couleurCasque} rotation={rotation} />
     </Canvas>
   </div>;
 }

@@ -16,11 +16,13 @@ export function FournisseurPersonnage({ personnage, children }: { personnage: Pe
 export const usePersonnageJoueur = () => useContext(ContextePersonnage);
 
 /** Le joueur dans une scène 3D. Casque au chantier et en ville ; tête nue dans les lieux de vie. De loin, la version
- * stylisée porte un casque jaune sur le chantier même quand le modèle choisi n'en a pas. */
-export function HumainJoueur({ casque = true, nom, marche, assis, prof, allure, scale }: {
+ * stylisée porte un casque jaune sur le chantier même quand le modèle choisi n'en a pas. Le personnage sur mesure,
+ * dessiné de près par la version stylisée, ne le porte que s'il l'a choisi : sa coiffure reste visible. */
+export function HumainJoueur({ casque: casqueDuLieu = true, nom, marche, assis, prof, allure, scale }: {
   casque?: boolean; nom?: string; marche?: boolean; assis?: boolean; prof?: boolean; allure?: number; scale?: number;
 }) {
   const personnage = usePersonnageJoueur();
+  const casque = casqueDuLieu && (personnage.modele !== null || personnage.casque);
   // Le casque choisi (créateur ou dressing) colore le casque réaliste et la version stylisée.
   const teinte = personnage.couleurCasque;
   const design = casque ? { ...personnage.design, casque: teinte ?? personnage.design.casque ?? '#f4c430' } : { ...personnage.design, casque: undefined };

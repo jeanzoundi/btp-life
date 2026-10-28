@@ -28,13 +28,14 @@ function Coupe({ points, p, couleur, profondeur = .63 }: { points: [number, numb
   return <mesh position={p} scale={[1, 1, profondeur]} castShadow><latheGeometry args={[profil, 28]} /><meshStandardMaterial color={couleur} roughness={.88} /></mesh>;
 }
 
-/** Boucles et tresses instanciées : une seule passe de dessin pour la coiffure. */
-function Chevelure({ style }: { style: Coiffure }) {
+/** Boucles et tresses instanciées : une seule passe de dessin pour la coiffure (de la couleur choisie, sinon brun très foncé).
+ * Sous un casque, seules les tresses dépassent : le reste de la chevelure traverserait la coque. */
+function Chevelure({ style, couleur, sousCasque = false }: { style: Coiffure; couleur?: string; sousCasque?: boolean }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const boucles = useMemo(() => {
     const list: { p: V; s: V }[] = [];
-    if (style === 'foulard') return list;
-    const n = style === 'afro' ? 100 : 65;
+    if (style === 'foulard' || style === 'chauve') return list;
+    const n = sousCasque ? 0 : style === 'afro' ? 100 : 65;
     for (let j = 0; j < n; j++) {
       const a = j * 2.399963, v = (j + .5) / n, r = Math.sqrt(1 - v * v);
       const rayon = style === 'afro' ? .202 : .154;
@@ -45,17 +46,28 @@ function Chevelure({ style }: { style: Coiffure }) {
       list.push({ p: [Math.cos(a) * .15, .1 - knot * .045, -Math.sin(a) * .14 - .025], s: [.022, .032, .022] });
     }
     return list;
-  }, [style]);
+  }, [style, sousCasque]);
   useLayoutEffect(() => {
     if (!ref.current) return;
     const m = new THREE.Object3D();
-    boucles.forEach((b, i) => { m.position.fromArray(b.p); m.scale.fromArray(b.s); m.rotation.set(0, i * .3, 0); m.updateMatrix(); ref.current!.setMatrixAt(i, m.matrix); ref.current!.setColorAt(i, new THREE.Color(i % 5 === 0 ? '#35251d' : '#211b19')); });
+    // Une mèche sur cinq un peu plus claire, pour le volume.
+    const fonce = new THREE.Color(couleur ?? '#211b19'), clair = couleur ? fonce.clone().lerp(new THREE.Color('#ffffff'), .14) : new THREE.Color('#35251d');
+    boucles.forEach((b, i) => { m.position.fromArray(b.p); m.scale.fromArray(b.s); m.rotation.set(0, i * .3, 0); m.updateMatrix(); ref.current!.setMatrixAt(i, m.matrix); ref.current!.setColorAt(i, i % 5 === 0 ? clair : fonce); });
     ref.current.instanceMatrix.needsUpdate = true;
     if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
     ref.current.computeBoundingSphere();
-  }, [boucles]);
+  }, [boucles, couleur]);
   if (!boucles.length) return null;
   return <instancedMesh ref={ref} args={[undefined, undefined, boucles.length]} castShadow><sphereGeometry args={[1, 7, 6]} /><meshStandardMaterial roughness={.96} /></instancedMesh>;
+}
+
+/** Moustache, bouc ou barbe (moustache comprise), de la couleur des cheveux. */
+function Pilosite({ style, couleur }: { style: 'moustache' | 'barbe' | 'bouc'; couleur: string }) {
+  return <>
+    <Galbe p={[0, -.066, .146]} s={[.042, .01, .014]} c={couleur} rugosite={.95} />
+    {style === 'bouc' && <Galbe p={[0, -.118, .118]} s={[.034, .03, .028]} c={couleur} rugosite={.95} />}
+    {style === 'barbe' && <><Galbe p={[0, -.126, .079]} s={[.098, .049, .073]} c={couleur} rugosite={.95} />{[-1, 1].map(s => <Galbe key={s} p={[s * .082, -.072, .062]} s={[.032, .062, .058]} c={couleur} rugosite={.95} />)}</>}
+  </>;
 }
 
 const TORSE_HOMME: [number, number][] = [[.175, 0], [.185, .1], [.195, .3], [.23, .43], [.225, .47], [.145, .53], [.074, .55]];
@@ -132,8 +144,9 @@ export function PersonnageStylise({ variante = 0, couleur, marche = false, assis
           <Galbe p={[0, -.084, .128]} s={[.034, .005, .009]} c={base.feminin ? '#8b3e3a' : '#5c3227'} />
           <Galbe p={[0, -.093, .126]} s={[.032, .006, .009]} c={base.feminin ? '#a65a4d' : '#8d573e'} />
           {reconnu === 'yao' && <Galbe p={[0, -.126, .079]} s={[.098, .049, .073]} c="#33251e" />}
-          <Chevelure style={casqueCouleur ? 'court' : base.cheveux} />
-          {base.cheveux === 'foulard' && <><Galbe p={[0, .115, -.015]} s={[.17, .13, .15]} c={haut} /><Galbe p={[.1, .245, -.015]} s={[.087, .08, .075]} c={base.accent} /><mesh position={[0, .09, 0]} rotation={[Math.PI / 2, .13, 0]}><torusGeometry args={[.153, .018, 8, 32]} /><meshStandardMaterial color={base.accent} /></mesh></>}
+          <Chevelure style={base.cheveux} couleur={base.couleurCheveux} sousCasque={Boolean(casqueCouleur)} />
+          {base.pilosite && base.pilosite !== 'aucune' && <Pilosite style={base.pilosite} couleur={base.couleurCheveux ?? '#211b19'} />}
+          {base.cheveux === 'foulard' && !casqueCouleur && <><Galbe p={[0, .115, -.015]} s={[.17, .13, .15]} c={haut} /><Galbe p={[.1, .245, -.015]} s={[.087, .08, .075]} c={base.accent} /><mesh position={[0, .09, 0]} rotation={[Math.PI / 2, .13, 0]}><torusGeometry args={[.153, .018, 8, 32]} /><meshStandardMaterial color={base.accent} /></mesh></>}
           {(base.lunettes || prof) && <>{[-.059, .059].map(x => <mesh key={x} position={[x, .018, .146]}><torusGeometry args={[.037, .004, 6, 20]} /><meshStandardMaterial color="#704b2b" metalness={.5} /></mesh>)}<Piece p={[0, .02, .15]} s={[.04, .005, .008]} c="#704b2b" /></>}
           {casqueCouleur && <><Galbe p={[0, .14, -.005]} s={[.177, .115, .169]} c={casqueCouleur} rugosite={.42} /><Galbe p={[0, .085, .047]} s={[.192, .016, .194]} c={casqueCouleur} /><Piece p={[0, .238, .025]} s={[.024, .027, .2]} c={base.accent} /><Piece p={[0, .16, .154]} s={[.065, .035, .008]} c="#244e53" /></>}
         </group>

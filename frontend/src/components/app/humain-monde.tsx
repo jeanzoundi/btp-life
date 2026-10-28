@@ -12,17 +12,28 @@ import { TeinteCasque } from './teinte-casque';
 import { modeleRealiste, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { identiteDepuisNom } from '@/lib/identites-personnages';
 
+type HumainMondeProps = PersonnageStyliseProps & {
+  allure?: number; sansCasque?: boolean;
+  /** Modèle réaliste imposé (le personnage choisi par le joueur) ; sinon, déduit de l'identité ou de la variante.
+   * `null` : pas de modèle réaliste (personnage sur mesure), la version stylisée seule, de près comme de loin. */
+  modele?: ModeleRealiste | null;
+  /** Couleur du casque du joueur, appliquée à son seul modèle réaliste (la version stylisée la reçoit par `design`). */
+  teinteCasque?: string;
+};
+
+export function HumainMonde({ modele, ...props }: HumainMondeProps) {
+  if (modele === null) {
+    const { allure: _allure, sansCasque: _sansCasque, teinteCasque: _teinteCasque, ...stylise } = props;
+    return <PersonnageStylise {...stylise} />;
+  }
+  return <HumainRealiste modele={modele} {...props} />;
+}
+
 /** De près, le personnage photoréaliste animé (Rocketbox) ; au loin et pendant son chargement, la version stylisée,
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-export function HumainMonde({ allure, sansCasque, modele: modeleChoisi, teinteCasque, ...props }: PersonnageStyliseProps & {
-  allure?: number; sansCasque?: boolean;
-  /** Modèle réaliste imposé (le personnage choisi par le joueur) ; sinon, déduit de l'identité ou de la variante. */
-  modele?: ModeleRealiste;
-  /** Couleur du casque du joueur, appliquée à son seul modèle réaliste (la version stylisée la reçoit par `design`). */
-  teinteCasque?: string;
-}) {
+function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque, ...props }: HumainMondeProps & { modele?: ModeleRealiste }) {
   const modele = modeleChoisi ?? modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);

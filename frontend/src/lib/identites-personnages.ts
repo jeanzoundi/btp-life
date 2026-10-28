@@ -1,9 +1,11 @@
 export type IdentitePersonnage = 'batisseur' | 'awa' | 'yao' | 'mariam' | 'fatou' | 'koffi';
-export type Coiffure = 'court' | 'tresses' | 'afro' | 'foulard';
+export type Coiffure = 'court' | 'tresses' | 'afro' | 'foulard' | 'chauve';
 export interface DesignPersonnage {
   peau: string; haut: string; pantalon: string; accent: string; chaussures: string;
   cheveux: Coiffure; tenue: 'gilet' | 'chemise' | 'veste' | 'pagne' | 'tshirt';
   largeur: number; hauteur: number; feminin: boolean; casque?: string; lunettes?: boolean;
+  /** Personnage sur mesure : couleur des cheveux (et de la barbe), moustache, barbe ou bouc. */
+  couleurCheveux?: string; pilosite?: 'aucune' | 'moustache' | 'barbe' | 'bouc';
 }
 
 /** Palettes originales, silhouettes et accessoires stables, indépendants des règles de carrière. */

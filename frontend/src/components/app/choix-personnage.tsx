@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { PERSONNAGES, type IdPersonnage } from '@/lib/personnages-joueur';
+import { apparenceSurMesure, ID_SUR_MESURE, IDS_PERSONNAGES, personnageDuChoix, type IdPersonnage } from '@/lib/personnages-joueur';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { gabaritDepuis } from '@/lib/gabarit-personnage';
 import { CASQUE_DEFAUT, couleurCasque } from '@/lib/casques';
@@ -24,12 +24,12 @@ export function ChoixPersonnage({ initial, nomInitial, avatarConfig, premierChoi
   onValider: (personnage: IdPersonnage, nom: string, finitions: FinitionsPersonnage) => void; onAnnuler?: () => void;
 }) {
   const [reglages, setReglages] = useState<ReglagesJoueur>(() => ({
-    personnage: initial, nom: nomInitial, ...gabaritDepuis(avatarConfig), casque: couleurCasque(avatarConfig) ?? CASQUE_DEFAUT,
+    personnage: initial, nom: nomInitial, ...gabaritDepuis(avatarConfig), casque: couleurCasque(avatarConfig) ?? CASQUE_DEFAUT, apparence: apparenceSurMesure(avatarConfig),
   }));
   const dialogue = useRef<HTMLElement>(null);
-  const index = PERSONNAGES.findIndex(p => p.id === reglages.personnage);
-  const choisi = PERSONNAGES[index];
-  const decaler = (pas: number) => setReglages(r => ({ ...r, personnage: PERSONNAGES[(PERSONNAGES.findIndex(p => p.id === r.personnage) + pas + PERSONNAGES.length) % PERSONNAGES.length].id }));
+  const choisi = personnageDuChoix(reglages.personnage, reglages.apparence);
+  // Les flèches parcourent les modèles réalistes puis le personnage sur mesure.
+  const decaler = (pas: number) => setReglages(r => ({ ...r, personnage: IDS_PERSONNAGES[(IDS_PERSONNAGES.indexOf(r.personnage) + pas + IDS_PERSONNAGES.length) % IDS_PERSONNAGES.length] }));
   const rappels = useRef({ decaler, onAnnuler });
   rappels.current = { decaler, onAnnuler };
   useEffect(() => {
@@ -60,15 +60,18 @@ export function ChoixPersonnage({ initial, nomInitial, avatarConfig, premierChoi
     window.addEventListener('keydown', touche, true);
     return () => window.removeEventListener('keydown', touche, true);
   }, []);
-  const valider = () => onValider(reglages.personnage, reglages.nom.trim(), { stature: reglages.stature, silhouette: reglages.silhouette, casque: reglages.casque });
+  const valider = () => onValider(reglages.personnage, reglages.nom.trim(), {
+    stature: reglages.stature, silhouette: reglages.silhouette, casque: reglages.casque, ...(reglages.personnage === ID_SUR_MESURE ? { apparence: reglages.apparence } : {}),
+  });
   return <section ref={dialogue} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Choisis ton personnage" className={`fixed inset-0 z-[140] overflow-y-auto bg-[#12282a]/95 text-jeu-ivoire backdrop-blur-sm ${POLICES_JEU} hud-texte`}>
-    <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-stretch">
-      <div className="flex min-h-[340px] flex-1 flex-col lg:min-h-[420px]">
+    <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-start">
+      {/* Sur grand écran, le plateau reste en vue et garde sa taille pendant qu'on fait défiler les réglages. */}
+      <div className="flex min-h-[340px] flex-1 flex-col lg:sticky lg:top-6 lg:h-[calc(100dvh-3rem)] lg:min-h-[420px]">
         <p className="hud-legende text-jeu-or">{premierChoix ? 'Bienvenue aux Palmiers' : 'Ton personnage'}</p>
         <h1 className="hud-titre text-2xl leading-tight sm:text-3xl">Choisis ton personnage</h1>
-        <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-jeu-ivoire/70">C’est lui qui marche dans le monde vivant. En mode classique, ton avatar prend son teint, ses cheveux et la couleur de son casque ; ta tenue et tes accessoires restent ceux du dressing.</p>
+        <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-jeu-ivoire/70">C’est lui qui marche dans le monde vivant : choisis un modèle, ou compose le tien sur mesure. En mode classique, ton avatar prend son teint, ses cheveux, sa barbe et la couleur de son casque ; ta tenue et tes accessoires restent ceux du dressing.</p>
         <div className="relative mt-3 min-h-[250px] flex-1 overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_35%,#2f4a4c,#162a2c_70%)] lg:min-h-[320px]">
-          <ScenePersonnage id={reglages.personnage} gabarit={reglages} couleurCasque={reglages.casque} className="absolute inset-0" />
+          <ScenePersonnage id={reglages.personnage} apparence={reglages.apparence} gabarit={reglages} couleurCasque={reglages.casque} className="absolute inset-0" />
           <button type="button" aria-label="Personnage précédent" onClick={() => decaler(-1)} className="hud-bouton hud-bouton-verre absolute left-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full text-xl">‹</button>
           <button type="button" aria-label="Personnage suivant" onClick={() => decaler(1)} className="hud-bouton hud-bouton-verre absolute right-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full text-xl">›</button>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">

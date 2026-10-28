@@ -9,7 +9,7 @@ import { AvatarBtp, AVATAR_DEFAUT, OPTIONS_AVATAR, type AvatarConfig } from './a
 import { MentorBulle } from './mentor';
 import { TRAITS, traitParSlug } from '@/lib/traits';
 import { PresentationModes, SelectionProfilDepart } from './presentation-depart';
-import { personnageProche, PERSONNAGES } from '@/lib/personnages-joueur';
+import { APPARENCE_DEFAUT, apparenceSurMesure, ID_SUR_MESURE, personnageDuChoix, personnageProche } from '@/lib/personnages-joueur';
 import { gabaritDepuis, SILHOUETTES, STATURES } from '@/lib/gabarit-personnage';
 import { PROFILS_DEPART, porteDuProfil, type ProfilCatalogue, type ProfilDepart } from '@/lib/profils-depart';
 import { useModeExperienceStore, type ModeExperience } from '@/lib/mode-experience-store';
@@ -93,7 +93,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [etape, setEtape] = useState(0);
-  const [reglages, setReglages] = useState<ReglagesJoueur>({ personnage: 'combinaison', nom: demo ? 'Kouassi' : '', stature: 'moyenne', silhouette: 'standard', casque: CASQUE_DEFAUT });
+  const [reglages, setReglages] = useState<ReglagesJoueur>({ personnage: 'combinaison', nom: demo ? 'Kouassi' : '', stature: 'moyenne', silhouette: 'standard', casque: CASQUE_DEFAUT, apparence: APPARENCE_DEFAUT });
   const [config, setConfig] = useState<AvatarConfig>(AVATAR_DEFAUT);
   const [traitsChoisis, setTraitsChoisis] = useState<string[]>([]);
   const [profilId, setProfilId] = useState('');
@@ -123,6 +123,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
     const sauvegarde = carriere.avatar?.config ?? {};
     setReglages({
       personnage: personnageProche(sauvegarde), nom: carriere.avatar?.nomPersonnage ?? '', ...gabaritDepuis(sauvegarde), casque: couleurCasque(sauvegarde) ?? CASQUE_DEFAUT,
+      apparence: apparenceSurMesure(sauvegarde),
     });
     setConfig({ ...AVATAR_DEFAUT, ...sauvegarde } as AvatarConfig);
     setTraitsChoisis(Array.isArray(carriere.traits) ? carriere.traits : []);
@@ -150,10 +151,13 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
   const configComplete = {
     ...Object.fromEntries(Object.keys(AVATAR_DEFAUT).map(k => [k, config[k as keyof AvatarConfig]])),
     casque: reglages.casque, personnage: reglages.personnage, stature: reglages.stature, silhouette: reglages.silhouette,
+    ...(reglages.personnage === ID_SUR_MESURE ? { apparence: reglages.apparence } : {}),
   };
+  // Le personnage sur mesure envoie aussi son apparence (coiffure, barbe, teint, tenue…).
+  const apparenceChoisie = reglages.personnage === ID_SUR_MESURE ? { apparence: reglages.apparence } : {};
   const voie = PROFILS_DEPART.find(p => p.id === (profilChoisi ? porteDuProfil(profilChoisi.slug) : porte));
   const estEtudiant = Boolean(profilChoisi && porteDuProfil(profilChoisi.slug) === 'etudiant');
-  const modele = PERSONNAGES.find(p => p.id === reglages.personnage) ?? PERSONNAGES[0];
+  const modele = personnageDuChoix(reglages.personnage, reglages.apparence);
   const signalerErreur = (e: unknown) => setErreur(e instanceof Error ? e.message : 'Enregistrement impossible. Réessaie sans quitter cette page.');
 
   /** Une étape qui enregistre : chargement, erreur affichée sans quitter l'étape, puis l'étape suivante. */
@@ -165,10 +169,10 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
 
   const suivantAvatar = () => enregistrer(2, async () => {
     const nom = reglages.nom.trim();
-    if (demo) { await enregistrerDemo.mutateAsync({ personnage: reglages.personnage, nom, stature: reglages.stature, silhouette: reglages.silhouette, casque: reglages.casque }); return; }
+    if (demo) { await enregistrerDemo.mutateAsync({ personnage: reglages.personnage, nom, stature: reglages.stature, silhouette: reglages.silhouette, casque: reglages.casque, ...apparenceChoisie }); return; }
     await api.patch('/carriere/avatar', { nomPersonnage: nom, tenue: config.typeTenue, equipement: 'casque', config: configComplete });
     // La route dédiée valide les proportions et le modèle, également utilisés depuis le monde.
-    await api.patch('/carriere/avatar/personnage', { personnage: reglages.personnage, nomPersonnage: nom, stature: reglages.stature, silhouette: reglages.silhouette });
+    await api.patch('/carriere/avatar/personnage', { personnage: reglages.personnage, nomPersonnage: nom, stature: reglages.stature, silhouette: reglages.silhouette, ...apparenceChoisie });
     queryClient.invalidateQueries({ queryKey: ['carriere'] });
   });
 
@@ -226,7 +230,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
     </header>
     <div className="mx-auto grid max-w-6xl gap-4 px-4 pb-10 lg:grid-cols-[minmax(0,1fr)_460px]">
       <aside aria-label="Ton personnage" className={`relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_50%_35%,#2f4a4c,#162a2c_70%)] ring-1 ring-white/10 lg:sticky lg:top-4 lg:h-[calc(100dvh-7.5rem)] lg:min-h-[480px] ${etape === 1 ? 'h-[48vh]' : 'h-[32vh]'}`}>
-        <ScenePersonnage id={reglages.personnage} gabarit={reglages} couleurCasque={reglages.casque} className="absolute inset-0" />
+        <ScenePersonnage id={reglages.personnage} apparence={reglages.apparence} gabarit={reglages} couleurCasque={reglages.casque} className="absolute inset-0" />
         <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-[11.5px] font-semibold">{mode === 'monde' ? '🌍 Mode vivant' : '📚 Mode classique'}</span>
         <span className="pointer-events-none absolute right-3 top-3 hidden rounded-full bg-black/30 px-3 py-1.5 text-[11px] text-jeu-ivoire/70 sm:block">Glisse pour le faire tourner</span>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14">
@@ -253,7 +257,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
         </>}
 
         {etape === 1 && <>
-          <Titre sousTitre="Choisis l’un de nos personnages réalistes, puis règle-le à ton goût. Ton apparence ne détermine pas ton métier.">Ton personnage, dans les deux modes</Titre>
+          <Titre sousTitre="Choisis l’un de nos personnages réalistes ou compose le tien sur mesure : coiffure, barbe, teint, tenue. Ton apparence ne détermine pas ton métier.">Ton personnage, dans les deux modes</Titre>
           <ReglagesPersonnage valeur={reglages} onChange={setReglages} avatarConfig={configComplete} desactive={loading} />
           <details className="rounded-2xl bg-white/[.05] p-3">
             <summary className="cursor-pointer text-[13px] font-semibold">Ton portrait en mode classique</summary>

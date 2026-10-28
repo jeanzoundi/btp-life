@@ -148,7 +148,8 @@ function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; 
   const marcheRef = useRef(false);
   const [marche, setMarche] = useState(false);
   const personnage = useMemo(() => personnageDe(voisin.avatarConfig), [voisin.avatarConfig]);
-  const design = useMemo(() => ({ ...personnage.design, casque: personnage.couleurCasque ?? personnage.design.casque ?? '#f4c430' }), [personnage]);
+  // Un voisin sur mesure ne porte le casque que s'il l'a choisi (sa coiffure reste visible), comme le joueur.
+  const design = useMemo(() => ({ ...personnage.design, casque: personnage.modele !== null || personnage.casque ? personnage.couleurCasque ?? personnage.design.casque ?? '#f4c430' : undefined }), [personnage]);
   cible.set(voisin.x, 0, voisin.z);
   useFrame((_, delta) => {
     const g = ref.current;

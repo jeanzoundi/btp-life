@@ -24,9 +24,9 @@ describe('le choix du personnage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
     expect(onValider).toHaveBeenCalledWith('combinaison', 'Kouassi', { stature: 'grande', silhouette: 'large', casque: '#F2C230' });
   });
-  it('montre les sept personnages, celui proposé déjà coché, et le plateau 3D', () => {
+  it('montre les sept personnages et le sur-mesure, celui proposé déjà coché, et le plateau 3D', () => {
     ouvrir();
-    expect(within(screen.getByRole('radiogroup', { name: 'Personnages' })).getAllByRole('radio')).toHaveLength(7);
+    expect(within(screen.getByRole('radiogroup', { name: 'Personnages' })).getAllByRole('radio')).toHaveLength(8);
     expect(screen.getByRole('radio', { name: /Combinaison de chantier/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('plateau-3d')).toBeInTheDocument();
   });
@@ -36,10 +36,20 @@ describe('le choix du personnage', () => {
     expect(screen.getByRole('radio', { name: /Bleu de travail/ })).toHaveAttribute('aria-checked', 'true');
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(screen.getByRole('radio', { name: /Sur mesure/ })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(screen.getByRole('radio', { name: /Costume/ })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('radio', { name: /Tailleur sombre/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
     expect(onValider).toHaveBeenCalledWith('tailleur', 'Yasmine', { stature: 'moyenne', silhouette: 'standard', casque: '#F5F0E6' });
+  });
+  it('valide un personnage sur mesure avec son apparence', () => {
+    const { onValider } = ouvrir();
+    fireEvent.click(screen.getByRole('radio', { name: /Sur mesure/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Tresses' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Moustache' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Garder ce personnage' }));
+    expect(onValider).toHaveBeenCalledWith('sur-mesure', 'Kouassi', expect.objectContaining({ apparence: expect.objectContaining({ coiffure: 'tresses', pilosite: 'moustache' }) }));
   });
   it('demande un nom d’au moins deux lettres', () => {
     ouvrir({ nom: 'K' });

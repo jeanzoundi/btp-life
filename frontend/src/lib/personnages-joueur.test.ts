@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { configDepuis } from '@/components/app/avatar-btp';
-import { avecApparence, personnageChoisi, personnageDe, personnageProche, PERSONNAGES, PERSONNAGE_DEFAUT } from './personnages-joueur';
+import {
+  APPARENCE_DEFAUT, apparenceSurMesure, avecApparence, IDEES_SUR_MESURE, IDS_PERSONNAGES, personnageChoisi, personnageDe, personnageProche, PERSONNAGES, PERSONNAGE_DEFAUT,
+} from './personnages-joueur';
 
 describe('les personnages jouables', () => {
   it('garde la liste du serveur (PERSONNAGES_JOUEUR, backend/src/carriere/personnages.ts)', () => {
     expect(PERSONNAGES.map(p => p.id)).toEqual(['combinaison', 'bleu-travail', 'tailleur', 'tenue-ville', 'jean', 'capuche', 'costume']);
+  });
+  it('ajoute le personnage sur mesure aux choix acceptés par le serveur', () => {
+    expect(IDS_PERSONNAGES).toEqual(['combinaison', 'bleu-travail', 'tailleur', 'tenue-ville', 'jean', 'capuche', 'costume', 'sur-mesure']);
+    expect(personnageChoisi({ personnage: 'sur-mesure' })).toBe('sur-mesure');
   });
   it('donne à chacun son propre modèle 3D ; seuls les modèles de chantier ont leur casque', () => {
     expect(new Set(PERSONNAGES.map(p => p.modele)).size).toBe(PERSONNAGES.length);
@@ -39,5 +45,32 @@ describe('le même personnage dans les deux modes', () => {
     expect(c.peau).toBe('#5C3A24');
     expect(c.couleurTenue).toBe('#C1502E');
     expect(configDepuis({ peau: '#F1C27D' }).peau).toBe('#F1C27D');
+  });
+});
+
+describe('le personnage sur mesure', () => {
+  it('se dessine avec la version stylisée, habillée selon son apparence', () => {
+    const apparence = { ...APPARENCE_DEFAUT, feminin: true, coiffure: 'afro' as const, couleurCheveux: '#A85F4C', pilosite: 'aucune' as const, tenue: 'pagne' as const, haut: '#C34653', casque: false };
+    const p = personnageDe({ personnage: 'sur-mesure', apparence });
+    expect(p.modele).toBeNull();
+    expect(p.casque).toBe(false);
+    expect(p.design).toMatchObject({ cheveux: 'afro', couleurCheveux: '#A85F4C', tenue: 'pagne', haut: '#C34653', feminin: true });
+    expect(p.design.casque).toBeUndefined();
+  });
+  it('remplace un réglage absent ou inconnu par sa valeur par défaut', () => {
+    expect(apparenceSurMesure({ apparence: { coiffure: 'crete', haut: 'rouge', lunettes: 'oui', pilosite: 'barbe' } })).toEqual({ ...APPARENCE_DEFAUT, pilosite: 'barbe' });
+    expect(apparenceSurMesure(null)).toEqual(APPARENCE_DEFAUT);
+  });
+  it('donne à l’avatar 2D son teint, ses cheveux et sa barbe (des tresses à la place du foulard)', () => {
+    const apparence = IDEES_SUR_MESURE[0].apparence;
+    expect(apparence.coiffure).toBe('foulard');
+    expect(avecApparence({ couleurTenue: '#C1502E', personnage: 'sur-mesure', apparence })).toMatchObject({
+      couleurTenue: '#C1502E', peau: apparence.peau, cheveux: 'tresses', couleurCheveux: apparence.couleurCheveux, pilosite: apparence.pilosite,
+    });
+    expect(configDepuis({ personnage: 'sur-mesure', apparence: { ...APPARENCE_DEFAUT, pilosite: 'bouc', coiffure: 'chauve' } })).toMatchObject({ pilosite: 'bouc', cheveux: 'chauve' });
+  });
+  it('propose des idées de départ toutes différentes', () => {
+    expect(new Set(IDEES_SUR_MESURE.map(i => JSON.stringify(i.apparence))).size).toBe(IDEES_SUR_MESURE.length);
+    expect(IDEES_SUR_MESURE.length).toBeGreaterThanOrEqual(6);
   });
 });
