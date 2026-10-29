@@ -119,9 +119,14 @@ export interface BilanSeance { note: number; reussies: number; total: number; co
 export function bilanSeance(s: SeanceLieu): BilanSeance {
   const scores = s.taches.map(t => s.scores[t.id] ?? 0);
   const note = Math.round(10 + 90 * (scores.reduce((n, x) => n + x, 0) / Math.max(1, scores.length)) / 100);
+  return { ...valeurNote(note), reussies: scores.filter(x => x >= 80).length, total: scores.length };
+}
+
+/** Ce que vaut une note : validation de l'étape, mention, paie et XP. Sert aussi à la note corrigée par le serveur. */
+export function valeurNote(note: number): Pick<BilanSeance, 'note' | 'compte' | 'mention' | 'paie' | 'xp'> {
   const compte = note >= 40;
   return {
-    note, reussies: scores.filter(x => x >= 80).length, total: scores.length, compte,
+    note, compte,
     mention: note === 100 ? 'Séance exemplaire' : note >= 60 ? 'Bonne séance' : note >= 40 ? 'Séance correcte' : 'Séance à reprendre',
     paie: compte ? 500 + note * 15 : 0, xp: compte ? 10 + Math.round(note * .4) : Math.round(note * .2),
   };

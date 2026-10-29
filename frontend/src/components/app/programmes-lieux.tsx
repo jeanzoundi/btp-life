@@ -6,12 +6,14 @@ import { api } from '@/lib/api';
 import { LIEUX_PROGRAMME } from '@/lib/lieux-programme';
 import {
   appliquerSeance, bilanSeance, contenuTache, enReposLieu, fusionnerProgres, lieuOuvert, lireProgresLieu, nouvelleSeance, noter, PROGRES_INITIAL, prochainCycle, prochaineEtape,
-  seanceFaite, tacheALaZoneLieu, tachesRestantes, type BilanSeance, type ContenuTache, type GainsSeance, type ProgresLieu, type ProgresLieuServeur, type SeanceLieu,
+  seanceFaite, tacheALaZoneLieu, tachesRestantes, valeurNote, type BilanSeance, type ContenuTache, type GainsSeance, type ProgresLieu, type ProgresLieuServeur, type SeanceLieu,
 } from '@/lib/programme-lieu';
 import type { TypeNotification } from './hud-monde';
 import { heureLisible, PanneauMentor, PanneauProgrammeLieu, TacheLieu, type ResultatSeance, type StatutSeance } from './panneau-programme-lieu';
 
-interface ReponseSeance { progres: ProgresLieuServeur; gains: GainsSeance }
+/** La note vient du serveur, qui corrige lui-même les réponses brutes de la séance. */
+interface ReponseSeance { progres: ProgresLieuServeur; gains: GainsSeance; note: number }
+type ReponsesSeance = Record<string, number | number[]>;
 
 /** État des lieux à programme : progression de chacun, la séance en cours (une à la fois), la tâche ouverte, le bilan.
  * Connecté, la progression et les gains passent par le serveur ; en démonstration (ou serveur injoignable), tout reste dans le navigateur. */
@@ -30,7 +32,7 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
     queryKey: ['carriere', 'lieux'], queryFn: () => api.get<Record<string, ProgresLieuServeur>>('/carriere/lieux'), enabled: !demo, staleTime: 60_000, retry: 1,
   });
   const serveur = !demo && !serveurEnPanne && progresServeur !== undefined;
-  const envoyer = useMutation({ mutationFn: ({ slug, etape, note }: { slug: string; etape: number; note: number }) => api.post<ReponseSeance>(`/carriere/lieux/${slug}/seance`, { etape, note }) });
+  const envoyer = useMutation({ mutationFn: ({ slug, etape, reponses }: { slug: string; etape: number; reponses: ReponsesSeance }) => api.post<ReponseSeance>(`/carriere/lieux/${slug}/seance`, { etape, reponses }) });
 
   // Le navigateur garde le repos du jour (horloge du monde) et, hors connexion, toute la progression.
   const [locaux, setLocaux] = useState<Record<string, ProgresLieu>>({});
@@ -46,6 +48,8 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
     try { localStorage.setItem(`${cle}:${slug}`, JSON.stringify(valeur)); } catch { /* Stockage facultatif. */ }
   }, [cle]);
   const [seance, setSeance] = useState<SeanceLieu | null>(null);
+  /** Réponse brute de chaque tâche faite (choix, mesure saisie, pièces cochées) : c'est elle que le serveur corrige. */
+  const [reponses, setReponses] = useState<ReponsesSeance>({});
   const [tache, setTache] = useState<{ id: string; contenu: ContenuTache; etape: string } | null>(null);
   const [mentor, setMentor] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatSeance | null>(null);
@@ -81,7 +85,7 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
     const attente = occupe?.();
     if (attente) { notifier(attente, 'alerte'); return; }
     const nouvelle = nouvelleSeance(programme, progresDe(slug));
-    setSeance(nouvelle); setMentor(null); setResultat(null);
+    setSeance(nouvelle); setMentor(null); setResultat(null); setReponses({});
     notifier(`Séance commencée : ${programme.etapes[nouvelle.etape].nom.toLowerCase()}. Les balises dorées montrent les postes.`, 'trajet');
   };
   const surStation = (slug: string, zone: string) => {
@@ -91,6 +95,9 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
     const t = tacheALaZoneLieu(seance, zone);
     if (!t) { notifier(seanceFaite(seance) ? `Tout est fait : va voir ${programme.mentor.nom} pour le bilan.` : `${plan.libelles[zone] ?? zone} : rien à faire ici aujourd’hui.`, 'info'); return; }
     setTache({ id: t.id, contenu: contenuTache(programme, seance, t.id)!, etape: programme.etapes[seance.etape].nom });
+  };
+  const repondreTache = (reponse: number | number[]) => {
+    if (tache && seance?.scores[tache.id] === undefined) setReponses(r => ({ ...r, [tache.id]: reponse }));
   };
   const noterTache = (score: number) => {
     if (!seance || !tache) return;
@@ -109,13 +116,15 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
       return;
     }
     // Connecté : le serveur valide l'étape, verse les gains et fatigue le personnage ; la séance n'est comptée qu'après sa réponse.
-    envoyer.mutate({ slug: s.slug, etape: s.etape, note: bilan.note }, {
-      onSuccess: ({ progres, gains }) => {
+    envoyer.mutate({ slug: s.slug, etape: s.etape, reponses }, {
+      onSuccess: ({ progres, gains, note }) => {
         client.setQueryData<Record<string, ProgresLieuServeur>>(['carriere', 'lieux'], ancien => ({ ...ancien, [s.slug]: progres }));
         client.invalidateQueries({ queryKey: ['carriere', 'me'] });
         const apres = fusionnerProgres(programme, local, progres);
         enregistrer(s.slug, apres);
-        setResultat({ bilan, etapeAvant, etapeApres: programme.etapes[prochaineEtape(programme, apres)].nom, cycleBoucle: apres.cycles > s.cycle, recompenses: 'serveur', gains });
+        // La note qui fait foi est celle du serveur (la même que celle du jeu, sauf version périmée ou réponses trafiquées).
+        const corrige = { ...bilan, ...valeurNote(note) };
+        setResultat({ bilan: corrige, etapeAvant, etapeApres: programme.etapes[prochaineEtape(programme, apres)].nom, cycleBoucle: apres.cycles > s.cycle, recompenses: 'serveur', gains });
       },
       onError: (erreur: Error) => {
         client.invalidateQueries({ queryKey: ['carriere', 'lieux'] });
@@ -149,7 +158,7 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
   const sortir = () => { if (resultat) terminer(); setTache(null); setProgrammeOuvert(false); setMentor(null); };
   return {
     progresDe, statut, faites, cycleAffiche, postes, seance, tache, setTache, mentor, setMentor, resultat, programmeOuvert, setProgrammeOuvert,
-    enregistrement: envoyer.isPending, commencer, surStation, noterTache, faireLeBilan, terminer, abandonner, attendreOuverture, fermerPanneau, sortir,
+    enregistrement: envoyer.isPending, commencer, surStation, repondreTache, noterTache, faireLeBilan, terminer, abandonner, attendreOuverture, fermerPanneau, sortir,
   };
 }
 
@@ -167,7 +176,7 @@ export function PanneauxLieu({ slug, lieux, nomJoueur, demo, filRouge }: {
     {lieux.mentor === slug && <PanneauMentor programme={programme} statut={lieux.statut(slug)} nomJoueur={nomJoueur} etape={enCours ? lieux.seance!.etape : prochaineEtape(programme, progres)} cycle={enCours ? lieux.seance!.cycle : prochainCycle(progres)}
       seance={enCours ? lieux.seance : null} resultat={lieux.resultat} demo={demo} enregistrement={lieux.enregistrement} filRouge={filRouge} onCommencer={() => lieux.commencer(slug)} onBilan={lieux.faireLeBilan} onTerminer={lieux.terminer}
       onAbandonner={lieux.abandonner} onProgramme={() => lieux.setProgrammeOuvert(true)} onAttendre={() => lieux.attendreOuverture(slug)} onFermer={() => { if (lieux.resultat) lieux.terminer(); else lieux.setMentor(null); }} />}
-    {lieux.tache && <TacheLieu key={lieux.tache.id} etape={lieux.tache.etape} contenu={lieux.tache.contenu} onScore={lieux.noterTache} onFermer={() => lieux.setTache(null)} />}
+    {lieux.tache && <TacheLieu key={lieux.tache.id} etape={lieux.tache.etape} contenu={lieux.tache.contenu} onScore={lieux.noterTache} onReponse={lieux.repondreTache} onFermer={() => lieux.setTache(null)} />}
     {lieux.programmeOuvert && <PanneauProgrammeLieu programme={programme} progres={progres} seance={lieux.seance} onFermer={() => lieux.setProgrammeOuvert(false)} />}
   </>;
 }
