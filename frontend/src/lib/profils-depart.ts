@@ -23,3 +23,11 @@ export function profilsPourPorte(profils: ProfilCatalogue[], porte: ProfilDepart
   return porte ? accessibles.filter(p => porteDuProfil(p.slug) === porte) : accessibles;
 }
 export const FORMATIONS_DEPART = ['BTS', 'ingenieur'] as const;
+
+/** La prime d'installation du premier choix de poste, comme au serveur (primeInstallation dans
+ * backend/src/carriere/carriere.service.ts) : modeste pour un étudiant, logé en cité universitaire, plus forte avec l'expérience. */
+export function primeInstallation(profil: { slug: string; niveauDepart?: number }) {
+  if (porteDuProfil(profil.slug) === 'etudiant') return 15_000;
+  const niveau = profil.niveauDepart ?? 1;
+  return niveau >= 6 ? 60_000 : niveau >= 4 ? 40_000 : 25_000;
+}

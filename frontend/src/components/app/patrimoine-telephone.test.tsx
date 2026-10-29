@@ -20,6 +20,8 @@ describe('le patrimoine dans le téléphone (démonstration)', () => {
   it('achète un outil, emménage dans un logement plus grand et refuse ce qui est trop cher', () => {
     const depenser = vi.fn().mockReturnValue(true);
     render(<EcranPatrimoine demo argent={150_000} depenserDemo={depenser} />, { wrapper: avecClient });
+    // La chambre en cité universitaire ne se loue pas : seul l'étudiant qui y habite la voit.
+    expect(screen.queryByText('Chambre en cité universitaire')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Emménager · 50\s000\sF/ }));
     expect(depenser).toHaveBeenCalledWith(50_000);
     expect(screen.getByText('✓ Ton logement')).toBeInTheDocument();

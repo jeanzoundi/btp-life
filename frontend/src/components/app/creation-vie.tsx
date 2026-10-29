@@ -11,7 +11,8 @@ import { TRAITS, traitParSlug } from '@/lib/traits';
 import { PresentationModes, SelectionProfilDepart } from './presentation-depart';
 import { APPARENCE_DEFAUT, apparenceSurMesure, ID_SUR_MESURE, personnageDuChoix, personnageProche } from '@/lib/personnages-joueur';
 import { gabaritDepuis, SILHOUETTES, STATURES } from '@/lib/gabarit-personnage';
-import { PROFILS_DEPART, porteDuProfil, type ProfilCatalogue, type ProfilDepart } from '@/lib/profils-depart';
+import { francs } from '@/lib/patrimoine';
+import { PROFILS_DEPART, porteDuProfil, primeInstallation, type ProfilCatalogue, type ProfilDepart } from '@/lib/profils-depart';
 import { useModeExperienceStore, type ModeExperience } from '@/lib/mode-experience-store';
 import { adresseMonde } from '@/lib/liens-modes';
 import { CASQUE_DEFAUT, couleurCasque } from '@/lib/casques';
@@ -345,7 +346,7 @@ export function CreationVie({ demo = false }: { demo?: boolean }) {
           {voie && <div className="rounded-2xl bg-white/[.05] p-4">
             <h2 className="font-bold">Tes premiers repères · {voie.nom}</h2>
             <ol className="mt-2 list-inside list-decimal space-y-1.5 text-[13px] text-jeu-ivoire/75">{voie.premiersPas.map(p => <li key={p}>{p}</li>)}</ol>
-            <p className="mt-3 text-[11.5px] text-jeu-ivoire/55">Ce sont des repères pour explorer les activités existantes. À ton premier choix de poste, une prime d’installation de 25 000 F arrive sur ton compte, pour tes premiers loyers et trajets.</p>
+            <p className="mt-3 text-[11.5px] text-jeu-ivoire/55">Ce sont des repères pour explorer les activités existantes. À ton premier choix de poste, une prime d’installation de {francs(primeInstallation(profilChoisi ?? { slug: '' }))} arrive sur ton compte, pour tes premiers loyers et trajets{estEtudiant ? ', et une chambre en cité universitaire t’attend (5 000 F la semaine)' : ''}.</p>
           </div>}
           <BoutonSuite onClick={entrer}>{mode === 'monde' ? 'Entrer dans le monde vivant' : demo ? 'Créer mon compte pour jouer' : 'Ouvrir le mode classique'} →</BoutonSuite>
         </>}

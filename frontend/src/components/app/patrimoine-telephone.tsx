@@ -67,7 +67,8 @@ export function EcranPatrimoine({ demo, argent, depenserDemo, travaux, onLogemen
         {patrimoine.preleve > 0 && <p className="mt-1 text-[11px] text-jeu-lagune">Loyer prélevé : {francs(patrimoine.preleve)}.</p>}
         {patrimoine.logement.arrieres > 0 && <div className="mt-1.5 flex items-center justify-between gap-2"><p className="text-[11px] font-bold text-[#F08A4B]">Arriérés : {francs(patrimoine.logement.arrieres)} (un nouveau loyer impayé pèserait sur le moral)</p><Bouton disabled={action.isPending} onClick={() => action.mutate({ chemin: '/monde/patrimoine/arrieres' })}>Régler</Bouton></div>}
       </Carte>}
-      {LOGEMENTS.map(l => <Carte key={l.niveau} accent={demo && l.niveau === niveauLogement}>
+      {/* La chambre en cité universitaire ne se loue pas : elle n’apparaît que pour l’étudiant qui y habite. */}
+      {LOGEMENTS.filter(l => !l.etudiants || l.niveau === niveauLogement).map(l => <Carte key={l.niveau} accent={demo && l.niveau === niveauLogement}>
         <div className="flex items-baseline justify-between gap-2"><b className="text-[12.5px]">{l.nom}</b><span className="hud-chiffre shrink-0 text-[11px] text-jeu-or">{francs(l.loyerSemaine)}/sem.</span></div>
         <p className="mt-0.5 text-[11px] leading-snug text-jeu-ivoire/65">{l.description}</p>
         <div className="mt-1.5 text-right">{l.niveau === niveauLogement ? <span className="text-[11px] font-bold text-jeu-lagune">✓ Ton logement</span>

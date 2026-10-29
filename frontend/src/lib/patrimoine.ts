@@ -2,9 +2,14 @@
 // (backend/src/carriere/patrimoine.ts et backend/src/monde/entreprise.service.ts) : connecté, le serveur prélève le loyer,
 // vend les outils et tient les comptes de l'entreprise ; en démonstration, le navigateur montre les mêmes chiffres.
 
-export type NiveauLogement = 'studio' | 'f2' | 'villa';
-export interface Logement { niveau: NiveauLogement; nom: string; loyerSemaine: number; confort: number; description: string }
+export type NiveauLogement = 'chambre' | 'studio' | 'f2' | 'villa';
+export interface Logement {
+  niveau: NiveauLogement; nom: string; loyerSemaine: number; confort: number; description: string;
+  /** Réservé aux étudiants à leur arrivée : on n'y emménage pas ensuite. */
+  etudiants?: boolean;
+}
 export const LOGEMENTS: Logement[] = [
+  { niveau: 'chambre', nom: 'Chambre en cité universitaire', loyerSemaine: 5_000, confort: 0, etudiants: true, description: 'Un lit, un bureau et la douche sur le palier : un loyer d’étudiant. Pas de travaux ici : il faut un logement à soi.' },
   { niveau: 'studio', nom: 'Studio à la Résidence Lagune', loyerSemaine: 12_000, confort: 0, description: 'Une pièce, une kitchenette et une douche : de quoi démarrer.' },
   { niveau: 'f2', nom: 'Deux-pièces avec balcon', loyerSemaine: 25_000, confort: 4, description: 'Une chambre à part et un balcon sur la lagune : +4 de moral à chaque réveil.' },
   { niveau: 'villa', nom: 'Villa des Jardins', loyerSemaine: 55_000, confort: 10, description: 'Jardin, terrasse et calme : +10 de moral à chaque réveil.' },

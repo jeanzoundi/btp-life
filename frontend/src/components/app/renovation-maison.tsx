@@ -133,6 +133,7 @@ export function EcranTravaux({ travaux, chezToi }: { travaux: TravauxMaison; che
       <div className="mt-1.5 flex items-center justify-between gap-2"><span className="text-[10.5px] text-jeu-ivoire/55">{p.journees} journées · +{p.confort} de moral au réveil</span>
         {p.faite ? <span className="text-[11px] font-bold text-jeu-lagune">✓ Fait</span> : <Bouton disabled={travaux.enCours} onClick={() => travaux.commencer(p.slug)}>Lancer</Bouton>}</div>
     </Carte>)}
+    {!travaux.projets.length && <p className="text-[11.5px] leading-snug text-jeu-ivoire/75">Pas de travaux possibles dans ce logement : il faut un logement à toi, du studio à la villa (onglet Logement).</p>}
     {travaux.message && <p role="status" className="text-center text-[11.5px] text-jeu-ivoire/75">{travaux.message}</p>}
   </div>;
 
