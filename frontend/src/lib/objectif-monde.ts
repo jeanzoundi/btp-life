@@ -33,6 +33,30 @@ export function alertesBesoins(besoins: BesoinsObjectif, dejaSignales: ReadonlyS
   return { nouvelles, signales };
 }
 
+/** D'où vient l'objectif principal, le seul affiché dans la case objectif (les autres propositions restent dans le
+ * téléphone et le planning) : une activité commencée d'abord, puis le guide des premiers pas, puis les propositions. */
+export type SourceObjectif = 'mode' | 'journee' | 'seance' | 'chapitre' | 'guide' | 'fil-rouge' | 'yao' | 'vie';
+export interface EtatObjectif {
+  modeEnCours: boolean; journee: boolean; seance: boolean; chapitreEnCours: boolean;
+  /** Il reste une étape au guide des premiers pas, qui n'a pas été masqué. */
+  guide: boolean;
+  /** Un besoin est sous 45 : on mange ou on dort avant le guide et les rendez-vous. */
+  besoinUrgent: boolean;
+  /** Le rendez-vous du fil rouge reçoit à cette heure ; la journée de Yao est disponible. */
+  filRouge: boolean; travail: boolean;
+}
+export function sourceObjectif(e: EtatObjectif): SourceObjectif {
+  if (e.modeEnCours) return 'mode';
+  if (e.journee) return 'journee';
+  if (e.seance) return 'seance';
+  if (e.chapitreEnCours) return 'chapitre';
+  if (e.besoinUrgent) return 'vie';
+  if (e.guide) return 'guide';
+  if (e.filRouge) return 'fil-rouge';
+  if (e.travail) return 'yao';
+  return 'vie';
+}
+
 /** La prochaine chose à faire en vie libre : le besoin le plus bas sous 45 d'abord, puis les repères à découvrir. */
 export function objectifDuMoment(besoins: BesoinsObjectif, decouvertes: number, total: number): ObjectifMoment {
   const urgence = URGENCES.filter(u => besoins[u.cle] < 45).sort((a, b) => besoins[a.cle] - besoins[b.cle])[0];

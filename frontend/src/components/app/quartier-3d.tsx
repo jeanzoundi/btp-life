@@ -26,7 +26,7 @@ import {
 } from '@/lib/sauvegarde-monde';
 import { besoinCritique, humeurDepuisBesoins } from './besoins';
 import { ambianceMeteo, LIBELLES_METEO, meteoDuMoment, saisonDuMoment, type Meteo } from '@/lib/meteo-monde';
-import { alertesBesoins, objectifDuMoment, type CleBesoin } from '@/lib/objectif-monde';
+import { alertesBesoins, objectifDuMoment, sourceObjectif, type CleBesoin } from '@/lib/objectif-monde';
 import {
   BoutonHud, CapObjectif, CarteJoueur, HorlogeMonde, ICONES, JaugesBesoins, PileNotifications, ReglageTemps, type NotificationMonde, type TypeNotification,
 } from './hud-monde';
@@ -43,7 +43,7 @@ import {
 import { budgetRecrutement, PROGRAMME, TOTAL_JOURS, type EvaluationEquipe, type Ouvrier } from '@/lib/programme-chantier';
 import { LIBELLES_STATIONS, type StationChantier } from '@/lib/interieur-chantier';
 import { aUnProgramme, LIEUX_PROGRAMME, serviceA, type TypeServiceLieu } from '@/lib/lieux-programme';
-import type { BilanSeance } from '@/lib/programme-lieu';
+import { lieuOuvert, type BilanSeance } from '@/lib/programme-lieu';
 import { DECORS_LIEUX, MENTORS_LIEUX } from './registre-lieux';
 import { PanneauChantiers, PanneauCompetences, PanneauEpargne, PanneauLogiciels, PanneauMarches, PanneauOffres, type EpargneDemo } from './panneaux-services';
 import { InterieurLieuProgramme } from './interieur-lieu-programme';
@@ -57,7 +57,7 @@ import { PanneauPremiersPas, usePremiersPas } from './premiers-pas';
 import { PanneauFinCampagne, finCampagneAMontrer, type SuiteCampagne } from './fin-campagne';
 import { EcranCelebration, celebrationsEntre, celebrer, useCelebrations } from './celebration';
 import { useRouter } from 'next/navigation';
-import { DISTANCE_PREMIERS_PAS, ETAPES_PREMIERS_PAS, type EtapePremiersPas } from '@/lib/premiers-pas';
+import { DISTANCE_PREMIERS_PAS, ETAPES_PREMIERS_PAS, prochaineEtape as prochaineEtapeGuide, type EtapePremiersPas } from '@/lib/premiers-pas';
 import { ENERGIE_JOURNEE_TRAVAUX, type NiveauLogement } from '@/lib/patrimoine';
 import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
 import { effetsMeteo } from '@/lib/vie-urbaine';
@@ -596,7 +596,17 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const horairesFilRouge = chapitreFilRouge ? interlocuteurChapitre(chapitreFilRouge).horaires : null;
   const filRougePropose = Boolean(chapitreFilRouge && horairesFilRouge && !etapeEnCours && !journee && !lieux.seance && !campagne.seance && !objectifVie.lieu
     && heure >= horairesFilRouge.ouverture && heure < horairesFilRouge.fermeture);
-  const yaoEnTete = travailPropose && !lieux.seance && !campagne.seance && !filRougePropose;
+  // Un seul objectif principal à l'écran : le guide des premiers pas passe avant les propositions, jamais avant une
+  // activité commencée ni un besoin urgent (lib/objectif-monde.ts, sourceObjectif).
+  const etapeGuide = premiersPas.afficher && !guide.masque ? prochaineEtapeGuide(premiersPas.faites) : null;
+  const source = sourceObjectif({ modeEnCours: Boolean(etapeEnCours), journee: Boolean(journee), seance: Boolean(lieux.seance), chapitreEnCours: Boolean(campagne.seance),
+    guide: Boolean(etapeGuide), besoinUrgent: Boolean(objectifVie.lieu), filRouge: filRougePropose, travail: travailPropose });
+  const yaoEnTete = source === 'yao';
+  // « Réussis une séance chez un mentor » : la flèche vise le lieu à mentor ouvert le plus proche.
+  const mentorProche = source === 'guide' && etapeGuide?.id === 'seance'
+    ? BATIMENTS.filter(b => aUnProgramme(b.slug) && lieuOuvert(LIEUX_PROGRAMME[b.slug].programme, heure))
+      .sort((a, b) => distanceEntre([a.position[0], a.position[2]], positionCourante) - distanceEntre([b.position[0], b.position[2]], positionCourante))[0]?.slug
+    : undefined;
   const phase = journee ? phaseJournee(journee) : null;
   const surLeChantier = interieur?.slug === 'chantier';
   const travauxDuJour = journee ? journee.taches.filter(t => t.type !== 'epi' && t.type !== 'recrutement') : [];
@@ -605,6 +615,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : journee && phase ? (surLeChantier ? { texte: TITRES_PHASES[phase], etiquette: phase === 'travaux' ? `${travauxDuJour.filter(t => journee.reponses[t.id] !== undefined).length}/${travauxDuJour.length}` : undefined, lieu: 'chantier' } : { texte: 'Retourne sur le chantier', lieu: 'chantier' })
     : lieux.seance ? { texte: `Séance en cours · ${BATIMENTS.find(b => b.slug === lieux.seance!.slug)?.nom ?? LIEUX_PROGRAMME[lieux.seance.slug].programme.titre}`, etiquette: `${Object.keys(lieux.seance.scores).length}/${lieux.seance.taches.length}`, lieu: lieux.seance.slug }
     : campagne.seance ? { texte: `Fil rouge · ${CHAPITRES[campagne.seance.etape].titre}`, etiquette: `${Object.keys(campagne.seance.scores).length}/${campagne.seance.taches.length}`, lieu: campagne.seance.slug }
+    : source === 'guide' && etapeGuide ? { texte: etapeGuide.titre, etiquette: `Premiers pas ${premiersPas.faites.length}/${ETAPES_PREMIERS_PAS.length}`, lieu: mentorProche }
     : filRougePropose && chapitreFilRouge ? { texte: `Fil rouge · ${chapitreFilRouge.titre}`, etiquette: `Ch. ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`, lieu: chapitreFilRouge.lieu }
     : yaoEnTete ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
     : objectifVie;
@@ -1053,7 +1064,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     {premiersPas.afficher && !guide.masque && !interieur && !telephone && !planCinema && <div className={`pointer-events-none absolute right-3 z-20 flex flex-col ${large
       ? `w-[262px] ${immersif ? 'top-[420px] max-h-[calc(100%-476px)]' : 'top-[352px] max-h-[calc(100%-408px)]'}`
       : `w-[230px] ${immersif ? 'top-[324px] max-h-[calc(100%-430px)]' : 'top-[256px] max-h-[calc(100%-362px)]'}`}`}>
-      <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />
+      <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} dansObjectif={source === 'guide'} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />
     </div>}
     {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
       equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} onEnvoi={() => void validerGuide.current('quartier')} />}

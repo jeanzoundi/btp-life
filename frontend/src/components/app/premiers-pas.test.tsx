@@ -34,6 +34,12 @@ describe('le panneau des premiers pas', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Déplier le guide' }));
     expect(onBasculer).toHaveBeenCalled();
   });
+
+  it('quand l’étape est déjà l’objectif affiché, replié, dit seulement comment la réussir', () => {
+    render(<PanneauPremiersPas faites={['deplacement', 'telephone']} ouvert={false} dansObjectif onBasculer={vi.fn()} onMasquer={vi.fn()} />);
+    expect(screen.queryByText('▸ Entre dans un lieu')).not.toBeInTheDocument();
+    expect(screen.getByText('Clique sur un bâtiment : tu t’y rends, puis tu entres.')).toBeInTheDocument();
+  });
 });
 
 describe('le guide en démonstration', () => {

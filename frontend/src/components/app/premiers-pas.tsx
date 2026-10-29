@@ -76,9 +76,11 @@ export function usePremiersPas({ demo, onEtape }: {
   return { faites, afficher, valider };
 }
 
-/** Le panneau du guide : les cinq étapes, la prochaine détaillée, et ce qu'elles rapportent ; replié, la prochaine étape reste affichée. */
-export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer }: {
-  faites: readonly EtapePremiersPas[]; ouvert: boolean; onBasculer: () => void; onMasquer: () => void;
+/** Le panneau du guide : les cinq étapes, la prochaine détaillée, et ce qu'elles rapportent ; replié, la prochaine étape reste
+ * affichée. Quand elle est déjà l'objectif de la case objectif (`dansObjectif`), le guide replié dit seulement comment la
+ * réussir, pour ne pas montrer deux fois la même consigne. */
+export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer, dansObjectif = false }: {
+  faites: readonly EtapePremiersPas[]; ouvert: boolean; onBasculer: () => void; onMasquer: () => void; dansObjectif?: boolean;
 }) {
   const prochaine = prochaineEtape(faites);
   const { etape, finale } = RECOMPENSES_PREMIERS_PAS;
@@ -87,7 +89,9 @@ export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer }: {
       <h3 className="hud-titre flex-1 text-[13.5px]">Premiers pas · {faites.length}/{ETAPES_PREMIERS_PAS.length}</h3>
       <button type="button" aria-expanded={ouvert} aria-label={ouvert ? 'Replier le guide' : 'Déplier le guide'} onClick={onBasculer} className="rounded-full px-2 text-[15px] leading-none hover:bg-white/10">{ouvert ? '−' : '+'}</button>
     </header>
-    {!ouvert && prochaine && <p className="mt-1 truncate text-[12px] font-semibold text-jeu-or">▸ {prochaine.titre}</p>}
+    {!ouvert && prochaine && (dansObjectif
+      ? <p className="mt-1 text-[11.5px] leading-snug text-jeu-ivoire/75">{prochaine.detail}</p>
+      : <p className="mt-1 truncate text-[12px] font-semibold text-jeu-or">▸ {prochaine.titre}</p>)}
     {ouvert && <>
       <ol className="mt-2 space-y-1.5">
         {ETAPES_PREMIERS_PAS.map(e => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alertesBesoins, objectifDuMoment } from './objectif-monde';
+import { alertesBesoins, objectifDuMoment, sourceObjectif, type EtatObjectif } from './objectif-monde';
 
 const bien = { energie: 80, moral: 80, faim: 80, social: 80, hygiene: 80, divertissement: 80 };
 
@@ -31,5 +31,25 @@ describe('alertes de besoins', () => {
   it('n’alerte pas entre 25 et 40, sans oublier un signal déjà donné', () => {
     expect(alertesBesoins({ ...bien, energie: 30 }, new Set()).nouvelles).toEqual([]);
     expect(alertesBesoins({ ...bien, energie: 30 }, new Set(['energie'])).signales.has('energie')).toBe(true);
+  });
+});
+
+describe('objectif principal', () => {
+  const rien: EtatObjectif = { modeEnCours: false, journee: false, seance: false, chapitreEnCours: false, guide: false, besoinUrgent: false, filRouge: false, travail: false };
+  it('une activité commencée passe avant tout, dans l’ordre mode, journée, séance, chapitre', () => {
+    const tout = { ...rien, modeEnCours: true, journee: true, seance: true, chapitreEnCours: true, guide: true, besoinUrgent: true, filRouge: true, travail: true };
+    expect(sourceObjectif(tout)).toBe('mode');
+    expect(sourceObjectif({ ...tout, modeEnCours: false })).toBe('journee');
+    expect(sourceObjectif({ ...tout, modeEnCours: false, journee: false })).toBe('seance');
+    expect(sourceObjectif({ ...tout, modeEnCours: false, journee: false, seance: false })).toBe('chapitre');
+  });
+  it('le guide des premiers pas passe avant le fil rouge et la journée de Yao, pas avant un besoin urgent', () => {
+    expect(sourceObjectif({ ...rien, guide: true, filRouge: true, travail: true })).toBe('guide');
+    expect(sourceObjectif({ ...rien, guide: true, besoinUrgent: true })).toBe('vie');
+  });
+  it('sans guide : le fil rouge, puis la journée de Yao, puis la vie libre', () => {
+    expect(sourceObjectif({ ...rien, filRouge: true, travail: true })).toBe('fil-rouge');
+    expect(sourceObjectif({ ...rien, travail: true })).toBe('yao');
+    expect(sourceObjectif(rien)).toBe('vie');
   });
 });
