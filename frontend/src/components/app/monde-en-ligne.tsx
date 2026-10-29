@@ -5,10 +5,12 @@ import { useFrame } from '@react-three/fiber';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as THREE from 'three';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/auth-store';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import {
-  DUREE_EMOTE_MS, EMOTES, ETAT_EQUIPE_VIDE, LONGUEUR_MESSAGE, PERIODE_CHAT_MS, PERIODE_PRESENCE_MS, REGLES_EQUIPE, emoteParId, equipeAvec, invitables,
-  messagePret, messagesDemo, promeneurs, voisinsDemo, type Emote, type EtatEquipe, type InvitationEquipe, type JoueurRecent, type MessageQuartier, type VoisinEnLigne,
+  DUREE_EMOTE_MS, EMOTES, ETAT_EQUIPE_VIDE, LONGUEUR_MESSAGE, MOTIFS_SIGNALEMENT, PERIODE_CHAT_MS, PERIODE_PRESENCE_MS, REGLES_EQUIPE, ecrireJoueursMasques, emoteParId,
+  equipeAvec, invitables, lireJoueursMasques, messagePret, messagesDemo, promeneurs, voisinsDemo, type Emote, type EtatEquipe, type InvitationEquipe, type JoueurMasque,
+  type JoueurRecent, type MessageQuartier, type MotifSignalement, type VoisinEnLigne,
 } from '@/lib/en-ligne';
 import { echelleGabarit } from '@/lib/gabarit-personnage';
 import { personnageDe } from '@/lib/personnages-joueur';
@@ -222,7 +224,10 @@ function SectionEquipe({ moi, voisins, etat, onInviter, onRepondre, onQuitter, o
   </div>;
 }
 
-/** Le chat du quartier, les émotes et l'équipe, ouverts depuis le HUD. */
+const BOUTON_OPTION = 'rounded-lg border border-white/15 bg-black/25 px-2 py-0.5 text-[11.5px] hover:bg-white/10 disabled:opacity-50';
+
+/** Le chat du quartier, les émotes et l'équipe, ouverts depuis le HUD. Chaque message d'un autre joueur peut être
+ * signalé à la modération ou masqué (ses messages ne s'affichent plus sur cet appareil). */
 export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter, onEnvoi }: {
   demo: boolean; moi: string; voisins: VoisinEnLigne[]; onEmote: (emote: Emote) => void; onFermer: () => void;
   /** Un message est parti (sert au guide des premiers pas). */
@@ -235,7 +240,13 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
   const client = useQueryClient();
   const [brouillon, setBrouillon] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [envoyesDemo, setEnvoyesDemo] = useState<MessageQuartier[]>([]);
+  const monId = useAuthStore(s => s.user?.id ?? null);
+  /** Le message dont les options sont ouvertes, et s'il en est au choix du motif de signalement. */
+  const [options, setOptions] = useState<{ id: string; motif: boolean } | null>(null);
+  const [signales, setSignales] = useState<ReadonlySet<string>>(() => new Set());
+  const [masques, setMasques] = useState<JoueurMasque[]>(() => lireJoueursMasques());
   const [debutDemo] = useState(() => Date.now());
   const [, setTic] = useState(0);
   const fil = useRef<HTMLOListElement>(null);
@@ -244,13 +255,37 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
   });
   // En démonstration, les messages des voisins arrivent un à un ; un tic par seconde suffit à les faire paraître.
   useEffect(() => { if (!demo) return; const id = window.setInterval(() => setTic(t => t + 1), 1000); return () => window.clearInterval(id); }, [demo]);
-  const messages = demo ? [...messagesDemo(15 + (Date.now() - debutDemo) / 1000), ...envoyesDemo].sort((a, b) => a.envoyeLe.localeCompare(b.envoyeLe)) : data ?? [];
+  const tous = demo ? [...messagesDemo(15 + (Date.now() - debutDemo) / 1000), ...envoyesDemo].sort((a, b) => a.envoyeLe.localeCompare(b.envoyeLe)) : data ?? [];
+  // Les messages signalés et ceux des joueurs masqués ne s'affichent plus chez soi.
+  const messages = tous.filter(m => !signales.has(m.id) && !masques.some(j => j.userId === m.userId));
+  const deMoi = (m: MessageQuartier) => demo ? m.userId === 'moi' : monId ? m.userId === monId : m.nom === moi;
   const envoyer = useMutation({
-    mutationFn: (texte: string) => api.post<MessageQuartier>('/monde/chat', { texte }),
-    onSuccess: message => { client.setQueryData<MessageQuartier[]>(['monde', 'chat'], liste => [...(liste ?? []).filter(m => m.id !== message.id), message]); setBrouillon(''); setErreur(null); onEnvoi?.(); },
+    mutationFn: (texte: string) => api.post<MessageQuartier & { modere?: boolean }>('/monde/chat', { texte }),
+    onSuccess: ({ modere, ...message }) => {
+      client.setQueryData<MessageQuartier[]>(['monde', 'chat'], liste => [...(liste ?? []).filter(m => m.id !== message.id), message]);
+      setBrouillon(''); setErreur(null); setInfo(modere ? 'Certains mots ont été masqués : on reste correct dans le quartier.' : null); onEnvoi?.();
+    },
     onError: e => setErreur(e instanceof Error ? e.message : 'Le message n’est pas parti.'),
   });
+  const signalement = useMutation({ mutationFn: ({ id, motif }: { id: string; motif: MotifSignalement }) => api.post(`/monde/chat/${id}/signaler`, { motif }) });
   useEffect(() => { if (fil.current) fil.current.scrollTop = fil.current.scrollHeight; }, [messages.length]);
+
+  const signaler = (m: MessageQuartier, motif: MotifSignalement) => {
+    setOptions(null);
+    const retirer = () => { setSignales(s => new Set(s).add(m.id)); setErreur(null); };
+    if (demo) { retirer(); setInfo('Signalement noté (en démonstration, rien n’est envoyé).'); return; }
+    signalement.mutate({ id: m.id, motif }, {
+      onSuccess: () => { retirer(); setInfo('Merci : la modération va relire ce message. Il n’apparaît plus chez toi.'); },
+      onError: e => setErreur(e instanceof Error ? e.message : 'Le signalement n’est pas parti.'),
+    });
+  };
+  const masquer = (m: MessageQuartier) => {
+    setOptions(null);
+    const liste = [...masques.filter(j => j.userId !== m.userId), { userId: m.userId, nom: m.nom }];
+    setMasques(liste); ecrireJoueursMasques(liste);
+    setInfo(`Tu ne verras plus les messages de ${m.nom} sur cet appareil.`);
+  };
+  const reafficher = () => { setMasques([]); ecrireJoueursMasques([]); setInfo(null); };
 
   const soumettre = (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,9 +310,24 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
     <ol ref={fil} aria-live="polite" className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
       {messages.length ? messages.map(m => <li key={m.id} className="text-[12.5px] leading-snug">
         <span className="mr-1 text-[10.5px] text-jeu-ivoire/45">{heureCourte(m.envoyeLe)}</span>
-        <b className={m.nom === moi ? 'text-jeu-or' : 'text-jeu-lagune'}>{m.nom}</b> <span className="break-words">{m.texte}</span>
+        <b className={deMoi(m) ? 'text-jeu-or' : 'text-jeu-lagune'}>{m.nom}</b> <span className="break-words">{m.texte}</span>
+        {!deMoi(m) && <button type="button" aria-label={`Options du message de ${m.nom}`} aria-expanded={options?.id === m.id}
+          onClick={() => setOptions(o => o?.id === m.id ? null : { id: m.id, motif: false })} className="ml-1 rounded px-1 text-[12px] leading-none text-jeu-ivoire/45 hover:bg-white/10 hover:text-jeu-ivoire">⋯</button>}
+        {options?.id === m.id && <div role="group" aria-label={options.motif ? 'Motif du signalement' : `Message de ${m.nom}`} className="mt-1 flex flex-wrap gap-1">
+          {options.motif
+            ? MOTIFS_SIGNALEMENT.map(motif => <button key={motif.id} type="button" disabled={signalement.isPending} onClick={() => signaler(m, motif.id)} className={BOUTON_OPTION}>{motif.libelle}</button>)
+            : <>
+              <button type="button" onClick={() => setOptions({ id: m.id, motif: true })} className={BOUTON_OPTION}>🚩 Signaler</button>
+              <button type="button" onClick={() => masquer(m)} className={BOUTON_OPTION}>🔇 Masquer {m.nom}</button>
+            </>}
+          <button type="button" onClick={() => setOptions(null)} className={BOUTON_OPTION}>Annuler</button>
+        </div>}
       </li>) : <li className="py-4 text-center text-[12px] text-jeu-ivoire/55">Pas encore de message aujourd’hui. Lance la conversation !</li>}
     </ol>
+    {masques.length > 0 && <p className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-1 text-[11px] text-jeu-ivoire/60">
+      <span>🔇 {masques.length === 1 ? `${masques[0].nom} masqué` : `${masques.length} joueurs masqués`} sur cet appareil</span>
+      <button type="button" onClick={reafficher} className="underline hover:text-jeu-ivoire">Réafficher</button>
+    </p>}
     <div className="flex justify-between gap-1 border-t border-white/10 px-3 py-1.5" role="group" aria-label="Émotes">
       {EMOTES.map(e => <button key={e.id} type="button" title={e.texte} aria-label={`Émote : ${e.texte}`} onClick={() => onEmote(e.id)} className="rounded-lg px-1.5 py-1 text-[18px] leading-none hover:bg-white/10">{e.icone}</button>)}
     </div>
@@ -288,5 +338,6 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
       <button type="submit" disabled={!brouillon.trim() || envoyer.isPending} className="hud-bouton hud-bouton-principal px-3 py-1.5 text-[12.5px] disabled:opacity-50">Envoyer</button>
     </form>
     {erreur && <p role="alert" className="px-3 pb-2 text-[11.5px] text-[#F2A07B]">{erreur}</p>}
+    {info && !erreur && <p role="status" className="px-3 pb-2 text-[11.5px] text-jeu-ivoire/70">{info}</p>}
   </section>;
 }

@@ -20,6 +20,26 @@ export interface VoisinEnLigne {
 }
 export interface MessageQuartier { id: string; userId: string; nom: string; texte: string; envoyeLe: string }
 
+/** Pourquoi un message est signalé à la modération (les motifs du serveur, backend/src/monde/moderation.ts). */
+export const MOTIFS_SIGNALEMENT = [
+  { id: 'insulte', libelle: 'Insulte' }, { id: 'harcelement', libelle: 'Harcèlement' }, { id: 'spam', libelle: 'Spam' },
+  { id: 'donnees-perso', libelle: 'Infos perso' }, { id: 'autre', libelle: 'Autre' },
+] as const;
+export type MotifSignalement = (typeof MOTIFS_SIGNALEMENT)[number]['id'];
+
+/** Les joueurs dont on ne veut plus lire les messages : propre à cet appareil, réversible d'un clic. */
+export interface JoueurMasque { userId: string; nom: string }
+const CLE_MASQUES = 'btp-life:chat:masques';
+export function lireJoueursMasques(): JoueurMasque[] {
+  try {
+    const lu: unknown = JSON.parse(localStorage.getItem(CLE_MASQUES) ?? '[]');
+    return Array.isArray(lu) ? lu.filter((j): j is JoueurMasque => typeof j?.userId === 'string' && typeof j?.nom === 'string').slice(0, 200) : [];
+  } catch { return []; }
+}
+export function ecrireJoueursMasques(liste: readonly JoueurMasque[]) {
+  try { localStorage.setItem(CLE_MASQUES, JSON.stringify(liste)); } catch { /* Stockage facultatif : le masquage dure alors la session. */ }
+}
+
 /** Rythme des relevés : la position part toutes les dix secondes, le chat ouvert se relit toutes les cinq. */
 export const PERIODE_PRESENCE_MS = 10_000;
 export const PERIODE_CHAT_MS = 5_000;

@@ -1,8 +1,9 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
+import { api } from '@/lib/api';
 import { voisinsDemo } from '@/lib/en-ligne';
 import { ChatQuartier, useMondeEnLigne } from './monde-en-ligne';
 
@@ -73,5 +74,54 @@ describe('l’équipe de démonstration', () => {
       expect(result.current.equipe.equipe?.membres.map(m => m.nom)).toEqual(['Kader', 'Koffi']);
       expect(result.current.equipe.invitations).toEqual([]);
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe('signaler un message et masquer un joueur', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => { vi.mocked(api.get).mockReset(); vi.mocked(api.post).mockReset(); });
+
+  it('en démonstration, retire le message signalé, masque un joueur sur cet appareil et le réaffiche', () => {
+    render(<ChatQuartier demo moi="Koffi" voisins={voisinsDemo(0)} onEmote={vi.fn()} onFermer={vi.fn()} />, { wrapper: avecClient });
+    fireEvent.click(screen.getByRole('button', { name: 'Options du message de Kader' }));
+    fireEvent.click(screen.getByRole('button', { name: '🚩 Signaler' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Insulte' }));
+    expect(screen.queryByText('Oui, il reste du ciment CPJ 42,5. Venez tôt, ça part vite.')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Signalement noté (en démonstration, rien n’est envoyé).');
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Options du message de Aya' }));
+    fireEvent.click(screen.getByRole('button', { name: '🔇 Masquer Aya' }));
+    expect(screen.queryByText('Bonjour le quartier ! Quelqu’un au dépôt ce matin ?')).not.toBeInTheDocument();
+    expect(screen.getByText('🔇 Aya masqué sur cet appareil')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('btp-life:chat:masques')!)).toEqual([{ userId: 'demo-aya', nom: 'Aya' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Réafficher' }));
+    expect(screen.getByText('Bonjour le quartier ! Quelqu’un au dépôt ce matin ?')).toBeInTheDocument();
+  });
+
+  it('ne propose pas de signaler ses propres messages', () => {
+    render(<ChatQuartier demo moi="Koffi" voisins={voisinsDemo(0)} onEmote={vi.fn()} onFermer={vi.fn()} />, { wrapper: avecClient });
+    fireEvent.change(screen.getByLabelText('Message au quartier'), { target: { value: 'Je passe au dépôt' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    expect(screen.getByText('Je passe au dépôt')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Options du message de Koffi' })).not.toBeInTheDocument();
+  });
+
+  it('connecté, envoie le signalement au serveur et prévient quand des mots ont été masqués', async () => {
+    vi.mocked(api.get).mockResolvedValue([{ id: 'm2', userId: 'u2', nom: 'Kader', texte: 'Bande de ******', envoyeLe: '2026-10-29T08:00:00.000Z' }]);
+    vi.mocked(api.post).mockResolvedValueOnce({ signale: true, retire: false });
+    render(<ChatQuartier demo={false} moi="Koffi" voisins={[]} onEmote={vi.fn()} onFermer={vi.fn()} />, { wrapper: avecClient });
+    fireEvent.click(await screen.findByRole('button', { name: 'Options du message de Kader' }));
+    fireEvent.click(screen.getByRole('button', { name: '🚩 Signaler' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Harcèlement' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/monde/chat/m2/signaler', { motif: 'harcelement' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('la modération va relire ce message');
+    expect(screen.queryByText('Bande de ******')).not.toBeInTheDocument();
+
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 'm3', userId: 'u1', nom: 'Koffi', texte: 'Quel *******', envoyeLe: '2026-10-29T08:01:00.000Z', modere: true });
+    fireEvent.change(screen.getByLabelText('Message au quartier'), { target: { value: 'Quel connard' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    expect(await screen.findByText('Quel *******')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Certains mots ont été masqués');
   });
 });
