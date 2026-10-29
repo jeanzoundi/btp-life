@@ -196,15 +196,16 @@ export class ChapitreCampagneDto {
   reponses: Record<string, number | number[]>;
 }
 
-/** Séance terminée dans un lieu du quartier : l'étape jouée et la note du bilan (0-100). */
+/** Séance terminée dans un lieu du quartier : l'étape jouée et la réponse brute de chaque tâche (choix, mesure ou
+ * sélection), que le serveur corrige lui-même. */
 export class SeanceLieuDto {
   @IsInt()
   @Min(0)
   @Max(30)
   etape: number;
 
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  note: number;
+  // Absentes quand le jeu est resté sur une version d'avant la correction serveur : le service demande alors de recharger.
+  @IsOptional()
+  @IsObject()
+  reponses?: Record<string, number | number[]>;
 }

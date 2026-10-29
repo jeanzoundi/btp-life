@@ -150,7 +150,7 @@ export class CarriereController {
 
   @Post('lieux/:slug/seance')
   seanceLieu(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body() dto: SeanceLieuDto) {
-    return this.lieuxService.seance(user.userId, slug, dto.etape, dto.note);
+    return this.lieuxService.seance(user.userId, slug, dto.etape, dto.reponses);
   }
 
   /** Le fil rouge : où en est la Résidence Akwaba. */

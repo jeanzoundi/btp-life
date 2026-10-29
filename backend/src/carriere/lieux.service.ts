@@ -5,6 +5,7 @@ import { transactionSerializable } from '../prisma/transaction';
 import { BesoinsService } from './besoins.service';
 import { ProgressionService } from './progression.service';
 import { facteurXpLieu, lireTraits } from './traits';
+import { corrigerSeance } from './programmes-scoring';
 import { facteurXpOutils, lirePatrimoine } from './patrimoine';
 import { coequipiersPresents, facteurEquipe, REGLES_EQUIPE } from '../monde/equipe.service';
 
@@ -72,29 +73,33 @@ export class LieuxService {
     return lireProgresLieux(carriere.progresLieux);
   }
 
-  async seance(userId: string, slug: string, etape: number, note: number) {
+  /** Une séance terminée : les réponses brutes de chaque tâche, corrigées ici (la note n'est jamais déclarée par le jeu). */
+  async seance(userId: string, slug: string, etape: number, reponses: unknown) {
     const total = ETAPES_LIEUX[slug];
     if (!total) throw new BadRequestException('Lieu inconnu');
     // L'état du personnage module l'XP, comme pour les missions (jamais sous 70 %).
     const actualisee = await this.besoins.actualiser(userId);
     const facteurBesoins = BesoinsService.facteurPerformance(actualisee);
-    // Les traits du personnage : 15 % de plus dans les lieux de son trait, 20 % sur un sans-faute pour le perfectionniste.
-    const facteurTraits = facteurXpLieu(lireTraits(actualisee.traits), slug, note);
+    const traits = lireTraits(actualisee.traits);
     // L'outillage acheté (mètre laser, niveau laser, ordinateur…) rend le travail plus efficace dans ses lieux.
     const facteurOutils = facteurXpOutils(lirePatrimoine(actualisee.patrimoine, new Date()).outils, slug);
     // Le travail d'équipe : un coéquipier dans le même lieu, et la séance rapporte 10 % d'XP de plus.
     const coequipiers = await coequipiersPresents(this.prisma, userId, slug);
-    const gains = gainsSeance(note);
     const maintenant = Date.now();
 
     // Lecture, contrôle de l'étape et écriture dans une même transaction : deux envois simultanés
     // de la même séance ne la comptent (et ne la paient) qu'une fois.
-    const { apres, payee, xp, argent, reputation, competence, ancienNiveau, nouveauNiveau } = await transactionSerializable(this.prisma, async (tx) => {
+    const { apres, payee, xp, argent, reputation, competence, ancienNiveau, nouveauNiveau, note } = await transactionSerializable(this.prisma, async (tx) => {
       const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { progresLieux: true, niveau: true } });
       if (!carriere) throw new NotFoundException('Carrière introuvable');
       const tous = lireProgresLieux(carriere.progresLieux), avant = tous[slug];
       const attendue = avant.etapes >= total ? 0 : avant.etapes;
       if (etape !== attendue) throw new ConflictException('Cette étape n’est plus celle du jour : actualise la page.');
+      // Corrigée avec le cycle tenu par le serveur : celui que le jeu a reçu pour composer la séance.
+      const { note } = corrigerSeance(slug, etape, avant.cycles, reponses);
+      const gains = gainsSeance(note);
+      // Les traits du personnage : 15 % de plus dans les lieux de son trait, 20 % sur un sans-faute pour le perfectionniste.
+      const facteurTraits = facteurXpLieu(traits, slug, note);
       const etapes = Math.min(total, etape + (gains.compte ? 1 : 0));
       const boucle = etapes >= total;
       const payee = !avant.derniereRecompenseLe || maintenant - Date.parse(avant.derniereRecompenseLe) >= DELAI_RECOMPENSE_MS;
@@ -120,13 +125,15 @@ export class LieuxService {
           competence = { slug: slugCompetence, nom: fiche.nom, xp: xpCompetence };
         }
       }
-      return { apres, payee, xp, argent, reputation, competence, ancienNiveau: carriere.niveau, nouveauNiveau: payement?.niveau ?? carriere.niveau };
+      return { apres, payee, xp, argent, reputation, competence, ancienNiveau: carriere.niveau, nouveauNiveau: payement?.niveau ?? carriere.niveau, note };
     });
     try { await this.progression.notifierNiveau(userId, ancienNiveau, nouveauNiveau); }
     catch { this.logger.warn('Notification indisponible après une séance validée'); }
     const carriere = await this.prisma.userCarriere.findUnique({ where: { userId } });
     return {
       progres: apres,
+      /** La note calculée par le serveur : celle qui fait foi, affichée au bilan. */
+      note,
       gains: {
         xp, argent, reputation, facteurBesoins, entrainement: !payee, competence,
         equipe: coequipiers.length ? { coequipiers, bonus: REGLES_EQUIPE.bonusXp } : null,

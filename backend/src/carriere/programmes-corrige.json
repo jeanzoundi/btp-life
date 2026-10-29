@@ -1,0 +1,2227 @@
+{
+  "laboratoire": [
+    [
+      {
+        "id": "tracabilite",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "transport",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "section",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 201.06192982974676,
+            "tolerance": 1
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "affaissement",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 7.5,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 9,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 6,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 8.5,
+            "tolerance": 0.2
+          }
+        ]
+      },
+      {
+        "id": "toupie",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cone",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "volume",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 38.603890527311385,
+            "tolerance": 0.6
+          },
+          {
+            "reponse": 57.905835790967075,
+            "tolerance": 0.6
+          },
+          {
+            "reponse": 38.603890527311385,
+            "tolerance": 0.6
+          },
+          {
+            "reponse": 77.20778105462277,
+            "tolerance": 0.6
+          }
+        ]
+      },
+      {
+        "id": "serrage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "demoulage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "bac",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fc7",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 18.89964949216257,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 19.64568828790583,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 18.15361069641931,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 20.39172708364909,
+            "tolerance": 0.25
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "sechage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "passant",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 88,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 85,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 91,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 86.5,
+            "tolerance": 0.3
+          }
+        ]
+      },
+      {
+        "id": "argile",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "moyenne",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 26.028464651487052,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 23.790348264257272,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 27.9018509607979,
+            "tolerance": 0.25
+          },
+          {
+            "reponse": 23.707455064730244,
+            "tolerance": 0.25
+          }
+        ]
+      },
+      {
+        "id": "conformite",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "contenu",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "decision",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "fournisseur": [
+    [
+      {
+        "id": "bon",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "abri",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fifo",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "ecart",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": -25,
+            "tolerance": 0
+          },
+          {
+            "reponse": -6,
+            "tolerance": 0
+          },
+          {
+            "reponse": 7,
+            "tolerance": 0
+          },
+          {
+            "reponse": -8,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "botte",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 1065.6,
+            "tolerance": 3
+          },
+          {
+            "reponse": 852.48,
+            "tolerance": 3
+          },
+          {
+            "reponse": 1278.72,
+            "tolerance": 3
+          },
+          {
+            "reponse": 959.04,
+            "tolerance": 3
+          }
+        ]
+      },
+      {
+        "id": "manque",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "commande",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "chariot",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "masse",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 7565.6,
+            "tolerance": 15
+          },
+          {
+            "reponse": 7452.48,
+            "tolerance": 15
+          },
+          {
+            "reponse": 9178.720000000001,
+            "tolerance": 15
+          },
+          {
+            "reponse": 6419.04,
+            "tolerance": 15
+          }
+        ]
+      },
+      {
+        "id": "surcharge",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "arrimage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "facture",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 1074250,
+            "tolerance": 0
+          },
+          {
+            "reponse": 1005000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 1299500,
+            "tolerance": 0
+          },
+          {
+            "reponse": 933500,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "credit",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "mairie": [
+    [
+      {
+        "id": "acd",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bornage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "pieces",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "architecte",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "emprise",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 24,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 31.5,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 19,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 25.77777777777778,
+            "tolerance": 0.3
+          }
+        ]
+      },
+      {
+        "id": "recul",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "recepisse",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "intermediaire",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "panneau",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "affichage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "avant-permis",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "doc",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "etage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "certificat",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "banque": [
+    [
+      {
+        "id": "pieces-compte",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "procuration",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "interets",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 10000,
+            "tolerance": 1
+          },
+          {
+            "reponse": 28000,
+            "tolerance": 1
+          },
+          {
+            "reponse": 36000,
+            "tolerance": 1
+          },
+          {
+            "reponse": 11250,
+            "tolerance": 1
+          }
+        ]
+      },
+      {
+        "id": "precaution",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "pieces-credit",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "endettement",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 148500,
+            "tolerance": 100
+          },
+          {
+            "reponse": 198000,
+            "tolerance": 100
+          },
+          {
+            "reponse": 125400,
+            "tolerance": 100
+          },
+          {
+            "reponse": 171600,
+            "tolerance": 100
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "cout",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 1500000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 728000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 2164000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 1240000,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "assurance",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "tranches",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "offre",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "arnaque",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "agence": [
+    [
+      {
+        "id": "atouts",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cible",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "contenu-cv",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "trou",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "metre-test",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 3.072000000000001,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 2.8,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 3.24,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 2.3519999999999994,
+            "tolerance": 0.02
+          }
+        ]
+      },
+      {
+        "id": "echafaudage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "echec",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "beton-refuse",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "entreprise",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "annuel",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 5850000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 7800000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 4760000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 6910000,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "negocier",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "essai",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "bureau-etudes": [
+    [
+      {
+        "id": "entrees",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "echelle",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 3.2,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 4.7,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 4.6,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 2.5,
+            "tolerance": 0.01
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "poteau",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 260,
+            "tolerance": 1
+          },
+          {
+            "reponse": 273,
+            "tolerance": 1
+          },
+          {
+            "reponse": 350,
+            "tolerance": 1
+          },
+          {
+            "reponse": 324,
+            "tolerance": 1
+          }
+        ]
+      },
+      {
+        "id": "combinaison",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "semelle",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 1.7333333333333334,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 2.275,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 1.75,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 1.8,
+            "tolerance": 0.02
+          }
+        ]
+      },
+      {
+        "id": "sol-mou",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "acier",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 4.523893421169302,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 4.6181412007769955,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 3.9269908169872414,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 8.042477193189871,
+            "tolerance": 0.02
+          }
+        ]
+      },
+      {
+        "id": "enrobage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "contenu-note",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "indice",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "controleur",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "poutre",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "atelier": [
+    [
+      {
+        "id": "total-beton",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 8.07,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 9.13,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 8.219999999999999,
+            "tolerance": 0.02
+          },
+          {
+            "reponse": 10.559999999999999,
+            "tolerance": 0.02
+          }
+        ]
+      },
+      {
+        "id": "formule",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "calques",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cote",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 7.35,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 4.9,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 6.2,
+            "tolerance": 0.01
+          },
+          {
+            "reponse": 6.7,
+            "tolerance": 0.01
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "critique",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 15,
+            "tolerance": 0
+          },
+          {
+            "reponse": 13,
+            "tolerance": 0
+          },
+          {
+            "reponse": 13,
+            "tolerance": 0
+          },
+          {
+            "reponse": 15,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "glissement",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "contenu-rapport",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "photos",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "conflit",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "quantites",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 20.159999999999997,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 14.399999999999999,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 15.36,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 22.400000000000002,
+            "tolerance": 0.05
+          }
+        ]
+      }
+    ]
+  ],
+  "logistique": [
+    [
+      {
+        "id": "scelle",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "palettes",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 36,
+            "tolerance": 0
+          },
+          {
+            "reponse": 48,
+            "tolerance": 0
+          },
+          {
+            "reponse": 60,
+            "tolerance": 0
+          },
+          {
+            "reponse": 48,
+            "tolerance": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "regles",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "caces",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "kilometres",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 45,
+            "tolerance": 0
+          },
+          {
+            "reponse": 34,
+            "tolerance": 0
+          },
+          {
+            "reponse": 49,
+            "tolerance": 0
+          },
+          {
+            "reponse": 36,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "priorite",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "camions",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 3,
+            "tolerance": 0
+          },
+          {
+            "reponse": 5,
+            "tolerance": 0
+          },
+          {
+            "reponse": 3,
+            "tolerance": 0
+          },
+          {
+            "reponse": 3,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "arrimage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "embouteillage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bon",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "entreprise": [
+    [
+      {
+        "id": "dossier-ao",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "visite",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "prix-vente",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 10000000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 16120000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 7320000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 17700000,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "prix-bas",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "solde",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 3700000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 1300000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 400000,
+            "tolerance": 0
+          },
+          {
+            "reponse": 3400000,
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "id": "impaye",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "conducteur",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "accident",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "marge",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 7.5,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 7.560975609756097,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 5,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 9,
+            "tolerance": 0.05
+          }
+        ]
+      },
+      {
+        "id": "reinvestir",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "jardins-residence": [
+    [
+      {
+        "id": "diagnostic-fuite",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "litres",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 2880,
+            "tolerance": 0
+          },
+          {
+            "reponse": 4320,
+            "tolerance": 0
+          },
+          {
+            "reponse": 2232,
+            "tolerance": 0
+          },
+          {
+            "reponse": 3360,
+            "tolerance": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "noircie",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "intensite",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 12.2,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 12.8,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 11.7,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 14,
+            "tolerance": 0.3
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "observer",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mortier",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 3.6,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 4.5,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 2.7,
+            "tolerance": 0.2
+          },
+          {
+            "reponse": 5.4,
+            "tolerance": 0.2
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "moisissures",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "joints",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "peinture",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 8,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 9,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 7.2,
+            "tolerance": 0.3
+          },
+          {
+            "reponse": 7.4,
+            "tolerance": 0.3
+          }
+        ]
+      },
+      {
+        "id": "facture",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ],
+  "construction-nord": [
+    [
+      {
+        "id": "epi",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "visiteur",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "garde-corps",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "charge",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 420,
+            "tolerance": 0
+          },
+          {
+            "reponse": 300,
+            "tolerance": 0
+          },
+          {
+            "reponse": 360,
+            "tolerance": 0
+          },
+          {
+            "reponse": 280,
+            "tolerance": 0
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "blindage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "talus",
+        "type": "mesure",
+        "cles": [
+          {
+            "reponse": 4,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 3.6,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 4.8,
+            "tolerance": 0.05
+          },
+          {
+            "reponse": 4.4,
+            "tolerance": 0.05
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "zone-levage",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "elingues",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "contenu",
+        "type": "selection",
+        "cles": [
+          {
+            "options": [
+              true,
+              true,
+              true,
+              true,
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "id": "recidive",
+        "type": "situation",
+        "cles": [
+          {
+            "options": [
+              true,
+              false,
+              false
+            ]
+          }
+        ]
+      }
+    ]
+  ]
+}
