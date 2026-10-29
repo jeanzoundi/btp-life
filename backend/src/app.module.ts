@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { AdminCrudModule } from './common/admin-crud/admin-crud.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MondeModule } from './monde/monde.module';
+import { ErreursClientModule } from './erreurs-client/erreurs-client.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { MondeModule } from './monde/monde.module';
     AdminCrudModule,
     NotificationsModule,
     MondeModule,
+    ErreursClientModule,
   ],
   providers: [
     // Applique la limite de débit à toutes les routes (les routes d'auth la resserrent via @Throttle).

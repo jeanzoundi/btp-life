@@ -1187,6 +1187,24 @@ model SignalementMessage {
   @@index([traiteLe, creeLe])
 }
 
+// Les erreurs JavaScript remontées par le navigateur des joueurs, regroupées par signature (message et premier appel de
+// la pile). Rien ne les relie à un compte : la page sans paramètres, le navigateur et la version du jeu.
+model ErreurClient {
+  id          String    @id @default(cuid())
+  signature   String    @unique
+  message     String
+  pile        String?
+  chemin      String?
+  navigateur  String?
+  version     String?
+  occurrences Int       @default(1)
+  premiereLe  DateTime  @default(now())
+  derniereLe  DateTime  @default(now())
+  resolueLe   DateTime?
+
+  @@index([resolueLe, derniereLe])
+}
+
 // Les équipes de quartier : des joueurs connectés qui s'invitent et travaillent ensemble (bonus d'XP quand un coéquipier
 // est dans le même lieu). Un joueur n'est que dans une équipe à la fois.
 model EquipeQuartier {
