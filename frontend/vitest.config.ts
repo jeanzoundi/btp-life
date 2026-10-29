@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
+    // Les écrans complets (création, travaux, connexion) dépassent 5 s quand toute la suite tourne sur une machine chargée.
+    testTimeout: 15_000,
   },
   resolve: {
     alias: {

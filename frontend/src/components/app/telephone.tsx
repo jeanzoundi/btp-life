@@ -8,6 +8,7 @@ import type { RendezVous } from '@/lib/journee-joueur';
 import { LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type ModeTransport, type Point } from '@/lib/transports';
 import { heureLisible } from './panneau-programme-lieu';
 import { TEASER_CAMPAGNE } from './fin-campagne';
+import { useEcranTactile } from '@/lib/ecran-tactile';
 
 // Le téléphone du joueur, comme dans un GTA : les messages des personnages, les appels des mentors, le GPS, le taxi et le
 // gbaka, la banque, les offres d'emploi, le fil rouge et l'agenda du jour. Les pages du mode classique y sont à un geste.
@@ -68,6 +69,7 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
   onEpargneDemo: (sens: 'deposer' | 'retirer', montant: number) => string | null;
   onFermer: () => void;
 }) {
+  const tactile = useEcranTactile();
   const [app, setApp] = useState<AppTelephone>(appInitiale);
   const client = useQueryClient();
   const { data: messagesServeur } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<Message[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000 });
@@ -155,7 +157,7 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
       </div>
       <div className="flex items-center justify-between bg-black/40 px-4 py-2">
         <button type="button" onClick={() => setApp('accueil')} className="text-[11.5px] font-bold text-jeu-ivoire/70 hover:text-jeu-ivoire">⌂ Accueil</button>
-        <button type="button" onClick={onFermer} className="text-[11.5px] font-bold text-jeu-ivoire/70 hover:text-jeu-ivoire">Ranger (T)</button>
+        <button type="button" onClick={onFermer} className="text-[11.5px] font-bold text-jeu-ivoire/70 hover:text-jeu-ivoire">{tactile ? 'Ranger' : 'Ranger (T)'}</button>
       </div>
     </div>
   </section>;

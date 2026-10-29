@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avancerHorloge, heureDeDepart, peutRestaurerMonde, appliquerTempsEcoule, choisirEtatMondeRecent, cleSauvegardeMonde, type EtatMonde } from './sauvegarde-monde';
+import { avancerHorloge, HEURE_DE_DEPART, peutRestaurerMonde, appliquerTempsEcoule, choisirEtatMondeRecent, cleSauvegardeMonde, type EtatMonde } from './sauvegarde-monde';
 import { LIEUX_PROGRAMME } from './lieux-programme';
 
 const base: EtatMonde = { version: 4, position: { x: 0, z: 0 }, quartier: 'Centre', relations: {}, mode: 'libre', etapeMode: 0, score: 0, secondes: null, heure: 16, pause: false, decouvertes: [], records: {} };
@@ -64,14 +64,11 @@ describe('sauvegarde du monde', () => {
 });
 
 describe('l’heure de départ du monde', () => {
-  it('ouvre la démonstration le matin, quand tous les mentors reçoivent pour plusieurs heures', () => {
-    const depart = heureDeDepart(true);
+  it('ouvre la première partie le matin, quand tous les mentors reçoivent pour plusieurs heures', () => {
+    const depart = HEURE_DE_DEPART;
     for (const [lieu, { programme }] of Object.entries(LIEUX_PROGRAMME)) {
       expect(depart, lieu).toBeGreaterThanOrEqual(programme.horaires.ouverture);
       expect(depart + 4, lieu).toBeLessThanOrEqual(programme.horaires.fermeture);
     }
-  });
-  it('garde 16 h pour la première partie d’un joueur', () => {
-    expect(heureDeDepart(false)).toBe(16);
   });
 });

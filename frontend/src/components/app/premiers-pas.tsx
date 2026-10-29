@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import {
   ETAPES_PREMIERS_PAS, RECOMPENSES_PREMIERS_PAS, ajouterEtape, prochaineEtape, recompenseEtape, type EtapePremiersPas, type EtatPremiersPas,
 } from '@/lib/premiers-pas';
@@ -11,7 +11,11 @@ import { francs } from '@/lib/patrimoine';
 // Le premier quart d'heure guidé, dans la ville : le serveur tient les étapes faites et verse les récompenses ; en
 // démonstration, le navigateur joue le même guide.
 
-/** Les étapes du guide et leur validation ; `onEtape` reçoit chaque étape réussie, avec sa récompense. */
+/** Un envoi raté pour une raison passagère (réseau, serveur) est retenté à cet intervalle. */
+export const RELANCE_PREMIERS_PAS_MS = 20_000;
+
+/** Les étapes du guide et leur validation ; `onEtape` reçoit chaque étape réussie, avec sa récompense. Un geste fait
+ * avant le chargement du guide, ou dont l'envoi échoue, est gardé et rejoué dès que possible. */
 export function usePremiersPas({ demo, onEtape }: {
   demo: boolean; onEtape?: (etape: EtapePremiersPas, termine: boolean, recompense: { argent: number; xp: number }) => void;
 }) {
@@ -26,9 +30,13 @@ export function usePremiersPas({ demo, onEtape }: {
   const vues = useRef(new Set<EtapePremiersPas>());
   faites.forEach(e => vues.current.add(e));
   const pret = demo || data !== undefined;
+  // Les gestes en attente : faits avant le chargement du guide, ou dont l'envoi a échoué pour une raison passagère.
+  const enAttente = useRef(new Set<EtapePremiersPas>());
 
   const valider = useCallback(async (etape: EtapePremiersPas) => {
-    if (!pret || !afficher || vues.current.has(etape)) return;
+    if (vues.current.has(etape)) return;
+    if (!pret) { enAttente.current.add(etape); return; }
+    if (!afficher) return;
     vues.current.add(etape);
     if (demo) {
       const suivantes = ajouterEtape(demoRef.current, etape), termine = suivantes.length === ETAPES_PREMIERS_PAS.length;
@@ -42,8 +50,28 @@ export function usePremiersPas({ demo, onEtape }: {
       client.setQueryData(['monde', 'premiers-pas'], r);
       client.invalidateQueries({ queryKey: ['carriere', 'me'] });
       if (r.recompense) onEtape?.(etape, Boolean(r.termineLe), { argent: r.recompense.argentVirtuel, xp: r.recompense.xp });
-    } catch { vues.current.delete(etape); }
+    } catch (e) {
+      vues.current.delete(etape);
+      // Refus du serveur (étape pas encore faite pour lui, guide fini) : on n'insiste pas ; réseau ou serveur : on retentera.
+      if (!(e instanceof ApiError && e.status >= 400 && e.status < 500)) enAttente.current.add(etape);
+    }
   }, [pret, afficher, demo, onEtape, client]);
+
+  const validerRef = useRef(valider);
+  validerRef.current = valider;
+  const rejouer = useCallback(() => {
+    if (!enAttente.current.size) return;
+    const etapes = [...enAttente.current];
+    enAttente.current.clear();
+    etapes.forEach(e => void validerRef.current(e));
+  }, []);
+  // Le guide chargé, les gestes déjà faits comptent ; un envoi raté repart un peu plus tard.
+  useEffect(() => { if (pret && afficher) rejouer(); }, [pret, afficher, rejouer]);
+  useEffect(() => {
+    if (demo || !pret) return;
+    const id = window.setInterval(rejouer, RELANCE_PREMIERS_PAS_MS);
+    return () => window.clearInterval(id);
+  }, [demo, pret, rejouer]);
 
   return { faites, afficher, valider };
 }

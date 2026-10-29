@@ -1,3 +1,4 @@
+import path from 'path';
 import type { NextConfig } from 'next';
 
 // En-têtes de sécurité appliqués à toutes les réponses du frontend. Pas de CSP stricte ici : l'app
@@ -14,6 +15,8 @@ const nextConfig: NextConfig = {
   // L'atelier utilise son propre cache : les autres builds ne peuvent pas invalider ses chunks.
   distDir: process.env.BTP_ATELIER === '1' ? '.next-atelier' : '.next',
   reactStrictMode: true,
+  // La racine du projet est ce dossier, même si un autre package-lock.json traîne plus haut sur la machine.
+  outputFileTracingRoot: path.resolve(__dirname),
   // Ne pas divulguer la techno serveur (retire l'en-tête X-Powered-By: Next.js).
   poweredByHeader: false,
   async headers() {

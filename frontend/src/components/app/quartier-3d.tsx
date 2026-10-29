@@ -25,7 +25,7 @@ import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
 import { useModeExperienceStore } from '@/lib/mode-experience-store';
-import { avancerHorloge, heureDeDepart, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
+import { avancerHorloge, HEURE_DE_DEPART, peutRestaurerMonde, appliquerTempsEcoule, chargerEtatMondeLocal, choisirEtatMondeRecent, sauvegarderEtatMondeLocal, type EtatMonde } from '@/lib/sauvegarde-monde';
 import { besoinCritique, humeurDepuisBesoins, type Humeur } from './besoins';
 import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
@@ -97,6 +97,7 @@ import { ajouterTemps, ecartHorloge, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { EMPRISES_PALMIERS, degagerPositionPalmiers } from '@/lib/place-palmiers';
 import type { IdentitePersonnage } from '@/lib/identites-personnages';
+import { useEcranTactile } from '@/lib/ecran-tactile';
 
 type Critique = { icone: string; label: string } | null;
 const VITESSES = [1, 2, 3] as const;
@@ -505,7 +506,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
-  const [heure, setHeure] = useState(() => heureDeDepart(demo));
+  const [heure, setHeure] = useState(HEURE_DE_DEPART);
   const [qualite, setQualite] = useState<QualiteMonde>('auto');
   useEffect(() => {
     try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') setQualite(choix); } catch { /* Stockage facultatif. */ }
@@ -569,6 +570,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const vueRef = useRef({ azimut: AZIMUT_VUE });
   const suiviPnj = useRef(new Map<string, THREE.Vector3>());
   const [large, setLarge] = useState(true);
+  const tactile = useEcranTactile();
   // Journée de travail au Grand chantier : chantier du quartier (gardé dans le navigateur) ou vrai chantier du simulateur.
   const client = useQueryClient();
   const cleChantier = `btp-life-chantier-quartier:${userId ?? 'demo'}`;
@@ -610,7 +612,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const modifieRef = useRef(false);
   const localModifieRef = useRef(false);
   const pretRef = useRef(demo);
-  const horlogeRef = useRef({ heure: heureDeDepart(demo), instant: Date.now(), pause: false });
+  const horlogeRef = useRef({ heure: HEURE_DE_DEPART, instant: Date.now(), pause: false });
   const hydratationRef = useRef(false);
   // Arrivée depuis le mode classique : on se présente à la porte du lieu demandé et on entre.
   const lieuDemande = useRef(lieuInitial ?? null);
@@ -627,7 +629,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Le temps du monde fait baisser les besoins à son rythme, mais seulement pendant qu'on y joue (hors ligne, le
   // serveur garde son déclin lent en temps réel). L'horloge compte les heures de jeu passées, pas à pas ou d'un coup
   // quand on attend ou qu'on dort ; le serveur les reçoit par heures entières, la démonstration les applique seule.
-  const derniereHeure = useRef<number | null>(demo ? heureDeDepart(true) : null);
+  const derniereHeure = useRef<number | null>(demo ? HEURE_DE_DEPART : null);
   const tempsEnAttente = useRef({ eveil: 0, sommeil: 0 });
   const tempsEnVol = useRef({ eveil: 0, sommeil: 0 });
   const [tempsAffiche, setTempsAffiche] = useState({ eveil: 0, sommeil: 0 });
@@ -1311,7 +1313,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <p className="hud-legende px-1">{libelleSauvegarde}</p>
       <div className="rounded-xl bg-black/25 p-3 text-[11.5px] leading-relaxed text-jeu-ivoire/75">
         <p className="hud-legende mb-1.5">Commandes</p>
-        Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom
+        {tactile ? <>Touche un bâtiment, le sol ou la minicarte pour y aller<br />La croix en bas à droite fait marcher ton personnage<br />Les options règlent le temps, la qualité et la caméra</> : <>Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom</>}
       </div>
     </section>}
     {plan && <nav aria-label="Lieux du quartier" className={`hud-verre absolute inset-x-3 z-30 max-h-[calc(100%-24px)] overflow-y-auto p-4 sm:inset-x-auto sm:right-3 sm:w-[340px] ${hautHud}`}>

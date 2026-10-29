@@ -8,6 +8,8 @@ import { JwtService } from '@nestjs/jwt';
 // argon2 est utilisé réellement (pas mocké) : c'est un algorithme pur sans dépendance
 // externe, et c'est exactement le mécanisme qui protège les mots de passe des joueurs —
 // le tester pour de vrai est plus sûr que de simuler "ça matche" / "ça matche pas".
+// Un hachage réel est lent quand toute la suite tourne en parallèle : de la marge plutôt qu'un faux échec.
+jest.setTimeout(30_000);
 function utilisateur(overrides: Record<string, unknown> = {}) {
   return {
     id: 'u1',

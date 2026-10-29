@@ -53,9 +53,9 @@ export function avancerHorloge(origine: { heure: number; instant: number; pause:
   return { heure: (origine.heure + (origine.pause ? 0 : Math.max(0, maintenant - origine.instant) / 60000 * vitesse)) % 24, instant: maintenant, pause: origine.pause };
 }
 
-/** L'heure du monde à la toute première partie : 16 h pour un joueur ; 9 h en démonstration, pour qu'un visiteur trouve les
- * mentors ouverts (séances de 7 h à 17 h) au lieu d'arriver une heure de jeu avant leur fermeture. */
-export const heureDeDepart = (demo: boolean) => demo ? 9 : 16;
+/** L'heure du monde à la toute première partie, démonstration comprise : 9 h, pour trouver les mentors ouverts (séances
+ * de 7 h à 17 h) au lieu d'arriver une heure de jeu avant leur fermeture. Une partie sauvegardée reprend son heure. */
+export const HEURE_DE_DEPART = 9;
 
 export function peutRestaurerMonde(fetched: boolean, fetching: boolean, error: boolean, localDisponible = false) {
   return fetched && !fetching && (!error || localDisponible);
