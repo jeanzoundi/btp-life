@@ -1,11 +1,16 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { ETAPES_PREMIERS_PAS, lirePremiersPas, NIVEAU_MAX_GUIDE, PremiersPasService, RECOMPENSES_PREMIERS_PAS } from './premiers-pas.service';
 
-function fakePrisma(overrides: { premiersPas?: unknown; niveau?: number } = {}) {
-  const etat: Record<string, unknown> = { userId: 'u1', premiersPas: overrides.premiersPas ?? null, niveau: overrides.niveau ?? 1 };
+// Par défaut, une séance réussie est enregistrée au laboratoire : l'étape « séance » est payable.
+const SEANCE_REUSSIE = { laboratoire: { etapes: 1, cycles: 0, seances: 1, derniereRecompenseLe: null } };
+function fakePrisma(overrides: { premiersPas?: unknown; niveau?: number; progresLieux?: unknown } = {}) {
+  const etat: Record<string, unknown> = {
+    userId: 'u1', premiersPas: overrides.premiersPas ?? null, niveau: overrides.niveau ?? 1,
+    progresLieux: 'progresLieux' in overrides ? overrides.progresLieux : SEANCE_REUSSIE,
+  };
   const prisma = {
     userCarriere: {
       findUnique: jest.fn().mockImplementation(() => Promise.resolve({ ...etat })),
@@ -63,6 +68,18 @@ describe('le premier quart d’heure guidé', () => {
     expect(r).toMatchObject({ faites: [...ETAPES_PREMIERS_PAS], afficher: false });
     expect(r.recompense).toEqual({ argentVirtuel: 2_500, xp: 65 });
     expect(etat.premiersPas).toMatchObject({ termineLe: expect.any(String) });
+  });
+  it('ne paie pas un joueur qui connaît déjà le jeu', async () => {
+    const { prisma } = fakePrisma({ niveau: NIVEAU_MAX_GUIDE + 1 });
+    await expect((await service(prisma)).valider('u1', 'telephone')).rejects.toThrow(ForbiddenException);
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+  });
+  it('ne paie la séance qu’une fois une séance réussie enregistrée chez un mentor', async () => {
+    const sansSeance = fakePrisma({ progresLieux: { laboratoire: { etapes: 0, cycles: 0, seances: 2, derniereRecompenseLe: null } } });
+    await expect((await service(sansSeance.prisma)).valider('u1', 'seance')).rejects.toThrow(BadRequestException);
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+    const avecSeance = fakePrisma();
+    await expect((await service(avecSeance.prisma)).valider('u1', 'seance')).resolves.toMatchObject({ faites: ['seance'], recompense: RECOMPENSES_PREMIERS_PAS.etape });
   });
   it('ne montre pas le guide à un joueur qui connaît déjà le jeu', async () => {
     const { prisma } = fakePrisma({ niveau: NIVEAU_MAX_GUIDE + 1 });

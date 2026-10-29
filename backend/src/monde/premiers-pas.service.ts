@@ -1,11 +1,14 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { transactionSerializable } from '../prisma/transaction';
 import { ProgressionService } from '../carriere/progression.service';
+import { lireProgresLieux } from '../carriere/lieux.service';
 
 // Le premier quart d'heure guidé : cinq gestes pour découvrir le jeu, chacun récompensé une seule fois, et un bonus quand
 // tout est fait. Le jeu signale chaque étape au moment où le joueur la réussit (frontend/src/lib/premiers-pas.ts).
+// Les gestes de découverte (marcher, ouvrir le téléphone, entrer, saluer) restent déclaratifs : 500 F une seule fois.
+// La séance réussie, elle, se vérifie dans les progrès des lieux, et le guide ne paie que les débutants.
 
 export const ETAPES_PREMIERS_PAS = ['deplacement', 'telephone', 'lieu', 'seance', 'quartier'] as const;
 export type EtapePremiersPas = (typeof ETAPES_PREMIERS_PAS)[number];
@@ -14,6 +17,11 @@ export const RECOMPENSES_PREMIERS_PAS = { etape: { argentVirtuel: 500, xp: 15 },
 export const NIVEAU_MAX_GUIDE = 5;
 
 export interface PremiersPas { faites: EtapePremiersPas[]; termineLe: string | null }
+
+/** Au moins une étape gagnée chez un mentor : la séance réussie que le guide récompense. */
+export function seanceReussieEnregistree(progresLieux: unknown) {
+  return Object.values(lireProgresLieux(progresLieux)).some((p) => p.etapes > 0 || p.cycles > 0);
+}
 
 /** Lecture bornée : seules les étapes connues comptent, une fois chacune, dans l'ordre du guide. */
 export function lirePremiersPas(brut: unknown): PremiersPas {
@@ -46,10 +54,15 @@ export class PremiersPasService {
     if (!(ETAPES_PREMIERS_PAS as readonly string[]).includes(etape)) throw new BadRequestException('Étape inconnue');
     const maintenant = new Date();
     const r = await transactionSerializable(this.prisma, async (tx) => {
-      const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { premiersPas: true, niveau: true } });
+      const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { premiersPas: true, niveau: true, progresLieux: true } });
       if (!carriere) throw new NotFoundException('Carrière introuvable');
       const avant = lirePremiersPas(carriere.premiersPas);
       if (avant.faites.includes(etape as EtapePremiersPas)) return { premiersPas: avant, niveau: carriere.niveau, niveaux: null, recompense: null };
+      // Le guide est pour les débutants : au-delà, il ne s'affiche plus et ne paie plus.
+      if (carriere.niveau > NIVEAU_MAX_GUIDE) throw new ForbiddenException('Le guide des premiers pas est réservé aux débutants.');
+      if (etape === 'seance' && !seanceReussieEnregistree(carriere.progresLieux)) {
+        throw new BadRequestException('Aucune séance réussie enregistrée pour l’instant : termine une séance chez un mentor.');
+      }
       const faites = ETAPES_PREMIERS_PAS.filter((e) => e === etape || avant.faites.includes(e));
       const termine = faites.length === ETAPES_PREMIERS_PAS.length;
       const premiersPas: PremiersPas = { faites, termineLe: termine ? maintenant.toISOString() : null };
