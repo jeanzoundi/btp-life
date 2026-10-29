@@ -338,6 +338,7 @@ model User {
   membreEquipe          MembreEquipe?
   invitationsEnvoyees   InvitationEquipe[]    @relation("InvitationsEnvoyees")
   invitationsRecues     InvitationEquipe[]    @relation("InvitationsRecues")
+  signalementsFaits     SignalementMessage[]  @relation("SignalementsFaits")
 }
 
 model Avatar {
@@ -1158,13 +1159,32 @@ model PresenceMonde {
 }
 
 model MessageQuartier {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  texte     String
-  createdAt DateTime @default(now())
+  id           String               @id @default(cuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  texte        String
+  // Retiré du chat : au troisième signalement de joueurs différents, ou par la modération.
+  masque       Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  signalements SignalementMessage[]
 
   @@index([createdAt])
+}
+
+// Un message du chat signalé par un joueur (une fois par joueur), relu par la modération dans l'administration.
+model SignalementMessage {
+  id          String          @id @default(cuid())
+  messageId   String
+  message     MessageQuartier @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  signaleurId String
+  signaleur   User            @relation("SignalementsFaits", fields: [signaleurId], references: [id], onDelete: Cascade)
+  motif       String // insulte, harcelement, spam, donnees-perso, autre
+  creeLe      DateTime        @default(now())
+  traiteLe    DateTime?
+  decision    String? // retire, banni, ecarte
+
+  @@unique([messageId, signaleurId])
+  @@index([traiteLe, creeLe])
 }
 
 // Les équipes de quartier : des joueurs connectés qui s'invitent et travaillent ensemble (bonus d'XP quand un coéquipier

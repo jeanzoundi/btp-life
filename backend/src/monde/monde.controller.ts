@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
-import { AchatOutilDto, CreationEntrepriseDto, DecisionImprevuDto, DemenagementDto, EmbaucheDto, InvitationEquipeDto, LicenciementDto, MessageQuartierDto, MetreDto, MouvementEntrepriseDto, PresenceDto, RenovationDto, ReponseEquipeDto, TransportDto } from './dto/monde.dto';
+import { AchatOutilDto, CreationEntrepriseDto, DecisionImprevuDto, DemenagementDto, EmbaucheDto, InvitationEquipeDto, LicenciementDto, MessageQuartierDto, MetreDto, MouvementEntrepriseDto, PresenceDto, RenovationDto, ReponseEquipeDto, SignalementMessageDto, TransportDto } from './dto/monde.dto';
 import { EquipeService } from './equipe.service';
 import { PremiersPasService } from './premiers-pas.service';
 import { EnLigneService } from './en-ligne.service';
@@ -74,6 +74,12 @@ export class MondeController {
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   ecrireAuQuartier(@CurrentUser() user: RequestUser, @Body() dto: MessageQuartierDto) {
     return this.enLigne.ecrire(user.userId, dto.texte);
+  }
+
+  @Post('chat/:id/signaler')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  signalerMessage(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: SignalementMessageDto) {
+    return this.enLigne.signalerMessage(user.userId, id, dto.motif);
   }
 
   @Post('transport')

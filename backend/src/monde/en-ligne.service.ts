@@ -1,5 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { modererMessage, type MotifSignalement } from './moderation';
 
 // Le monde en ligne sur des fonctions serverless, sans connexion permanente : chaque joueur signale sa position toutes
 // les quelques secondes et reçoit en retour les voisins vus récemment ; le chat se relit de la même façon.
@@ -18,6 +20,8 @@ export const REGLES_EN_LIGNE = {
   /** Délai minimal entre deux messages d'un même joueur, et fenêtre où le même texte est refusé. */
   intervalleMessageMs: 3_000,
   repetitionMs: 30_000,
+  /** Signalements de joueurs différents qui retirent un message du chat en attendant la modération. */
+  signalementsPourRetirer: 3,
 } as const;
 
 /** Bornes de la ville (les mêmes que la position sauvegardée, voir nettoyerEtatMonde). */
@@ -80,11 +84,12 @@ export class EnLigneService {
     }));
   }
 
-  /** Les derniers messages du quartier, du plus ancien au plus récent ; avec `depuis`, seulement les suivants. */
+  /** Les derniers messages du quartier, du plus ancien au plus récent ; avec `depuis`, seulement les suivants.
+   * Les messages retirés et ceux des comptes bannis disparaissent du fil. */
   async messages(depuis?: string) {
     const apres = depuis && Number.isFinite(Date.parse(depuis)) ? new Date(depuis) : null;
     const lignes = await this.prisma.messageQuartier.findMany({
-      where: apres ? { createdAt: { gt: apres } } : {},
+      where: { masque: false, user: { banni: false }, ...(apres ? { createdAt: { gt: apres } } : {}) },
       orderBy: { createdAt: 'desc' },
       take: REGLES_EN_LIGNE.messagesMax,
       select: { id: true, texte: true, createdAt: true, userId: true, ...AVEC_NOM },
@@ -92,9 +97,10 @@ export class EnLigneService {
     return lignes.reverse().map((m) => ({ id: m.id, userId: m.userId, nom: nomPublic(m.user), texte: m.texte, envoyeLe: m.createdAt.toISOString() }));
   }
 
-  /** Publie un message dans le chat du quartier. */
+  /** Publie un message dans le chat du quartier, grossièretés masquées et numéros de téléphone retirés. */
   async ecrire(userId: string, brut: string, maintenant = new Date()) {
-    const texte = nettoyerMessage(brut);
+    const { texte, modere } = modererMessage(nettoyerMessage(brut));
+    if (modere && !/[\p{L}\p{N}]/u.test(texte.replaceAll('[numéro masqué]', ''))) throw new BadRequestException('Ce message ne passe pas : reste correct avec le quartier.');
     const [user, dernier] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId }, select: { pseudo: true, banni: true, avatar: { select: { nomPersonnage: true } } } }),
       this.prisma.messageQuartier.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { texte: true, createdAt: true } }),
@@ -106,6 +112,25 @@ export class EnLigneService {
       if (ecart < REGLES_EN_LIGNE.repetitionMs && dernier.texte.toLowerCase() === texte.toLowerCase()) throw new BadRequestException('Tu viens d’écrire la même chose.');
     }
     const message = await this.prisma.messageQuartier.create({ data: { userId, texte }, select: { id: true, createdAt: true } });
-    return { id: message.id, userId, nom: nomPublic({ pseudo: user.pseudo, avatar: user.avatar ? { nomPersonnage: user.avatar.nomPersonnage } : null }), texte, envoyeLe: message.createdAt.toISOString() };
+    return { id: message.id, userId, nom: nomPublic({ pseudo: user.pseudo, avatar: user.avatar ? { nomPersonnage: user.avatar.nomPersonnage } : null }), texte, envoyeLe: message.createdAt.toISOString(), modere };
+  }
+
+  /** Signale un message à la modération (une fois par joueur) ; au troisième signalement, il quitte le chat en attendant. */
+  async signalerMessage(userId: string, messageId: string, motif: MotifSignalement) {
+    const message = await this.prisma.messageQuartier.findUnique({ where: { id: messageId }, select: { userId: true, masque: true } });
+    if (!message) throw new NotFoundException('Ce message n’existe plus.');
+    if (message.userId === userId) throw new BadRequestException('Tu ne peux pas signaler ton propre message.');
+    try {
+      await this.prisma.signalementMessage.create({ data: { messageId, signaleurId: userId, motif } });
+    } catch (e) {
+      // Déjà signalé par ce joueur : rien de plus à faire.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return { signale: true, retire: message.masque };
+      throw e;
+    }
+    if (message.masque) return { signale: true, retire: true };
+    const enAttente = await this.prisma.signalementMessage.count({ where: { messageId, traiteLe: null } });
+    if (enAttente < REGLES_EN_LIGNE.signalementsPourRetirer) return { signale: true, retire: false };
+    await this.prisma.messageQuartier.update({ where: { id: messageId }, data: { masque: true } });
+    return { signale: true, retire: true };
   }
 }

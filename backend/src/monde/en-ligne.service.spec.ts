@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnLigneService, nettoyerMessage, nomPublic, REGLES_EN_LIGNE } from './en-ligne.service';
@@ -27,7 +28,7 @@ describe('le chat du quartier', () => {
   });
 });
 
-function fakePrisma(overrides: { voisins?: unknown[]; dernier?: { texte: string; createdAt: Date } | null; banni?: boolean } = {}) {
+function fakePrisma(overrides: { voisins?: unknown[]; dernier?: { texte: string; createdAt: Date } | null; banni?: boolean; signale?: { userId: string; masque: boolean } | null; enAttente?: number } = {}) {
   return {
     presenceMonde: {
       upsert: jest.fn().mockResolvedValue({}),
@@ -40,6 +41,12 @@ function fakePrisma(overrides: { voisins?: unknown[]; dernier?: { texte: string;
       ]),
       findFirst: jest.fn().mockResolvedValue(overrides.dernier ?? null),
       create: jest.fn().mockResolvedValue({ id: 'm3', createdAt: MAINTENANT }),
+      findUnique: jest.fn().mockResolvedValue(overrides.signale === undefined ? { userId: 'u2', masque: false } : overrides.signale),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    signalementMessage: {
+      create: jest.fn().mockResolvedValue({ id: 's1' }),
+      count: jest.fn().mockResolvedValue(overrides.enAttente ?? 1),
     },
     user: { findUnique: jest.fn().mockResolvedValue({ pseudo: 'moi', banni: overrides.banni ?? false, avatar: { nomPersonnage: 'Aya' } }) },
   };
@@ -69,10 +76,23 @@ describe('EnLigneService', () => {
     expect(prisma.presenceMonde.upsert.mock.calls[0][0].update).toEqual({ x: 0, z: 0, lieu: null });
     expect(voisins[0].emote).toBeNull();
   });
-  it('rend les messages dans l’ordre de lecture', async () => {
-    const svc = await service(fakePrisma());
+  it('rend les messages dans l’ordre de lecture, sans les messages retirés ni ceux des comptes bannis', async () => {
+    const prisma = fakePrisma();
+    const svc = await service(prisma);
     const messages = await svc.messages();
     expect(messages.map((m) => [m.nom, m.texte])).toEqual([['awa', 'Salut le quartier'], ['Kader', 'Qui vient au maquis ?']]);
+    expect(prisma.messageQuartier.findMany.mock.calls[0][0].where).toEqual({ masque: false, user: { banni: false } });
+    await svc.messages(ilYa(5_000).toISOString());
+    expect(prisma.messageQuartier.findMany.mock.calls[1][0].where).toEqual({ masque: false, user: { banni: false }, createdAt: { gt: ilYa(5_000) } });
+  });
+  it('masque les grossièretés et retire les numéros avant de publier, et refuse un message qui n’était qu’une insulte', async () => {
+    const prisma = fakePrisma();
+    const svc = await service(prisma);
+    await expect(svc.ecrire('u1', 'Quel connard, appelle au 07 08 09 10 11', MAINTENANT)).resolves.toMatchObject({ texte: 'Quel *******, appelle au [numéro masqué]', modere: true });
+    expect(prisma.messageQuartier.create).toHaveBeenCalledWith(expect.objectContaining({ data: { userId: 'u1', texte: 'Quel *******, appelle au [numéro masqué]' } }));
+    await expect(svc.ecrire('u1', 'On coule demain', MAINTENANT)).resolves.toMatchObject({ modere: false });
+    await expect(svc.ecrire('u1', 'CONNARD !!!', MAINTENANT)).rejects.toThrow('reste correct');
+    await expect(svc.ecrire('u1', '0708091011', MAINTENANT)).rejects.toThrow('reste correct');
   });
   it('publie un message, mais pas en rafale, pas deux fois le même, et pas depuis un compte banni', async () => {
     const svc = await service(fakePrisma());
@@ -80,5 +100,28 @@ describe('EnLigneService', () => {
     await expect((await service(fakePrisma({ dernier: { texte: 'Salut', createdAt: ilYa(1_000) } }))).ecrire('u1', 'Encore', MAINTENANT)).rejects.toThrow(BadRequestException);
     await expect((await service(fakePrisma({ dernier: { texte: 'Salut', createdAt: ilYa(10_000) } }))).ecrire('u1', 'salut', MAINTENANT)).rejects.toThrow('même chose');
     await expect((await service(fakePrisma({ banni: true }))).ecrire('u1', 'Bonjour', MAINTENANT)).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('les signalements du chat', () => {
+  it('enregistre le signalement d’un message d’un autre joueur', async () => {
+    const prisma = fakePrisma();
+    await expect((await service(prisma)).signalerMessage('u1', 'm2', 'insulte')).resolves.toEqual({ signale: true, retire: false });
+    expect(prisma.signalementMessage.create).toHaveBeenCalledWith({ data: { messageId: 'm2', signaleurId: 'u1', motif: 'insulte' } });
+    expect(prisma.messageQuartier.update).not.toHaveBeenCalled();
+  });
+  it('retire le message du chat au troisième signalement en attente', async () => {
+    const prisma = fakePrisma({ enAttente: REGLES_EN_LIGNE.signalementsPourRetirer });
+    await expect((await service(prisma)).signalerMessage('u1', 'm2', 'harcelement')).resolves.toEqual({ signale: true, retire: true });
+    expect(prisma.signalementMessage.count).toHaveBeenCalledWith({ where: { messageId: 'm2', traiteLe: null } });
+    expect(prisma.messageQuartier.update).toHaveBeenCalledWith({ where: { id: 'm2' }, data: { masque: true } });
+  });
+  it('ne compte qu’une fois le même joueur, refuse son propre message et un message disparu', async () => {
+    const deja = fakePrisma();
+    deja.signalementMessage.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test' }));
+    await expect((await service(deja)).signalerMessage('u1', 'm2', 'spam')).resolves.toEqual({ signale: true, retire: false });
+    expect(deja.signalementMessage.count).not.toHaveBeenCalled();
+    await expect((await service(fakePrisma({ signale: { userId: 'u1', masque: false } }))).signalerMessage('u1', 'm2', 'spam')).rejects.toThrow(BadRequestException);
+    await expect((await service(fakePrisma({ signale: null }))).signalerMessage('u1', 'm9', 'spam')).rejects.toThrow(NotFoundException);
   });
 });

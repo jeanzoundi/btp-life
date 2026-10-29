@@ -3,6 +3,7 @@ import { NIVEAUX_LOGEMENT, RENOVATIONS, type NiveauLogement } from '../../carrie
 import { POSTES, type PosteEntreprise } from '../entreprise.service';
 import { MODES_PAYES, type ModePaye } from '../transport.service';
 import { EMOTES, REGLES_EN_LIGNE, type Emote } from '../en-ligne.service';
+import { MOTIFS_SIGNALEMENT, type MotifSignalement } from '../moderation';
 
 /** Une course payée depuis le téléphone : le mode, la distance par les rues (mètres du jeu) et la pluie du moment. */
 export class TransportDto {
@@ -99,6 +100,12 @@ export class MessageQuartierDto {
   @IsString()
   @MaxLength(REGLES_EN_LIGNE.longueurMessage * 2)
   texte: string;
+}
+
+/** Un message du chat signalé à la modération, et pourquoi. */
+export class SignalementMessageDto {
+  @IsIn(MOTIFS_SIGNALEMENT)
+  motif: MotifSignalement;
 }
 
 /** Des travaux à lancer chez soi. */
