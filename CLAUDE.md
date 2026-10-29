@@ -85,6 +85,13 @@ Le seed met les cours à jour sur place, repérés par leur titre dans le module
 deux cours d'un même module ne doivent jamais porter le même titre (le seed
 s'arrête). Recréer un cours effacerait en cascade les cours lus des joueurs.
 
+Les séances des lieux à mentor et les chapitres du fil rouge sont corrigés par
+le serveur à partir des réponses brutes, jamais d'une note envoyée par le jeu.
+Après tout changement d'un programme de lieu (`frontend/src/lib/lieux-programme/`),
+régénérer le corrigé : `node scripts/generer-corrige-programmes.cjs` (backend).
+Le test `corrige-programmes.test.ts` (frontend) échoue tant qu'il est périmé.
+Pour le fil rouge, c'est `scripts/verifier-campagne.cjs`.
+
 En production, publier le nouveau contenu avec
 `npx ts-node scripts/publier-contenu-monde.ts --apply` (backend) : il ajoute ce
 qui manque, en une transaction, sans toucher aux comptes, aux progrès ni au
