@@ -2,9 +2,14 @@
 // (des achats qui rendent le travail plus efficace) et les travaux qu'il fait chez lui (métré, matériaux, journées de travaux). Catalogues et effets en un seul endroit, sans dépendance : les services
 // de carrière appliquent les effets, le module monde vend, loue et prélève (frontend/src/lib/patrimoine.ts reprend les chiffres).
 
-export type NiveauLogement = 'studio' | 'f2' | 'villa';
-export interface Logement { nom: string; loyerSemaine: number; confort: number; description: string }
+export type NiveauLogement = 'chambre' | 'studio' | 'f2' | 'villa';
+export interface Logement {
+  nom: string; loyerSemaine: number; confort: number; description: string;
+  /** Réservé aux étudiants à leur arrivée (CarriereService.setProfilActuel) : on n'y emménage pas ensuite. */
+  etudiants?: boolean;
+}
 export const LOGEMENTS: Record<NiveauLogement, Logement> = {
+  chambre: { nom: 'Chambre en cité universitaire', loyerSemaine: 5_000, confort: 0, etudiants: true, description: 'Un lit, un bureau et la douche sur le palier : un loyer d’étudiant. Pas de travaux ici : il faut un logement à soi.' },
   studio: { nom: 'Studio à la Résidence Lagune', loyerSemaine: 12_000, confort: 0, description: 'Une pièce, une kitchenette et une douche : de quoi démarrer.' },
   f2: { nom: 'Deux-pièces avec balcon', loyerSemaine: 25_000, confort: 4, description: 'Une chambre à part et un balcon sur la lagune : +4 de moral à chaque réveil.' },
   villa: { nom: 'Villa des Jardins', loyerSemaine: 55_000, confort: 10, description: 'Jardin, terrasse et calme : +10 de moral à chaque réveil.' },

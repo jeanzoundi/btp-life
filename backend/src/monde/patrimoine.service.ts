@@ -86,6 +86,7 @@ export class PatrimoineService {
   /** Déménager : frais d'agence (une semaine du nouveau loyer) et première semaine payés d'avance, arriérés réglés avant. */
   async demenager(userId: string, niveau: NiveauLogement) {
     if (!NIVEAUX_LOGEMENT.includes(niveau)) throw new BadRequestException('Logement inconnu');
+    if (LOGEMENTS[niveau].etudiants) throw new BadRequestException('La cité universitaire loge les étudiants à leur arrivée : on n’y emménage pas ensuite.');
     const maintenant = new Date();
     const r = await this.transaction(async tx => {
       const { patrimoine, argent } = await this.regle(tx, userId, maintenant);

@@ -90,6 +90,14 @@ describe('PatrimoineService', () => {
     const endette = fakePrisma({ patrimoine: { logement: { niveau: 'studio', payeJusquau: ilYa(-3), arrieres: 12_000 } } });
     await expect((await service(endette.prisma)).demenager('u1', 'villa')).rejects.toThrow(BadRequestException);
   });
+  it('la cité universitaire loge les étudiants à leur arrivée, on n’y emménage pas ensuite', async () => {
+    const { prisma, etat } = fakePrisma({ argent: 100_000 });
+    await expect((await service(prisma)).demenager('u1', 'chambre')).rejects.toThrow('cité universitaire');
+    expect(etat.argentVirtuel).toBe(100_000);
+    // Un étudiant en chambre en sort comme tout le monde.
+    const etudiant = fakePrisma({ argent: 100_000, patrimoine: { logement: { niveau: 'chambre', payeJusquau: ilYa(-1), arrieres: 0 } } });
+    await expect((await service(etudiant.prisma)).demenager('u1', 'studio')).resolves.toMatchObject({ logement: { niveau: 'studio' } });
+  });
   it('règle les arriérés quand le solde suffit', async () => {
     const { prisma, etat } = fakePrisma({ patrimoine: { logement: { niveau: 'studio', payeJusquau: ilYa(-3), arrieres: 12_000 } }, argent: 20_000 });
     const svc = await service(prisma);

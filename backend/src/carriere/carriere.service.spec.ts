@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CarriereService, nettoyerEtatMonde, NIVEAU_DEPART_MAX, PRIME_INSTALLATION, SEUIL_ENTREPRENEUR } from './carriere.service';
+import { CarriereService, nettoyerEtatMonde, NIVEAU_DEPART_MAX, primeInstallation, SEUIL_ENTREPRENEUR } from './carriere.service';
 import { CertificatsService } from '../certificats/certificats.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BesoinsService } from './besoins.service';
@@ -149,9 +149,36 @@ describe('CarriereService.setProfilActuel', () => {
       profilActuelId: 'profil-chef-equipe',
       niveau: 6,
       xp: xpRequisPourNiveau(6),
-      // Premier choix de poste : la prime d'installation est versée.
-      argentVirtuel: { increment: PRIME_INSTALLATION },
+      // Premier choix de poste : la prime d'installation est versée (celle d'un poste de niveau 6).
+      argentVirtuel: { increment: 60_000 },
     });
+  });
+
+  it('verse une prime selon le poste, et loge un étudiant en cité universitaire à son arrivée', async () => {
+    expect([
+      primeInstallation({ slug: 'etudiant-bim', niveauDepart: 1 }), primeInstallation({ slug: 'stagiaire-chantier', niveauDepart: 2 }),
+      primeInstallation({ slug: 'aide-topographe', niveauDepart: 1 }), primeInstallation({ slug: 'projeteur', niveauDepart: 4 }),
+      primeInstallation({ slug: 'conducteur-travaux', niveauDepart: 9 }),
+    ]).toEqual([15_000, 15_000, 25_000, 40_000, 60_000]);
+    const etudiant = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue({ id: 'p-etudiant', slug: 'etudiant-chantier', niveauDepart: 1 }) },
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ niveau: 1, xp: 0, profilActuelId: null, patrimoine: null }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    const installe = await (await service(etudiant)).svc.setProfilActuel('u1', { profilId: 'p-etudiant' } as never) as unknown as Record<string, unknown>;
+    expect(installe.argentVirtuel).toEqual({ increment: 15_000 });
+    expect(installe.patrimoine).toMatchObject({ logement: { niveau: 'chambre', arrieres: 0 }, outils: [], renovations: [] });
+    // Un logement déjà là (compte ancien) n'est jamais remplacé.
+    const loge = fakePrisma({
+      profil: { findUnique: jest.fn().mockResolvedValue({ id: 'p-etudiant', slug: 'etudiant-chantier', niveauDepart: 1 }) },
+      userCarriere: {
+        findUnique: jest.fn().mockResolvedValue({ niveau: 1, xp: 0, profilActuelId: null, patrimoine: { logement: { niveau: 'f2' } } }),
+        update: jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve(data)),
+      },
+    });
+    expect(await (await service(loge)).svc.setProfilActuel('u1', { profilId: 'p-etudiant' } as never)).not.toHaveProperty('patrimoine');
   });
 
   it("conserve l'xp déjà acquis s'il dépasse le minimum requis pour le niveau de départ du profil", async () => {
