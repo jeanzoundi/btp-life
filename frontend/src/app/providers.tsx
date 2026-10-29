@@ -6,6 +6,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { queryPersister } from '@/lib/offline/query-persister';
 import { notifierSync } from '@/lib/offline/sync-notify';
 import { api, ApiError, CANAL_SYNCHRO } from '@/lib/api';
+import { installerRemonteeErreurs } from '@/lib/journal-erreurs';
 
 // Résultat renvoyé par /missions/:id/submit (sous-ensemble utile à la notification de synchro).
 type ResultatMission = { reussie: boolean; xpGagne: number; rejeuSansRecompense?: boolean };
@@ -121,6 +122,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
     return () => canal.close();
   }, [client]);
+
+  // Les erreurs qui échappent aux limites React (événements, promesses, boucle 3D) rejoignent le journal et la remontée.
+  useEffect(() => installerRemonteeErreurs(), []);
 
   return (
     <PersistQueryClientProvider

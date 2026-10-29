@@ -9,6 +9,7 @@ const SECTIONS = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/utilisateurs', label: 'Utilisateurs' },
   { href: '/admin/moderation', label: 'Modération du chat' },
+  { href: '/admin/erreurs', label: 'Erreurs du jeu' },
   { href: '/admin/contenus/missions', label: 'Missions' },
   { href: '/admin/contenus/chantiers', label: 'Chantiers' },
   { href: '/admin/contenus/modules-academie', label: 'Académie' },
