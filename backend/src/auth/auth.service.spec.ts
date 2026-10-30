@@ -10,6 +10,19 @@ import { JwtService } from '@nestjs/jwt';
 // le tester pour de vrai est plus sûr que de simuler "ça matche" / "ça matche pas".
 // Un hachage réel est lent quand toute la suite tourne en parallèle : de la marge plutôt qu'un faux échec.
 jest.setTimeout(30_000);
+
+// Des secrets JWT propres aux tests : sans eux, le test dépendait du backend/.env local (chargé au passage par Prisma,
+// donc les secrets de production) et échouait en CI, où ce fichier n'existe pas.
+const SECRETS_AVANT = { acces: process.env.JWT_ACCESS_SECRET, rafraichissement: process.env.JWT_REFRESH_SECRET };
+beforeAll(() => {
+  process.env.JWT_ACCESS_SECRET = 'secret-acces-des-tests';
+  process.env.JWT_REFRESH_SECRET = 'secret-rafraichissement-des-tests';
+});
+afterAll(() => {
+  const remettre = (cle: string, valeur: string | undefined) => { if (valeur === undefined) delete process.env[cle]; else process.env[cle] = valeur; };
+  remettre('JWT_ACCESS_SECRET', SECRETS_AVANT.acces);
+  remettre('JWT_REFRESH_SECRET', SECRETS_AVANT.rafraichissement);
+});
 function utilisateur(overrides: Record<string, unknown> = {}) {
   return {
     id: 'u1',
