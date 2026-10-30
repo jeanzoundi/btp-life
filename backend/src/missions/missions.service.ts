@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { ProgressionService } from '../carriere/progression.service';
 import { BesoinsService } from '../carriere/besoins.service';
 import { PnjService } from '../carriere/pnj.service';
@@ -19,6 +20,7 @@ export class MissionsService {
    * l'énergie, donc il n'est ni gratuit ni automatisable à l'infini.
    */
   static readonly TAUX_ENTRAINEMENT = 0.25;
+  private readonly logger = new Logger(MissionsService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -112,103 +114,116 @@ export class MissionsService {
     if (!mission) throw new NotFoundException('Mission introuvable');
     if (mission.contenus.length === 0) throw new BadRequestException('Mission sans contenu');
 
-    const existing = await this.prisma.userMission.findUnique({
-      where: { userId_missionId: { userId, missionId } },
-    });
-
-    // Anti-triche chrono : le temps annoncé par le client n'est jamais cru sur parole (sinon on
-    // enverrait tempsUtiliseSec: 0 pour empocher le bonus maximal à chaque fois). Quand le /start
-    // a bien eu lieu, le serveur mesure lui-même la durée écoulée. Sinon (mission jouée hors ligne,
-    // le /start n'ayant pas pu aboutir), on retombe sur la valeur client mais plancher compris :
-    // un humain ne répond pas à une question en moins de quelques secondes.
-    const tempsUtiliseSec = this.tempsUtiliseFiable(
-      dto.tempsUtiliseSec,
-      existing?.demarreeLe ?? null,
-      mission.contenus.length,
-    );
-
-    const resultat = calculerScoreMission({
-      contenus: mission.contenus,
-      reponses: dto.reponses,
-      scoreMax: mission.scoreMax,
-      conditionReussite: mission.conditionReussite,
-      dureeLimiteSec: mission.dureeLimiteSec,
-      tempsUtiliseSec,
-    });
-
-    // Anti-triche : une mission déjà réussie peut être rejouée pour améliorer sa note, mais le rejeu
-    // ne rapporte plus rien (XP/argent/réputation/badge/compétences). Sinon on farmerait des missions
-    // faciles à l'infini. Seul le meilleur score reste mis à jour (fierté / classement).
-    const dejaReussie = existing?.statut === 'REUSSIE';
-
-    const userMission = await this.prisma.userMission.upsert({
-      where: { userId_missionId: { userId, missionId } },
-      create: {
-        userId,
-        missionId,
-        statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
-        score: resultat.score,
-        tempsUtiliseSec,
-        reponses: dto.reponses as Prisma.InputJsonValue,
-        erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
-        tentatives: 1,
-        meilleurScore: resultat.score,
-        termineeLe: new Date(),
-      },
-      update: {
-        statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
-        score: resultat.score,
-        tempsUtiliseSec,
-        reponses: dto.reponses as Prisma.InputJsonValue,
-        erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
-        tentatives: { increment: 1 },
-        meilleurScore: Math.max(resultat.score, existing?.meilleurScore ?? 0),
-        termineeLe: new Date(),
-      },
-    });
-
-    // XP : la réussite paie plus, mais l'échec n'est jamais puni à zéro (pédagogie de l'échec).
     // L'état du personnage (énergie/moral/faim/social) module légèrement les gains — jamais en dessous de 70 %.
-    //
-    // Rejeu d'une mission déjà réussie = « entraînement » : il rapporte une fraction de l'XP
-    // (TAUX_ENTRAINEMENT), mais jamais d'argent, de réputation, de badge ni de compétence. Sans
-    // cette soupape, le contenu du jeu (fini) plafonnait la progression au niveau 12 alors que la
-    // courbe et les missions vont jusqu'à 100 : plus aucun joueur assidu ne pouvait avancer.
-    // L'économie reste protégée (pas de farm d'argent/réputation), seul le temps investi paie.
+    // Actualisé avant la transaction, comme pour les séances.
     const besoinsActuels = await this.besoins.actualiser(userId);
     const facteurBesoins = BesoinsService.facteurPerformance(besoinsActuels);
-    const xpBase = resultat.reussie ? resultat.score * 2 : Math.round(resultat.score * 0.5);
-    const xpPlein = Math.round(xpBase * facteurBesoins);
-    const xpGagne = dejaReussie ? Math.round(xpPlein * MissionsService.TAUX_ENTRAINEMENT) : xpPlein;
-    const reputationDelta = dejaReussie ? 0 : resultat.reputationDelta + (resultat.reussie ? 2 : -1);
-    // Montants x10 par rapport à l'origine pour rester proportionnels aux budgets de chantier
-    // (en millions) — voir CONDITIONS_CHANTIER/apportPersonnelRequis dans chantiers.service.ts.
-    const argentDelta = dejaReussie ? 0 : resultat.budgetDelta + (resultat.reussie ? 500 : 100);
 
-    const carriereAvant = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
-    if (!dejaReussie || xpGagne > 0) {
-      await this.progression.appliquerDelta(userId, {
-        xp: xpGagne,
-        reputation: reputationDelta,
-        argentVirtuel: argentDelta,
+    // Lecture du statut, correction, enregistrement et gains dans une même transaction sérialisable : deux envois
+    // simultanés de la même mission ne la paient qu'une fois, le second devient un entraînement.
+    const r = await transactionSerializable(this.prisma, async (tx) => {
+      const existing = await tx.userMission.findUnique({
+        where: { userId_missionId: { userId, missionId } },
       });
-      // Jouer une mission demande de la concentration : petit coût d'énergie et de faim.
-      // Le rejeu coûte aussi — sinon l'entraînement serait gratuit et se ferait en boucle sans fin.
-      await this.besoins.consommer(userId, { energie: 3, faim: 2 });
-    }
-    const carriereApres = await this.prisma.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
+
+      // Anti-triche chrono : le temps annoncé par le client n'est jamais cru sur parole (sinon on
+      // enverrait tempsUtiliseSec: 0 pour empocher le bonus maximal à chaque fois). Quand le /start
+      // a bien eu lieu, le serveur mesure lui-même la durée écoulée. Sinon (mission jouée hors ligne,
+      // le /start n'ayant pas pu aboutir), on retombe sur la valeur client mais plancher compris :
+      // un humain ne répond pas à une question en moins de quelques secondes.
+      const tempsUtiliseSec = this.tempsUtiliseFiable(
+        dto.tempsUtiliseSec,
+        existing?.demarreeLe ?? null,
+        mission.contenus.length,
+      );
+
+      const resultat = calculerScoreMission({
+        contenus: mission.contenus,
+        reponses: dto.reponses,
+        scoreMax: mission.scoreMax,
+        conditionReussite: mission.conditionReussite,
+        dureeLimiteSec: mission.dureeLimiteSec,
+        tempsUtiliseSec,
+      });
+
+      // Anti-triche : une mission déjà réussie peut être rejouée pour améliorer sa note, mais le rejeu
+      // ne rapporte plus rien (XP/argent/réputation/badge/compétences). Sinon on farmerait des missions
+      // faciles à l'infini. Seul le meilleur score reste mis à jour (fierté / classement).
+      const dejaReussie = existing?.statut === 'REUSSIE';
+
+      const userMission = await tx.userMission.upsert({
+        where: { userId_missionId: { userId, missionId } },
+        create: {
+          userId,
+          missionId,
+          statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
+          score: resultat.score,
+          tempsUtiliseSec,
+          reponses: dto.reponses as Prisma.InputJsonValue,
+          erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
+          tentatives: 1,
+          meilleurScore: resultat.score,
+          termineeLe: new Date(),
+        },
+        update: {
+          statut: resultat.reussie ? 'REUSSIE' : 'ECHOUEE',
+          score: resultat.score,
+          tempsUtiliseSec,
+          reponses: dto.reponses as Prisma.InputJsonValue,
+          erreurs: resultat.items.filter((i) => !i.correct).map((i) => i.contenuId),
+          tentatives: { increment: 1 },
+          meilleurScore: Math.max(resultat.score, existing?.meilleurScore ?? 0),
+          termineeLe: new Date(),
+        },
+      });
+
+      // XP : la réussite paie plus, mais l'échec n'est jamais puni à zéro (pédagogie de l'échec).
+      //
+      // Rejeu d'une mission déjà réussie = « entraînement » : il rapporte une fraction de l'XP
+      // (TAUX_ENTRAINEMENT), mais jamais d'argent, de réputation, de badge ni de compétence. Sans
+      // cette soupape, le contenu du jeu (fini) plafonnait la progression au niveau 12 alors que la
+      // courbe et les missions vont jusqu'à 100 : plus aucun joueur assidu ne pouvait avancer.
+      // L'économie reste protégée (pas de farm d'argent/réputation), seul le temps investi paie.
+      const xpBase = resultat.reussie ? resultat.score * 2 : Math.round(resultat.score * 0.5);
+      const xpPlein = Math.round(xpBase * facteurBesoins);
+      const xpGagne = dejaReussie ? Math.round(xpPlein * MissionsService.TAUX_ENTRAINEMENT) : xpPlein;
+      const reputationDelta = dejaReussie ? 0 : resultat.reputationDelta + (resultat.reussie ? 2 : -1);
+      // Montants x10 par rapport à l'origine pour rester proportionnels aux budgets de chantier
+      // (en millions) — voir CONDITIONS_CHANTIER/apportPersonnelRequis dans chantiers.service.ts.
+      const argentDelta = dejaReussie ? 0 : resultat.budgetDelta + (resultat.reussie ? 500 : 100);
+
+      const carriereAvant = await tx.userCarriere.findUnique({ where: { userId }, select: { niveau: true } });
+      const niveauAvant = carriereAvant?.niveau ?? 1;
+      let niveauApres = niveauAvant;
+      if (!dejaReussie || xpGagne > 0) {
+        const payee = await this.progression.appliquerDelta(userId, {
+          xp: xpGagne,
+          reputation: reputationDelta,
+          argentVirtuel: argentDelta,
+        }, tx);
+        niveauApres = Math.max(niveauAvant, payee?.niveau ?? niveauAvant);
+        // Jouer une mission demande de la concentration : petit coût d'énergie et de faim.
+        // Le rejeu coûte aussi — sinon l'entraînement serait gratuit et se ferait en boucle sans fin.
+        await this.besoins.consommer(userId, { energie: 3, faim: 2 }, tx);
+      }
+
+      const competencesMaj: unknown[] = [];
+      if (resultat.reussie && !dejaReussie && Array.isArray(mission.competences)) {
+        for (const competenceId of mission.competences as string[]) {
+          competencesMaj.push(await this.progression.validerCompetence(userId, competenceId, resultat.score, 'mission', tx));
+        }
+      }
+      return { existing, resultat, dejaReussie, userMission, xpGagne, reputationDelta, argentDelta, niveauAvant, niveauApres, competencesMaj };
+    });
+    const { existing, resultat, dejaReussie, xpGagne, reputationDelta, argentDelta, niveauAvant, niveauApres } = r;
+
+    // Après le commit, les effets externes : notification de niveau, badge (et sa notification), réactions du PNJ.
+    try { await this.progression.notifierNiveau(userId, niveauAvant, niveauApres); }
+    catch { this.logger.warn('Notification de niveau indisponible après une mission validée'); }
 
     let badgeObtenu: Awaited<ReturnType<ProgressionService['attribuerBadgeSiAbsent']>> | null = null;
     if (resultat.reussie && !dejaReussie && mission.badgeId) {
       badgeObtenu = await this.progression.attribuerBadgeSiAbsent(userId, mission.badgeId, missionId);
-    }
-
-    const competencesMaj: unknown[] = [];
-    if (resultat.reussie && !dejaReussie && Array.isArray(mission.competences)) {
-      for (const competenceId of mission.competences as string[]) {
-        const maj = await this.progression.validerCompetence(userId, competenceId, resultat.score, 'mission');
-        competencesMaj.push(maj);
-      }
     }
 
     // Le PNJ hiérarchique du joueur réagit aux moments qui comptent — première réussite,
@@ -220,8 +235,8 @@ export class MissionsService {
     } else if (!resultat.reussie && !existing?.termineeLe) {
       await this.pnj.surMissionEchouee(userId, mission.titre);
     }
-    if ((carriereApres?.niveau ?? 1) > (carriereAvant?.niveau ?? 1)) {
-      await this.pnj.surNiveauSuperieur(userId, carriereApres?.niveau ?? 1);
+    if (niveauApres > niveauAvant) {
+      await this.pnj.surNiveauSuperieur(userId, niveauApres);
     }
 
     const correction = mission.contenus.map((contenu) => ({
@@ -232,7 +247,7 @@ export class MissionsService {
     }));
 
     return {
-      userMission,
+      userMission: r.userMission,
       score: resultat.score,
       scoreMax: mission.scoreMax,
       reussie: resultat.reussie,
@@ -243,10 +258,10 @@ export class MissionsService {
       facteurBesoins,
       reputationDelta,
       argentDelta,
-      niveauAvant: carriereAvant?.niveau ?? 1,
-      niveauApres: carriereApres?.niveau ?? 1,
+      niveauAvant,
+      niveauApres,
       badgeObtenu,
-      competencesMaj,
+      competencesMaj: r.competencesMaj,
       correction,
     };
   }

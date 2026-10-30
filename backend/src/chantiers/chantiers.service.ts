@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { ProgressionService } from '../carriere/progression.service';
 import { BesoinsService } from '../carriere/besoins.service';
 import { PnjService } from '../carriere/pnj.service';
@@ -17,6 +18,11 @@ const POSTES: Record<string, { salaire: number; competenceBase: number }> = {
 const NOMS = ['Kouassi', 'Fatou', 'Ibrahim', 'Aya', 'Moussa', 'Adjoua', 'Salif', 'Awa', 'Yao', 'Mariam', 'Seydou', 'Akissi'];
 
 const TAILLE_EQUIPE_MAX = 8;
+
+/** Perdu, un appel d'offres revient à un concurrent jusqu'au lendemain : pas de relance en boucle jusqu'à gagner au prix
+ * fort, ni d'XP de consolation à chaque clic. */
+export const DELAI_NOUVEL_APPEL_MS = 24 * 3_600_000;
+const XP_OFFRE_PERDUE = 15;
 
 // Les "grands chantiers" (zone industrielle du monde virtuel) demandent une vraie progression :
 // petits chantiers d'abord, projets ambitieux ensuite — avec des seuils différents selon
@@ -99,6 +105,8 @@ function besoinsDe(phase: { besoins: unknown }): Besoins {
 
 @Injectable()
 export class ChantiersService {
+  private readonly logger = new Logger(ChantiersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
@@ -226,6 +234,13 @@ export class ChantiersService {
         (uc) => uc.chantierId,
       ),
     );
+    // Marchés perdus il y a moins de 24 h : attribués à un concurrent jusqu'au prochain appel d'offres (la plus récente gagne).
+    const perdues = new Map(
+      (await this.prisma.offreMarche.findMany({
+        where: { userId, gagnee: false, creeLe: { gt: new Date(Date.now() - DELAI_NOUVEL_APPEL_MS) }, chantierId: { in: marches.map((m) => m.id) } },
+        select: { chantierId: true, creeLe: true }, orderBy: { creeLe: 'asc' },
+      })).map((o) => [o.chantierId, o.creeLe]),
+    );
 
     return marches.map((m) => {
       const conditions = conditionsChantierPour(m.slug);
@@ -237,6 +252,7 @@ export class ChantiersService {
         verrouille: !eligible,
         entrepreneurRequis: !estEntrepreneur,
         dejaObtenu: dejaObtenus.has(m.id),
+        nouvelAppelLe: perdues.has(m.id) ? new Date(perdues.get(m.id)!.getTime() + DELAI_NOUVEL_APPEL_MS).toISOString() : null,
         prixMin: Math.round(m.budget * 0.6),
         prixMax: Math.round(m.budget * 1.15),
       };
@@ -290,15 +306,40 @@ export class ChantiersService {
       meilleurScoreConcurrent = Math.max(meilleurScoreConcurrent, scoreConcurrent);
     }
 
-    if (scoreJoueur < meilleurScoreConcurrent) {
-      await this.progression.appliquerDelta(userId, { xp: 15 });
-      return {
-        gagne: false,
-        message: "Un concurrent a remporté ce marché — retente avec un prix plus compétitif ou davantage de réputation.",
-      };
+    const gagne = scoreJoueur >= meilleurScoreConcurrent;
+    // Contrôle, offre et gains dans une même transaction : deux envois simultanés ne contournent pas le délai.
+    const resultat = await transactionSerializable(this.prisma, async (tx) => {
+      const enCours = await tx.userChantier.findFirst({ where: { userId, chantierId, statut: 'en_cours' } });
+      if (enCours) return { gagne: true as const, userChantier: enCours, niveau: null };
+      const perdue = await tx.offreMarche.findFirst({
+        where: { userId, chantierId, gagnee: false, creeLe: { gt: new Date(Date.now() - DELAI_NOUVEL_APPEL_MS) } },
+        orderBy: { creeLe: 'desc' }, select: { creeLe: true },
+      });
+      if (perdue) {
+        const heures = Math.max(1, Math.ceil((perdue.creeLe.getTime() + DELAI_NOUVEL_APPEL_MS - Date.now()) / 3_600_000));
+        throw new ConflictException(`Ce marché a été attribué à un concurrent. Nouvel appel d'offres dans ${heures} h : gagne en réputation ou prépare un prix plus compétitif d'ici là.`);
+      }
+      await tx.offreMarche.create({ data: { userId, chantierId, prixPropose, gagnee: gagne } });
+      if (!gagne) {
+        const payee = await this.progression.appliquerDelta(userId, { xp: XP_OFFRE_PERDUE }, tx);
+        return {
+          gagne: false as const, niveau: payee?.niveau ?? null,
+          message: "Un concurrent a remporté ce marché. Nouvel appel d'offres dans 24 h : gagne en réputation ou prépare un prix plus compétitif d'ici là.",
+        };
+      }
+      return { gagne: true as const, userChantier: await this.creerChantierRemporte(tx, userId, chantier, prixPropose), niveau: null };
+    });
+    if (resultat.niveau !== null) {
+      try { await this.progression.notifierNiveau(userId, carriere.niveau, resultat.niveau); }
+      catch { this.logger.warn('Notification de niveau indisponible après une offre perdue'); }
     }
+    return resultat.gagne ? { gagne: true, userChantier: resultat.userChantier } : { gagne: false, message: resultat.message };
+  }
 
-    const nouveau = await this.prisma.userChantier.create({
+  /** Le chantier d'un marché remporté : le prix proposé devient le budget, avec une petite équipe de départ. */
+  private creerChantierRemporte(tx: Prisma.TransactionClient, userId: string, chantier: { id: string; delaiJours: number }, prixPropose: number) {
+    const chantierId = chantier.id;
+    return tx.userChantier.create({
       data: {
         userId,
         chantierId,
@@ -324,7 +365,6 @@ export class ChantiersService {
       },
       include: { ouvriers: true },
     });
-    return { gagne: true, userChantier: nouveau };
   }
 
   /** Commande de matériaux : consomme le budget, alimente le stock (livraison immédiate en v1). */

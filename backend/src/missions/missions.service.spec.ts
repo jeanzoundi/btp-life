@@ -64,12 +64,15 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   for (const cle of Object.keys(defaut)) {
     fusion[cle] = { ...defaut[cle], ...(overrides[cle] ?? {}) };
   }
+  // La transaction sérialisable rejoue l'opération avec le client fictif lui-même.
+  fusion.$transaction = jest.fn().mockImplementation((operation: (tx: unknown) => unknown) => operation(fusion));
   return fusion;
 }
 
 async function service(prisma: ReturnType<typeof fakePrisma>) {
   const progression = {
     appliquerDelta: jest.fn().mockResolvedValue({}),
+    notifierNiveau: jest.fn().mockResolvedValue(undefined),
     attribuerBadgeSiAbsent: jest.fn().mockResolvedValue({ id: 'badge-attr-1' }),
     validerCompetence: jest.fn().mockResolvedValue({ niveauActuel: 1 }),
   };
@@ -121,8 +124,8 @@ describe('MissionsService.submit', () => {
     expect(resultat.reputationDelta).toBe(2); // 0 (pas de conséquence) + 2 (bonus réussite)
     expect(resultat.argentDelta).toBe(500); // 0 (pas de conséquence) + 500 (bonus réussite)
 
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 200, reputation: 2, argentVirtuel: 500 });
-    expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: 3, faim: 2 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 200, reputation: 2, argentVirtuel: 500 }, prisma);
+    expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: 3, faim: 2 }, prisma);
     expect(pnj.surMissionReussie).toHaveBeenCalledWith('u1', 'Sécurité chantier');
     expect(pnj.surMissionEchouee).not.toHaveBeenCalled();
   });
@@ -149,7 +152,7 @@ describe('MissionsService.submit', () => {
     // L'économie reste protégée : pas de farm d'argent ni de réputation.
     expect(resultat.reputationDelta).toBe(0);
     expect(resultat.argentDelta).toBe(0);
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 50, reputation: 0, argentVirtuel: 0 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 50, reputation: 0, argentVirtuel: 0 }, prisma);
     // L'entraînement coûte de l'énergie : il n'est ni gratuit ni automatisable à l'infini.
     expect(besoins.consommer).toHaveBeenCalled();
   });
@@ -185,7 +188,7 @@ describe('MissionsService.submit', () => {
     expect(resultat.reputationDelta).toBe(-1); // 0 + (-1) d'échec
     expect(resultat.argentDelta).toBe(100); // 0 + 100 de consolation
 
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 0, reputation: -1, argentVirtuel: 100 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 0, reputation: -1, argentVirtuel: 100 }, prisma);
     expect(pnj.surMissionEchouee).toHaveBeenCalledWith('u1', 'Sécurité chantier');
     expect(pnj.surMissionReussie).not.toHaveBeenCalled();
   });
@@ -201,24 +204,22 @@ describe('MissionsService.submit', () => {
     expect(resultat.score).toBe(20);
     expect(resultat.reputationDelta).toBe(-6); // -5 (conséquence) + -1 (échec)
     expect(resultat.argentDelta).toBe(-199900); // -200000 (conséquence) + 100 (consolation)
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 10, reputation: -6, argentVirtuel: -199900 });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 10, reputation: -6, argentVirtuel: -199900 }, prisma);
   });
 
   it('signale une montée de niveau au PNJ hiérarchique quand elle se produit, jamais sinon', async () => {
-    const prisma = fakePrisma({
-      userCarriere: {
-        findUnique: jest.fn()
-          .mockResolvedValueOnce({ niveau: 1 }) // lu avant appliquerDelta
-          .mockResolvedValueOnce({ niveau: 2 }), // lu après appliquerDelta
-      },
-    });
-    const { svc, pnj } = await service(prisma);
+    const prisma = fakePrisma({ userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 1 }) } });
+    const { svc, pnj, progression } = await service(prisma);
+    // Le niveau après le gain est celui que renvoie appliquerDelta, dans la transaction.
+    progression.appliquerDelta.mockResolvedValue({ niveau: 2 });
 
     const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] } });
 
     expect(resultat.niveauAvant).toBe(1);
     expect(resultat.niveauApres).toBe(2);
     expect(pnj.surNiveauSuperieur).toHaveBeenCalledWith('u1', 2);
+    // La notification de niveau part après le commit, pas dans la transaction.
+    expect(progression.notifierNiveau).toHaveBeenCalledWith('u1', 1, 2);
   });
 
   it("ne déclenche pas la notification de montée de niveau quand le niveau ne change pas", async () => {
@@ -277,8 +278,31 @@ describe('MissionsService.submit', () => {
 
     const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] } });
 
-    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'comp-securite', 100, 'mission');
+    expect(progression.validerCompetence).toHaveBeenCalledWith('u1', 'comp-securite', 100, 'mission', prisma);
     expect(resultat.competencesMaj).toEqual([{ niveauActuel: 1 }]);
+  });
+
+  it('deux envois simultanés ne paient qu’une fois : rejoué après le conflit, le second devient un entraînement', async () => {
+    const prisma = fakePrisma({
+      userMission: {
+        // Au moment où la transaction est rejouée, l'autre envoi a déjà réussi la mission.
+        findUnique: jest.fn().mockResolvedValue({ statut: 'REUSSIE', meilleurScore: 100, termineeLe: new Date() }),
+        upsert: jest.fn().mockImplementation(({ create, update }: { create: object; update: object }) => Promise.resolve({ id: 'um1', ...(create ?? update) })),
+      },
+    });
+    // Premier passage annulé par PostgreSQL (conflit sérialisable P2034), puis rejoué.
+    prisma.$transaction
+      .mockImplementationOnce(() => Promise.reject(Object.assign(new Error('conflit'), { code: 'P2034' })))
+      .mockImplementation((operation: (tx: unknown) => unknown) => operation(prisma));
+    const { svc, progression } = await service(prisma);
+
+    const resultat = await svc.submit('u1', 'mission-1', { reponses: { c1: ['a'] } });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'Serializable' }));
+    expect(resultat.rejeuSansRecompense).toBe(true);
+    expect(progression.appliquerDelta).toHaveBeenCalledTimes(1);
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 50, reputation: 0, argentVirtuel: 0 }, prisma);
   });
 });
 

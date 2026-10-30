@@ -14,7 +14,7 @@ Monorepo : backend **NestJS + Prisma + PostgreSQL**, frontend **Next.js 15 + Tai
 | API | https://btp-life-backend.vercel.app/api | Vercel (projet `btp-life-backend`, fonction serverless) |
 | Base de données | Supabase, projet `btp-life` (org **BTP LIFE**) | Supabase |
 
-Comptes démo : `admin@btplife.com` / `Admin1234!` et `demo@btplife.com` / `Demo1234!`.
+Comptes de démonstration : voir plus bas. Leurs mots de passe ne figurent pas dans ce dépôt, qui est public.
 
 **Notes de déploiement** :
 - Le backend NestJS tourne sur Vercel via `backend/api/index.ts` (handler serverless qui réutilise l'app Nest créée par `backend/src/create-app.ts`, partagée avec `main.ts` pour le dev local). `backend/vercel.json` redirige toutes les routes vers cette fonction.
@@ -70,10 +70,15 @@ npm run dev                   # http://localhost:3000
 
 ## Comptes de démonstration (créés par le seed)
 
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Super-admin | admin@btplife.com | Admin1234! |
-| Joueur démo | demo@btplife.com | Demo1234! |
+| Rôle | Email |
+|---|---|
+| Super-admin | admin@btplife.com |
+| Joueur démo | demo@btplife.com |
+
+Le seed ne les crée que s'ils n'existent pas encore. Leur mot de passe vient de `SEED_ADMIN_PASSWORD` et `SEED_DEMO_PASSWORD`
+(fichier `.env` du backend) ; sans ces variables, il est tiré au hasard et affiché une seule fois dans la sortie du seed. Pour
+changer le mot de passe d'un compte existant : `backend/scripts/rotate-passwords.ts`. En production, ces comptes doivent
+rester suspendus ou avoir un mot de passe fort et privé.
 
 ## Ce qui est implémenté
 

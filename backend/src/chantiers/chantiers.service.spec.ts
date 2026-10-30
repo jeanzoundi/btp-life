@@ -1,6 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ChantiersService, conditionsChantierPour, chantierEstAccessible, apportPersonnelRequis } from './chantiers.service';
+import { ChantiersService, conditionsChantierPour, chantierEstAccessible, apportPersonnelRequis, DELAI_NOUVEL_APPEL_MS } from './chantiers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { BesoinsService } from '../carriere/besoins.service';
@@ -48,12 +48,15 @@ function fakePrisma(overrides: Record<string, object> = {}) {
       delete: jest.fn().mockResolvedValue({}),
     },
     carriereHistorique: { create: jest.fn().mockResolvedValue({}) },
+    // Offres aux appels d'offres : aucune perdue récemment par défaut.
+    offreMarche: { findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({}) },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fusion: any = {};
   for (const cle of new Set([...Object.keys(defaut), ...Object.keys(overrides)])) {
     fusion[cle] = { ...defaut[cle], ...(overrides[cle] ?? {}) };
   }
+  fusion.$transaction = jest.fn().mockImplementation((operation: (tx: unknown) => unknown) => operation(fusion));
   return fusion;
 }
 
@@ -87,7 +90,7 @@ function ucJournee(overrides: Record<string, unknown> = {}) {
 }
 
 async function service(prisma: ReturnType<typeof fakePrisma>) {
-  const progression = { appliquerDelta: jest.fn().mockResolvedValue({}) };
+  const progression = { appliquerDelta: jest.fn().mockResolvedValue({}), notifierNiveau: jest.fn().mockResolvedValue(undefined) };
   const besoinsJoueur = { consommer: jest.fn().mockResolvedValue({}) };
   const pnj = { surChantierLivre: jest.fn().mockResolvedValue(undefined) };
 
@@ -417,7 +420,47 @@ describe('ChantiersService.soumettreOffre — appel d’offres des marchés', ()
     const prixTresHaut = Math.round(marchePrive.budget * 1.15); // le maximum autorisé : offre la moins compétitive possible
     const resultat = await svc.soumettreOffre('u1', 'c1', prixTresHaut);
     expect(resultat.gagne).toBe(false);
-    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 15 });
+    expect(resultat.message).toContain('Nouvel appel d’offres dans 24 h'.replace('’', "'"));
+    expect(prisma.offreMarche.create).toHaveBeenCalledWith({ data: { userId: 'u1', chantierId: 'c1', prixPropose: prixTresHaut, gagnee: false } });
+    expect(progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 15 }, prisma);
+  });
+
+  it('perdu, le marché revient à un concurrent pendant 24 h : ni nouvelle offre, ni XP de consolation à chaque clic', async () => {
+    const perdueIlYaUneHeure = { creeLe: new Date(Date.now() - 3_600_000) };
+    const prisma = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(entrepreneurEligible) },
+      offreMarche: { findFirst: jest.fn().mockResolvedValue(perdueIlYaUneHeure) },
+    });
+    const { svc, progression } = await service(prisma);
+    const relance = svc.soumettreOffre('u1', 'c1', Math.round(marchePrive.budget * 0.6));
+    await expect(relance).rejects.toThrow(ConflictException);
+    await expect(svc.soumettreOffre('u1', 'c1', Math.round(marchePrive.budget * 0.6))).rejects.toThrow('Nouvel appel d\'offres dans 23 h');
+    expect(prisma.offreMarche.create).not.toHaveBeenCalled();
+    expect(progression.appliquerDelta).not.toHaveBeenCalled();
+    // Seules comptent les offres perdues depuis moins de 24 h.
+    const { where } = prisma.offreMarche.findFirst.mock.calls[0][0];
+    expect(where).toMatchObject({ userId: 'u1', chantierId: 'c1', gagnee: false });
+    expect(Date.now() - where.creeLe.gt.getTime()).toBeGreaterThanOrEqual(DELAI_NOUVEL_APPEL_MS - 1_000);
+  });
+
+  it('enregistre l’offre gagnée, et prévient d’une montée de niveau après l’XP de consolation', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const gagnante = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue(entrepreneurEligible) },
+      userChantier: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'uc-marche', ...data })) },
+    });
+    await (await service(gagnante)).svc.soumettreOffre('u1', 'c1', Math.round(marchePrive.budget * 0.6));
+    expect(gagnante.offreMarche.create).toHaveBeenCalledWith({ data: expect.objectContaining({ gagnee: true }) });
+    const perdante = fakePrisma({
+      chantier: { findUnique: jest.fn().mockResolvedValue(marchePrive) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 30, reputation: 210, profilActuel: { famille: 'ENTREPRENEUR', slug: 'gerant' } }) },
+    });
+    const { svc, progression } = await service(perdante);
+    progression.appliquerDelta.mockResolvedValue({ niveau: 31 });
+    await svc.soumettreOffre('u1', 'c1', Math.round(marchePrive.budget * 1.15));
+    expect(progression.notifierNiveau).toHaveBeenCalledWith('u1', 30, 31);
   });
 
   it('pèse la réputation plus lourd sur un marché public qu’un marché privé', async () => {
@@ -480,6 +523,19 @@ describe('ChantiersService.marchesDisponibles', () => {
     expect(marche.entrepreneurRequis).toBe(false);
     expect(marche.prixMin).toBe(Math.round(4_500_000 * 0.6));
     expect(marche.prixMax).toBe(Math.round(4_500_000 * 1.15));
+    expect(marche.nouvelAppelLe).toBeNull();
+  });
+
+  it('indique quand un marché perdu revient en appel d’offres', async () => {
+    const perdueLe = new Date(Date.now() - 2 * 3_600_000);
+    const prisma = fakePrisma({
+      chantier: { findMany: jest.fn().mockResolvedValue([{ id: 'c1', slug: 'marche-prive-extension-riviera', budget: 4_500_000 }]) },
+      userCarriere: { findUnique: jest.fn().mockResolvedValue({ niveau: 30, reputation: 250, profilActuel: { famille: 'ENTREPRENEUR' } }) },
+      userChantier: { findMany: jest.fn().mockResolvedValue([]) },
+      offreMarche: { findMany: jest.fn().mockResolvedValue([{ chantierId: 'c1', creeLe: perdueLe }]) },
+    });
+    const [marche] = await (await service(prisma)).svc.marchesDisponibles('u1');
+    expect(marche.nouvelAppelLe).toBe(new Date(perdueLe.getTime() + DELAI_NOUVEL_APPEL_MS).toISOString());
   });
 });
 

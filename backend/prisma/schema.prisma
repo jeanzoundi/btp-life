@@ -339,6 +339,7 @@ model User {
   invitationsEnvoyees   InvitationEquipe[]    @relation("InvitationsEnvoyees")
   invitationsRecues     InvitationEquipe[]    @relation("InvitationsRecues")
   signalementsFaits     SignalementMessage[]  @relation("SignalementsFaits")
+  offresMarches         OffreMarche[]
 }
 
 model Avatar {
@@ -728,6 +729,7 @@ model Chantier {
   ressources    ChantierRessource[]
   missions      Mission[]
   userChantiers UserChantier[]
+  offres        OffreMarche[]
 }
 
 model ChantierPhase {
@@ -1203,6 +1205,21 @@ model ErreurClient {
   resolueLe   DateTime?
 
   @@index([resolueLe, derniereLe])
+}
+
+// Les offres d'un entrepreneur aux appels d'offres. Une offre perdue attribue le marché à un concurrent pendant 24 h
+// (ChantiersService.soumettreOffre) : pas de relance en boucle jusqu'à gagner au prix fort, ni d'XP de consolation répétée.
+model OffreMarche {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chantierId  String
+  chantier    Chantier @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+  prixPropose Int
+  gagnee      Boolean
+  creeLe      DateTime @default(now())
+
+  @@index([userId, chantierId, creeLe])
 }
 
 // Les équipes de quartier : des joueurs connectés qui s'invitent et travaillent ensemble (bonus d'XP quand un coéquipier

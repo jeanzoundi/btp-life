@@ -828,22 +828,24 @@ async function main() {
   }
 
   console.log('Seed — comptes de démonstration...');
-  const adminPasswordHash = await argon2.hash('Admin1234!');
-  await prisma.user.upsert({
-    where: { email: 'admin@btplife.com' },
-    create: {
-      email: 'admin@btplife.com',
-      passwordHash: adminPasswordHash,
-      nom: 'Admin BTP Life',
-      role: 'ADMIN',
-      adminSubRole: 'SUPER_ADMIN',
-      emailVerified: true,
-      paysId: civ.id,
-      carriere: { create: { referentielPaysId: civ.id } },
-      cvVirtuel: { create: { contenu: {} } },
-    },
-    update: {},
-  });
+  // Créés une seule fois, avec SEED_ADMIN_PASSWORD / SEED_DEMO_PASSWORD ou un mot de passe aléatoire affiché à la création :
+  // jamais de mot de passe écrit en dur, le dépôt est public. Un compte déjà présent n'est jamais modifié ; pour changer
+  // son mot de passe : scripts/rotate-passwords.ts.
+  if (!(await prisma.user.findUnique({ where: { email: 'admin@btplife.com' }, select: { id: true } }))) {
+    await prisma.user.create({
+      data: {
+        email: 'admin@btplife.com',
+        passwordHash: await hashMotDePasseSeed('admin@btplife.com', 'SEED_ADMIN_PASSWORD'),
+        nom: 'Admin BTP Life',
+        role: 'ADMIN',
+        adminSubRole: 'SUPER_ADMIN',
+        emailVerified: true,
+        paysId: civ.id,
+        carriere: { create: { referentielPaysId: civ.id } },
+        cvVirtuel: { create: { contenu: {} } },
+      },
+    });
+  }
 
   // Compte admin réel de Jean, pour ajouter des matières via le générateur de cours.
   // Le mot de passe n'est jamais écrit en dur dans le repo : si JEAN_ADMIN_PASSWORD n'est
@@ -876,12 +878,10 @@ async function main() {
     }
   }
 
-  const demoPasswordHash = await argon2.hash('Demo1234!');
-  const demo = await prisma.user.upsert({
-    where: { email: 'demo@btplife.com' },
-    create: {
+  const demo = await prisma.user.findUnique({ where: { email: 'demo@btplife.com' } }) ?? await prisma.user.create({
+    data: {
       email: 'demo@btplife.com',
-      passwordHash: demoPasswordHash,
+      passwordHash: await hashMotDePasseSeed('demo@btplife.com', 'SEED_DEMO_PASSWORD'),
       nom: 'Joueur Démo',
       pseudo: 'DemoBuilder',
       ville: 'Abidjan',
@@ -910,7 +910,6 @@ async function main() {
       },
       cvVirtuel: { create: { contenu: {} } },
     },
-    update: {},
   });
 
   await prisma.userMission.upsert({
@@ -928,8 +927,14 @@ async function main() {
   });
 
   console.log('Seed terminé ✔');
-  console.log('  Admin  : admin@btplife.com / Admin1234!');
-  console.log('  Démo   : demo@btplife.com / Demo1234!');
+}
+
+/** Mot de passe d'un compte créé par le seed : la variable d'environnement, sinon un mot de passe aléatoire affiché une
+ * seule fois, à la création. */
+async function hashMotDePasseSeed(email: string, variable: string) {
+  const clair = process.env[variable] || randomBytes(12).toString('base64url');
+  if (!process.env[variable]) console.log(`  ${email} / ${clair} (généré — à noter, il ne sera plus affiché)`);
+  return argon2.hash(clair);
 }
 
 main()
