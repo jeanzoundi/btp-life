@@ -66,7 +66,8 @@ describe('accueil unifié', () => {
     expect(mocks.patch).toHaveBeenCalledWith('/carriere/avatar', { nomPersonnage: 'Koffi', config: { voieDepart: 'etudiant', formationDepart: 'ingenieur' } });
     fireEvent.click(screen.getByRole('button', { name: /Ingénieur structure/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Générer mon parcours' }));
-    await screen.findByText(/prime d’installation de 25 000 F/);
+    // Un étudiant reçoit la prime d'étudiant et une chambre en cité universitaire (primeInstallation, lib/profils-depart.ts).
+    await screen.findByText(/prime d’installation de 15\s000\sF.*chambre en cité universitaire/);
     fireEvent.click(screen.getByRole('button', { name: /Entrer dans le monde vivant/ }));
     expect(mocks.push).toHaveBeenCalledWith('/app/monde?lieu=universite');
   });

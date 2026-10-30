@@ -28,6 +28,8 @@ interface Marche {
   verrouille: boolean;
   entrepreneurRequis: boolean;
   dejaObtenu: boolean;
+  /** Marché perdu il y a moins de 24 h : attribué à un concurrent jusqu'au prochain appel d'offres. */
+  nouvelAppelLe: string | null;
   prixMin: number;
   prixMax: number;
 }
@@ -218,6 +220,10 @@ export default function EntreprisePage() {
                 <button disabled className="mt-3 w-full rounded-full bg-terracotta py-2 text-sm font-semibold text-ivoire opacity-40">
                   {m.entrepreneurRequis ? 'Réservé aux entrepreneurs' : `Débloqué au niveau ${m.niveauRequis}`}
                 </button>
+              ) : m.nouvelAppelLe ? (
+                <p className="mt-3 rounded-2xl bg-pierre/30 px-3 py-2 text-center text-xs font-semibold text-graphite/70">
+                  Attribué à un concurrent · nouvel appel d&apos;offres {new Date(m.nouvelAppelLe).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+                </p>
               ) : (
                 <div className="mt-3 space-y-2">
                   <input
