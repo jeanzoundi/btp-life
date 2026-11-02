@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  appliquerJournee, bilanJournee, CHANTIER_QUARTIER_INITIAL, enregistrerRecrutement, enRepos, etapeSimulateur, etatVisuelSimulateur, evenementsDuJour, journeeDisponible,
-  lireChantierQuartier, nouvelleJournee, phaseJournee, postesChantier, prochainJour, repondre, situation, tacheALaZone, tachesDisponibles, type ChantierQuartier, type Journee,
+  appliquerJournee, bilanJournee, CHANTIER_QUARTIER_INITIAL, enregistrerRecrutement, enRepos, etapeSimulateur, etatVisuelSimulateur, evenementsDuJour, fusionnerChantierQuartier,
+  journeeDisponible, lireChantierQuartier, nouvelleJournee, phaseJournee, postesChantier, prochainJour, repondre, reponsesJournee, situation, tacheALaZone, tachesDisponibles,
+  valeurJournee, type ChantierQuartier, type Journee,
 } from './journee-chantier';
 import { candidats, etatVisuel, TOTAL_JOURS, type Metier } from './programme-chantier';
 import { planChantier } from './plan-chantier';
 
 const GROS_OEUVRE: Metier[] = ['Chef d’équipe', 'Maçon', 'Manœuvre', 'Ferrailleur', 'Coffreur'];
 const equipe = candidats(1, GROS_OEUVRE).filter(o => o.id.endsWith('-q'));
-const bonne = (id: string) => situation(id)!.choix.findIndex(c => c.correct);
-const mauvaise = (id: string) => situation(id)!.choix.findIndex(c => !c.correct);
+// Le geste du jour (« geste-<jour> ») se répond par une valeur : la juste, ou une valeur bien hors tolérance.
+const geste = (id: string) => nouvelleJournee({ jours: Number(id.slice('geste-'.length)), equipe: [] }).geste!;
+const bonne = (id: string) => id.startsWith('geste-') ? geste(id).attendu : situation(id)!.choix.findIndex(c => c.correct);
+const mauvaise = (id: string) => id.startsWith('geste-') ? geste(id).attendu + 10 * geste(id).tolerance + 1 : situation(id)!.choix.findIndex(c => !c.correct);
 const toutJuste = (j: Journee) => { for (const t of j.taches) j = t.type === 'recrutement' ? enregistrerRecrutement(j, 1) : repondre(j, t.id, bonne(t.id)); return j; };
 const toutFaux = (j: Journee) => { for (const t of j.taches) j = t.type === 'recrutement' ? enregistrerRecrutement(j, 0) : repondre(j, t.id, mauvaise(t.id)); return j; };
 const chantier = (jours: number): ChantierQuartier => ({ ...CHANTIER_QUARTIER_INITIAL, jours, equipe });
@@ -24,9 +27,9 @@ describe('journée de travail', () => {
     const equipee = repondre(j, 'epi', bonne('epi'));
     expect(tacheALaZone(equipee, 'bureau')?.type).toBe('recrutement');
     expect(phaseJournee(enregistrerRecrutement(equipee, .9))).toBe('bilan');
-    // La meilleure équipe possible (vers 0,97) vaut la totalité des points ; une équipe à revoir, beaucoup moins.
-    expect(bilanJournee(enregistrerRecrutement(equipee, .97)).note).toBe(100);
-    expect(bilanJournee(enregistrerRecrutement(equipee, .6)).note).toBe(74);
+    // Le recrutement, jugé dans le navigateur, ne compte pas dans la note : c'est celle que le serveur recalcule.
+    expect(bilanJournee(enregistrerRecrutement(equipee, .97))).toMatchObject({ note: 100, bonnes: 1, total: 1 });
+    expect(bilanJournee(enregistrerRecrutement(equipee, .6)).note).toBe(100);
   });
   it('donne les travaux de l’étape, différents d’un jour à l’autre, et la livraison le premier jour', () => {
     const j1 = nouvelleJournee(chantier(4)), j2 = nouvelleJournee(chantier(5));
@@ -65,8 +68,29 @@ describe('journée de travail', () => {
     const [epi, premiere, ...autres] = j.taches;
     j = repondre(repondre(j, epi.id, bonne(epi.id)), premiere.id, mauvaise(premiere.id));
     for (const t of autres) j = repondre(j, t.id, bonne(t.id));
-    expect(bilanJournee(j)).toMatchObject({ note: 83, compte: true, mention: 'Bonne journée' });
-    expect(bilanJournee(toutFaux(nouvelleJournee(chantier(4))))).toMatchObject({ note: 10, compte: false, mention: 'Journée à revoir' });
+    // Une erreur sur cinq tâches notées (quatre situations et le geste du jour) : 10 + 20 + 70 × 4/5.
+    expect(bilanJournee(j)).toMatchObject({ note: 86, compte: true, mention: 'Bonne journée' });
+    // Comme une séance, et comme au serveur : sous 40, la journée n'est pas payée.
+    expect(bilanJournee(toutFaux(nouvelleJournee(chantier(4))))).toMatchObject({ note: 10, compte: false, mention: 'Journée à revoir', paie: 0, xp: 2 });
+    expect(valeurJournee(40)).toMatchObject({ compte: true, paie: 4600, xp: 44 });
+  });
+  it('envoie au serveur le choix de chaque situation, sans le recrutement', () => {
+    let j = nouvelleJournee(chantier(14));
+    j = enregistrerRecrutement(repondre(j, 'epi', bonne('epi')), 1);
+    for (const t of tachesDisponibles(j)) j = repondre(j, t.id, bonne(t.id));
+    const envoi = reponsesJournee(j);
+    expect(envoi).not.toHaveProperty('recrutement');
+    expect(Object.keys(envoi)).toEqual(j.taches.filter(t => t.type !== 'recrutement').map(t => t.id));
+  });
+});
+
+describe('avancement tenu par le serveur', () => {
+  it('reprend du serveur les jours, journées et livraisons, et garde l’équipe et le repos du navigateur', () => {
+    const local: ChantierQuartier = { ...chantier(2), journees: 3, repos: { heure: 17, le: 5 } };
+    expect(fusionnerChantierQuartier(local, { jours: 6, journees: 9, livraisons: 1, derniereRecompenseLe: null }))
+      .toEqual({ ...local, jours: 6, journees: 9, livraisons: 1 });
+    expect(fusionnerChantierQuartier(local, { jours: 999, journees: -1, livraisons: 0, derniereRecompenseLe: null }).jours).toBe(TOTAL_JOURS);
+    expect(fusionnerChantierQuartier(local, undefined)).toBe(local);
   });
 });
 

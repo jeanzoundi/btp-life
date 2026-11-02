@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { configDepuis } from '@/components/app/avatar-btp';
 import {
-  APPARENCE_DEFAUT, apparenceSurMesure, avecApparence, IDEES_SUR_MESURE, IDS_PERSONNAGES, personnageChoisi, personnageDe, personnageProche, PERSONNAGES, PERSONNAGE_DEFAUT,
+  APPARENCE_DEFAUT, apparenceSurMesure, avecApparence, IDEES_SUR_MESURE, IDS_PERSONNAGES, modeleSurMesure, personnageChoisi, personnageDe, personnageProche, PERSONNAGES, PERSONNAGE_DEFAUT,
+  porteLeCasque, REFERENCES_MODELES,
 } from './personnages-joueur';
 
 describe('les personnages jouables', () => {
@@ -49,13 +50,28 @@ describe('le même personnage dans les deux modes', () => {
 });
 
 describe('le personnage sur mesure', () => {
-  it('se dessine avec la version stylisée, habillée selon son apparence', () => {
+  it('prend le corps réaliste le plus proche, à ses couleurs, et garde la version stylisée habillée pour le lointain', () => {
     const apparence = { ...APPARENCE_DEFAUT, feminin: true, coiffure: 'afro' as const, couleurCheveux: '#A85F4C', pilosite: 'aucune' as const, tenue: 'pagne' as const, haut: '#C34653', casque: false };
     const p = personnageDe({ personnage: 'sur-mesure', apparence });
-    expect(p.modele).toBeNull();
+    expect(p.modele).toBe('femme-ville');
+    expect(p.teintes).toEqual({ peau: apparence.peau, haut: '#C34653', bas: apparence.bas, cheveux: '#A85F4C' });
     expect(p.casque).toBe(false);
+    expect(porteLeCasque(p)).toBe(false);
     expect(p.design).toMatchObject({ cheveux: 'afro', couleurCheveux: '#A85F4C', tenue: 'pagne', haut: '#C34653', feminin: true });
     expect(p.design.casque).toBeUndefined();
+  });
+  it('choisit sa silhouette selon le genre, la coiffure et la tenue, et connaît les couleurs de chaque corps', () => {
+    const a = APPARENCE_DEFAUT;
+    expect(modeleSurMesure({ ...a, tenue: 'gilet' })).toBe('ouvrier-casque');
+    expect(modeleSurMesure({ ...a, tenue: 'veste' })).toBe('cadre-homme');
+    expect(modeleSurMesure({ ...a, tenue: 'tshirt' })).toBe('homme-capuche');
+    expect(modeleSurMesure({ ...a, tenue: 'chemise' })).toBe('homme-jean');
+    expect(modeleSurMesure({ ...a, feminin: true, coiffure: 'afro' })).toBe('femme-ville');
+    expect(modeleSurMesure({ ...a, feminin: true, coiffure: 'tresses' })).toBe('cadre-femme');
+    for (const p of PERSONNAGES) expect(REFERENCES_MODELES[p.modele!]).toEqual({ peau: p.design.peau, haut: p.design.haut, bas: p.design.pantalon });
+    // Un personnage prêt à jouer porte toujours son casque au chantier ; le sur-mesure, seulement s'il l'a choisi.
+    expect(porteLeCasque(personnageDe({ personnage: 'costume' }))).toBe(true);
+    expect(porteLeCasque(personnageDe({ personnage: 'sur-mesure', apparence: { ...a, casque: true } }))).toBe(true);
   });
   it('remplace un réglage absent ou inconnu par sa valeur par défaut', () => {
     expect(apparenceSurMesure({ apparence: { coiffure: 'crete', haut: 'rouge', lunettes: 'oui', pilosite: 'barbe' } })).toEqual({ ...APPARENCE_DEFAUT, pilosite: 'barbe' });

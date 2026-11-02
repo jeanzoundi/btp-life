@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import {
-  ETAPES_PREMIERS_PAS, RECOMPENSES_PREMIERS_PAS, ajouterEtape, prochaineEtape, recompenseEtape, type EtapePremiersPas, type EtatPremiersPas,
+  ETAPES_PREMIERS_PAS, RECOMPENSES_PREMIERS_PAS, ajouterEtape, etapeOuverte, prochaineEtape, recompenseEtape, type EtapePremiersPas, type EtatPremiersPas,
 } from '@/lib/premiers-pas';
 import { francs } from '@/lib/patrimoine';
 
-// Le premier quart d'heure guidé, dans la ville : le serveur tient les étapes faites et verse les récompenses ; en
+// La première journée guidée, dans la ville : le serveur tient les étapes faites et verse les récompenses ; en
 // démonstration, le navigateur joue le même guide.
 
 /** Un envoi raté pour une raison passagère (réseau, serveur) est retenté à cet intervalle. */
@@ -37,6 +37,9 @@ export function usePremiersPas({ demo, onEtape }: {
     if (vues.current.has(etape)) return;
     if (!pret) { enAttente.current.add(etape); return; }
     if (!afficher) return;
+    // Un geste fait trop tôt (la banque avant la première paie) ne compte pas : refait au bon moment, il comptera.
+    const acquises = demo ? demoRef.current : client.getQueryData<EtatPremiersPas>(['monde', 'premiers-pas'])?.faites ?? [];
+    if (!etapeOuverte(acquises, etape)) return;
     vues.current.add(etape);
     if (demo) {
       const suivantes = ajouterEtape(demoRef.current, etape), termine = suivantes.length === ETAPES_PREMIERS_PAS.length;
@@ -76,7 +79,7 @@ export function usePremiersPas({ demo, onEtape }: {
   return { faites, afficher, valider };
 }
 
-/** Le panneau du guide : les cinq étapes, la prochaine détaillée, et ce qu'elles rapportent ; replié, la prochaine étape reste
+/** Le panneau du guide : les quatre étapes de la première journée, la prochaine détaillée, et ce qu'elles rapportent ; replié, la prochaine étape reste
  * affichée. Quand elle est déjà l'objectif de la case objectif (`dansObjectif`), le guide replié dit seulement comment la
  * réussir, pour ne pas montrer deux fois la même consigne. */
 export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer, dansObjectif = false }: {
@@ -84,9 +87,9 @@ export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer, dans
 }) {
   const prochaine = prochaineEtape(faites);
   const { etape, finale } = RECOMPENSES_PREMIERS_PAS;
-  return <section aria-label="Premiers pas" className="hud-verre pointer-events-auto min-h-0 overflow-y-auto rounded-2xl p-3 text-jeu-ivoire">
+  return <section aria-label="Première journée" className="hud-verre pointer-events-auto min-h-0 overflow-y-auto rounded-2xl p-3 text-jeu-ivoire">
     <header className="flex items-center gap-2">
-      <h3 className="hud-titre flex-1 text-[13.5px]">Premiers pas · {faites.length}/{ETAPES_PREMIERS_PAS.length}</h3>
+      <h3 className="hud-titre flex-1 text-[13.5px]">Première journée · {faites.length}/{ETAPES_PREMIERS_PAS.length}</h3>
       <button type="button" aria-expanded={ouvert} aria-label={ouvert ? 'Replier le guide' : 'Déplier le guide'} onClick={onBasculer} className="rounded-full px-2 text-[15px] leading-none hover:bg-white/10">{ouvert ? '−' : '+'}</button>
     </header>
     {!ouvert && prochaine && (dansObjectif

@@ -1,7 +1,8 @@
 'use client';
 
 import type { ModeExperience } from '@/lib/mode-experience-store';
-import { PROFILS_DEPART, profilsPourPorte, type ProfilCatalogue, type ProfilDepart } from '@/lib/profils-depart';
+import { francs, LOGEMENTS } from '@/lib/patrimoine';
+import { logementDepart, primeInstallation, PROFILS_DEPART, profilsPourPorte, type ProfilCatalogue, type ProfilDepart } from '@/lib/profils-depart';
 
 // Les deux premières décisions du créateur, sur le fond sombre de l'écran de création : le mode de départ, puis la
 // porte d'entrée dans le bâtiment (situation de départ).
@@ -32,6 +33,9 @@ export function SelectionProfilDepart({ profils, porte, profilId, onPorte, onPro
 }) {
   const choix = PROFILS_DEPART.find(p => p.id === porte);
   const disponibles = profilsPourPorte(profils, porte);
+  // Ce que le poste choisi donne à l'arrivée, avant de valider : la prime et le logement, comme au serveur.
+  const profil = profils.find(p => p.id === profilId);
+  const logement = profil ? LOGEMENTS.find(l => l.niveau === logementDepart(profil)) : undefined;
   return <div className="space-y-3">
     <div role="radiogroup" aria-label="Cinq profils de départ" className="grid gap-2 sm:grid-cols-2">
       {PROFILS_DEPART.map(p => <button type="button" role="radio" aria-checked={porte === p.id} key={p.id} onClick={() => onPorte(p.id)}
@@ -49,5 +53,8 @@ export function SelectionProfilDepart({ profils, porte, profilId, onPorte, onPro
       </select>
     </label>
     {!disponibles.length && <p role="status" className="text-[12.5px] text-jeu-ivoire/60">Aucune situation disponible dans cette voie. Consulte les autres spécialités.</p>}
+    {profil && logement && <p role="status" className="rounded-xl border border-jeu-lagune/30 bg-jeu-lagune/[.1] p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">
+      <strong className="text-jeu-lagune">À ton arrivée :</strong> une prime d’installation de {francs(primeInstallation(profil))}, et ton logement : {logement.nom.toLowerCase()} ({francs(logement.loyerSemaine)} la semaine).
+    </p>}
   </div>;
 }

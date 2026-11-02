@@ -19,6 +19,10 @@ describe('personnages réalistes', () => {
     expect(etatAnimation({ marche: true, allure: 4.5 })).toBe('course');
     expect(etatAnimation({ marche: true, allure: 1.5 })).toBe('marche');
     expect(etatAnimation({ prof: true })).toBe('parle');
+    // Un geste se joue à l'arrêt ; en marchant ou assis, le corps garde son allure.
+    expect(etatAnimation({ geste: 'salue' })).toBe('salue');
+    expect(etatAnimation({ geste: 'parle', marche: true })).toBe('marche');
+    expect(etatAnimation({ geste: 'salue', assis: true })).toBe('assis');
     expect(etatAnimation({})).toBe('repos');
   });
 

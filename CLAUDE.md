@@ -90,7 +90,13 @@ le serveur à partir des réponses brutes, jamais d'une note envoyée par le jeu
 Après tout changement d'un programme de lieu (`frontend/src/lib/lieux-programme/`),
 régénérer le corrigé : `node scripts/generer-corrige-programmes.cjs` (backend).
 Le test `corrige-programmes.test.ts` (frontend) échoue tant qu'il est périmé.
-Pour le fil rouge, c'est `scripts/verifier-campagne.cjs`.
+Pour le fil rouge, c'est `scripts/verifier-campagne.cjs`. `generer-corrige-programmes.cjs` régénère aussi `journees-corrige.json` après tout
+changement des journées du chantier ou de leurs gestes (`journee-chantier.ts`, `gestes-chantier.ts`) ;
+`corrige-journees.test.ts` échoue tant qu'il est périmé. Parcours (`parcours.ts`) et cursus (`cursus.ts`) existent
+aussi des deux côtés. Captures et mesures à points de vue fixes : `node scripts/captures-monde.mjs` (frontend) ;
+`--vues depart --url https://btp-life-frontend.vercel.app` mesure la version publiée. Le pilote graphique garde les
+shaders compilés d'un passage à l'autre, même avec un profil Chrome neuf : le premier passage d'une série paie seul la
+compilation. Comparer des versions sur les programmes de shaders, appels et triangles, ou à rang de passage égal.
 
 En production, publier le nouveau contenu avec
 `npx ts-node scripts/publier-contenu-monde.ts --apply` (backend) : il ajoute ce

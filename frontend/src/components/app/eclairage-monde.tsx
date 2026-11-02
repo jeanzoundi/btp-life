@@ -5,6 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { ambianceMeteo, type Meteo } from '@/lib/meteo-monde';
+import { demiCadreOmbres } from '@/lib/camera-monde';
 import { RefletsMonde } from './reflets-monde';
 
 /** Soleil continu et ombres centrées sur le joueur, sans ressource distante. La météo voile le ciel et rapproche le brouillard. */
@@ -27,7 +28,7 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
   const couleurSoleil = jour < 0.1 ? '#aac5f5' : crepuscule > 0.3 ? '#ffbd7c' : meteo === 'harmattan' ? '#ffd9a8' : `#${new THREE.Color('#fff0d6').lerp(new THREE.Color('#ffcf8f'), doree * (1 - ambiance.melange)).getHexString()}`;
   // Ambiance plus basse et soleil plus fort : des ombres franches donnent du volume aux façades et aux personnages.
   const intensiteAmbiante = 0.16 + jour * .5;
-  useFrame(({ controls }, delta) => {
+  useFrame(({ controls, camera }, delta) => {
     if (ambiance.eclairs && Math.random() < Math.min(delta, .1) * .12) eclair.current = 1;
     eclair.current = Math.max(0, eclair.current - delta * 5);
     if (ambiante.current) ambiante.current.intensity = intensiteAmbiante + eclair.current * (Math.random() > .3 ? 3 : 1);
@@ -36,6 +37,9 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
     cible.position.copy(target);
     soleil.current.position.set(target.x + Math.cos(angle) * 70, target.y + Math.max(22, Math.abs(hauteur) * 100), target.z + 45);
     cible.updateMatrixWorld();
+    // Le cadre des ombres suit le zoom : serré de près (ombres nettes), large de loin (elles couvrent toute l'image).
+    const demi = demiCadreOmbres(camera.position.distanceTo(target)), ombre = soleil.current.shadow.camera;
+    if (Math.abs(ombre.right - demi) > 2) { ombre.left = ombre.bottom = -demi; ombre.right = ombre.top = demi; ombre.updateProjectionMatrix(); }
   });
   return <>
     {/* Le ciel photographié éclaire surtout le jour ; la nuit, il ne laisse qu'un léger reflet. */}

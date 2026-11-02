@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { articleTropFatigant, articleUtile, effetsArticle, LIBELLES_JAUGES, type ArticleCarte, type Besoins, type JaugeBesoin, type LieuVie } from '@/lib/lieux-vie';
 import { conseilsObtenus, niveauRelation, type Professionnel } from '@/lib/lieux-vie/cafe';
@@ -143,10 +143,12 @@ export function PanneauAnnonces({ niveau, demo, onFermer }: { niveau: number; de
 }
 
 /** Le doyen : où en est ton semestre, et le prochain cours projeté en amphi. */
-export function PanneauDoyen({ prochain, avancement, horsLigne, onEnCours, onBibliotheque, onFermer }: {
+export function PanneauDoyen({ prochain, avancement, horsLigne, onEnCours, onBibliotheque, onFermer, cursus }: {
   prochain: { module: ModuleAcademie; cours: CoursAcademie } | null;
   avancement: ReturnType<typeof avancementSemestre>; horsLigne: boolean;
   onEnCours: () => void; onBibliotheque: () => void; onFermer: () => void;
+  /** Le cursus de l'étudiant (BTS ou ingénieur), fourni par la ville : semestres, examens, stages, diplôme. */
+  cursus?: ReactNode;
 }) {
   const pct = avancement.total ? Math.round(avancement.faits / avancement.total * 100) : 0;
   return <section role="dialog" aria-label="Le doyen de la faculté" className={CLASSE_PANNEAU}>
@@ -163,6 +165,7 @@ export function PanneauDoyen({ prochain, avancement, horsLigne, onEnCours, onBib
       <p className="mt-0.5 text-[14px] font-bold">{prochain.cours.titre}</p>
       <p className="text-[11.5px] text-jeu-ivoire/60">{prochain.cours.dureeMin ? `${prochain.cours.dureeMin} min · ` : ''}{prochain.cours.missionPratiqueId ? 'suivi d’une mission pratique payée' : 'cours magistral'}</p>
     </div>}
+    {cursus && <div className="mt-3 -mx-4">{cursus}</div>}
     <div className="mt-3 space-y-2">
       {prochain && <button onClick={onEnCours} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">Aller à ma place en amphi</button>}
       <button onClick={onBibliotheque} className="hud-bouton hud-bouton-verre w-full justify-start p-3 text-left text-sm">📚 Bibliothèque : tous les cours</button>

@@ -37,7 +37,8 @@ export function ControleZoneMusicale({ position, interieur }: { position: [numbe
     audio.current = { contexte, gain, timer }; setActive(zone.id);
   };
   if (!zone) return null;
-  return <details aria-label={`Zone musicale : ${zone.nom}`} className="hud-verre absolute bottom-[120px] right-3 z-[8] max-w-56 rounded-2xl px-3 py-2 sm:bottom-3">
+  // Placé par le HUD dans une colonne : sous l'objectif sur grand écran, au-dessus des notifications sur téléphone.
+  return <details aria-label={`Zone musicale : ${zone.nom}`} className="hud-verre pointer-events-auto max-w-56 rounded-2xl px-3 py-2">
     <summary className="cursor-pointer py-0.5 text-[12px] font-bold text-jeu-ivoire/85">♫ Musique{active ? ' · en écoute' : ''}</summary>
     <div className="mt-2 border-t border-white/10 pt-2">
     <p className="hud-legende text-jeu-or">Zone musicale</p><strong className="mt-1 block text-sm">{zone.nom}</strong><span className="text-[11px] text-jeu-ivoire/60">{zone.style}</span>

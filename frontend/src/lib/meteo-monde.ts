@@ -83,3 +83,12 @@ export function ambianceMeteo(meteo: Meteo): AmbianceMeteo {
     default: return { soleil: 1, teinte: '#adcddd', melange: 0, brouillardProche: 90, brouillardLoin: 280, pluie: 0, eclairs: false, turbidite: 5 };
   }
 }
+
+/** L'humidité des sols, de 0 (sec) à 1 (détrempé) : sous l'averse elle monte en une vingtaine de secondes réelles, puis
+ * le sol sèche en une minute et demie une fois la pluie passée. Asphalte, pavés et trottoirs foncent et brillent avec elle. */
+export function humiditeSuivante(actuelle: number, pluie: number, secondes: number) {
+  const cible = Math.min(1, Math.max(0, pluie) * 1.25);
+  if (!(secondes > 0) || cible === actuelle) return actuelle;
+  const pas = secondes * (cible > actuelle ? 1 / 20 : 1 / 90);
+  return cible > actuelle ? Math.min(cible, actuelle + pas) : Math.max(cible, actuelle - pas);
+}

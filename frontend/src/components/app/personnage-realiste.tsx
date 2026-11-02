@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import { Billboard, Text, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { clone as clonerAvecSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { cadenceAnimation, etatAnimation, MODELES_REALISTES, type ModeleRealiste } from '@/lib/personnages-realistes';
+import { cadenceAnimation, etatAnimation, MODELES_REALISTES, type GestePersonnage, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { finitionPersonnage } from '@/lib/finitions-personnage';
 
 const chemin = (modele: ModeleRealiste) => `/personnages/${modele}.glb`;
@@ -19,6 +19,8 @@ function estAffiche(objet: THREE.Object3D | null) {
 
 export interface PersonnageRealisteProps {
   modele: ModeleRealiste; marche?: boolean; assis?: boolean; prof?: boolean; allure?: number; nom?: string;
+  /** Un geste joué à l'arrêt : saluer de la main (les modèles sans ce clip parlent avec les mains), ou parler. */
+  geste?: GestePersonnage;
   /** Masque le casque des modèles d'ouvrier (à la maison, au bureau). */
   sansCasque?: boolean;
   /** Variante 2K réservée au bâtisseur dans l'atelier ; le jeu garde ses ressources légères. */
@@ -27,7 +29,7 @@ export interface PersonnageRealisteProps {
 }
 
 /** Personnage photoréaliste articulé (Microsoft Rocketbox, MIT) : un squelette cloné par instance, fondus entre animations. */
-export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom, sansCasque = false, niveauDetail = 'jeu', pauseAnimation = false }: PersonnageRealisteProps) {
+export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom, sansCasque = false, niveauDetail = 'jeu', pauseAnimation = false, geste }: PersonnageRealisteProps) {
   const { genre } = MODELES_REALISTES[modele];
   const studio = niveauDetail === 'studio' && modele === 'ouvrier-casque';
   const { scene } = useGLTF(studio ? '/personnages/ouvrier-studio.glb' : chemin(modele), false, true);
@@ -62,10 +64,10 @@ export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom, s
   }, [instance, sansCasque]);
   const mixeur = useMemo(() => new THREE.AnimationMixer(instance), [instance]);
   const actions = useMemo(() => Object.fromEntries(clips.map(c => [c.name, mixeur.clipAction(c)])), [clips, mixeur]);
-  const etat = etatAnimation({ marche, assis, prof, allure });
+  const etat = etatAnimation({ marche, assis, prof, allure, geste });
   const courante = useRef<THREE.AnimationAction | null>(null);
   useEffect(() => {
-    const suivante = actions[etat] ?? actions.repos;
+    const suivante = actions[etat] ?? (etat === 'salue' ? actions.parle : undefined) ?? actions.repos;
     if (!suivante) return;
     suivante.timeScale = cadenceAnimation(etat, allure);
     if (suivante === courante.current) return;

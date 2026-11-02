@@ -26,7 +26,7 @@ interface CarriereMe {
   argentVirtuel?: number;
   xp?: number;
   reputation?: number;
-  profilActuel?: { nom: string } | null;
+  profilActuel?: { nom: string; slug?: string } | null;
   avatar?: { nomPersonnage: string; config?: unknown } | null;
 }
 
@@ -103,7 +103,7 @@ function Monde() {
           <Quartier3D
             nomJoueur={carriere?.avatar?.nomPersonnage ?? user?.email?.split('@')[0]}
             besoins={carriere ? besoinsDe(carriere) : undefined}
-            profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom, xp: carriere.xp, reputation: carriere.reputation } : undefined}
+            profil={carriere ? { argent: carriere.argentVirtuel, niveau: carriere.niveau, poste: carriere.profilActuel?.nom, slug: carriere.profilActuel?.slug, xp: carriere.xp, reputation: carriere.reputation } : undefined}
             avatar={carriere ? carriere.avatar ?? null : undefined}
             lieuInitial={lieuInitial}
             immersif={immersif}

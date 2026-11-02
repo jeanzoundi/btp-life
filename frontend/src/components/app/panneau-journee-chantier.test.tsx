@@ -10,7 +10,10 @@ const equipe = candidats(1, GROS_OEUVRE).filter(o => o.id.endsWith('-q'));
 const actions = () => ({ onCommencer: vi.fn(), onBilan: vi.fn(), onTerminer: vi.fn(), onAbandonner: vi.fn(), onDiscuter: vi.fn(), onPlanning: vi.fn(), onFermer: vi.fn() });
 const base = { nomJoueur: 'Jean', nomChantier: 'Résidence Lagune II', etat: etatVisuel(4), simulateur: false, demo: true, journee: null, resultat: null, enCours: false };
 const journee = (jours: number) => nouvelleJournee({ ...CHANTIER_QUARTIER_INITIAL, jours, equipe });
-const repondreTout = (j: Journee, correct: boolean) => { for (const t of j.taches) j = repondre(j, t.id, situation(t.id)!.choix.findIndex(c => c.correct === correct)); return j; };
+const repondreTout = (j: Journee, correct: boolean) => {
+  for (const t of j.taches) j = repondre(j, t.id, t.type === 'geste' ? j.geste!.attendu + (correct ? 0 : 10 * j.geste!.tolerance + 1) : situation(t.id)!.choix.findIndex(c => c.correct === correct));
+  return j;
+};
 
 describe('Yao et la journée de travail', () => {
   it('donne la consigne de l’étape du jour et propose de commencer', () => {
@@ -42,10 +45,22 @@ describe('Yao et la journée de travail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Terminer la journée' }));
     expect(a.onTerminer).toHaveBeenCalledOnce();
   });
-  it('explique qu’une journée ratée est à refaire', () => {
+  it('explique qu’une journée ratée est à refaire, sans salaire', () => {
     const j = repondreTout(journee(2), false);
     render(<PanneauJourneeChantier {...base} {...actions()} statut="resultat" journee={j} resultat={{ bilan: bilanJournee(j), avant: 11, apres: 11, recompenses: 'demo', etapeAvant: 'Terrassement et fouilles', etapeApres: 'Terrassement et fouilles' }} />);
     expect(screen.getByText(/Journée à refaire : terrassement et fouilles reprend demain/)).toBeInTheDocument();
+    expect(screen.getByText('+0')).toBeInTheDocument();
+  });
+  it('connecté, affiche le salaire versé par le serveur, l’entraînement et la forme du moment', () => {
+    const j = repondreTout(journee(4), true);
+    const gains = { argent: 0, xp: 16, reputation: 0, facteurBesoins: .82, entrainement: true, prochaineRecompenseLe: '2026-10-30T10:20:00.000Z' };
+    const { unmount } = render(<PanneauJourneeChantier {...base} {...actions()} statut="resultat" demo={false} journee={j} resultat={{ bilan: bilanJournee(j), avant: 22, apres: 28, recompenses: 'serveur', gains, etapeAvant: 'Semelles de fondation', etapeApres: 'Semelles de fondation' }} />);
+    expect(screen.getByText('+16')).toBeInTheDocument();
+    expect(screen.getByText(/Entraînement : l’ouvrage avance, mais Yao ne paie qu’une journée toutes les 20 minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/Forme du moment : 82 %/)).toBeInTheDocument();
+    unmount();
+    render(<PanneauJourneeChantier {...base} {...actions()} statut="disponible" demo={false} journee={null} resultat={null} />);
+    expect(screen.getByText(/Journée payée par Yao : jusqu’à 7\s000 F et 80 XP/)).toBeInTheDocument();
   });
   it('montre le journal du simulateur, ou son refus avec le lien vers le chantier', () => {
     const j = repondreTout(journee(6), true);

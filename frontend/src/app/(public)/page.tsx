@@ -26,7 +26,7 @@ const ETAPES = [
 const NOUVEAUTES = [
   { icone: '🧑🏾‍🔧', titre: 'Ton personnage sur mesure', texte: 'Coiffure, barbe, teint, lunettes, tenue et couleurs : compose ton bâtisseur, le même dans les deux modes.' },
   { icone: '🤝', titre: 'Les équipes de quartier', texte: 'Invite jusqu’à trois voisins : à deux dans le même lieu, chaque séance rapporte 10 % d’XP en plus.' },
-  { icone: '🧭', titre: 'Un premier quart d’heure guidé', texte: 'Cinq premiers pas récompensés et une prime d’installation de 25 000 F pour démarrer sereinement.' },
+  { icone: '🧭', titre: 'Une première journée guidée', texte: 'Ton logement, ta première paie, ton compte et ton prochain objectif : quatre étapes récompensées, et une prime d’installation de 15 000 à 60 000 F selon ton poste.' },
   { icone: '🏢', titre: 'Le fil rouge Akwaba', texte: 'Neuf chapitres pour suivre un immeuble du marché clé en main jusqu’à la réception avec la cliente.' },
   { icone: '🌦️', titre: 'La météo des saisons', texte: 'Harmattan, grande et petite saisons des pluies : un ciel qui change au hasard des saisons ivoiriennes.' },
   { icone: '📱', titre: 'Jouable sur téléphone', texte: 'Un écran pensé pour le pouce : objectif lisible, commandes à portée, un menu pour le reste.' },
@@ -104,7 +104,7 @@ export default async function AccueilPage() {
               <span className="flex items-center gap-1.5"><span className="text-base">📱</span> Sur téléphone comme sur ordinateur</span>
             </div>
             <p className="anim-fade-up delai-5 mt-5 text-xs text-graphite/50">
-              ⚡ Premiers pas guidés et prime d&apos;installation de 25 000 F à ton arrivée — aucun paiement demandé.
+              ⚡ Première journée guidée et prime d&apos;installation de 15 000 à 60 000 F selon ton poste — aucun paiement demandé.
             </p>
           </div>
           <div className="anim-fade-up delai-2 flex justify-center">

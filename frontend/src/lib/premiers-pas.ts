@@ -1,20 +1,27 @@
-// Le premier quart d'heure guidé : cinq gestes pour découvrir le jeu, chacun récompensé une seule fois, et un bonus
-// quand tout est fait. Mêmes étapes et mêmes récompenses qu'au serveur (backend/src/monde/premiers-pas.service.ts).
+// La première journée guidée : du logement au prochain objectif, quatre étapes chacune récompensée une seule fois, et un
+// bonus quand tout est fait. Mêmes étapes, mêmes prérequis et mêmes récompenses qu'au serveur
+// (backend/src/monde/premiers-pas.service.ts).
 
 export const ETAPES_PREMIERS_PAS = [
-  { id: 'deplacement', titre: 'Fais quelques pas', detail: 'Clique sur le sol, un bâtiment ou la minicarte, ou marche avec ZQSD.' },
-  { id: 'telephone', titre: 'Ouvre ton téléphone', detail: 'Touche T : messages, trajets en taxi, banque, offres d’emploi…' },
-  { id: 'lieu', titre: 'Entre dans un lieu', detail: 'Clique sur un bâtiment : tu t’y rends, puis tu entres.' },
-  { id: 'seance', titre: 'Réussis une séance chez un mentor', detail: 'Parle au mentor du lieu, à ses heures d’ouverture, et fais les tâches du jour.' },
-  { id: 'quartier', titre: 'Salue le quartier', detail: 'Touche C : un message ou une émote aux autres joueurs.' },
+  { id: 'logement', titre: 'Rentre chez toi', detail: 'Suis la flèche jusqu’à Ma Résidence, puis entre : ton logement, ton loyer et le programme du jour t’y attendent.' },
+  { id: 'travail', titre: 'Gagne ta première paie', detail: 'Une journée avec Yao au Grand chantier (6 h – 18 h), ou une séance chez un mentor à ses heures d’ouverture.' },
+  { id: 'paie', titre: 'Vérifie ta paie', detail: 'Ouvre ton téléphone (touche T), puis la Banque : ton salaire est sur ton compte.' },
+  { id: 'objectif', titre: 'Choisis ton prochain objectif', detail: 'Dans le téléphone, Carrière montre tes objectifs durables : qualification, outil, logement, responsabilités, entreprise.' },
 ] as const;
 export type EtapePremiersPas = (typeof ETAPES_PREMIERS_PAS)[number]['id'];
 
+/** On vérifie sa paie une fois payé, et on choisit son prochain objectif après l'avoir vue ; le reste, dans l'ordre qu'on veut. */
+export const PREREQUIS_PREMIERS_PAS: Partial<Record<EtapePremiersPas, EtapePremiersPas>> = { paie: 'travail', objectif: 'paie' };
+
 export const RECOMPENSES_PREMIERS_PAS = { etape: { argent: 500, xp: 15 }, finale: { argent: 2_000, xp: 50 } } as const;
-/** Distance à parcourir (m) pour valider « Fais quelques pas ». */
-export const DISTANCE_PREMIERS_PAS = 12;
 
 export interface EtatPremiersPas { faites: EtapePremiersPas[]; termineLe: string | null; afficher: boolean }
+
+/** L'étape compte-t-elle déjà, son prérequis fait ? Un geste fait trop tôt (la banque avant la paie) ne compte pas. */
+export const etapeOuverte = (faites: readonly EtapePremiersPas[], etape: EtapePremiersPas) => {
+  const prerequis = PREREQUIS_PREMIERS_PAS[etape];
+  return !prerequis || faites.includes(prerequis);
+};
 
 /** Les étapes faites après celle-ci, dans l'ordre du guide. */
 export const ajouterEtape = (faites: readonly EtapePremiersPas[], etape: EtapePremiersPas) =>

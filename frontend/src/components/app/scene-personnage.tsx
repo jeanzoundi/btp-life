@@ -40,7 +40,7 @@ function Plateau({ id, apparence, gabarit, couleurCasque, rotation }: { id: IdPe
     <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[1.1, 48]} /><meshStandardMaterial color="#2a3b3d" roughness={.85} /></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .005, 0]}><ringGeometry args={[1.04, 1.12, 64]} /><meshBasicMaterial color="#e8bd72" /></mesh>
     <group ref={groupe} scale={echelleGabarit(gabarit)}>
-      <HumainMonde key={id} modele={p.modele} design={design} casque={p.casque} teinteCasque={p.casque ? couleurCasque : undefined} />
+      <HumainMonde key={id} modele={p.modele} design={design} casque={p.casque} sansCasque={!p.casque} teinteCasque={p.casque ? couleurCasque : undefined} teintes={p.teintes} />
     </group>
   </>;
 }

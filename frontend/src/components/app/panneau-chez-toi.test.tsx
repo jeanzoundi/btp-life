@@ -23,6 +23,17 @@ describe('chez soi', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Y aller' })[0]);
     expect(onAller).toHaveBeenCalledWith('chantier');
   });
+  it('rappelle le logement du joueur et son loyer, première étape de sa journée', async () => {
+    const { api } = await import('@/lib/api');
+    vi.mocked(api.get).mockImplementation(url => Promise.resolve(url === '/monde/patrimoine' ? { logement: { nom: 'Chambre en cité universitaire', loyerSemaine: 5_000 } } : []) as never);
+    avecClient(<PanneauChezToi demo={false} heure={10} rendezVous={JOUR} besoins={{ faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 }} onAller={vi.fn()} />);
+    expect(await screen.findByText('Chambre en cité universitaire')).toBeInTheDocument();
+    expect(screen.getByText(/loyer de 5\s000 F la semaine/)).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/monde/patrimoine');
+    cleanup();
+    avecClient(<PanneauChezToi demo logementDemo="f2" heure={10} rendezVous={JOUR} besoins={{ faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 }} onAller={vi.fn()} />);
+    expect(screen.getByText('Deux-pièces avec balcon')).toBeInTheDocument();
+  });
   it('donne accès au courrier et à la garde-robe', () => {
     avecClient(<PanneauChezToi demo heure={10} rendezVous={JOUR} besoins={{ faim: 80, social: 80, moral: 80, hygiene: 80, divertissement: 80 }} onAller={vi.fn()} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Courrier' }));

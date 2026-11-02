@@ -8,7 +8,7 @@ import { EclairageMonde } from './eclairage-monde';
 import { HumainMonde } from './humain-monde';
 import { orienterProgressivement } from '@/lib/fluidite-monde';
 import { itineraireVille } from '@/lib/itineraire-ville';
-import { decalageVue } from '@/lib/camera-monde';
+import { decalageVue, DISTANCE_LOIN, DISTANCE_PROCHE, inclinaisonPourDistance } from '@/lib/camera-monde';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { JoueurActif } from './autres-joueurs';
@@ -18,6 +18,7 @@ import { LIMITES_VILLE } from '@/lib/ville';
 import { type Humeur } from './besoins';
 import { BullePensee, Plumbob3D, usePenseePeriodique } from './humeur-monde';
 import { Pluie } from './meteo-monde';
+import { SolsMouilles } from './sols-mouilles';
 import { ambianceMeteo, type Meteo } from '@/lib/meteo-monde';
 import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-monde';
 import { EmoteJoueur3D, VoisinsEnLigne3D } from './monde-en-ligne';
@@ -30,6 +31,8 @@ import { positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import { creneauPnj, effetsMeteo, passantsPresents } from '@/lib/vie-urbaine';
+import { etapePnj, JOURNEES_PNJ } from '@/lib/journee-pnj';
+import { HabitantJournee } from './habitant-journee';
 import { HumainJoueur } from './personnage-joueur';
 import { LIEUX_MONDE } from '@/lib/liens-modes';
 import { EMPRISES_PALMIERS } from '@/lib/place-palmiers';
@@ -101,12 +104,14 @@ const ROUTES_PASSANTS: PointMonde[][] = [
   [[-48, -58], [48, -58], [48, -71.3], [-48, -71.3]],
 ];
 
-function Batiment({ batiment, selectionne, nuit, onSelect }: { batiment: Batiment3D; selectionne: boolean; nuit: boolean; onSelect: (b: Batiment3D) => void }) {
+/** `progression` : où en est le joueur dans le programme du lieu, écrit sous son nom sur l'enseigne. */
+function Batiment({ batiment, selectionne, nuit, onSelect, progression }: { batiment: Batiment3D; selectionne: boolean; nuit: boolean; onSelect: (b: Batiment3D) => void; progression?: string }) {
   return <group position={[batiment.position[0], 0, batiment.position[2]]} onClick={(e) => { e.stopPropagation(); if (e.delta < 5) onSelect(batiment); }}>
     <Architecture width={batiment.taille[0]} height={batiment.taille[1]} depth={batiment.taille[2]} color={batiment.couleur} kind={batiment.type} nuit={nuit} slug={batiment.slug} />
     {batiment.type !== 'chantier' && <group position={[0, Math.min(4.15, batiment.taille[1] - .4), batiment.taille[2] / 2 + 0.48]}>
       <mesh><boxGeometry args={[Math.min(batiment.taille[0] - 1, Math.max(4.8, batiment.nom.length * 0.32)), 0.78, 0.14]} /><meshStandardMaterial color="#18363b" roughness={0.5} /></mesh>
-      <Text position={[0, 0, 0.09]} fontSize={0.28} maxWidth={batiment.taille[0] - 1.5} color="#fff0ce" anchorX="center" anchorY="middle">{batiment.nom}</Text>
+      <Text position={[0, progression ? .13 : 0, 0.09]} fontSize={0.28} maxWidth={batiment.taille[0] - 1.5} color="#fff0ce" anchorX="center" anchorY="middle">{batiment.nom}</Text>
+      {progression && <Text position={[0, -.2, 0.09]} fontSize={0.17} maxWidth={batiment.taille[0] - 1.5} color="#f2c14e" anchorX="center" anchorY="middle">{progression}</Text>}
     </group>}
     {selectionne && <Billboard position={[0, Math.max(batiment.taille[1], batiment.type === 'chantier' ? 14 : 0) + 2, 0]}><mesh><planeGeometry args={[Math.max(7, batiment.nom.length * 0.48), 1.55]} /><meshBasicMaterial color="#9b6422" transparent opacity={0.94} /></mesh><Text position={[0, 0, 0.02]} fontSize={0.55} color="#fff5dc" anchorX="center" anchorY="middle">{batiment.nom}</Text></Billboard>}
     {selectionne && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.19, 0]}><ringGeometry args={[Math.max(...[batiment.taille[0], batiment.taille[2]]) * 0.65, Math.max(batiment.taille[0], batiment.taille[2]) * 0.65 + 0.25, 48]} /><meshBasicMaterial color="#ffd47a" /></mesh>}
@@ -118,7 +123,7 @@ function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; c
 }
 
 /** `vitesse` : mètres par seconde (4,5 par beau temps, moins sous la pluie). */
-function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition, humeur, critique, contexte, bulles, vitesse = 4.5 }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; humeur: Humeur; critique: Critique; contexte: ContextePensee; bulles: boolean; vitesse?: number }) {
+function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition, humeur, critique, contexte, bulles, vitesse = 4.5, parle = false }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; humeur: Humeur; critique: Critique; contexte: ContextePensee; bulles: boolean; vitesse?: number; parle?: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const pensee = usePenseePeriodique(graine => penseeJoueur(critique, contexte, graine), bulles, 3, critique ? 11 : 26);
   const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null);
@@ -173,7 +178,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
   return <group ref={ref}>
     {/* Anneau du joueur, visible même derrière un bâtiment, comme le losange. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .06, 0]} renderOrder={9} userData={{ sansOcclusion: true }}><ringGeometry args={[.62, .82, 40]} /><meshBasicMaterial color="#dff3f7" transparent opacity={.85} depthTest={false} depthWrite={false} /></mesh>
-    <HumainJoueur nom={nom} marche={marche} casque allure={4.5} scale={ECHELLE_PERSONNAGES} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
+    <HumainJoueur nom={nom} marche={marche} casque allure={4.5} scale={ECHELLE_PERSONNAGES} geste={parle ? 'parle' : undefined} /><Plumbob3D humeur={humeur} /><BullePensee pensee={pensee} />
   </group>;
 }
 
@@ -244,6 +249,7 @@ function CameraSims({ joueur, vue, plan }: { joueur: React.MutableRefObject<THRE
   const enPlan = useRef(false);
   const controles = useRef<ComponentRef<typeof MapControls>>(null);
   const cible = useMemo(() => new THREE.Vector3(), []);
+  const ecart = useMemo(() => new THREE.Vector3(), []);
   const camera = useThree(s => s.camera);
   const aspect = useThree(s => s.size.width / Math.max(1, s.size.height));
   // Vue d'ensemble de trois quarts par défaut (reculée en portrait) ; caméra libre basse en option.
@@ -282,11 +288,24 @@ function CameraSims({ joueur, vue, plan }: { joueur: React.MutableRefObject<THRE
     }
     cible.set(joueur.current.x, 1, joueur.current.z);
     cible.sub(controles.current.target).multiplyScalar(1 - Math.exp(-6 * delta));
-    camera.position.add(cible); controles.current.target.add(cible); controles.current.update();
+    camera.position.add(cible); controles.current.target.add(cible);
+    // Vue d'ensemble : l'inclinaison suit le zoom, basse de près pour les façades, plongeante de loin pour le plan.
+    if (proche) {
+      const t = controles.current.target;
+      ecart.copy(camera.position).sub(t);
+      const distance = ecart.length(), horizontal = Math.hypot(ecart.x, ecart.z);
+      const actuelle = Math.atan2(ecart.y, horizontal), voulue = inclinaisonPourDistance(distance);
+      if (distance > 0 && Math.abs(voulue - actuelle) > 1e-4) {
+        const suivante = actuelle + (voulue - actuelle) * (1 - Math.exp(-5 * delta)), azimut = Math.atan2(ecart.x, ecart.z);
+        const h = distance * Math.cos(suivante);
+        camera.position.set(t.x + h * Math.sin(azimut), t.y + distance * Math.sin(suivante), t.z + h * Math.cos(azimut));
+      }
+    }
+    controles.current.update();
     // La minicarte et la flèche d'objectif s'orientent comme la caméra, y compris en caméra libre.
     if (vue) vue.current.azimut = Math.atan2(camera.position.x - controles.current.target.x, camera.position.z - controles.current.target.z);
   });
-  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?14:3} maxDistance={proche?60:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
+  return <MapControls ref={controles} makeDefault enableDamping dampingFactor={0.08} enableRotate={!proche} minDistance={proche?DISTANCE_PROCHE:3} maxDistance={proche?DISTANCE_LOIN:95} minPolarAngle={0.3} maxPolarAngle={1.48} enablePan={false} mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }} />;
 }
 
 
@@ -309,9 +328,13 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-export function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[] };
+export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[]; contribution?: string; ouvriers?: number };
+  /** La progression du joueur dans le programme de chaque lieu à mentor, affichée sur son enseigne. */
+  progressionLieux?: Record<string, string>;
   /** La Résidence Akwaba : son stade (chapitres validés du fil rouge) et la balise du portail quand Mme Touré attend. */
-  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void; yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void; coequipiers: string[]; onVoisin: () => void }) {
+  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void;
+  /** Une journée de chantier est en cours : Yao reste à son poste, quelle que soit l'heure. */
+  yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void; coequipiers: string[]; onVoisin: () => void }) {
   const nuit = heure >= 19 || heure < 6;
   const sombre = nuit || ambianceMeteo(meteo).soleil < .3;
   const pluie = ambianceMeteo(meteo).pluie;
@@ -322,23 +345,32 @@ export function Scene({ joueur, vue, suiviPnj, chantier, akwaba, onPoste, yaoAuC
     <EclairageMonde heure={heure} meteo={meteo} />
     {sombre && [[-42, 4, -15], [0, 4, -15], [42, 4, -15], [-42, 4, 15], [0, 4, 15], [42, 4, 15], [0, 4, 47]].map((p, i) => <pointLight key={i} position={p as [number, number, number]} color="#ffd778" intensity={nuit ? 7 : 4} distance={18} decay={2} />)}
     {pluie > 0 && <Pluie intensite={pluie} pause={pause} />}
+    {/* Les sols foncent et brillent sous l'averse, des flaques s'ouvrent, puis tout sèche après la pluie. */}
+    <SolsMouilles pluie={pluie} pause={pause} />
     <PaysageLagune pause={pause} rythme={rythme} heure={Math.floor(heure)} onDestination={choisirDestination} /><MarqueurDestination destination={destination} />
     {POINTS_DECOUVERTE.map(point => <PointDecouverte key={point.id} point={point} trouve={decouvertes.includes(point.id)} onTrouver={(id, nom) => {
       if (Math.hypot(joueur.current.x - point.position[0], joueur.current.z - point.position[1]) <= 6) onDecouverte(id, nom);
       else destination.current = point.position;
     }} />)}
     {BATIMENTS.map((b) => b.slug === 'chantier'
-      ? <ChantierVivant key={b.slug} centre={CENTRE_CHANTIER} largeur={b.taille[0]} profondeur={b.taille[2]} etat={chantier.etat} nomChantier={chantier.nom} livraison={chantier.livraison} postes={chantier.postes} pause={pause} rythme={rythme} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onPoste={onPoste} onSelect={() => onSelect(b)} />
-      : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} />)}
+      ? <ChantierVivant key={b.slug} centre={CENTRE_CHANTIER} largeur={b.taille[0]} profondeur={b.taille[2]} etat={chantier.etat} nomChantier={chantier.nom} livraison={chantier.livraison} postes={chantier.postes} pause={pause} rythme={rythme} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onPoste={onPoste} onSelect={() => onSelect(b)} contribution={chantier.contribution} ouvriers={chantier.ouvriers} />
+      : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} progression={progressionLieux?.[b.slug]} />)}
     <ImmeubleAkwaba stade={akwaba.stade} appel={akwaba.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_AKWABA.slug} onSelect={() => onSelect(PARCELLE_BATIMENT)} />
-    <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} vitesse={4.5 * effetsMeteo(meteo).vitesseMarche} />
+    <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} vitesse={4.5 * effetsMeteo(meteo).vitesseMarche} parle={Boolean(interlocuteur)} />
     {/* Le concurrent du fil rouge rôde devant la parcelle Akwaba aux heures de chantier, jusqu'à la livraison. */}
     {presenceConcurrent(akwaba.stade, heure) && <Concurrent3D pause={pause} rythme={rythme} bulles={bulles} onParler={onConcurrent} />}
     {/* Les autres joueurs connectés, avec leur personnage et leurs émotes (monde en ligne). */}
     <VoisinsEnLigne3D voisins={voisins} coequipiers={coequipiers} onSelect={onVoisin} /><EmoteJoueur3D position={joueur} emote={monEmote} />
-    {/* Chaque habitant suit sa journée (lib/vie-urbaine) : au travail aux heures de son lieu, en sortie le soir, chez lui la nuit. */}
+    {/* Yao, Koffi et Awa vivent une journée continue (lib/journee-pnj) : trajet, travail, déjeuner assis au maquis, soirée,
+        retour ; Yao reste à son poste tant qu'une journée de chantier est en cours. Les autres suivent leurs créneaux
+        (lib/vie-urbaine) : au travail aux heures de leur lieu, en sortie le soir, chez eux la nuit. */}
     {noms.map((nom, i) => {
-      const route = nom === 'Yao' && yaoAuChantier ? [POSTES_CHANTIER.yao] : creneauPnj(nom, heure)?.route;
+      if (JOURNEES_PNJ[nom]) {
+        const etape = nom === 'Yao' && yaoAuChantier ? { de: 0, a: 24, phase: 'travail' as const, activite: 'Au chantier', allees: [POSTES_CHANTIER.yao], avancee: 0 } : etapePnj(nom, heure);
+        return etape ? <HabitantJournee key={`${nom}-${i}`} nom={nom} identite={IDENTITES_PNJ[nom]} couleur={HABITANTS[i].couleur} variante={i + 1} etape={etape} heure={heure} rythme={rythme} pause={pause} enConversation={interlocuteur === nom}
+          joueur={joueur} destination={destination} onParler={onParler} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} emprises={EMPRISES} /> : null;
+      }
+      const route = creneauPnj(nom, heure)?.route;
       return route ? <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={route} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} /> : null;
     })}
     {/* La foule suit l'heure, le quartier et la pluie : le marché le matin, la plage le soir, des rues vides sous l'orage. */}

@@ -38,8 +38,8 @@ const ouvertA = (h: { ouverture: number; fermeture: number }, heure: number) => 
 export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }: {
   cle: string; demo: boolean; heure: number;
   notifier: (texte: string, type?: TypeNotification) => void;
-  /** Gains de démonstration, appliqués au solde et aux jauges affichés. */
-  recompenser: (bilan: BilanChapitre) => void;
+  /** Gains de démonstration, appliqués au solde et aux jauges affichés, et renvoyés pour le bilan (mêmes règles qu'au serveur). */
+  recompenser: (bilan: BilanChapitre) => GainsChapitre | undefined;
   /** Une séance de lieu est en cours : son lieu, le temps qu'elle se termine (on mène une chose à la fois). */
   occupe: string | null;
 }) {
@@ -125,8 +125,8 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
     const s = seance, bilan = bilanChapitre(s);
     if (demo) {
       enregistrer(appliquerChapitre(local, bilan.reussi, new Date()));
-      if (bilan.reussi) recompenser(bilan);
-      setResultat({ index: s.etape, bilan, recompenses: 'demo' });
+      const gains = bilan.reussi ? recompenser(bilan) : undefined;
+      setResultat({ index: s.etape, bilan, recompenses: 'demo', ...(gains ? { gains } : {}) });
       return;
     }
     // Connecté : le chapitre n'est validé (et payé) qu'à la réponse du serveur.
@@ -204,7 +204,7 @@ function GainsChapitreResultat({ resultat }: { resultat: ResultatChapitre }) {
     <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-lagune">+{xp}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">points d’expérience</span></div>
     {reputation > 0 && <p className="col-span-2 text-[12px] font-semibold text-jeu-or">+{reputation} de réputation</p>}
     {gains && gains.facteurBesoins < .99 && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Forme du moment : {Math.round(gains.facteurBesoins * 100)} % de l’XP. Mange, dors et vois du monde pour tout gagner.</p>}
-    {!gains && <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : gains non sauvegardés.</p>}
+    {resultat.recompenses === 'demo' && <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : gains non sauvegardés.</p>}
   </div>;
 }
 

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { conseilsDuMatin, type RendezVous } from '@/lib/journee-joueur';
+import { francs, LOGEMENTS, type NiveauLogement } from '@/lib/patrimoine';
 import { heureLisible } from './panneau-programme-lieu';
 import { PanneauCabine } from './panneaux-loisirs';
 
@@ -57,20 +58,26 @@ export function PanneauMatin({ heure, rendezVous, besoins, onAller, onFermer }: 
   </section>;
 }
 
-/** Les activités de chez soi : la journée, le courrier (les vrais messages du joueur), les travaux, la garde-robe (le vrai dressing). */
-export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller, travaux }: {
+/** Les activités de chez soi : le logement et son loyer, la journée, le courrier (les vrais messages du joueur), les travaux,
+ * la garde-robe (le vrai dressing). */
+export function PanneauChezToi({ demo, heure, rendezVous, besoins, onAller, travaux, logementDemo = 'studio' }: {
   demo: boolean; heure: number; rendezVous: RendezVous[]; besoins: Besoins; onAller: (slug: string) => void;
   /** Les travaux chez soi : c'est ici que se font les journées de travaux. */
   travaux?: ReactNode;
+  /** Démonstration : le logement choisi dans le téléphone ; connecté, celui que tient le serveur. */
+  logementDemo?: NiveauLogement;
 }) {
   const [onglet, setOnglet] = useState<'journee' | 'courrier' | 'travaux'>('journee');
   const [garde, setGarde] = useState(false);
   const { data: messages } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<Message[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000 });
+  const { data: patrimoine } = useQuery({ queryKey: ['monde', 'patrimoine'], queryFn: () => api.get<{ logement: { nom: string; loyerSemaine: number } }>('/monde/patrimoine'), enabled: !demo });
+  const logement = demo ? LOGEMENTS.find(l => l.niveau === logementDemo) : patrimoine?.logement;
   const nonLus = (messages ?? []).filter(m => !m.lu).length;
   if (garde) return <PanneauCabine demo={demo} onFermer={() => setGarde(false)} />;
   const classeOnglet = (actif: boolean) => `rounded-xl px-2 py-2 text-[12px] font-semibold ${actif ? 'bg-jeu-or text-[#2A1C0E]' : 'bg-white/[.06] text-jeu-ivoire/80'}`;
   return <section role="dialog" aria-label="Chez toi" className="hud-verre absolute inset-x-3 bottom-3 z-40 mx-auto max-h-[70%] max-w-md overflow-y-auto p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[430px]">
     <EnTete surtitre="Résidence Lagune" titre="Chez toi" />
+    {logement && <p className="mt-2 rounded-xl bg-white/[.05] px-3 py-2 text-[12px] leading-snug text-jeu-ivoire/80">🏠 <strong className="text-jeu-ivoire">{logement.nom}</strong> · loyer de {francs(logement.loyerSemaine)} la semaine. Plus grand et plus confortable dans Patrimoine, sur ton téléphone.</p>}
     <div role="tablist" aria-label="Chez toi" className={`mt-3 grid ${travaux ? 'grid-cols-4' : 'grid-cols-3'} gap-1.5`}>
       <button type="button" role="tab" aria-selected={onglet === 'journee'} onClick={() => setOnglet('journee')} className={classeOnglet(onglet === 'journee')}>Ta journée</button>
       <button type="button" role="tab" aria-selected={onglet === 'courrier'} onClick={() => setOnglet('courrier')} className={classeOnglet(onglet === 'courrier')}>Courrier{nonLus ? ` · ${nonLus}` : ''}</button>

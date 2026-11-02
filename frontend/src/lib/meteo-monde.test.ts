@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ambianceMeteo, DUREE_EPISODE_MS, meteoDuMoment, METEOS, saisonDuMoment, type Meteo } from './meteo-monde';
+import { ambianceMeteo, DUREE_EPISODE_MS, humiditeSuivante, meteoDuMoment, METEOS, saisonDuMoment, type Meteo } from './meteo-monde';
 
 const MINUTE = 60_000;
 
@@ -62,5 +62,20 @@ describe('météo du monde', () => {
     expect(orage.pluie).toBe(1);
     expect(orage.eclairs).toBe(true);
     expect(ambianceMeteo('harmattan').pluie).toBe(0);
+  });
+});
+
+describe('les sols sous la pluie', () => {
+  it('se mouillent vite sous l’averse, sans dépasser la saturation', () => {
+    const averse = ambianceMeteo('averse').pluie;
+    expect(humiditeSuivante(0, averse, 10)).toBeCloseTo(.5);
+    expect(humiditeSuivante(0, averse, 60)).toBeCloseTo(averse * 1.25);
+    expect(humiditeSuivante(0, ambianceMeteo('orage').pluie, 60)).toBe(1);
+  });
+  it('sèchent lentement une fois la pluie passée, sans descendre sous zéro', () => {
+    expect(humiditeSuivante(1, 0, 45)).toBeCloseTo(.5);
+    expect(humiditeSuivante(1, 0, 200)).toBe(0);
+    expect(humiditeSuivante(.3, 0, 0)).toBe(.3);
+    expect(humiditeSuivante(.3, 0, Number.NaN)).toBe(.3);
   });
 });

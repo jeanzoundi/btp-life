@@ -28,10 +28,11 @@ const SITUATIONS: Record<string, { question: string; choix: [string, string]; re
   Fatou: { question: 'Le quartier veut organiser une activité sur la promenade.', choix: ['Prévoir accès, ombre et collecte des déchets', 'Installer les stands au milieu du passage'], reponses: ['Merci ! Une activité réussie laisse une place à tout le monde. Le café est notre point de rencontre.', 'Gardons un passage accessible et dégagé. Nous pouvons revoir l’implantation ensemble.'] },
 };
 
-/** `onLien(gain)` : un échange qui rapproche (points avant le facteur du sociable, appliqué par la ville). */
-export function DialoguePersonnage({ nom, affinite, onLien, onLieu, onClose }: { nom: string; affinite: number; onLien: (gain: number) => void; onLieu: (slug: string) => void; onClose: () => void }) {
+/** `onLien(gain)` : un échange qui rapproche (points avant le facteur du sociable, appliqué par la ville). `accueil` : la
+ * première réplique, quand l'habitant a quelque chose à dire sur ce que fait le joueur (lib/dialogues-pnj.ts). */
+export function DialoguePersonnage({ nom, affinite, accueil, onLien, onLieu, onClose }: { nom: string; affinite: number; accueil?: string | null; onLien: (gain: number) => void; onLieu: (slug: string) => void; onClose: () => void }) {
   const habitant = HABITANTS.find(p => p.nom === nom)!;
-  const [reponse, setReponse] = useState(habitant.accueil);
+  const [reponse, setReponse] = useState(accueil ?? habitant.accueil);
   const [salue, setSalue] = useState(false);
   const [situation, setSituation] = useState(false);
   const [choixFait, setChoixFait] = useState<number | null>(null);

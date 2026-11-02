@@ -27,13 +27,14 @@ export function EauLagune({ pause }: { pause: boolean }) {
 }
 
 const FEUILLES_PAR_ARBRE = 56;
-/** Deux essences des rues d'Abidjan : le manguier, couronne ronde et dense, et le flamboyant, parasol large fleuri de rouge. */
-function ArbresAbidjan({ arbres }: { arbres: readonly [number, number][] }) {
+/** Deux essences des rues d'Abidjan : le manguier, couronne ronde et dense, et le flamboyant, parasol large fleuri de rouge
+ * (un arbre sur trois, ou tous avec `flamboyants`). */
+export function ArbresAbidjan({ arbres, flamboyants = false }: { arbres: readonly [number, number][]; flamboyants?: boolean }) {
   const troncs = useRef<THREE.InstancedMesh>(null), branches = useRef<THREE.InstancedMesh>(null), feuilles = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const o = new THREE.Object3D(), c = new THREE.Color();
     arbres.forEach(([x, z], i) => {
-      const flamboyant = i % 3 === 0, hauteurTronc = flamboyant ? 3.4 : 2.6;
+      const flamboyant = flamboyants || i % 3 === 0, hauteurTronc = flamboyant ? 3.4 : 2.6;
       o.position.set(x, hauteurTronc / 2, z); o.rotation.set(0, 0, .03 * Math.sin(i * 2.1)); o.scale.set(flamboyant ? .32 : .42, hauteurTronc, flamboyant ? .32 : .42); o.updateMatrix();
       troncs.current?.setMatrixAt(i, o.matrix);
       // Trois maîtresses branches qui portent la couronne.
@@ -55,7 +56,7 @@ function ArbresAbidjan({ arbres }: { arbres: readonly [number, number][] }) {
       }
     });
     for (const m of [troncs.current, branches.current, feuilles.current]) if (m) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); }
-  }, [arbres]);
+  }, [arbres, flamboyants]);
   return <group>
     <instancedMesh ref={troncs} args={[undefined, undefined, arbres.length]} castShadow><cylinderGeometry args={[.7, 1, 1, 9]} /><meshStandardMaterial color="#5E4A36" roughness={.95} /></instancedMesh>
     <instancedMesh ref={branches} args={[undefined, undefined, arbres.length * 3]} castShadow><cylinderGeometry args={[.6, 1, 1, 7]} /><meshStandardMaterial color="#5E4A36" roughness={.95} /></instancedMesh>

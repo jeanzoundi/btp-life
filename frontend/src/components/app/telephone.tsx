@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import type { RendezVous } from '@/lib/journee-joueur';
 import { LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type ModeTransport, type Point } from '@/lib/transports';
@@ -13,7 +13,7 @@ import { useEcranTactile } from '@/lib/ecran-tactile';
 // Le téléphone du joueur, comme dans un GTA : les messages des personnages, les appels des mentors, le GPS, le taxi et le
 // gbaka, la banque, les offres d'emploi, le fil rouge et l'agenda du jour. Les pages du mode classique y sont à un geste.
 
-export type AppTelephone = 'accueil' | 'messages' | 'appels' | 'gps' | 'transport' | 'banque' | 'offres' | 'filrouge' | 'agenda' | 'defis' | 'patrimoine';
+export type AppTelephone = 'accueil' | 'messages' | 'appels' | 'gps' | 'transport' | 'banque' | 'offres' | 'filrouge' | 'agenda' | 'defis' | 'patrimoine' | 'carriere';
 export interface DestinationTelephone { slug: string; nom: string; quartier: string; porte: Point }
 export interface AppelTelephone { id: string; de: string; role: string; message: string; lieu?: string; nomLieu?: string }
 export interface FilRougeTelephone { chapitre: number; total: number; titre: string; resume: string; lieu: string; nomLieu: string; interlocuteur: string }
@@ -40,6 +40,7 @@ const APPLIS: { id: Exclude<AppTelephone, 'accueil'>; nom: string; icone: string
   { id: 'agenda', nom: 'Agenda', icone: '📅', fond: 'from-[#6C8B99] to-[#3F5B68]' },
   { id: 'defis', nom: 'Défis', icone: '🎯', fond: 'from-[#E8B04A] to-[#B9822A]' },
   { id: 'patrimoine', nom: 'Patrimoine', icone: '🏠', fond: 'from-[#A88C66] to-[#6E5638]' },
+  { id: 'carriere', nom: 'Carrière', icone: '🧭', fond: 'from-[#5A8F4A] to-[#2F5A2A]' },
 ];
 
 function EnTeteAppli({ titre, onRetour }: { titre: string; onRetour: () => void }) {
@@ -50,8 +51,10 @@ function EnTeteAppli({ titre, onRetour }: { titre: string; onRetour: () => void 
 }
 const Vide = ({ children }: { children: ReactNode }) => <p className="px-4 py-6 text-center text-[12.5px] leading-relaxed text-jeu-ivoire/60">{children}</p>;
 
-export function Telephone({ demo, heure, meteo, pluie, position, destinations, argent, epargne, niveau, appels, rendezVous, filRouge, defis, defisAReclamer = 0, patrimoine, appInitiale = 'accueil', onAller, onVoyager, onEpargneDemo, onFermer }: {
+export function Telephone({ demo, heure, meteo, pluie, position, destinations, argent, epargne, niveau, appels, rendezVous, filRouge, defis, defisAReclamer = 0, patrimoine, carriere, appInitiale = 'accueil', onAller, onVoyager, onEpargneDemo, onFermer, onApp, place = 'bottom-3 right-3 w-[300px] max-w-[calc(100%-24px)]' }: {
   demo: boolean; heure: string; meteo: string; pluie: boolean; position: Point;
+  /** Sa place dans le monde (position, largeur, hauteur) : l'écran rétrécit ou grandit pour la remplir. */
+  place?: string;
   destinations: DestinationTelephone[]; argent: number; epargne: number;
   /** Niveau du joueur : les offres à sa portée passent en premier. */
   niveau?: number;
@@ -60,6 +63,8 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
   defis?: ReactNode; defisAReclamer?: number;
   /** Écran du patrimoine (logement, outillage, entreprise), fourni par la ville. */
   patrimoine?: ReactNode;
+  /** Écran de la carrière (parcours, cursus, objectifs durables), fourni par la ville. */
+  carriere?: ReactNode;
   appInitiale?: AppTelephone;
   /** Itinéraire à pied vers un lieu (le téléphone se ferme). */
   onAller: (slug: string) => void;
@@ -68,9 +73,14 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
   /** Épargne de démonstration ; connecté, le téléphone passe par le serveur. */
   onEpargneDemo: (sens: 'deposer' | 'retirer', montant: number) => string | null;
   onFermer: () => void;
+  /** Chaque appli ouverte, la première comprise (le guide de la première journée suit la banque, le patrimoine et les défis). */
+  onApp?: (app: AppTelephone) => void;
 }) {
   const tactile = useEcranTactile();
   const [app, setApp] = useState<AppTelephone>(appInitiale);
+  const surApp = useRef(onApp);
+  surApp.current = onApp;
+  useEffect(() => { surApp.current?.(app); }, [app]);
   const client = useQueryClient();
   const { data: messagesServeur } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<Message[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000 });
   const messages = demo ? MESSAGES_DEMO : messagesServeur ?? [];
@@ -79,14 +89,14 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
   const ouvrir = (id: AppTelephone) => { setApp(id); if (id === 'messages' && !demo && nonLus) lire.mutate(); };
   const badges: Partial<Record<AppTelephone, number>> = { messages: nonLus, appels: appels.length, filrouge: filRouge ? 1 : 0, defis: defisAReclamer };
 
-  return <section role="dialog" aria-label="Téléphone" className="absolute bottom-3 right-3 z-40 w-[300px] max-w-[calc(100%-24px)]">
-    <div className="overflow-hidden rounded-[28px] border-[6px] border-[#141a1d] bg-[#101618] shadow-[0_24px_60px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/10">
+  return <section role="dialog" aria-label="Téléphone" className={`absolute z-40 flex flex-col ${place}`}>
+    <div className="flex min-h-0 grow flex-col overflow-hidden rounded-[28px] border-[6px] border-[#141a1d] bg-[#101618] shadow-[0_24px_60px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/10">
       <div className="flex items-center justify-between bg-black/40 px-4 pb-1 pt-2 text-[11px] font-bold text-jeu-ivoire/85">
         <span className="hud-chiffre">{heure}</span>
         <span className="h-4 w-16 rounded-full bg-[#141a1d]" aria-hidden="true" />
         <span className="flex items-center gap-1.5"><span>{meteo}</span><span aria-label="Réseau">📶</span><span aria-label="Batterie">🔋</span></span>
       </div>
-      <div className="h-[460px] overflow-y-auto bg-gradient-to-b from-[#173c43] via-[#13262b] to-[#101618] text-jeu-ivoire">
+      <div className="h-[460px] min-h-0 grow overflow-y-auto bg-gradient-to-b from-[#173c43] via-[#13262b] to-[#101618] text-jeu-ivoire">
         {app === 'accueil' && <div className="p-4">
           <p className="hud-chiffre text-center text-[40px] font-bold leading-none">{heure}</p>
           <p className="mt-1 text-center text-[11.5px] text-jeu-ivoire/70">Les Palmiers · {meteo}{pluie ? ' · taxis majorés' : ''}</p>
@@ -154,6 +164,7 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
 
         {app === 'defis' && <><EnTeteAppli titre="Défis" onRetour={() => setApp('accueil')} />{defis ?? <Vide>Les défis du jour arrivent bientôt.</Vide>}</>}
         {app === 'patrimoine' && <><EnTeteAppli titre="Patrimoine" onRetour={() => setApp('accueil')} />{patrimoine ?? <Vide>Ton patrimoine se charge…</Vide>}</>}
+        {app === 'carriere' && <><EnTeteAppli titre="Carrière" onRetour={() => setApp('accueil')} />{carriere ?? <Vide>Ta carrière se charge…</Vide>}</>}
       </div>
       <div className="flex items-center justify-between bg-black/40 px-4 py-2">
         <button type="button" onClick={() => setApp('accueil')} className="text-[11.5px] font-bold text-jeu-ivoire/70 hover:text-jeu-ivoire">⌂ Accueil</button>

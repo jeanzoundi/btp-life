@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { phaseJournee, type BilanJournee, type Journee, type SituationTerrain } from '@/lib/journee-chantier';
+import { phaseJournee, type BilanJournee, type GainsJournee, type Journee, type SituationTerrain } from '@/lib/journee-chantier';
 import { METIERS, PROGRAMME, candidats, evaluerEquipe, ordreChoix, type EtatVisuel, type EvaluationEquipe, type Metier, type Ouvrier } from '@/lib/programme-chantier';
 
 export type StatutJournee = 'disponible' | 'en_cours' | 'bilan' | 'resultat' | 'repos' | 'ferme';
-export type Recompenses = 'demo' | 'simulateur' | 'apprentissage';
+/** Démonstration (rien n'est sauvegardé), vrai chantier du simulateur, ou journée corrigée et payée par le serveur. */
+export type Recompenses = 'demo' | 'simulateur' | 'serveur';
 export interface ResultatJournee {
   bilan: BilanJournee; avant: number; apres: number; recompenses: Recompenses;
+  /** Ce que le serveur a versé (journée payée sans chantier personnel). */
+  gains?: GainsJournee;
   /** Étape du jour joué et étape de la prochaine journée. */
   etapeAvant?: string; etapeApres?: string;
   evenements?: { type: string; texte: string }[]; erreur?: string; idChantier?: string;
@@ -98,7 +101,7 @@ export function PanneauJourneeChantier({ statut, nomJoueur, nomChantier, etat, s
       {resultat.erreur ? <div role="alert" className="rounded-xl border border-jeu-terre/50 bg-jeu-terre/10 p-3 text-[12.5px] leading-relaxed">
         <p className="font-bold text-[#F08A4B]">Le chantier n’a pas pu avancer</p><p className="mt-1 text-jeu-ivoire/80">{resultat.erreur}</p>
         {resultat.idChantier && <Link href={`/app/chantiers/${resultat.idChantier}`} className="mt-2 inline-block font-bold text-jeu-or underline">Gérer le chantier</Link>}
-      </div> : resultat.recompenses === 'demo' ? <div className="grid grid-cols-2 gap-2 text-center">
+      </div> : resultat.recompenses === 'demo' && !resultat.gains ? <div className="grid grid-cols-2 gap-2 text-center">
         <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-or">+{resultat.bilan.paie.toLocaleString('fr-FR')}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">FCFA de salaire</span></div>
         <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-lagune">+{resultat.bilan.xp}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">points d’expérience</span></div>
         <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : rien n’est sauvegardé.</p>
@@ -106,15 +109,20 @@ export function PanneauJourneeChantier({ statut, nomJoueur, nomChantier, etat, s
         <p className="hud-legende mb-1.5">Journal du chantier</p>
         <ul className="space-y-1 text-[12.5px] leading-snug text-jeu-ivoire/85">{(resultat.evenements ?? []).map((e, i) => <li key={i}>• {e.texte}</li>)}</ul>
         <p className="mt-2 text-[10.5px] text-jeu-ivoire/50">Salaires et matériaux sont décomptés du budget du chantier ; la prime arrive à la livraison.</p>
-      </div> : <div className="rounded-xl bg-black/20 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/80">
-        Journée d’apprentissage : le chantier du quartier avance, mais seul ton propre chantier te rapporte un salaire.
-        <Link href="/app/chantiers" className="mt-1.5 block font-bold text-jeu-or underline">Démarrer mon chantier</Link>
-      </div>}
+      </div> : resultat.gains ? <div className="grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-or">+{resultat.gains.argent.toLocaleString('fr-FR')}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">FCFA de salaire</span></div>
+        <div className="rounded-xl bg-white/[.05] p-2.5"><b className="hud-chiffre block text-lg text-jeu-lagune">+{resultat.gains.xp}</b><span className="text-[10.5px] font-semibold text-jeu-ivoire/60">points d’expérience</span></div>
+        {resultat.gains.reputation > 0 && <p className="col-span-2 text-[12px] font-semibold text-jeu-or">+{resultat.gains.reputation} de réputation{resultat.apres >= 100 ? ' : ouvrage livré' : ''}</p>}
+        {resultat.gains.entrainement && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Entraînement : l’ouvrage avance, mais Yao ne paie qu’une journée toutes les 20 minutes. Prochaine journée payée vers {new Date(resultat.gains.prochaineRecompenseLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.</p>}
+        {resultat.gains.facteurBesoins < .99 && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Forme du moment : {Math.round(resultat.gains.facteurBesoins * 100)} % de l’XP. Mange, dors et vois du monde pour tout gagner.</p>}
+        {resultat.recompenses === 'demo' ? <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : rien n’est sauvegardé.</p>
+          : <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Pour diriger ton propre chantier : <Link href="/app/chantiers" className="font-bold text-jeu-or underline">mes chantiers</Link>.</p>}
+      </div> : null}
     </div>}
 
     <div className="mt-3 space-y-2">
       {statut === 'disponible' && <button onClick={onCommencer} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">Commencer la journée</button>}
-      {statut === 'disponible' && <p className="text-center text-[10.5px] text-jeu-ivoire/50">{simulateur ? `Ta journée fera avancer ton chantier « ${nomChantier} ».` : demo ? 'Démonstration : salaire et expérience non sauvegardés.' : 'Journée d’apprentissage sur le chantier du quartier.'}</p>}
+      {statut === 'disponible' && <p className="text-center text-[10.5px] text-jeu-ivoire/50">{simulateur ? `Ta journée fera avancer ton chantier « ${nomChantier} ».` : demo ? 'Démonstration : salaire et expérience non sauvegardés.' : 'Journée payée par Yao : jusqu’à 7 000 F et 80 XP selon ton travail.'}</p>}
       {statut === 'en_cours' && <button onClick={onFermer} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">Continuer</button>}
       {statut === 'bilan' && <button onClick={onBilan} disabled={enCours} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">{enCours ? 'Calcul de la journée…' : 'Faire le point'}</button>}
       {statut === 'resultat' && <button onClick={onTerminer} className="hud-bouton hud-bouton-or w-full p-3 text-sm">Terminer la journée</button>}

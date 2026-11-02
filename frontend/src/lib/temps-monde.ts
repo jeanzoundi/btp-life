@@ -11,6 +11,12 @@ export const ecartHorloge = (avant: number, apres: number) => ((apres - avant) %
 /** Un pas d'horloge fait cinq minutes de jeu ; au-delà d'une heure (onglet endormi, horloge recalée), il ne compte pas. */
 export const PAS_HORLOGE_MAX = 1;
 
+/** Les heures de besoins d'un pas d'horloge. À ×2 ou ×3, l'horloge défile plus vite, mais le personnage ne s'use pas plus
+ * vite que le temps réel passé à jouer : sinon, accélérer coûterait deux ou trois fois plus de repas par heure réelle,
+ * alors que séances et journées ne se paient qu'une fois toutes les 20 minutes réelles. Les sauts voulus (attendre,
+ * dormir, un trajet) comptent, eux, en entier. */
+export const heuresDeBesoins = (heuresHorloge: number, vitesse: number) => heuresHorloge / Math.max(1, vitesse);
+
 /** Ajoute des heures passées, éveillé ou endormi, et rend ce qu'il faut déclarer tout de suite : les heures entières. */
 export function ajouterTemps(attente: TempsMonde, heures: number, sommeil = false): { attente: TempsMonde; aDeclarer: TempsMonde } {
   if (!(heures > 0)) return { attente, aDeclarer: AUCUN_TEMPS };

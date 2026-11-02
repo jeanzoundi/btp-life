@@ -31,3 +31,7 @@ export function primeInstallation(profil: { slug: string; niveauDepart?: number 
   const niveau = profil.niveauDepart ?? 1;
   return niveau >= 6 ? 60_000 : niveau >= 4 ? 40_000 : 25_000;
 }
+
+/** Le logement à l'arrivée, comme au serveur (CarriereService.setProfilActuel) : la cité universitaire pour un étudiant,
+ * le studio de la Résidence Lagune pour les autres. */
+export const logementDepart = (profil: { slug: string }) => porteDuProfil(profil.slug) === 'etudiant' ? 'chambre' as const : 'studio' as const;

@@ -4,6 +4,7 @@ import {
   PROGRAMME, SITUATION_EPI, TOTAL_JOURS, etapeAuJour, etapeDepuisNom, etatVisuel, lireOuvrier, metiersManquants, situation,
   type ChargementLivraison, type EtatVisuel, type IdEtape, type Metier, type Ouvrier, type ZoneChantier,
 } from './programme-chantier';
+import { gesteDuJour, gesteReussi, type GesteChantier } from './gestes-chantier';
 
 export type { Choix, SituationTerrain, EtatVisuel, ZoneChantier } from './programme-chantier';
 export { SITUATION_EPI, situation, etatVisuel } from './programme-chantier';
@@ -46,7 +47,7 @@ export function evenementsDuJour(c: Pick<ChantierSimulateur, 'evenementsLog'>) {
 
 // ─── Déroulé de la journée ───
 
-export type TypeTache = 'epi' | 'recrutement' | 'travail' | 'securite' | 'livraison';
+export type TypeTache = 'epi' | 'recrutement' | 'travail' | 'securite' | 'livraison' | 'geste';
 export interface TacheJour { id: string; type: TypeTache; zone: ZoneChantier; titre: string }
 
 export interface Journee {
@@ -59,6 +60,8 @@ export interface Journee {
   /** Métiers à recruter aujourd'hui avant de pouvoir travailler (vide sinon). */
   recrutement: Metier[];
   livraison: ChargementLivraison | null;
+  /** Le geste du jour, joué à la main (lib/gestes-chantier.ts) ; absent des journées commencées avant les gestes. */
+  geste?: GesteChantier | null;
 }
 
 export type PhaseJournee = 'epi' | 'recrutement' | 'travaux' | 'bilan';
@@ -92,20 +95,23 @@ export function nouvelleJournee(c: Pick<ChantierQuartier, 'jours' | 'equipe'>, s
     const tache = etape.travaux[((d - 1) * combien + i) % n];
     if (!taches.some(x => x.id === tache.situation.id)) taches.push({ id: tache.situation.id, type: 'travail', zone: tache.zone, titre: tache.situation.titre });
   }
+  // Le geste du jour se joue au poste des travaux : tracer, mesurer, placer, contrôler ou corriger.
+  const geste = gesteDuJour(numero, etape.id);
+  if (geste) taches.push({ id: geste.id, type: 'geste', zone: taches.find(x => x.type === 'travail')?.zone ?? 'stockage', titre: geste.titre });
   if (etape.securite.length) {
     const tache = etape.securite[(d - 1) % etape.securite.length];
     taches.push({ id: tache.situation.id, type: 'securite', zone: tache.zone, titre: tache.situation.titre });
   }
   const livraison = etape.livraison && d === 1 ? etape.livraison : null;
   if (livraison) taches.push({ id: livraison.situation.id, type: 'livraison', zone: 'portail', titre: livraison.situation.titre });
-  return { numero, etape: etape.id, jourEtape: d, joursEtape: simulateur?.joursEtape ?? etape.jours, taches, reponses: {}, recrutement, livraison: livraison?.chargement ?? null };
+  return { numero, etape: etape.id, jourEtape: d, joursEtape: simulateur?.joursEtape ?? etape.jours, taches, reponses: {}, recrutement, livraison: livraison?.chargement ?? null, geste };
 }
 
 /** Où en est la journée : l'équipement d'abord, puis le recrutement s'il manque des métiers, puis les travaux, puis le bilan. */
 export function phaseJournee(j: Journee): PhaseJournee {
   if (j.reponses[SITUATION_EPI.id] === undefined) return 'epi';
   if (j.recrutement.length && j.reponses.recrutement === undefined) return 'recrutement';
-  if (j.taches.some(t => (t.type === 'travail' || t.type === 'securite' || t.type === 'livraison') && j.reponses[t.id] === undefined)) return 'travaux';
+  if (j.taches.some(t => (t.type === 'travail' || t.type === 'securite' || t.type === 'livraison' || t.type === 'geste') && j.reponses[t.id] === undefined)) return 'travaux';
   return 'bilan';
 }
 
@@ -134,22 +140,46 @@ export function enregistrerRecrutement(j: Journee, note: number): Journee {
 
 export interface BilanJournee { bonnes: number; total: number; note: number; compte: boolean; paie: number; xp: number; mention: string }
 
-/** Note sur 100 : présence 10, équipement 20, puis 70 points partagés entre les autres tâches (le recrutement compte
- * selon la note de l'équipe, la meilleure équipe possible valant la totalité). Sous 40, la journée est à refaire. */
+/** Ce que vaut une journée notée : validée à partir de 40 et payée seulement alors, comme une séance. Mêmes chiffres
+ * qu'au serveur (gainsJournee dans backend/src/carriere/journee-chantier.ts), avant le facteur des besoins. */
+export function valeurJournee(note: number): Pick<BilanJournee, 'note' | 'compte' | 'paie' | 'xp' | 'mention'> {
+  const compte = note >= 40;
+  return {
+    note, compte, paie: compte ? 3000 + note * 40 : 0, xp: compte ? 20 + Math.round(note * .6) : Math.round(note * .2),
+    mention: note === 100 ? 'Journée exemplaire' : note >= 60 ? 'Bonne journée' : note >= 40 ? 'Journée correcte' : 'Journée à revoir',
+  };
+}
+
+/** Note sur 100 : présence 10, équipement 20, puis 70 points partagés entre les situations du jour (travaux, sécurité,
+ * livraison). Sous 40, la journée est à refaire. Le recrutement, jugé dans le navigateur, n'entre pas dans la note :
+ * c'est elle que le serveur recalcule à partir des réponses. */
 export function bilanJournee(j: Journee): BilanJournee {
-  const score = (t: TacheJour) => {
-    if (t.type === 'recrutement') return Math.min(1, (j.reponses.recrutement ?? 0) / 95);
+  const notees = j.taches.filter(t => t.type !== 'recrutement');
+  const juste = (t: TacheJour) => {
     const choix = j.reponses[t.id];
+    if (t.type === 'geste') { const g = j.geste ?? gesteDuJour(j.numero, j.etape); return g && gesteReussi(g, choix) ? 1 : 0; }
     return choix !== undefined && situation(t.id)?.choix[choix]?.correct ? 1 : 0;
   };
-  const autres = j.taches.filter(t => t.type !== 'epi');
-  const epi = score(j.taches[0]);
-  const note = Math.round(10 + epi * 20 + (autres.length ? 70 * autres.reduce((n, t) => n + score(t), 0) / autres.length : 70));
+  const autres = notees.filter(t => t.type !== 'epi');
+  const epi = juste(j.taches[0]);
+  const note = Math.round(10 + epi * 20 + (autres.length ? 70 * autres.reduce((n, t) => n + juste(t), 0) / autres.length : 70));
+  return { ...valeurJournee(note), bonnes: notees.filter(t => juste(t)).length, total: notees.length };
+}
+
+/** Les réponses de la journée envoyées au serveur : le choix fait à chaque situation, sans le recrutement. */
+export const reponsesJournee = (j: Journee): Record<string, number> =>
+  Object.fromEntries(j.taches.filter(t => t.type !== 'recrutement' && j.reponses[t.id] !== undefined).map(t => [t.id, j.reponses[t.id]]));
+
+/** Avancement du chantier du quartier tenu par le serveur (GET /carriere/journee-chantier) ; l'équipe et le repos du jour
+ * restent dans le navigateur. */
+export interface ChantierQuartierServeur { jours: number; journees: number; livraisons: number; derniereRecompenseLe: string | null }
+/** Ce que le serveur a versé pour une journée (POST /carriere/journee-chantier). */
+export interface GainsJournee { xp: number; argent: number; reputation: number; facteurBesoins: number; entrainement: boolean; prochaineRecompenseLe: string }
+export function fusionnerChantierQuartier(local: ChantierQuartier, serveur: ChantierQuartierServeur | undefined): ChantierQuartier {
+  if (!serveur) return local;
   return {
-    bonnes: j.taches.filter(t => score(t) >= .8).length, total: j.taches.length, note, compte: note >= 40,
-    paie: 3000 + note * 40,
-    xp: 20 + Math.round(note * .6),
-    mention: note === 100 ? 'Journée exemplaire' : note >= 60 ? 'Bonne journée' : note >= 40 ? 'Journée correcte' : 'Journée à revoir',
+    ...local, jours: borne(Math.floor(serveur.jours), 0, TOTAL_JOURS),
+    journees: Math.max(0, Math.floor(serveur.journees)), livraisons: Math.max(0, Math.floor(serveur.livraisons)),
   };
 }
 

@@ -9,21 +9,27 @@ import type { BlocArchitecture } from '@/lib/architecture-ville';
 import { PersonnageStylise, type PersonnageStyliseProps } from './personnage-stylise';
 import { PersonnageRealiste } from './personnage-realiste';
 import { TeinteCasque } from './teinte-casque';
-import { modeleRealiste, type ModeleRealiste } from '@/lib/personnages-realistes';
+import { TeintesSurMesure } from './teintes-sur-mesure';
+import type { TeintesPersonnage } from '@/lib/personnages-joueur';
+import { modeleRealiste, type GestePersonnage, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { identiteDepuisNom } from '@/lib/identites-personnages';
 
 type HumainMondeProps = PersonnageStyliseProps & {
   allure?: number; sansCasque?: boolean;
   /** Modèle réaliste imposé (le personnage choisi par le joueur) ; sinon, déduit de l'identité ou de la variante.
-   * `null` : pas de modèle réaliste (personnage sur mesure), la version stylisée seule, de près comme de loin. */
+   * `null` : pas de modèle réaliste, la version stylisée seule, de près comme de loin. */
   modele?: ModeleRealiste | null;
   /** Couleur du casque du joueur, appliquée à son seul modèle réaliste (la version stylisée la reçoit par `design`). */
   teinteCasque?: string;
+  /** Personnage sur mesure : ses couleurs (teint, haut, bas, cheveux), posées sur le corps réaliste. */
+  teintes?: TeintesPersonnage;
+  /** Un geste joué à l'arrêt par le modèle réaliste : saluer, ou parler avec les mains. */
+  geste?: GestePersonnage;
 };
 
 export function HumainMonde({ modele, ...props }: HumainMondeProps) {
   if (modele === null) {
-    const { allure: _allure, sansCasque: _sansCasque, teinteCasque: _teinteCasque, ...stylise } = props;
+    const { allure: _allure, sansCasque: _sansCasque, teinteCasque: _teinteCasque, teintes: _teintes, geste: _geste, ...stylise } = props;
     return <PersonnageStylise {...stylise} />;
   }
   return <HumainRealiste modele={modele} {...props} />;
@@ -33,12 +39,13 @@ export function HumainMonde({ modele, ...props }: HumainMondeProps) {
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque, ...props }: HumainMondeProps & { modele?: ModeleRealiste }) {
+function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque, teintes, geste, ...props }: HumainMondeProps & { modele?: ModeleRealiste }) {
   const modele = modeleChoisi ?? modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);
   const detaille = useRef<boolean | null>(null);
-  const realiste = <PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} sansCasque={sansCasque} />;
+  const corps = <PersonnageRealiste modele={modele} marche={props.marche} assis={props.assis} prof={props.prof} allure={allure} nom={props.nom} sansCasque={sansCasque} geste={geste} />;
+  const realiste = teintes ? <TeintesSurMesure teintes={teintes} modele={modele}>{corps}</TeintesSurMesure> : corps;
   useFrame(({ camera, controls }) => {
     if (!proche.current || !loin.current) return;
     proche.current.getWorldPosition(monde);

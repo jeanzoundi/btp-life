@@ -5,7 +5,8 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
-import { EauLagune, JardinsUrbains } from './ambiance-lagune';
+import { ArbresAbidjan, EauLagune, JardinsUrbains } from './ambiance-lagune';
+import { DetailsAbidjan, FlaquesLumiere } from './details-abidjan';
 import { MateriauMonde, SurfaceBloc, type MatiereMonde } from './materiaux-monde';
 import { VoitureMonde } from './vehicule-monde';
 import { CirculationVille, EtalRue, LigneElectrique, VehiculeGare } from './rue-abidjan';
@@ -13,14 +14,15 @@ import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import { phaseSignal } from '@/lib/itineraire-ville';
 import { ParcsMonde } from './parcs-monde';
 import { aDevanture, FacadeAbidjan } from './facades-abidjan';
-import { construireArchitecture, type BlocArchitecture } from '@/lib/architecture-ville';
+import { construireArchitecture, STYLES_LIEUX, type BlocArchitecture } from '@/lib/architecture-ville';
+import { construireVoirie } from '@/lib/voirie-ville';
 import { BlocsInstances } from './blocs-instances';
 import { ToitTuiles } from './toits-monde';
 import { PlacePalmiers } from './place-palmiers';
 
 type V = [number, number, number];
 function Bloc({ p, s, c, r = 0, e, m }: { p: V; s: V; c: string; r?: number; e?: string; m?: MatiereMonde }) {
-  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:m?<MateriauMonde type={m} couleur={c} echelle={1.6} relief={.9} rugosite={.65} metal={.45}/>:<SurfaceBloc dimensions={s} couleur={c}/>}</mesh>;
+  return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:m?<MateriauMonde type={m} couleur={c} echelle={1.6} relief={.9} rugosite={.65} metal={.45}/>:<SurfaceBloc dimensions={s} couleur={c} mouillable/>}</mesh>;
 }
 
 function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
@@ -142,9 +144,9 @@ export const Architecture = memo(function Architecture({ width: w, height: h, de
   const devanture = aDevanture(slug);
   // Maquis et marché en tuiles rouges, les autres en terre cuite.
   const vivrier = slug === 'maquis' || slug === 'marche';
-  const plan = useMemo(() => construireArchitecture(w, h, d, kind, color, devanture, nuit, vivrier ? '#b83a2a' : '#c9652f'), [w, h, d, kind, color, devanture, nuit, vivrier]);
+  const plan = useMemo(() => construireArchitecture(w, h, d, kind, color, devanture, nuit, vivrier ? '#b83a2a' : '#c9652f', STYLES_LIEUX[slug]), [w, h, d, kind, color, devanture, nuit, vivrier, slug]);
   return <group>
-    <BlocsInstances blocs={plan.solides} interactif={false} />
+    <BlocsInstances blocs={plan.solides} interactif={false} mouillable />
     <BlocsInstances blocs={plan.vitres} matiere="vitre" interactif={false} />
     <BlocsInstances blocs={plan.lumieres} matiere="lumiere" interactif={false} />
     <BlocsInstances blocs={plan.fleurs} arrondi interactif={false} />
@@ -192,37 +194,44 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 }
 
 /** A pedestrian square, tree-lined boulevards and a lagoon promenade. */
-/** Tirets de chaussée, passages piétons et garde-corps de la promenade : plus de trois cents petits blocs
- * regroupés en une seule commande de dessin (et une seule passe d'ombre) au lieu d'un maillage chacun. */
+/** Tirets de chaussée, voirie (bordures, caniveaux, trottoirs, passages piétons) et garde-corps de la promenade : des
+ * centaines de petits blocs regroupés en quelques commandes de dessin (une par matière) au lieu d'un maillage chacun. */
 const BLOCS_REPETES: BlocArchitecture[] = [
   ...[-66, -10, 10].flatMap(z => Array.from({ length: 56 }, (_, i): BlocArchitecture => ({ position: [(i - 27.5) * 4.3, 0.08, z], taille: [2, 0.015, 0.1], couleur: '#e6dcbf', rotation: 0 }))),
-  ...[-54, 54].flatMap(x => [-66, -10, 10].flatMap(z => Array.from({ length: 6 }, (_, i): BlocArchitecture => ({ position: [x + (i - 2.5) * 0.65, 0.15, z], taille: [0.38, 0.025, 4.2], couleur: '#eee8d7', rotation: 0 })))),
+  ...construireVoirie(),
   ...Array.from({ length: 60 }, (_, i): BlocArchitecture[] => [
-    { position: [(i - 29.5) * 4, 0.9, 49], taille: [0.12, 1.4, 0.12], couleur: '#e1dfca', rotation: 0 },
-    { position: [(i - 29.5) * 4, 1.55, 49], taille: [4, 0.08, 0.08], couleur: '#e1dfca', rotation: 0 },
+    { position: [(i - 29.5) * 4, 0.9, 49], taille: [0.12, 1.4, 0.12], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
+    { position: [(i - 29.5) * 4, 1.55, 49], taille: [4, 0.08, 0.08], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
   ]).flat(),
-  // Caniveaux à ciel ouvert au pied des bordures, interrompus aux carrefours : la fente sombre et sa lèvre de béton.
-  ...[-66, -10, 10].flatMap(z => [-1, 1].flatMap(cote => ([[-120, -57.5], [-50.5, 50.5], [57.5, 120]] as const).flatMap(([a, b]): BlocArchitecture[] => [
-    { position: [(a + b) / 2, 0.065, z + cote * 3.55], taille: [b - a, 0.02, 0.35], couleur: '#2b2f30', rotation: 0 },
-    { position: [(a + b) / 2, 0.08, z + cote * 3.8], taille: [b - a, 0.035, 0.12], couleur: '#cfc8b6', rotation: 0 },
-  ]))),
 ];
+
+/** Les lampadaires du centre, bras tourné vers la chaussée ; la nuit, leur lumière tombe sous leur tête, comme celle des
+ * lampadaires des places de quartier. */
+const LAMPADAIRES_CENTRE = [-42, -28, -14, 14, 28, 42].flatMap(x => [-15, 15].map(z => [x, z] as [number, number]));
+const TACHES_LUMIERE: [number, number][] = [
+  ...LAMPADAIRES_CENTRE.map(([x, z]): [number, number] => [x, z < 0 ? z + 1.12 : z - 1.12]),
+  ...QUARTIERS.slice(1).map((q): [number, number] => [q.x - 3.68, q.z - 3.5]),
+];
+/** Des flamboyants au cœur du quartier pilote, en bord d'avenue et près du chantier : leur ombre et leur rouge. */
+const FLAMBOYANTS_CENTRE: [number, number][] = [[-47, 30], [16, 31], [47, 34]];
 
 /** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
 /** `heure` (entière) règle la densité de la circulation : moins de véhicules la nuit, plus aux heures de pointe. */
 export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause = false, rythme = 1, artistique = true, heure = 12 }: { onDestination: (p: [number, number]) => void; pause?: boolean; rythme?: number; artistique?: boolean; heure?: number }) {
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
+  const nuit = heure >= 19 || heure < 6;
   return <group onClick={sol}>
     <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
+    <DetailsAbidjan pause={pause} rythme={rythme} />
+    <FlaquesLumiere points={TACHES_LUMIERE} nuit={nuit} />
+    {FLAMBOYANTS_CENTRE.map(([x, z]) => <mesh key={`${x}-${z}`} position={[x, .22, z]} receiveShadow><cylinderGeometry args={[1.6, 1.8, .44, 10]} /><meshStandardMaterial color="#ada78f" /></mesh>)}
+    <ArbresAbidjan arbres={FLAMBOYANTS_CENTRE} flamboyants />
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -40]} receiveShadow><planeGeometry args={[300, 260]} /><meshStandardMaterial color="#829079" roughness={1} /></mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} />{/* Pavés photographiques (Poly Haven, CC0) recolorés en grès chaud. */}<MateriauMonde type="brick_pavement_02" echelle={2.4} relief={.85} /></mesh>
-    {[-66, -10, 10].map(z => <group key={z}>
-      <Bloc p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />
-      {[-3.15, 3.15].map(o => <Bloc key={o} p={[0, 0.12, z + o]} s={[240, 0.2, 0.25]} c="#ede2c8" />)}
-    </group>)}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -40]} receiveShadow><planeGeometry args={[240, 176]} />{/* Pavés photographiques (Poly Haven, CC0) recolorés en grès chaud. */}<MateriauMonde type="brick_pavement_02" echelle={2.4} relief={.85} mouillable /></mesh>
+    {[-66, -10, 10].map(z => <Bloc key={z} p={[0, 0.05, z]} s={[240, 0.04, 6]} c="#555d60" />)}
     {[-54, 54].map(x => <Bloc key={x} p={[x, 0.075, -40]} s={[6, 0.035, 176]} c="#555d60" />)}
-    {/* Passages piétons et marquages d'intersection : donnent une vraie échelle routière. */}
-    <BlocsInstances blocs={BLOCS_REPETES} interactif={false} />
+    {/* Bordures, caniveaux, trottoirs et passages piétons, coupés aux carrefours : une vraie échelle routière. */}
+    <BlocsInstances blocs={BLOCS_REPETES} interactif={false} mouillable />
     {[-66, -10, 10].flatMap(z => [-54, 54].map(x => <FeuTricolore key={`signal-${x}-${z}`} p={[x + 3.8, 0, z + 3.8]} axe={x < 0 ? 'horizontal' : 'vertical'} />))}
     {QUARTIERS.slice(1).map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.14, 0]}><ringGeometry args={[4.7, 5.1, 40]} /><meshStandardMaterial color="#8d9b7e" /></mesh>
@@ -246,7 +255,7 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <VoitureStationnee p={[-36, 0, -15.2]} c="#7e2831" /><VoitureStationnee p={[-27, 0, -15.2]} c="#d5c9aa" />
     <VoitureStationnee p={[26, 0, -74]} c="#416f84" /><VoitureStationnee p={[37, 0, -74]} c="#b88735" />
     <PlaceCentrale artistique={artistique} />
-    {[-42, -28, -14, 14, 28, 42].flatMap(x => [-15, 15].map(z => <Lampadaire key={`${x}-${z}`} p={[x, 0, z]} r={z < 0 ? -Math.PI / 2 : Math.PI / 2} />))}
+    {LAMPADAIRES_CENTRE.map(([x, z]) => <Lampadaire key={`${x}-${z}`} p={[x, 0, z]} r={z < 0 ? -Math.PI / 2 : Math.PI / 2} />)}
     <ArretBus p={[-27, 0.1, -6.2]} r={Math.PI} /><ArretBus p={[27, 0.1, 6.2]} />
     {/* Le commerce du trottoir, au sud de l'avenue de la Lagune, et les motos garées à côté. */}
     {([[-34, '#D4664F'], [-8, '#2F6FB3'], [34, '#3F8F4E']] as const).map(([x, couleur], i) => <EtalRue key={x} p={[x, 0.1, 15.9]} r={Math.PI} couleur={couleur} vendeuse={i} />)}

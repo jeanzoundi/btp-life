@@ -29,4 +29,13 @@ describe('accueil et portes de départ', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Ouvrier du bâtiment/ }));
     expect(changer).toHaveBeenCalledWith('ouvrier');
   });
+  it('annonce la prime et le logement du poste choisi avant de valider, comme au serveur', () => {
+    const { rerender } = render(<SelectionProfilDepart profils={profils} porte="etudiant" profilId="" onPorte={vi.fn()} onProfil={vi.fn()} />);
+    expect(screen.queryByText(/À ton arrivée/)).toBeNull();
+    rerender(<SelectionProfilDepart profils={profils} porte="etudiant" profilId="etudiant-be" onPorte={vi.fn()} onProfil={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent(/prime d’installation de 15\s000\sF, et ton logement : chambre en cité universitaire \(5\s000\sF la semaine\)/);
+    const ingenieur = [{ id: 'i', slug: 'ingenieur-structure', nom: 'Ingénieur structure', famille: 'BE', description: null, niveauDepart: 7 }];
+    rerender(<SelectionProfilDepart profils={ingenieur} porte="ingenieur" profilId="i" onPorte={vi.fn()} onProfil={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent(/prime d’installation de 60\s000\sF, et ton logement : studio à la résidence lagune \(12\s000\sF la semaine\)/);
+  });
 });

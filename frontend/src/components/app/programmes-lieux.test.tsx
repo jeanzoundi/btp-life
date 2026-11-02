@@ -77,15 +77,16 @@ describe('les séances des lieux, connecté', () => {
 });
 
 describe('les séances des lieux, en démonstration', () => {
-  it('corrige dans le navigateur sans rien envoyer', () => {
-    const o = options({ demo: true });
+  it('corrige dans le navigateur sans rien envoyer, et montre au bilan les gains calculés aux règles du serveur', () => {
+    const gains = { argent: 2000, xp: 41, reputation: 0, facteurBesoins: .82, entrainement: false, prochaineRecompenseLe: '2026-10-30T10:20:00.000Z' };
+    const o = options({ demo: true, recompenser: vi.fn().mockReturnValue(gains) });
     const { result } = renderHook(() => useProgrammesLieux(o), { wrapper: avecClient });
     act(() => result.current.commencer('laboratoire'));
     toutFaire(result);
     act(() => result.current.faireLeBilan());
     expect(api.get).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
-    expect(result.current.resultat).toMatchObject({ recompenses: 'demo', bilan: { note: 100, compte: true } });
-    expect(o.recompenser).toHaveBeenCalledWith(expect.objectContaining({ note: 100, paie: 2000, xp: 50 }));
+    expect(o.recompenser).toHaveBeenCalledWith(expect.objectContaining({ note: 100, paie: 2000, xp: 50 }), 'laboratoire');
+    expect(result.current.resultat).toMatchObject({ recompenses: 'demo', bilan: { note: 100, compte: true }, gains });
   });
 });

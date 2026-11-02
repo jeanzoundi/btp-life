@@ -15,7 +15,7 @@ import { InteractionLieu } from './interaction-lieu';
 import { InterieurLieu3D } from './interieur-lieu-3d';
 import { DialoguePersonnage } from './dialogue-personnage';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
-import { PanneauModesJeu } from './panneau-modes-jeu';
+import { PanneauModesJeu, SuiviModeJeu } from './panneau-modes-jeu';
 import { ControleZoneMusicale } from './zone-musicale';
 import { avancerMode, MODES_JEU, type ModeJeuId } from '@/lib/modes-jeu';
 import { useAuthStore } from '@/lib/auth-store';
@@ -36,9 +36,9 @@ import { InterieurChantier3D } from './interieur-chantier-3d';
 import { PanneauJourneeChantier, PanneauPlanning, PanneauRecrutement, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
 import {
   appliquerJournee, bilanJournee, CHANTIER_QUARTIER_INITIAL, chantierOuvert, enRepos, enregistrerRecrutement, etapeSimulateur, etatVisuel, etatVisuelSimulateur,
-  evenementsDuJour, FIN_DE_JOURNEE, journeeDisponible, OUVERTURE_CHANTIER, lireChantierQuartier, nouvelleJournee, phaseJournee, repondre, situation, tacheALaZone,
-  tachesDisponibles, TITRES_PHASES, type ChantierQuartier, type ChantierSimulateur, type Journee, type PhaseJournee, type PosteVille, type SituationTerrain,
-  type TacheJour,
+  evenementsDuJour, FIN_DE_JOURNEE, fusionnerChantierQuartier, journeeDisponible, OUVERTURE_CHANTIER, lireChantierQuartier, nouvelleJournee, phaseJournee, repondre,
+  reponsesJournee, situation, tacheALaZone, tachesDisponibles, TITRES_PHASES, valeurJournee, type ChantierQuartier, type ChantierQuartierServeur, type ChantierSimulateur,
+  type GainsJournee, type Journee, type PhaseJournee, type PosteVille, type SituationTerrain, type TacheJour,
 } from '@/lib/journee-chantier';
 import { budgetRecrutement, PROGRAMME, TOTAL_JOURS, type EvaluationEquipe, type Ouvrier } from '@/lib/programme-chantier';
 import { LIBELLES_STATIONS, type StationChantier } from '@/lib/interieur-chantier';
@@ -57,7 +57,14 @@ import { PanneauPremiersPas, usePremiersPas } from './premiers-pas';
 import { PanneauFinCampagne, finCampagneAMontrer, type SuiteCampagne } from './fin-campagne';
 import { EcranCelebration, celebrationsEntre, celebrer, useCelebrations } from './celebration';
 import { useRouter } from 'next/navigation';
-import { DISTANCE_PREMIERS_PAS, ETAPES_PREMIERS_PAS, prochaineEtape as prochaineEtapeGuide, type EtapePremiersPas } from '@/lib/premiers-pas';
+import { ETAPES_PREMIERS_PAS, prochaineEtape as prochaineEtapeGuide, type EtapePremiersPas } from '@/lib/premiers-pas';
+import { vueDeComparaison, type VueComparaison } from '@/lib/vue-comparaison';
+import { repliqueAccueil, type ContexteDialogue } from '@/lib/dialogues-pnj';
+import { parcoursDuPoste } from '@/lib/parcours';
+import { lireFormation } from '@/lib/cursus';
+import { EcranCarriere } from './carriere-telephone';
+import { PanneauGeste } from './gestes-chantier';
+import { contributionAuChantier, progressionAuLieu } from '@/lib/consequences-monde';
 import { ENERGIE_JOURNEE_TRAVAUX, type NiveauLogement } from '@/lib/patrimoine';
 import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
 import { effetsMeteo } from '@/lib/vie-urbaine';
@@ -85,8 +92,9 @@ import { FournisseurPersonnage } from './personnage-joueur';
 import { personnageChoisi, personnageDe, personnageProche } from '@/lib/personnages-joueur';
 import type { ConsommationLieu } from './service-lieu';
 import { appliquerEffet, DUREE_SIESTE, EFFETS_DEMO } from '@/lib/objets-interieurs';
-import { declinMonde, type BesoinsComplets } from '@/lib/humeurs';
-import { ajouterTemps, ecartHorloge, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
+import { declinMonde, facteurForme, type BesoinsComplets } from '@/lib/humeurs';
+import { gainsDemo } from '@/lib/gains-demo';
+import { ajouterTemps, ecartHorloge, heuresDeBesoins, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { degagerPositionPalmiers } from '@/lib/place-palmiers';
 import { useEcranTactile } from '@/lib/ecran-tactile';
@@ -94,6 +102,10 @@ import { BATIMENT_CHANTIER, type Batiment3D, BATIMENTS, BATIMENTS_CARTE, type Di
 
 const VITESSES = [1, 2, 3] as const;
 const NOMS_PNJ = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
+/** Les grands panneaux du HUD : un seul à la fois, sauf à partir de 768 px de large, où le planning (à gauche) reste
+ * ouvert à côté d'un panneau de droite (chat, téléphone, plan ou options), qui se remplacent l'un l'autre. */
+const PANNEAUX_HUD = ['menuModes', 'chat', 'telephone', 'plan', 'options'] as const;
+type PanneauHud = (typeof PANNEAUX_HUD)[number];
 
 export type BesoinsJoueur = BesoinsComplets;
 /** Besoins de la démonstration au premier pas dans le monde (et d'un compte encore en chargement). */
@@ -117,7 +129,9 @@ function BoutonDirection({ direction, symbole, setDirection }: { direction: Dire
   return <button type="button" aria-label={direction} className="hud-verre hud-bouton h-10 w-10 select-none rounded-xl text-base" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
 }
 
-export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string; xp?: number; reputation?: number }
+export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string; xp?: number; reputation?: number;
+  /** Identifiant du poste actuel : il dit le parcours du joueur (lib/parcours.ts). */
+  slug?: string }
 
 export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieuInitial, demo = false, immersif = false }: {
   nomJoueur?: string; besoins?: BesoinsJoueur; profil?: ProfilJoueur;
@@ -174,6 +188,11 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [cameraProche,setCameraProche]=useState(true);
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? BESOINS_DEPART);
+  // La démonstration paie comme le serveur (lib/gains-demo.ts) : forme du moment, et l'instant de la dernière paie de
+  // chaque activité (une séance par lieu, la journée avec Yao) pour l'entraînement entre deux paies.
+  const demoStatsRef = useRef(demoStats);
+  demoStatsRef.current = demoStats;
+  const paiesDemo = useRef<Record<string, number>>({});
   const [notifications, setNotifications] = useState<NotificationMonde[]>([]);
   const compteurNotifications = useRef(0);
   const fermerNotification = useCallback((id: number) => setNotifications(n => n.filter(x => x.id !== id)), []);
@@ -216,17 +235,37 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [journee, setJournee] = useState<Journee | null>(null);
   const [resultatJournee, setResultatJournee] = useState<ResultatJournee | null>(null);
   const [tache, setTache] = useState<{ id: string; situation: SituationTerrain; etape: string } | null>(null);
+  // Le geste du jour (tracer, mesurer, placer, contrôler, corriger), joué à la main à son poste.
+  const [gesteOuvert, setGesteOuvert] = useState(false);
   const [recrutementOuvert, setRecrutementOuvert] = useState(false);
   const [recrues, setRecrues] = useState<Ouvrier[]>([]);
   const [planningOuvert, setPlanningOuvert] = useState(false);
   const [dialogueLibre, setDialogueLibre] = useState(false);
   const posteEnApproche = useRef<PosteVille | null>(null);
   const [progresDemo, setProgresDemo] = useState({ argent: 150_000, xp: 760 });
+  /** Paie une activité de la démonstration aux règles du serveur, applique sa fatigue, et renvoie les gains pour le bilan. */
+  const payerDemo = useCallback((activite: string, base: { paie: number; xp: number }, fatigue: { energie: number; faim: number }) => {
+    const maintenant = Date.now(), gains = gainsDemo(base, demoStatsRef.current, paiesDemo.current[activite], maintenant);
+    if (!gains.entrainement) paiesDemo.current[activite] = maintenant;
+    setProgresDemo(p => ({ argent: p.argent + gains.argent, xp: p.xp + gains.xp }));
+    setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - fatigue.energie), faim: Math.max(0, s.faim - fatigue.faim) }));
+    return gains;
+  }, []);
   const { data: chantiersSimulateur } = useQuery({ queryKey: ['chantiers', 'mine'], queryFn: () => api.get<ChantierSimulateur[]>('/chantiers/mine'), enabled: !demo, staleTime: 60_000 });
   const chantierActif = chantiersSimulateur?.find(c => c.statut === 'en_cours');
   const jouerJournee = useMutation({
     mutationFn: (id: string) => api.post<ChantierSimulateur>(`/chantiers/mine/${id}/journee`),
     onSuccess: () => { client.invalidateQueries({ queryKey: ['chantiers'] }); client.invalidateQueries({ queryKey: ['carriere', 'me'] }); },
+  });
+  // Sans chantier personnel, la journée avec Yao est corrigée et payée par le serveur, qui tient l'avancement de l'ouvrage
+  // du quartier ; l'équipe recrutée et le repos du jour restent dans le navigateur.
+  const { data: chantierServeur } = useQuery({
+    queryKey: ['carriere', 'journee-chantier'], queryFn: () => api.get<ChantierQuartierServeur>('/carriere/journee-chantier'), enabled: !demo, staleTime: 60_000,
+  });
+  useEffect(() => { if (chantierServeur && !journee) setChantierQuartier(c => fusionnerChantierQuartier(c, chantierServeur)); }, [chantierServeur, journee]);
+  const envoyerJournee = useMutation({
+    mutationFn: (corps: { numero: number; reponses: Record<string, number> }) =>
+      api.post<{ progres: ChantierQuartierServeur; note: number; gains: GainsJournee }>('/carriere/journee-chantier', corps),
   });
   useEffect(() => {
     const requete = window.matchMedia('(min-width: 640px)');
@@ -236,6 +275,19 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   }, []);
   const [mode, setMode] = useState<ModeJeuId>('libre');
   const [menuModes, setMenuModes] = useState(false);
+  const panneauOuvert = menuModes || chat || Boolean(telephone) || plan || options;
+  // Le panneau qu'on ouvre ferme ceux qu'il recouvrirait (PANNEAUX_HUD), d'où qu'il s'ouvre : bouton, raccourci ou lien.
+  const panneauxAvant = useRef<Record<PanneauHud, boolean> | null>(null);
+  useEffect(() => {
+    const ouverts: Record<PanneauHud, boolean> = { menuModes, chat, telephone: Boolean(telephone), plan, options };
+    const avant = panneauxAvant.current;
+    panneauxAvant.current = ouverts;
+    const nouveau = avant && PANNEAUX_HUD.find(p => ouverts[p] && !avant[p]);
+    if (!nouveau) return;
+    const fermer: Record<PanneauHud, () => void> = { menuModes: () => setMenuModes(false), chat: () => setChat(false), telephone: () => setTelephone(null), plan: () => setPlan(false), options: () => setOptions(false) };
+    const coteACote = large && window.innerWidth >= 768;
+    for (const p of PANNEAUX_HUD) if (p !== nouveau && ouverts[p] && (!coteACote || (p !== 'menuModes' && nouveau !== 'menuModes'))) fermer[p]();
+  }, [menuModes, chat, telephone, plan, options, large]);
   const [etapeMode, setEtapeMode] = useState(0);
   const [score, setScore] = useState(0);
   const [secondes, setSecondes] = useState<number | null>(null);
@@ -250,6 +302,15 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const pretRef = useRef(demo);
   const horlogeRef = useRef({ heure: HEURE_DE_DEPART, instant: Date.now(), pause: false });
   const hydratationRef = useRef(false);
+  // Démonstration : un point de vue fixe demandé par l'adresse (position, heure, météo), pour comparer le rendu.
+  const [vueForcee, setVueForcee] = useState<VueComparaison>({});
+  useEffect(() => {
+    if (!demo) return;
+    const vue = vueDeComparaison(window.location.search);
+    setVueForcee(vue);
+    if (vue.position) { setPositionInitiale(vue.position); setPositionCourante(vue.position); }
+    if (vue.heure !== undefined) { setHeure(vue.heure); horlogeRef.current = { heure: vue.heure, instant: Date.now(), pause: false }; }
+  }, [demo]);
   // Arrivée depuis le mode classique : on se présente à la porte du lieu demandé et on entre.
   const lieuDemande = useRef(lieuInitial ?? null);
   const ouvrirLieuDemande = useCallback(() => {
@@ -291,13 +352,14 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     else { if (dormi) void envoyerTemps(dormi, true); if (eveil) void envoyerTemps(eveil, false); }
     rafraichirTemps();
   }, [demo, envoyerTemps, rafraichirTemps]);
-  /** Chaque pas de l'horloge (cinq minutes de jeu) compte ; un grand saut (onglet endormi, horloge recalée) non. */
+  /** Chaque pas de l'horloge (cinq minutes de jeu) compte ; un grand saut (onglet endormi, horloge recalée) non. À ×2 ou ×3,
+   * les besoins suivent le temps réel joué, pas l'horloge accélérée (heuresDeBesoins). */
   const suivreHorloge = useCallback((h: number) => {
     const avant = derniereHeure.current;
     derniereHeure.current = h;
     if (avant === null || document.visibilityState === 'hidden') return;
     const ecart = ecartHorloge(avant, h);
-    if (ecart <= PAS_HORLOGE_MAX) compterTemps(ecart);
+    if (ecart <= PAS_HORLOGE_MAX) compterTemps(heuresDeBesoins(ecart, vitesseRef.current));
   }, [compterTemps]);
   /** Laisse passer le temps jusqu'à une heure (le lendemain si elle est passée) : attendre l'ouverture d'un lieu, revenir le
    * lendemain, dormir. Les besoins baissent pendant ce temps, deux fois moins vite en dormant. */
@@ -316,35 +378,33 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     else passerDuree(DUREE_SIESTE, true);
   };
   // Lieux à programme (laboratoire, dépôt, hôtel de ville) : une séance par jour, guidée par le mentor du lieu.
-  const recompenserLieu = useCallback((bilan: BilanSeance) => {
-    if (!demo) return;
-    setProgresDemo(p => ({ argent: p.argent + bilan.paie, xp: p.xp + bilan.xp }));
-    setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 5), faim: Math.max(0, s.faim - 4) }));
-  }, [demo]);
+  const recompenserLieu = useCallback((bilan: BilanSeance, slug: string) => demo ? payerDemo(`lieu:${slug}`, bilan, { energie: 5, faim: 4 }) : undefined, [demo, payerDemo]);
   // Fil rouge et séances des lieux se partagent le joueur : une seule séance à la fois, lue au moment de commencer.
   const campagneRef = useRef<EtatCampagne | null>(null);
   const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA,
     occupe: () => campagneRef.current?.seance ? `Un chapitre du fil rouge est en cours (${nomLieu(campagneRef.current.seance.slug)}) : termine-le d’abord.` : null });
-  // Le premier quart d'heure guidé : chaque geste découvert est validé, et récompensé, au moment où il est fait.
+  // La première journée guidée : logement, première paie, compte vérifié, prochain objectif. Chaque étape est validée, et
+  // récompensée, au moment où le joueur la réussit ; le téléphone signale ses applis ouvertes (banque, patrimoine, défis).
   const premiersPas = usePremiersPas({ demo, onEtape: useCallback((etape: EtapePremiersPas, termine: boolean, r: { argent: number; xp: number }) => {
     const titre = ETAPES_PREMIERS_PAS.find(e => e.id === etape)?.titre ?? etape;
     if (demo) setProgresDemo(p => ({ argent: p.argent + r.argent, xp: p.xp + r.xp }));
-    if (termine) celebrer({ icone: '🎉', titre: 'Premiers pas terminés !', sousTitre: `+${r.argent.toLocaleString('fr-FR')} F et +${r.xp} XP. Le quartier est à toi.`, son: 'succes' });
+    if (termine) celebrer({ icone: '🎉', titre: 'Première journée réussie !', sousTitre: `+${r.argent.toLocaleString('fr-FR')} F et +${r.xp} XP. La suite s’affiche en haut de l’écran : à toi de jouer.`, son: 'succes' });
     else notifier(`✓ ${titre} : +${r.argent.toLocaleString('fr-FR')} F et +${r.xp} XP.`, 'succes');
   }, [demo, notifier]) });
   const validerGuide = useRef(premiersPas.valider);
   validerGuide.current = premiersPas.valider;
-  const departGuide = useRef<PointMonde | null>(null);
-  useEffect(() => { if (positionInitiale && !departGuide.current) departGuide.current = positionInitiale; }, [positionInitiale]);
-  useEffect(() => {
-    // Sans position restaurée (nouveau joueur, démonstration), le joueur apparaît au centre de la place.
-    const d = departGuide.current ?? [0, 0];
-    if (Math.hypot(positionCourante[0] - d[0], positionCourante[1] - d[1]) > DISTANCE_PREMIERS_PAS) void validerGuide.current('deplacement');
-  }, [positionCourante]);
-  useEffect(() => { if (telephone) void validerGuide.current('telephone'); }, [telephone]);
-  useEffect(() => { if (interieur) void validerGuide.current('lieu'); }, [interieur]);
-  useEffect(() => { const r = lieux.resultat; if (r && !r.erreur && r.bilan.compte) void validerGuide.current('seance'); }, [lieux.resultat]);
-  useEffect(() => { if (enLigne.monEmote) void validerGuide.current('quartier'); }, [enLigne.monEmote]);
+  useEffect(() => { if (interieur?.slug === 'residence') void validerGuide.current('logement'); }, [interieur]);
+  useEffect(() => { const r = lieux.resultat; if (r && !r.erreur && r.bilan.compte) void validerGuide.current('travail'); }, [lieux.resultat]);
+  // Une journée avec Yao payée compte aussi ; celle d'un chantier à soi passe par le simulateur, hors du guide.
+  useEffect(() => { if (resultatJournee && !resultatJournee.erreur && (resultatJournee.gains?.argent ?? 0) > 0) void validerGuide.current('travail'); }, [resultatJournee]);
+  // La dernière activité notée de la partie : les habitants en parlent (lib/dialogues-pnj.ts).
+  const [derniereActivite, setDerniereActivite] = useState<ContexteDialogue['derniere']>(null);
+  useEffect(() => { if (resultatJournee && !resultatJournee.erreur) setDerniereActivite({ type: 'journee', note: resultatJournee.bilan.note }); }, [resultatJournee]);
+  useEffect(() => { const r = lieux.resultat; if (r && !r.erreur) setDerniereActivite({ type: 'seance', note: r.bilan.note }); }, [lieux.resultat]);
+  const surAppTelephone = (app: AppTelephone) => {
+    if (app === 'banque') void validerGuide.current('paie');
+    if (app === 'patrimoine' || app === 'defis' || app === 'carriere') void validerGuide.current('objectif');
+  };
   const cleGuide = `btp-life-guide:${userId ?? 'demo'}`;
   const [guide, setGuide] = useState({ ouvert: false, masque: false });
   // Déplié seulement s'il tient sous le HUD : sur téléphone et sur les écrans bas, il reste replié sur l'étape en cours.
@@ -355,10 +415,13 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   }, [cleGuide]);
   const masquerGuide = () => { setGuide(g => ({ ...g, masque: true })); try { localStorage.setItem(cleGuide, 'masque'); } catch { /* Stockage facultatif. */ } };
   // Le fil rouge : la Résidence Akwaba, de lieu en lieu jusqu'à sa réception sur la parcelle du Plateau Nord.
+  // Un chapitre ne se paie qu'une fois : seule la forme du moment module son XP, comme au serveur (CampagneService).
   const recompenserChapitre = useCallback((bilan: BilanChapitre) => {
-    if (!demo) return;
-    setProgresDemo(p => ({ argent: p.argent + bilan.argent, xp: p.xp + bilan.xp }));
+    if (!demo) return undefined;
+    const facteurBesoins = facteurForme(demoStatsRef.current), xp = Math.round(bilan.xp * facteurBesoins);
+    setProgresDemo(p => ({ argent: p.argent + bilan.argent, xp: p.xp + xp }));
     setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 5), faim: Math.max(0, s.faim - 4) }));
+    return { reussi: bilan.reussi, xp, argent: bilan.argent, reputation: bilan.reputation, facteurBesoins };
   }, [demo]);
   const campagne = useCampagne({ cle: `btp-life-campagne:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserChapitre,
     occupe: lieux.seance ? nomLieu(lieux.seance.slug) : null });
@@ -582,7 +645,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const critique = besoinCritique(stats);
   // Météo automatique : des épisodes tirés au hasard selon la saison, les mêmes pour tous au même instant.
   const instantMeteo = new Date();
-  const meteo = meteoDuMoment(instantMeteo);
+  const meteo = vueForcee.meteo ?? meteoDuMoment(instantMeteo);
   const saison = saisonDuMoment(instantMeteo);
   meteoRef.current = meteo;
   const nuit = heure >= 19 || heure < 6;
@@ -590,23 +653,27 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const etapeEnCours = mode !== 'libre' ? modeActif.etapes[etapeMode] : undefined;
   const objectifVie = objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length);
   // Pendant l'orage, le Grand chantier est à l'arrêt : on ne propose pas la journée.
-  const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && !effetsMeteo(meteo).chantierArrete && journeeDisponible(chantierQuartier, heure, Date.now());
+  const yaoRecoit = !effetsMeteo(meteo).chantierArrete && journeeDisponible(chantierQuartier, heure, Date.now());
+  const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && yaoRecoit;
   // Le fil rouge passe avant la journée de Yao quand son interlocuteur reçoit à cette heure ; un besoin urgent passe avant tout.
   const chapitreFilRouge = campagne.chapitre;
   const horairesFilRouge = chapitreFilRouge ? interlocuteurChapitre(chapitreFilRouge).horaires : null;
   const filRougePropose = Boolean(chapitreFilRouge && horairesFilRouge && !etapeEnCours && !journee && !lieux.seance && !campagne.seance && !objectifVie.lieu
     && heure >= horairesFilRouge.ouverture && heure < horairesFilRouge.fermeture);
-  // Un seul objectif principal à l'écran : le guide des premiers pas passe avant les propositions, jamais avant une
+  // Un seul objectif principal à l'écran : le guide de la première journée passe avant les propositions, jamais avant une
   // activité commencée ni un besoin urgent (lib/objectif-monde.ts, sourceObjectif).
   const etapeGuide = premiersPas.afficher && !guide.masque ? prochaineEtapeGuide(premiersPas.faites) : null;
   const source = sourceObjectif({ modeEnCours: Boolean(etapeEnCours), journee: Boolean(journee), seance: Boolean(lieux.seance), chapitreEnCours: Boolean(campagne.seance),
     guide: Boolean(etapeGuide), besoinUrgent: Boolean(objectifVie.lieu), filRouge: filRougePropose, travail: travailPropose });
   const yaoEnTete = source === 'yao';
-  // « Réussis une séance chez un mentor » : la flèche vise le lieu à mentor ouvert le plus proche.
-  const mentorProche = source === 'guide' && etapeGuide?.id === 'seance'
-    ? BATIMENTS.filter(b => aUnProgramme(b.slug) && lieuOuvert(LIEUX_PROGRAMME[b.slug].programme, heure))
-      .sort((a, b) => distanceEntre([a.position[0], a.position[2]], positionCourante) - distanceEntre([b.position[0], b.position[2]], positionCourante))[0]?.slug
-    : undefined;
+  // La flèche du guide : la Résidence pour rentrer chez soi ; pour la première paie, le Grand chantier quand Yao y reçoit,
+  // sinon le lieu à mentor ouvert le plus proche. La paie et le prochain objectif se voient dans le téléphone.
+  const lieuGuide = source !== 'guide' || !etapeGuide ? undefined
+    : etapeGuide.id === 'logement' ? 'residence'
+    : etapeGuide.id !== 'travail' ? undefined
+    : yaoRecoit ? 'chantier'
+    : BATIMENTS.filter(b => aUnProgramme(b.slug) && lieuOuvert(LIEUX_PROGRAMME[b.slug].programme, heure))
+      .sort((a, b) => distanceEntre([a.position[0], a.position[2]], positionCourante) - distanceEntre([b.position[0], b.position[2]], positionCourante))[0]?.slug;
   const phase = journee ? phaseJournee(journee) : null;
   const surLeChantier = interieur?.slug === 'chantier';
   const travauxDuJour = journee ? journee.taches.filter(t => t.type !== 'epi' && t.type !== 'recrutement') : [];
@@ -615,7 +682,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : journee && phase ? (surLeChantier ? { texte: TITRES_PHASES[phase], etiquette: phase === 'travaux' ? `${travauxDuJour.filter(t => journee.reponses[t.id] !== undefined).length}/${travauxDuJour.length}` : undefined, lieu: 'chantier' } : { texte: 'Retourne sur le chantier', lieu: 'chantier' })
     : lieux.seance ? { texte: `Séance en cours · ${BATIMENTS.find(b => b.slug === lieux.seance!.slug)?.nom ?? LIEUX_PROGRAMME[lieux.seance.slug].programme.titre}`, etiquette: `${Object.keys(lieux.seance.scores).length}/${lieux.seance.taches.length}`, lieu: lieux.seance.slug }
     : campagne.seance ? { texte: `Fil rouge · ${CHAPITRES[campagne.seance.etape].titre}`, etiquette: `${Object.keys(campagne.seance.scores).length}/${campagne.seance.taches.length}`, lieu: campagne.seance.slug }
-    : source === 'guide' && etapeGuide ? { texte: etapeGuide.titre, etiquette: `Premiers pas ${premiersPas.faites.length}/${ETAPES_PREMIERS_PAS.length}`, lieu: mentorProche }
+    : source === 'guide' && etapeGuide ? { texte: etapeGuide.titre, etiquette: `Première journée ${premiersPas.faites.length}/${ETAPES_PREMIERS_PAS.length}`, lieu: lieuGuide }
     : filRougePropose && chapitreFilRouge ? { texte: `Fil rouge · ${chapitreFilRouge.titre}`, etiquette: `Ch. ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`, lieu: chapitreFilRouge.lieu }
     : yaoEnTete ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
     : objectifVie;
@@ -631,6 +698,18 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const reputation = profil?.reputation ?? (demo ? 520 : undefined);
   const couleurSauvegarde = etatSauvegarde === 'erreur' ? '#E2653C' : etatSauvegarde === 'sauvegarde-ok' ? '#4CC3A5' : 'rgb(251 245 234 / .3)';
   const hautHud = immersif ? 'top-20' : 'top-3';
+  // Les grands panneaux s'ouvrent sous la rangée de boutons du HUD, qui reste visible pour passer de l'un à l'autre. Sur
+  // téléphone, ils descendent jusqu'en bas, sauf le chat, qui prend le haut de la colonne du milieu : il laisse voir le fil
+  // d'événements et marcher. Sur grand écran, ils restent à droite, et le planning prend à gauche la place du bâtisseur et
+  // de l'objectif, au-dessus des besoins.
+  const sousLesBoutons = immersif ? 'top-[320px]' : 'top-[252px]';
+  const panneauMobile = `inset-x-3 bottom-3 ${sousLesBoutons}`;
+  // À droite, la largeur laisse toujours la place des besoins (252 px en bas à gauche).
+  const placeDroite = (largeur: string) => large ? `right-3 ${largeur} ${immersif ? 'top-[392px] max-h-[calc(100%-404px)]' : 'top-[324px] max-h-[calc(100%-336px)]'}` : panneauMobile;
+  const placePlanning = large ? `left-3 w-[min(320px,calc(100%-24px))] ${hautHud} ${immersif ? 'max-h-[calc(100%-264px)]' : 'max-h-[calc(100%-196px)]'}` : panneauMobile;
+  const placeChat = large ? `absolute bottom-3 right-3 z-30 w-[min(330px,calc(100%-296px))] ${immersif ? 'max-h-[min(440px,calc(100%-398px))]' : 'max-h-[min(440px,calc(100%-330px))]'}`
+    : 'flex-1';
+  const placeTelephone = large ? `bottom-3 right-3 w-[min(300px,calc(100%-296px))] ${immersif ? 'max-h-[calc(100%-404px)]' : 'max-h-[calc(100%-336px)]'}` : panneauMobile;
   const allerVers = (slug: string) => { const lieu = BATIMENTS_CARTE.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
   /** On sort de chez soi pour un rendez-vous de la journée : le joueur repart vers le lieu. */
   const quitterPour = (slug: string) => { directions.clear(); setInterieur(null); allerVers(slug); };
@@ -708,10 +787,18 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const postesInterieur = useMemo<StationChantier[]>(() => journee ? (phase === 'bilan' ? ['yao'] : [...new Set(tachesDisponibles(journee).map(t => t.zone))]) : statutJournee === 'disponible' ? ['yao'] : [], [journee, phase, statutJournee]);
   // L'équipe visible sur le chantier : celle du quartier, plus les recrues du jour (elles signent au bilan).
   const equipeChantier = useMemo(() => chantierActif ? [] : [...chantierQuartier.equipe.filter(o => !recrues.some(r => r.metier === o.metier)), ...recrues], [chantierActif, chantierQuartier.equipe, recrues]);
+  // Le panneau du chantier raconte ce que le joueur y a fait : ses journées et les ouvrages livrés (quartier seulement).
+  const contributionChantier = chantierActif ? undefined : contributionAuChantier(nomJoueur ?? 'toi', chantierQuartier.journees, chantierQuartier.livraisons);
+  // Et l'enseigne de chaque lieu à mentor, l'étape atteinte de son programme.
+  const progressionLieux = Object.fromEntries(BATIMENTS.filter(b => aUnProgramme(b.slug)).flatMap(b => {
+    const texte = progressionAuLieu(lieux.progresDe(b.slug), LIEUX_PROGRAMME[b.slug].programme);
+    return texte ? [[b.slug, texte]] : [];
+  }));
   const chantierScene = useMemo(() => ({
     etat: etatChantier, nom: nomChantier, livraison: livraisonEnCours,
     postes: postesVisibles.map(id => ({ id, position: POSTES_CHANTIER[id], libelle: LIBELLES_POSTES[id] })),
-  }), [etatChantier, nomChantier, livraisonEnCours, postesVisibles.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+    contribution: contributionChantier, ouvriers: equipeChantier.length,
+  }), [etatChantier, nomChantier, livraisonEnCours, postesVisibles.join(), contributionChantier, equipeChantier.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const entrerSurLeChantier = () => { setInterieur(BATIMENT_CHANTIER); setSelection(null); directionsRef.current.clear(); destination.current = null; };
   /** Balise de la ville touchée : on y va, puis on parle à Yao ou l'on entre sur le chantier. */
   const surPoste = (poste: PosteVille) => {
@@ -737,6 +824,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     const t = tacheALaZone(journee, station);
     if (!t) { notifier(phase === 'bilan' ? 'La journée est faite : va voir Yao pour le bilan.' : `Pas encore : ${TITRES_PHASES[phase].toLowerCase()} d’abord.`, 'info'); return; }
     if (t.type === 'recrutement') { setRecrutementOuvert(true); return; }
+    if (t.type === 'geste') { setGesteOuvert(true); return; }
     const s = situation(t.id);
     if (s) setTache({ id: t.id, situation: s, etape: libelleTache(t, journee) });
   };
@@ -756,7 +844,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     setJournee(suivante); annoncerSuite(journee, suivante);
   };
   const faireLeBilan = () => {
-    if (!journee) return;
+    if (!journee || envoyerJournee.isPending || jouerJournee.isPending) return;
     const bilan = bilanJournee(journee), heureFin = Math.max(heure, FIN_DE_JOURNEE), maintenant = Date.now();
     if (chantierActif) {
       // Vrai chantier : la journée passe par le simulateur (salaires, matériaux, imprévus) ; on se repose ensuite jusqu'au lendemain.
@@ -768,15 +856,28 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       });
       return;
     }
-    const apres = appliquerJournee(chantierQuartier, journee, bilan, recrues, heureFin, maintenant);
-    enregistrerChantier(apres); setRecrues([]);
+    const avant = Math.round(journee.numero / TOTAL_JOURS * 100), etapeAvant = PROGRAMME.find(e => e.id === journee.etape)?.nom;
     if (demo) {
-      setProgresDemo(p => ({ argent: p.argent + bilan.paie, xp: p.xp + bilan.xp }));
-      setDemoStats(s => ({ ...s, energie: Math.max(0, s.energie - 8), faim: Math.max(0, s.faim - 6) }));
+      const apres = appliquerJournee(chantierQuartier, journee, bilan, recrues, heureFin, maintenant);
+      enregistrerChantier(apres); setRecrues([]);
+      const gains = payerDemo('journee', bilan, { energie: 8, faim: 6 });
+      setResultatJournee({ bilan, avant, apres: Math.round(apres.jours / TOTAL_JOURS * 100), recompenses: 'demo', gains, etapeAvant, etapeApres: etatVisuel(apres.jours).nom });
+      return;
     }
-    setResultatJournee({
-      bilan, avant: Math.round(journee.numero / TOTAL_JOURS * 100), apres: Math.round(apres.jours / TOTAL_JOURS * 100), recompenses: demo ? 'demo' : 'apprentissage',
-      etapeAvant: PROGRAMME.find(e => e.id === journee.etape)?.nom, etapeApres: etatVisuel(apres.jours).nom,
+    // Connecté : le serveur corrige les situations, paie et fait avancer l'ouvrage ; la journée ne compte qu'à sa réponse.
+    envoyerJournee.mutate({ numero: journee.numero, reponses: reponsesJournee(journee) }, {
+      onSuccess: ({ progres, note, gains }) => {
+        client.setQueryData(['carriere', 'journee-chantier'], progres);
+        client.invalidateQueries({ queryKey: ['carriere', 'me'] });
+        const corrige = { ...bilan, ...valeurJournee(note) };
+        const apres = fusionnerChantierQuartier(appliquerJournee(chantierQuartier, journee, corrige, recrues, heureFin, maintenant), progres);
+        enregistrerChantier(apres); setRecrues([]);
+        setResultatJournee({ bilan: corrige, avant, apres: Math.round(apres.jours / TOTAL_JOURS * 100), recompenses: 'serveur', gains, etapeAvant, etapeApres: etatVisuel(apres.jours).nom });
+      },
+      onError: (erreur: Error) => {
+        client.invalidateQueries({ queryKey: ['carriere', 'journee-chantier'] });
+        setResultatJournee({ bilan, avant, apres: avant, recompenses: 'serveur', erreur: erreur.message || 'Le serveur ne répond pas : journée non enregistrée.', etapeAvant });
+      },
     });
   };
   const terminerJournee = () => {
@@ -792,6 +893,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   /** Échap sur le chantier : ferme d'abord le panneau ouvert. */
   const fermerPanneauChantier = () => {
     if (tache) { setTache(null); return true; }
+    if (gesteOuvert) { setGesteOuvert(false); return true; }
     if (recrutementOuvert) { setRecrutementOuvert(false); return true; }
     if (planningOuvert) { setPlanningOuvert(false); return true; }
     if (interlocuteur) { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); return true; }
@@ -896,33 +998,47 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Fil d'événements dans les intérieurs : à droite sous « Sortir » sur grand écran, au-dessus des commandes sur téléphone.
   const pileInterieur = <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} max={large ? undefined : 1} /></div>;
   const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
+  const suiviMode = !menuModes && <SuiviModeJeu mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} />;
+  const zoneMusicale = <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />;
+  // Le guide laisse la place aux grands panneaux, aux intérieurs et aux plans de cinéma.
+  const guideVisible = premiersPas.afficher && !guide.masque && !interieur && !panneauOuvert && !planCinema;
+  const panneauGuide = <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} dansObjectif={source === 'guide'} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />;
+  const chatQuartier = chat && !interieur ? <ChatQuartier place={placeChat} demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
+    equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} /> : null;
   // Panneaux de la journée : dans la ville devant le portail, ou par-dessus l'intérieur du chantier.
+  // Ce que les habitants savent du joueur : l'heure, le temps, ses journées, sa dernière note, sa progression et sa forme.
+  const contexteDialogue: ContexteDialogue = { heure, meteo, niveau, poste: profil?.poste ?? (demo ? 'Apprenti' : undefined), journees: chantierQuartier.journees, derniere: derniereActivite,
+    premiereJournee: { faites: premiersPas.faites, finie: !premiersPas.afficher }, chapitresFilRouge: campagne.progres.chapitres, faim: stats.faim, energie: stats.energie };
   const panneauxChantier = <>
     {imprevuOuvert && <PanneauImprevu etat={defisQuartier} onFermer={() => setImprevuOuvert(false)} />}
-    {interlocuteur === 'Yao' && !dialogueLibre && <PanneauJourneeChantier statut={statutJournee} nomJoueur={nomJoueur ?? 'Bâtisseur'} nomChantier={nomChantier} etat={etatChantier} simulateur={Boolean(chantierActif)} demo={demo} journee={journee} resultat={resultatJournee} enCours={jouerJournee.isPending}
+    {interlocuteur === 'Yao' && !dialogueLibre && <PanneauJourneeChantier statut={statutJournee} nomJoueur={nomJoueur ?? 'Bâtisseur'} nomChantier={nomChantier} etat={etatChantier} simulateur={Boolean(chantierActif)} demo={demo} journee={journee} resultat={resultatJournee} enCours={jouerJournee.isPending || envoyerJournee.isPending}
       onCommencer={commencerJournee} onBilan={faireLeBilan} onTerminer={terminerJournee} onAbandonner={() => { setJournee(null); setRecrues([]); setInterlocuteur(null); notifier('Journée interrompue. Yao te retrouvera au chantier.', 'info'); }}
       onDiscuter={() => setDialogueLibre(true)} onPlanning={() => setPlanningOuvert(true)} onFermer={() => { if (resultatJournee) terminerJournee(); else setInterlocuteur(null); }}
       onAttendre={() => { notifier(`${heure >= OUVERTURE_CHANTIER ? 'Le lendemain à' : 'Il est'} ${OUVERTURE_CHANTIER} h : Yao t’attend au chantier.`, 'info'); passerA(OUVERTURE_CHANTIER); }} />}
     {tache && <TacheChantier key={tache.id} etape={tache.etape} situation={tache.situation} onRepondre={choix => repondreTache(tache.id, choix)} onFermer={() => setTache(null)} />}
+    {gesteOuvert && journee?.geste && <PanneauGeste key={journee.geste.id} etape={PROGRAMME.find(e => e.id === journee.etape)?.nom ?? 'Travaux'} geste={journee.geste}
+      onValider={valeur => { repondreTache(journee.geste!.id, valeur); setGesteOuvert(false); }} onFermer={() => setGesteOuvert(false)} />}
     {recrutementOuvert && journee && <PanneauRecrutement graine={journee.numero + chantierQuartier.journees * 31} metiers={journee.recrutement} budget={budgetRecrutement(journee.recrutement)} onValider={validerRecrutement} onFermer={() => setRecrutementOuvert(false)} />}
     {planningOuvert && <PanneauPlanning etat={etatChantier} equipe={equipeChantier} onFermer={() => setPlanningOuvert(false)} />}
-    {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} onLien={gain => setRelations(r => ({ ...r, [interlocuteur]: gagnerAffinite(r[interlocuteur] ?? 0, gain, facteurSocialTraits(traitsJoueur)) }))} onLieu={slug => { setInterlocuteur(null); setInterieur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
+    {interlocuteur && (interlocuteur !== 'Yao' || dialogueLibre) && <DialoguePersonnage key={interlocuteur} nom={interlocuteur} affinite={relations[interlocuteur] ?? 0} accueil={repliqueAccueil(interlocuteur, contexteDialogue)} onLien={gain => setRelations(r => ({ ...r, [interlocuteur]: gagnerAffinite(r[interlocuteur] ?? 0, gain, facteurSocialTraits(traitsJoueur)) }))} onLieu={slug => { setInterlocuteur(null); setInterieur(null); const lieu = BATIMENTS.find(b => b.slug === slug); if (lieu) { setSelection(lieu); setPlan(false); } }} onClose={() => { setInterlocuteur(null); directionsRef.current.clear(); destination.current = null; }} />}
   </>;
   return <FournisseurPersonnage personnage={personnage}><div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={chantierOuvert(heure) || Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
     {/* HUD « Lagune » : le bâtisseur et son objectif à gauche, l'heure et la minicarte à droite, le centre reste dégagé. */}
     <header className={`pointer-events-none absolute inset-x-3 z-10 flex items-start justify-between gap-3 ${hautHud}`}>
-      <div className="flex min-w-0 flex-col items-start gap-2">
+      <div className={`flex min-w-0 flex-col items-start gap-2 ${large && menuModes ? 'invisible' : ''}`}>
         <CarteJoueur nom={nomJoueur ?? 'Bâtisseur'} poste={profil?.poste ?? 'Apprenti'} niveau={niveau} progression={progressionXp} argent={argent} reputation={reputation} humeur={humeur} etatSauvegarde={{ libelle: libelleSauvegarde, couleur: couleurSauvegarde }} compacte={!large}
           portrait={configPortrait} onPortrait={() => setChoixPersonnageOuvert(true)} />
         {cap}
+        {/* Sur grand écran, sous l'objectif : la mission en cours, la zone musicale, puis le fil d'événements. */}
+        {large && <>{suiviMode}{zoneMusicale}<div className="w-[320px]"><PileNotifications notifications={notifications} onFermer={fermerNotification} /></div></>}
       </div>
       <div className="relative flex shrink-0 flex-col items-end gap-2">
         <HorlogeMonde heure={affichageHeure} meteo={{ icone: LIBELLES_METEO[meteo].icone, nom: `${LIBELLES_METEO[meteo].nom} · ${saison.nom}` }} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
@@ -940,15 +1056,18 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         </div>
       </div>
     </header>
-    {/* Fil d'événements : sous le bâtisseur sur grand écran, au-dessus des besoins sur téléphone. */}
-    <div className={`pointer-events-none absolute z-20 ${large ? `left-3 w-[320px] ${immersif ? 'top-[216px]' : 'top-[148px]'}` : 'inset-x-3 bottom-[120px]'}`}>
-      <PileNotifications notifications={notifications} onFermer={fermerNotification} max={large ? undefined : 1} />
-    </div>
-    <PanneauModesJeu haut={hautHud} ouvert={menuModes} mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />
-    <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />
+    {/* Sur téléphone, entre la rangée de boutons et les besoins, une seule colonne : le guide ou le chat en haut, la mission
+        en cours et la zone musicale en bas, puis le fil d'événements. Rien ne s'y chevauche : quand une notification
+        grandit (un bouton d'action), le haut de la colonne lui cède la place. */}
+    {!large && <div className={`pointer-events-none absolute inset-x-3 bottom-[120px] z-20 flex flex-col gap-2 ${sousLesBoutons}`}>
+      {chatQuartier ?? (guideVisible && <div className="flex min-h-0 w-[230px] flex-col self-end">{panneauGuide}</div>)}
+      <div className={`mt-auto flex w-[min(320px,100%)] flex-col items-start gap-2 ${panneauOuvert ? 'hidden' : ''}`}>{suiviMode}{zoneMusicale}</div>
+      <PileNotifications notifications={notifications} onFermer={fermerNotification} max={1} />
+    </div>}
+    {menuModes && <PanneauModesJeu place={placePlanning} mode={mode} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />}
     {!surLeChantier && panneauxChantier}
     {!interieur && <PanneauxFilRouge ici={PARCELLE_AKWABA.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo} onAller={slug => { campagne.fermer(); allerVers(slug); }} onAttendre={attendreFilRouge} />}
-    {options && <section aria-label="Options" className={`hud-verre absolute inset-x-3 z-30 grid max-h-[calc(100%-24px)] gap-2 overflow-y-auto p-4 text-sm sm:inset-x-auto sm:right-3 sm:w-[300px] ${hautHud}`}>
+    {options && <section aria-label="Options" className={`hud-verre absolute z-30 grid content-start gap-2 overflow-y-auto p-4 text-sm ${placeDroite('w-[min(300px,calc(100%-296px))]')}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />
       <button type="button" onClick={() => { setOptions(false); setChoixPersonnageOuvert(true); }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">🧍 Changer de personnage · {personnage.titre}</button>
@@ -963,7 +1082,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         {tactile ? <>Touche un bâtiment, le sol ou la minicarte pour y aller<br />La croix en bas à droite fait marcher ton personnage<br />Les options règlent le temps, la qualité et la caméra</> : <>Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom</>}
       </div>
     </section>}
-    {plan && <nav aria-label="Lieux du quartier" className={`hud-verre absolute inset-x-3 z-30 max-h-[calc(100%-24px)] overflow-y-auto p-4 sm:inset-x-auto sm:right-3 sm:w-[340px] ${hautHud}`}>
+    {plan && <nav aria-label="Lieux du quartier" className={`hud-verre absolute z-30 overflow-y-auto p-4 ${placeDroite('w-[min(340px,calc(100%-296px))]')}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Plan · {BATIMENTS.length} lieux</h2><button type="button" aria-label="Fermer le plan" onClick={() => setPlan(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur mt-2" />
       <section className="my-3 rounded-xl border border-white/10 bg-white/[.04] p-3" aria-label="Carnet d’exploration">
@@ -1031,7 +1150,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       allerVers={slug => { directions.clear(); setInterieur(null); allerVers(slug); }} onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuMaquis>
     : interieur && interieur.slug === 'cafe' ? <LieuCafe demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={passerA}
       relations={relations} onRelation={(nom, valeur) => setRelations(r => ({ ...r, [nom]: Math.max(0, Math.min(100, valeur)) }))} onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuCafe>
-    : interieur && interieur.slug === 'universite' ? <LieuUniversite demo={demo} heure={heure} cleLocale={`btp-life-universite:${userId ?? 'demo'}`} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'universite' ? <LieuUniversite demo={demo} heure={heure} cursus={lireFormation(avatar?.config) ? <EcranCarriere seulementCursus demo={demo} niveau={niveau} porte={parcoursDuPoste(profil?.slug)} formation={lireFormation(avatar?.config)} journees={chantierQuartier.journees} livraisons={chantierQuartier.livraisons} logementDemo={logementDemo} /> : undefined} cleLocale={`btp-life-universite:${userId ?? 'demo'}`} notifier={notifier} passerA={passerA}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuUniversite>
     : interieur && interieur.slug === 'marche' ? <LieuMarche demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuMarche>
@@ -1054,25 +1173,22 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       }}
       onDormi={dormir} nuit={dormirJusquAuMatin(heure)} onTempsPasse={h => passerDuree(h)} onSortir={() => { directions.clear(); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       {interieur.slug === 'residence'
-        ? <PanneauChezToi demo={demo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)} onAller={quitterPour} travaux={<EcranTravaux travaux={travaux} chezToi />} />
+        ? <PanneauChezToi demo={demo} logementDemo={logementDemo} heure={heure} besoins={stats} rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)} onAller={quitterPour} travaux={<EcranTravaux travaux={travaux} chezToi />} />
         : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
     {planCinema && !interieur && <BandeauCinema titre={planCinema.titre} sousTitre={planCinema.sousTitre} onPasser={passerPlan} />}
     {finCampagne && !interieur && <PanneauFinCampagne nomJoueur={nomJoueur ?? 'Bâtisseur'} onSuite={suiteCampagne} onFermer={fermerFinCampagne} />}
     {celebrations.courante && !planCinema && <EcranCelebration celebration={celebrations.courante} onFermer={celebrations.fermer} />}
-    {/* Le guide, sous la colonne de droite du HUD (68 px plus bas en mode immersif), sans descendre sur les commandes du bas. */}
-    {premiersPas.afficher && !guide.masque && !interieur && !telephone && !planCinema && <div className={`pointer-events-none absolute right-3 z-20 flex flex-col ${large
-      ? `w-[262px] ${immersif ? 'top-[420px] max-h-[calc(100%-476px)]' : 'top-[352px] max-h-[calc(100%-408px)]'}`
-      : `w-[230px] ${immersif ? 'top-[324px] max-h-[calc(100%-430px)]' : 'top-[256px] max-h-[calc(100%-362px)]'}`}`}>
-      <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} dansObjectif={source === 'guide'} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />
-    </div>}
-    {chat && !interieur && <ChatQuartier demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
-      equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} onEnvoi={() => void validerGuide.current('quartier')} />}
-    {telephone && !interieur && <Telephone appInitiale={telephone} demo={demo} heure={affichageHeure} meteo={LIBELLES_METEO[meteo].nom} pluie={pluie} position={positionCourante}
+    {/* Sur grand écran, le guide sous la colonne de droite du HUD (68 px plus bas en mode immersif), sans descendre sur les
+        commandes du bas, et le chat en bas à droite ; sur téléphone, ils vivent dans la colonne du milieu. */}
+    {large && guideVisible && <div className={`pointer-events-none absolute right-3 z-20 flex w-[262px] flex-col ${immersif ? 'top-[420px] max-h-[calc(100%-476px)]' : 'top-[352px] max-h-[calc(100%-408px)]'}`}>{panneauGuide}</div>}
+    {large && chatQuartier}
+    {telephone && !interieur && <Telephone place={placeTelephone} appInitiale={telephone} onApp={surAppTelephone} demo={demo} heure={affichageHeure} meteo={LIBELLES_METEO[meteo].nom} pluie={pluie} position={positionCourante}
       destinations={destinationsTelephone} argent={argent ?? 0} epargne={epargneDemo} niveau={niveau} appels={appelsTelephone}
       rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)}
       filRouge={chapitreFilRouge ? { chapitre: campagne.progres.chapitres + 1, total: CHAPITRES.length, titre: chapitreFilRouge.titre, resume: chapitreFilRouge.resume, lieu: chapitreFilRouge.lieu, nomLieu: nomLieu(chapitreFilRouge.lieu), interlocuteur: interlocuteurChapitre(chapitreFilRouge).nom } : null}
       defis={<EcranDefis etat={defisQuartier} onChantier={() => { setTelephone(null); allerVers('chantier'); }} />} defisAReclamer={defisQuartier.aReclamer}
+      carriere={<EcranCarriere demo={demo} niveau={niveau} porte={parcoursDuPoste(profil?.slug)} formation={lireFormation(avatar?.config)} journees={chantierQuartier.journees} livraisons={chantierQuartier.livraisons} logementDemo={logementDemo} />}
       patrimoine={<EcranPatrimoine demo={demo} argent={argent ?? 0} depenserDemo={depenserDemo} travaux={<EcranTravaux travaux={travaux} chezToi={false} />} onLogementDemo={setLogementDemo} />}
       onAller={slug => { setTelephone(null); allerVers(slug); }} onVoyager={voyager} onEpargneDemo={(sens, montant) => epargneDemoOps.operer(sens, montant)} onFermer={() => setTelephone(null)} />}
     {voyage && <TrajetEnCours {...voyage} />}
@@ -1081,7 +1197,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     {/* Bas d'écran : besoins, rappel des commandes sur grand écran, croix de déplacement sur téléphone. */}
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3">
       <JaugesBesoins besoins={stats} compacte={!large} />
-      {large && <p className="hud-verre mb-1 hidden items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] text-jeu-ivoire/70 lg:flex">Clique un lieu, le sol ou la minicarte<span className="px-1 text-jeu-ivoire/30">·</span><b className="hud-chiffre text-jeu-or">M</b> plan <b className="hud-chiffre ml-1 text-jeu-or">J</b> planning <b className="hud-chiffre ml-1 text-jeu-or">P</b> pause</p>}
+      {large && !panneauOuvert && <p className="hud-verre mb-1 hidden items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] text-jeu-ivoire/70 lg:flex">Clique un lieu, le sol ou la minicarte<span className="px-1 text-jeu-ivoire/30">·</span><b className="hud-chiffre text-jeu-or">M</b> plan <b className="hud-chiffre ml-1 text-jeu-or">J</b> planning <b className="hud-chiffre ml-1 text-jeu-or">P</b> pause</p>}
       {large ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1.5"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
     </div>
     <p role="status" className="sr-only">{libelleSauvegarde}</p>

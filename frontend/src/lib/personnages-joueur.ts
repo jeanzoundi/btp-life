@@ -1,8 +1,9 @@
 // Les personnages jouables. Le même personnage sert au monde vivant (modèle 3D réaliste) et au mode classique
 // (avatar 2D : même teint, mêmes cheveux). Le choix est rangé dans la configuration de l'avatar
 // (`Avatar.config.personnage`, PATCH /carriere/avatar/personnage), à côté des réglages du dressing.
-// Le personnage « sur mesure » n'a pas de modèle réaliste : la version stylisée le dessine, réglée trait par trait
-// (`Avatar.config.apparence`).
+// Le personnage « sur mesure » (`Avatar.config.apparence`) prend le corps réaliste et animé le plus proche de ses choix,
+// habillé à ses couleurs (teint, haut, bas, cheveux) : il marche parmi les autres sans changer de facture. Coiffure, barbe
+// et lunettes restent ceux du corps choisi ; l'avatar 2D et la silhouette lointaine les dessinent trait par trait.
 import type { DesignPersonnage } from './identites-personnages';
 import type { ModeleRealiste } from './personnages-realistes';
 import { gabaritDepuis, type GabaritPersonnage } from './gabarit-personnage';
@@ -14,17 +15,22 @@ export type Pilosite = 'aucune' | 'moustache' | 'barbe' | 'bouc';
 /** Ce que le personnage impose à l'avatar 2D ; la tenue, le casque et les accessoires restent ceux du dressing. */
 export interface Apparence2D { peau: string; cheveux: 'court' | 'afro' | 'tresses' | 'chauve'; pilosite?: Pilosite; couleurCheveux?: string }
 
+/** Les couleurs du personnage sur mesure, posées sur son corps réaliste : teint, haut, bas et cheveux. */
+export interface TeintesPersonnage { peau: string; haut: string; bas: string; cheveux: string }
+
 export interface PersonnageJoueur {
   gabarit?: GabaritPersonnage;
   /** Couleur du casque choisie (créateur ou dressing) : le casque réaliste et la version stylisée la prennent. */
   couleurCasque?: string;
   id: IdPersonnage; titre: string; detail: string;
   /** Modèle 3D réaliste (de près) ; `design` habille la version stylisée (de loin, ou pendant le chargement). Sans
-   * modèle (sur mesure), la version stylisée dessine le personnage de près comme de loin. */
+   * modèle, la version stylisée dessine le personnage de près comme de loin. */
   modele: ModeleRealiste | null; design: DesignPersonnage;
   /** Le modèle porte son casque de chantier ; les autres arrivent tête nue. */
   casque: boolean;
   apparence: Apparence2D;
+  /** Sur mesure : les couleurs à poser sur le corps réaliste. */
+  teintes?: TeintesPersonnage;
 }
 
 // Couleurs relevées sur les textures des modèles (peau de la tête, tenue du corps, casque).
@@ -129,11 +135,26 @@ export function apparenceSurMesure(config: unknown): ApparenceSurMesure {
   };
 }
 
-/** Le personnage sur mesure : la version stylisée habillée selon l'apparence ; l'avatar 2D en reprend le teint, les
- * cheveux et la barbe (il n'a pas de foulard : des tresses à la place). */
+/** Le corps réaliste qui porte le personnage sur mesure : la silhouette la plus proche de ses choix (afro ou tresses pour
+ * une femme ; tenue de chantier, de bureau, de ville ou de détente pour un homme). */
+export function modeleSurMesure(a: Pick<ApparenceSurMesure, 'feminin' | 'coiffure' | 'tenue'>): ModeleRealiste {
+  if (a.feminin) return a.coiffure === 'afro' ? 'femme-ville' : 'cadre-femme';
+  return a.tenue === 'gilet' ? 'ouvrier-casque' : a.tenue === 'veste' ? 'cadre-homme' : a.tenue === 'tshirt' ? 'homme-capuche' : 'homme-jean';
+}
+
+/** Les couleurs relevées sur chaque corps réaliste (peau, haut, bas) : la base à partir de laquelle on le teinte. */
+export const REFERENCES_MODELES = Object.fromEntries(PERSONNAGES.map(p => [p.modele, { peau: p.design.peau, haut: p.design.haut, bas: p.design.pantalon }])) as Record<ModeleRealiste, { peau: string; haut: string; bas: string }>;
+
+/** Le personnage porte-t-il son casque en ville et au chantier ? Toujours pour un personnage prêt à jouer ; sur mesure,
+ * seulement s'il l'a choisi. */
+export const porteLeCasque = (p: Pick<PersonnageJoueur, 'id' | 'casque'>) => p.id !== ID_SUR_MESURE || p.casque;
+
+/** Le personnage sur mesure : le corps réaliste le plus proche, à ses couleurs ; la version stylisée (de loin) et l'avatar
+ * 2D en reprennent le teint, les cheveux et la barbe (l'avatar 2D n'a pas de foulard : des tresses à la place). */
 export function personnageSurMesure(a: ApparenceSurMesure): PersonnageJoueur {
   return {
-    id: ID_SUR_MESURE, titre: 'Sur mesure', detail: 'Ton style : coiffure, barbe, teint et tenue au choix', modele: null, casque: a.casque,
+    id: ID_SUR_MESURE, titre: 'Sur mesure', detail: 'Ton style : teint, tenue, couleurs et casque au choix', modele: modeleSurMesure(a), casque: a.casque,
+    teintes: { peau: a.peau, haut: a.haut, bas: a.bas, cheveux: a.couleurCheveux },
     design: { peau: a.peau, haut: a.haut, pantalon: a.bas, accent: '#f5efda', chaussures: '#2b2b2e', cheveux: a.coiffure, couleurCheveux: a.couleurCheveux, pilosite: a.pilosite,
       tenue: a.tenue, largeur: a.feminin ? .93 : 1, hauteur: a.feminin ? .98 : 1, feminin: a.feminin, lunettes: a.lunettes, ...(a.casque ? { casque: '#d2d6db' } : {}) },
     apparence: { peau: a.peau, cheveux: a.coiffure === 'foulard' ? 'tresses' : a.coiffure, couleurCheveux: a.couleurCheveux, pilosite: a.pilosite },

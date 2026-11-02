@@ -16,13 +16,17 @@ import { MateriauMonde } from './materiaux-monde';
 export type { ChargementLivraison } from '@/lib/programme-chantier';
 
 const JAUNE_GRUE = '#E8B23A';
+/** Les postes des recrues en renfort (x, z, orientation), répartis sur la parcelle. */
+const POSTES_RENFORT: [number, number, number][] = [[-1.5, 2.8, .3], [3.4, -2.6, -2.2], [-5.2, -1.8, 1.4]];
 const ORDRE: EtapeVisuelle[] = ['recrutement', 'implantation', 'fouilles', 'semelles', 'soubassement', 'elevation', 'dalle', 'etage', 'toiture', 'finitions', 'reception', 'livre'];
 /** Vrai si l'étape affichée est comprise entre deux étapes du programme (incluses). */
 export const entreEtapes = (etape: EtapeVisuelle, de: EtapeVisuelle, a: EtapeVisuelle) => ORDRE.indexOf(etape) >= ORDRE.indexOf(de) && ORDRE.indexOf(etape) <= ORDRE.indexOf(a);
 
 /** Le Grand chantier vu de la ville : palissade, bungalow, engins de l'étape en cours, ouvriers, et l'ouvrage qui monte. */
-export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, profondeur, etat, nomChantier, livraison, postes, pause, rythme, nuit, selectionne, onPoste, onSelect }: {
+export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, profondeur, etat, nomChantier, livraison, postes, pause, rythme, nuit, selectionne, onPoste, onSelect, contribution, ouvriers = 0 }: {
   centre: PointPlan; largeur: number; profondeur: number; etat: EtatVisuel; nomChantier: string; livraison: ChargementLivraison | null;
+  /** Les journées du joueur et les ouvrages livrés, affichés sur le panneau ; `ouvriers` : l'équipe recrutée, au travail. */
+  contribution?: string; ouvriers?: number;
   postes: { id: PosteVille; position: PointPlan; libelle: string }[]; pause: boolean; rythme: number; nuit: boolean; selectionne: boolean;
   onPoste: (poste: PosteVille) => void; onSelect: () => void;
 }) {
@@ -36,7 +40,7 @@ export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, pr
     {/* Sol de la parcelle, cliquable pour rejoindre le portail. */}
     <mesh position={[0, .05, 0]} receiveShadow onClick={clic}><boxGeometry args={[largeur, .1, profondeur]} /><meshStandardMaterial color="#9C7A5C" roughness={1} /></mesh>
     <Palissade hx={hx} hz={hz} onClick={clic} />
-    <PanneauChantier position={[-6.4, 1.35, hz + .09]} nom={nomChantier} etat={etat} />
+    <PanneauChantier position={[-6.4, 1.35, hz + .09]} nom={nomChantier} etat={etat} contribution={contribution} />
     <Bungalow position={[bungalow.x, 0, bungalow.z]} taille={[bungalow.largeur, 2.5, bungalow.profondeur]} nuit={nuit} />
     <group position={[0, .1, 0]}>
       <BlocsInstances blocs={plan.structure} interactif={false} />
@@ -53,6 +57,8 @@ export const ChantierVivant = memo(function ChantierVivant({ centre, largeur, pr
       <OuvrierEnBoucle points={[[-3.6, 4.7], [5, 3.6]]} depart={1} variante={2} porte pause={pause} rythme={rythme} echelle={ECHELLE_PERSONNAGES} />
       <OuvrierPoste position={[6.7, 0, 3]} rotation={-1.2} variante={4} echelle={ECHELLE_PERSONNAGES} />
       <OuvrierPoste position={[1.6, Math.max(.1, plan.hauteurTravail - .05), -1.2]} rotation={.4} variante={1} echelle={ECHELLE_PERSONNAGES} />
+      {/* L'équipe recrutée vient grossir le chantier : chaque recrue au-delà des quatre habitués prend un poste. */}
+      {POSTES_RENFORT.slice(0, Math.max(0, ouvriers - 4)).map(([x, z, r], i) => <OuvrierPoste key={i} position={[x, i === 1 ? Math.max(.1, plan.hauteurTravail - .05) : 0, z]} rotation={r} variante={5 + i} echelle={ECHELLE_PERSONNAGES} />)}
     </>}
     {livraison && <CamionLivraison position={[6.6, 0, hz + 4.3]} chargement={livraison} />}
     {postes.map(p => <Balise key={p.id} position={[p.position[0] - centre[0], 0, p.position[1] - centre[1]]} libelle={p.libelle} onClick={() => onPoste(p.id)} />)}
@@ -94,16 +100,18 @@ export function Palissade({ hx, hz, onClick, portail = 2.6 }: { hx: number; hz: 
   </group>;
 }
 
-export function PanneauChantier({ position, nom, etat, rotation = 0 }: { position: V3; nom: string; etat: EtatVisuel; rotation?: number }) {
+/** `contribution` : ce que le joueur a fait sur ce chantier (ses journées, les ouvrages livrés), écrit sous l'avancement. */
+export function PanneauChantier({ position, nom, etat, rotation = 0, contribution }: { position: V3; nom: string; etat: EtatVisuel; rotation?: number; contribution?: string }) {
   return <group position={position} rotation={[0, rotation, 0]}>
     <mesh castShadow><boxGeometry args={[4.4, 1.9, .08]} /><meshStandardMaterial color="#F7F2E8" roughness={.7} /></mesh>
     <mesh position={[0, .78, .05]}><planeGeometry args={[4.4, .34]} /><meshBasicMaterial color="#C1502E" /></mesh>
     <Text position={[0, .78, .06]} fontSize={.17} color="#FFFFFF" anchorX="center" anchorY="middle" letterSpacing={.08}>BTP LIFE · CHANTIER EN COURS</Text>
     <Text position={[0, .32, .06]} fontSize={.28} color="#2B2B2E" anchorX="center" anchorY="middle" maxWidth={4.1}>{nom}</Text>
     <Text position={[0, -.12, .06]} fontSize={.19} color="#5A4F42" anchorX="center" anchorY="middle" maxWidth={4.1}>{`${etat.nom} · ${Math.round(etat.avancement)} %`}</Text>
-    <mesh position={[0, -.5, .05]}><planeGeometry args={[3.6, .14]} /><meshBasicMaterial color="#DDD6C8" /></mesh>
-    <mesh position={[-1.8 + 1.8 * etat.avancement / 100, -.5, .055]}><planeGeometry args={[3.6 * etat.avancement / 100 + .001, .14]} /><meshBasicMaterial color="#E8B04A" /></mesh>
-    <Text position={[0, -.78, .06]} fontSize={.13} color="#6F675C" anchorX="center" anchorY="middle">Port du casque obligatoire · Accès réservé</Text>
+    <mesh position={[0, contribution ? -.42 : -.5, .05]}><planeGeometry args={[3.6, .14]} /><meshBasicMaterial color="#DDD6C8" /></mesh>
+    <mesh position={[-1.8 + 1.8 * etat.avancement / 100, contribution ? -.42 : -.5, .055]}><planeGeometry args={[3.6 * etat.avancement / 100 + .001, .14]} /><meshBasicMaterial color="#E8B04A" /></mesh>
+    {contribution && <Text position={[0, -.62, .06]} fontSize={.14} color="#1F5F5A" anchorX="center" anchorY="middle" maxWidth={4.1}>{contribution}</Text>}
+    <Text position={[0, contribution ? -.84 : -.78, .06]} fontSize={contribution ? .11 : .13} color="#6F675C" anchorX="center" anchorY="middle">Port du casque obligatoire · Accès réservé</Text>
     {[-1.9, 1.9].map(x => <mesh key={x} position={[x, -1.2, -.05]}><boxGeometry args={[.08, 1.1, .08]} /><meshStandardMaterial color="#6A6F72" /></mesh>)}
   </group>;
 }

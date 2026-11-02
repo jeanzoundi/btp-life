@@ -18,8 +18,10 @@ const LIEU = { ...UNIVERSITE, plan: PLAN_UNIVERSITE };
 const HOTE = { prof: true, variante: 1, nom: UNIVERSITE.hote.nom };
 
 /** L'université : le doyen projette en amphi les vrais cours de l'Académie ; un cours suivi jusqu'au bout y est validé. */
-export function LieuUniversite({ demo, heure, cleLocale, notifier, passerA, onSortir, children }: {
+export function LieuUniversite({ demo, heure, cleLocale, notifier, passerA, onSortir, children, cursus }: {
   demo: boolean; heure: number;
+  /** Le cursus de l'étudiant, montré par le doyen (rien sans formation choisie). */
+  cursus?: ReactNode;
   /** Clé des cours suivis en démonstration, gardés dans ce navigateur. */
   cleLocale: string;
   notifier: (texte: string, type?: TypeNotification) => void;
@@ -93,7 +95,7 @@ export function LieuUniversite({ demo, heure, cleLocale, notifier, passerA, onSo
   return <InterieurLieuVie lieu={LIEU} heure={heure} decor={decor} hote={HOTE} postes={postes} assise={assise} commandes={commandes} libelleHote={`🎓 Voir le doyen · ${UNIVERSITE.hote.nom}`}
     statut={horsLigne ? 'Catalogue injoignable : deux cours de démonstration.' : `📚 ${avancement.faits}/${avancement.total} cours suivis · ${avancement.valides}/${modules.length} modules validés`}
     onPoste={surPoste} onSortir={onSortir} onEchap={echap} onAttendre={() => passerA(UNIVERSITE.horaires.ouverture)}>
-    {panneau === 'doyen' && <PanneauDoyen prochain={prochain} avancement={avancement} horsLigne={horsLigne}
+    {panneau === 'doyen' && <PanneauDoyen prochain={prochain} avancement={avancement} horsLigne={horsLigne} cursus={cursus}
       onEnCours={() => { setPanneau(null); commandes.current?.aller('place'); }} onBibliotheque={() => setPanneau('bibliotheque')} onFermer={() => setPanneau(null)} />}
     {panneau === 'bibliotheque' && <PanneauBibliotheque modules={modules} termines={termines} onLire={(module, cours) => { setPanneau(null); setLecture({ module, cours, ou: 'bibliotheque' }); }} onFermer={() => setPanneau(null)} />}
     {lecture && <LecteurSlides key={lecture.cours.id} titre={lecture.cours.titre} sousTitre={`${lecture.module.titre} · ${lecture.ou === 'amphi' ? 'cours magistral' : 'bibliothèque'}`} dureeMin={lecture.cours.dureeMin}

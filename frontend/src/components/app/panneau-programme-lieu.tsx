@@ -34,7 +34,7 @@ function GainsResultat({ resultat }: { resultat: ResultatSeance }) {
     {gains?.equipe && <p className="col-span-2 rounded-lg bg-jeu-or/10 px-2 py-1.5 text-[12px] font-semibold text-jeu-or">🤝 Travail d’équipe avec {gains.equipe.coequipiers.join(', ')} : +{Math.round(gains.equipe.bonus * 100)} % d’XP</p>}
     {gains?.entrainement && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Entraînement : la progression avance, mais une seule séance est payée ici toutes les 20 minutes. Prochaine séance payée vers {heureReelle(gains.prochaineRecompenseLe)}.</p>}
     {gains && gains.facteurBesoins < .99 && <p className="col-span-2 text-[11px] leading-snug text-jeu-ivoire/65">Forme du moment : {Math.round(gains.facteurBesoins * 100)} % de l’XP. Mange, dors et vois du monde pour tout gagner.</p>}
-    {!gains && <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : salaire et expérience non sauvegardés.</p>}
+    {resultat.recompenses === 'demo' && <p className="col-span-2 text-[10.5px] text-jeu-ivoire/50">Démonstration : salaire et expérience non sauvegardés.</p>}
   </div>;
 }
 

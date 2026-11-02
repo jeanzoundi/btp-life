@@ -20,8 +20,8 @@ type ReponsesSeance = Record<string, number | number[]>;
 export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, passerA, occupe }: {
   cle: string; demo: boolean; heure: number;
   notifier: (texte: string, type?: TypeNotification) => void;
-  /** Gains de démonstration, appliqués aux jauges et au solde affichés. */
-  recompenser: (bilan: BilanSeance) => void;
+  /** Gains de démonstration, appliqués aux jauges et au solde affichés, et renvoyés pour le bilan (mêmes règles qu'au serveur). */
+  recompenser: (bilan: BilanSeance, slug: string) => GainsSeance | undefined;
   /** Avance l'horloge du monde jusqu'à cette heure (le lendemain si elle est passée). */
   passerA: (heure: number) => void;
   /** Lu au moment de commencer : la raison d'attendre (un chapitre du fil rouge en cours, une séance à la fois), ou rien. */
@@ -111,8 +111,9 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
     const bilan = bilanSeance(s), avant = progresDe(s.slug), local = appliquerSeance(programme, avant, s, bilan, heure, Date.now());
     const etapeAvant = programme.etapes[s.etape].nom;
     if (!serveur) {
-      enregistrer(s.slug, local); recompenser(bilan);
-      setResultat({ bilan, etapeAvant, etapeApres: programme.etapes[prochaineEtape(programme, local)].nom, cycleBoucle: local.cycles > s.cycle, recompenses: demo ? 'demo' : 'apprentissage' });
+      enregistrer(s.slug, local);
+      const gains = demo ? recompenser(bilan, s.slug) : undefined;
+      setResultat({ bilan, etapeAvant, etapeApres: programme.etapes[prochaineEtape(programme, local)].nom, cycleBoucle: local.cycles > s.cycle, recompenses: demo ? 'demo' : 'apprentissage', ...(gains ? { gains } : {}) });
       return;
     }
     // Connecté : le serveur valide l'étape, verse les gains et fatigue le personnage ; la séance n'est comptée qu'après sa réponse.

@@ -13,7 +13,7 @@ import {
   type JoueurRecent, type MessageQuartier, type MotifSignalement, type VoisinEnLigne,
 } from '@/lib/en-ligne';
 import { echelleGabarit } from '@/lib/gabarit-personnage';
-import { personnageDe } from '@/lib/personnages-joueur';
+import { personnageDe, porteLeCasque } from '@/lib/personnages-joueur';
 import { HumainMonde } from './humain-monde';
 import { BullePensee } from './humeur-monde';
 
@@ -151,7 +151,7 @@ function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; 
   const [marche, setMarche] = useState(false);
   const personnage = useMemo(() => personnageDe(voisin.avatarConfig), [voisin.avatarConfig]);
   // Un voisin sur mesure ne porte le casque que s'il l'a choisi (sa coiffure reste visible), comme le joueur.
-  const design = useMemo(() => ({ ...personnage.design, casque: personnage.modele !== null || personnage.casque ? personnage.couleurCasque ?? personnage.design.casque ?? '#f4c430' : undefined }), [personnage]);
+  const design = useMemo(() => ({ ...personnage.design, casque: porteLeCasque(personnage) ? personnage.couleurCasque ?? personnage.design.casque ?? '#f4c430' : undefined }), [personnage]);
   cible.set(voisin.x, 0, voisin.z);
   useFrame((_, delta) => {
     const g = ref.current;
@@ -170,7 +170,7 @@ function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; 
   });
   return <group ref={ref} position={[voisin.x, 0, voisin.z]} onClick={e => { e.stopPropagation(); if (e.delta < 5 && !voisin.promeneur) onSelect?.(); }}>
     <group scale={echelleGabarit(personnage.gabarit)}>
-      <HumainMonde modele={personnage.modele} design={design} casque nom={voisin.promeneur ? `${voisin.nom} · niv. ${voisin.promeneur.niveau}` : `${voisin.nom} · ${coequipier ? 'équipe' : 'en ligne'}`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} />
+      <HumainMonde modele={personnage.modele} design={design} casque nom={voisin.promeneur ? `${voisin.nom} · niv. ${voisin.promeneur.niveau}` : `${voisin.nom} · ${coequipier ? 'équipe' : 'en ligne'}`} marche={marche} allure={1.6} scale={ECHELLE_PERSONNAGES} teinteCasque={personnage.couleurCasque} teintes={personnage.teintes} sansCasque={!porteLeCasque(personnage)} />
     </group>
     {coequipier && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .04, 0]}><ringGeometry args={[.6, .78, 40]} /><meshBasicMaterial color="#E8B84A" transparent opacity={.85} /></mesh>}
     <BullePensee pensee={bulleEmote(voisin.emote)} hauteur={3.2} />
@@ -228,10 +228,10 @@ const BOUTON_OPTION = 'rounded-lg border border-white/15 bg-black/25 px-2 py-0.5
 
 /** Le chat du quartier, les émotes et l'équipe, ouverts depuis le HUD. Chaque message d'un autre joueur peut être
  * signalé à la modération ou masqué (ses messages ne s'affichent plus sur cet appareil). */
-export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter, onEnvoi }: {
+export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = ETAT_EQUIPE_VIDE, onInviter, onRepondre, onQuitter, place = 'absolute bottom-3 right-3 z-30 w-[330px] max-h-[440px]' }: {
   demo: boolean; moi: string; voisins: VoisinEnLigne[]; onEmote: (emote: Emote) => void; onFermer: () => void;
-  /** Un message est parti (sert au guide des premiers pas). */
-  onEnvoi?: () => void;
+  /** Sa place dans le monde (position, largeur et hauteur), que le HUD choisit selon l'écran : à part, ou dans une colonne. */
+  place?: string;
   equipe?: EtatEquipe;
   onInviter?: (voisin: VoisinEnLigne) => Promise<string | null>;
   onRepondre?: (invitation: InvitationEquipe, accepter: boolean) => Promise<string | null>;
@@ -263,7 +263,7 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
     mutationFn: (texte: string) => api.post<MessageQuartier & { modere?: boolean }>('/monde/chat', { texte }),
     onSuccess: ({ modere, ...message }) => {
       client.setQueryData<MessageQuartier[]>(['monde', 'chat'], liste => [...(liste ?? []).filter(m => m.id !== message.id), message]);
-      setBrouillon(''); setErreur(null); setInfo(modere ? 'Certains mots ont été masqués : on reste correct dans le quartier.' : null); onEnvoi?.();
+      setBrouillon(''); setErreur(null); setInfo(modere ? 'Certains mots ont été masqués : on reste correct dans le quartier.' : null);
     },
     onError: e => setErreur(e instanceof Error ? e.message : 'Le message n’est pas parti.'),
   });
@@ -294,13 +294,12 @@ export function ChatQuartier({ demo, moi, voisins, onEmote, onFermer, equipe = E
     if (demo) {
       setEnvoyesDemo(l => [...l, { id: `moi-${l.length}`, userId: 'moi', nom: moi, texte, envoyeLe: new Date(Date.UTC(2026, 9, 26, 8) + (15 + (Date.now() - debutDemo) / 1000) * 1000).toISOString() }]);
       setBrouillon('');
-      onEnvoi?.();
       return;
     }
     envoyer.mutate(texte);
   };
 
-  return <section role="dialog" aria-label="Chat du quartier" className="hud-verre pointer-events-auto absolute left-3 top-[168px] z-30 flex max-h-[min(440px,calc(100%-380px))] min-h-[220px] w-[330px] max-w-[calc(100%-24px)] flex-col rounded-2xl text-jeu-ivoire">
+  return <section role="dialog" aria-label="Chat du quartier" className={`hud-verre pointer-events-auto flex min-h-[220px] flex-col rounded-2xl text-jeu-ivoire ${place}`}>
     <header className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
       <h3 className="hud-titre flex-1 text-[14px]">Quartier en ligne</h3>
       <span className="text-[11px] text-jeu-ivoire/70">{voisins.length ? `${voisins.length} voisin${voisins.length > 1 ? 's' : ''} connecté${voisins.length > 1 ? 's' : ''}` : 'Personne d’autre pour l’instant'}</span>

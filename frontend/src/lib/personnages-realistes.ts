@@ -2,7 +2,9 @@ import type { IdentitePersonnage } from './identites-personnages';
 
 /** Personnages Microsoft Rocketbox (licence MIT), convertis en GLB légers dans public/personnages. */
 export type ModeleRealiste = 'ouvrier-casque' | 'chef-chantier' | 'cadre-femme' | 'femme-ville' | 'homme-jean' | 'homme-capuche' | 'cadre-homme';
-export type EtatAnimation = 'repos' | 'marche' | 'course' | 'assis' | 'parle';
+export type EtatAnimation = 'repos' | 'marche' | 'course' | 'assis' | 'parle' | 'salue';
+/** Un geste joué sur place : saluer de la main, ou parler avec les mains (une conversation, une explication). */
+export type GestePersonnage = 'salue' | 'parle';
 
 export const MODELES_REALISTES: Record<ModeleRealiste, { genre: 'h' | 'f'; source: string }> = {
   'ouvrier-casque': { genre: 'h', source: 'Construction_Male_03' },
@@ -28,11 +30,12 @@ export function modeleRealiste({ identite, variante = 0, casque = false, prof = 
   return PASSANTS[i % PASSANTS.length];
 }
 
-/** Au-delà de 3 m/s, on court ; une enseignante ou un responsable qui explique « parle ». */
-export function etatAnimation({ marche = false, assis = false, prof = false, allure = 1.4 }: { marche?: boolean; assis?: boolean; prof?: boolean; allure?: number }): EtatAnimation {
+/** Au-delà de 3 m/s, on court ; une enseignante ou un responsable qui explique « parle » ; à l'arrêt, un geste (saluer,
+ * parler) passe avant le repos. */
+export function etatAnimation({ marche = false, assis = false, prof = false, allure = 1.4, geste }: { marche?: boolean; assis?: boolean; prof?: boolean; allure?: number; geste?: GestePersonnage }): EtatAnimation {
   if (assis) return 'assis';
   if (marche) return allure > 3 ? 'course' : 'marche';
-  return prof ? 'parle' : 'repos';
+  return geste ?? (prof ? 'parle' : 'repos');
 }
 
 /** Cadence de lecture calée sur la vitesse réelle pour limiter le glissement des pieds. */
