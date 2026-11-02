@@ -3,15 +3,18 @@ import { NotificationType, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { avancementCursus, chargerEtatCursus, type Formation } from '../carriere/cursus';
 
-/** Condition d'obtention d'un certificat, telle que le seed l'écrit (prisma/seed-data/carriere-data.ts). */
-export type ConditionCertificat = { type: 'module'; module: string } | { type: 'metier'; profil: string };
+/** Condition d'obtention d'un certificat, telle que le seed l'écrit (prisma/seed-data/carriere-data.ts). Cursus : le diplôme
+ * de la formation choisie au départ, une fois tous ses semestres, examens et stages validés (carriere/cursus.ts). */
+export type ConditionCertificat = { type: 'module'; module: string } | { type: 'metier'; profil: string } | { type: 'cursus'; formation: Formation };
 
 /** Lit la condition stockée en JSON ; une condition inconnue (certificat créé à la main dans l'admin) n'est jamais délivrée automatiquement. */
 export function lireCondition(brut: unknown): ConditionCertificat | null {
   const c = brut && typeof brut === 'object' ? (brut as Record<string, unknown>) : null;
   if (c?.type === 'module' && typeof c.module === 'string') return { type: 'module', module: c.module };
   if (c?.type === 'metier' && typeof c.profil === 'string') return { type: 'metier', profil: c.profil };
+  if (c?.type === 'cursus' && (c.formation === 'BTS' || c.formation === 'ingenieur')) return { type: 'cursus', formation: c.formation };
   return null;
 }
 
@@ -30,6 +33,8 @@ export interface EtatJoueur {
   profilsOccupes: ReadonlySet<string>;
   /** Les postes visés par les certificats, par slug. */
   profils: ReadonlyMap<string, ProfilRang>;
+  /** La formation choisie au départ, et si son cursus est entièrement validé. */
+  cursus?: { formation: Formation | null; valide: boolean };
 }
 
 /**
@@ -37,6 +42,7 @@ export interface EtatJoueur {
  * occupé, ou le joueur l'a dépassé dans la même filière (une embauche directe plus haut termine aussi le parcours).
  */
 export function estMerite(condition: ConditionCertificat, etat: EtatJoueur): boolean {
+  if (condition.type === 'cursus') return etat.cursus?.formation === condition.formation && etat.cursus.valide;
   if (condition.type === 'module') {
     const cours = etat.coursParModule.get(condition.module) ?? [];
     return cours.length > 0 && cours.every((id) => etat.coursLus.has(id));
@@ -82,7 +88,10 @@ export class CertificatsService {
       this.prisma.profil.findMany({ where: { slug: { in: metiers } }, select: { id: true, slug: true, famille: true, ordre: true } }),
     ]);
     const profilActuel = carriere?.profilActuel ?? null;
+    // Un diplôme en attente : on regarde où en est le cursus de la formation choisie.
+    const cursus = candidats.some((c) => c.condition.type === 'cursus') ? await chargerEtatCursus(this.prisma, userId) : null;
     const etat: EtatJoueur = {
+      cursus: cursus ? { formation: cursus.formation, valide: Boolean(cursus.formation && avancementCursus(cursus.formation, cursus.etat).diplomeMerite) } : undefined,
       coursLus: new Set(lus.map((l) => l.coursId)),
       coursParModule: new Map(coursDesModules.map((m) => [m.slug, m.cours.map((c) => c.id)])),
       profilActuel,

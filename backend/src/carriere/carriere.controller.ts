@@ -2,13 +2,15 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { CarriereService } from './carriere.service';
-import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto, TempsMondeDto, ChapitreCampagneDto } from './dto/carriere.dto';
+import { UpdateAvatarDto, SetProfilActuelDto, SetMetierCibleDto, SetTraitsDto, MontantDto, DevenirEntrepreneurDto, NomEntrepriseDto, EquiperItemAvatarDto, UpdateEtatMondeDto, SeanceLieuDto, ActionBesoinDto, ChoisirPersonnageDto, TempsMondeDto, ChapitreCampagneDto, JourneeChantierDto } from './dto/carriere.dto';
 import { BesoinsService, type ActionBesoin } from './besoins.service';
 import { PnjService } from './pnj.service';
 import { EpargneService } from './epargne.service';
 import { AvatarItemsService } from './avatar-items.service';
 import { LieuxService } from './lieux.service';
 import { CampagneService } from './campagne.service';
+import { JourneeChantierService } from './journee-chantier.service';
+import { CursusService } from './cursus.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('carriere')
@@ -21,6 +23,8 @@ export class CarriereController {
     private readonly avatarItemsService: AvatarItemsService,
     private readonly lieuxService: LieuxService,
     private readonly campagneService: CampagneService,
+    private readonly journeeChantierService: JourneeChantierService,
+    private readonly cursusService: CursusService,
   ) {}
 
   @Get('me')
@@ -151,6 +155,24 @@ export class CarriereController {
   @Post('lieux/:slug/seance')
   seanceLieu(@CurrentUser() user: RequestUser, @Param('slug') slug: string, @Body() dto: SeanceLieuDto) {
     return this.lieuxService.seance(user.userId, slug, dto.etape, dto.reponses);
+  }
+
+  /** Le cursus de l’étudiant (BTS ou ingénieur) : semestres, examens, stages et diplôme, délivré dès qu’il est mérité. */
+  @Get('cursus')
+  cursus(@CurrentUser() user: RequestUser) {
+    return this.cursusService.etat(user.userId);
+  }
+
+  /** Le chantier du quartier : où en est l’ouvrage sur lequel on travaille avec Yao. */
+  @Get('journee-chantier')
+  chantierQuartier(@CurrentUser() user: RequestUser) {
+    return this.journeeChantierService.progres(user.userId);
+  }
+
+  /** Une journée de travail avec Yao : corrigée et payée par le serveur. */
+  @Post('journee-chantier')
+  journeeChantier(@CurrentUser() user: RequestUser, @Body() dto: JourneeChantierDto) {
+    return this.journeeChantierService.journee(user.userId, dto.numero, dto.reponses);
   }
 
   /** Le fil rouge : où en est la Résidence Akwaba. */

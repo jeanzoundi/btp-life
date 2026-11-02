@@ -8,13 +8,15 @@ import { EpargneService } from './epargne.service';
 import { AvatarItemsService } from './avatar-items.service';
 import { LieuxService } from './lieux.service';
 import { CampagneService } from './campagne.service';
+import { JourneeChantierService } from './journee-chantier.service';
+import { CursusService } from './cursus.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CertificatsModule } from '../certificats/certificats.module';
 
 @Module({
   imports: [NotificationsModule, CertificatsModule],
   controllers: [CarriereController],
-  providers: [CarriereService, ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService, LieuxService, CampagneService],
+  providers: [CarriereService, ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService, LieuxService, CampagneService, JourneeChantierService, CursusService],
   exports: [ProgressionService, BesoinsService, PnjService, EpargneService, AvatarItemsService],
 })
 export class CarriereModule {}

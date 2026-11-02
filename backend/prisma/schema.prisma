@@ -462,6 +462,9 @@ model UserCarriere {
   patrimoine               Json?
   // Étapes du premier quart d’heure guidé déjà faites, récompensées une seule fois — voir PremiersPasService (module monde).
   premiersPas              Json?
+  // Chantier du quartier, où l’on travaille avec Yao sans avoir son propre chantier : jours validés de l’ouvrage en cours,
+  // journées faites, ouvrages livrés, dernière journée payée — voir JourneeChantierService.
+  chantierQuartier         Json?
   // Nom choisi par le joueur une fois dans la filière ENTREPRENEUR — sert de vitrine sur le CV
   // et pour candidater aux marchés (voir Chantier.typeMarche).
   nomEntreprise            String?

@@ -1,0 +1,872 @@
+{
+  "totalJours": 18,
+  "jours": [
+    {
+      "etape": "recrutement",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "implantation",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "chaises",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "equerre",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "niveau",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-1",
+          "type": "geste",
+          "attendu": 39.800000000000004,
+          "tolerance": 1.5
+        }
+      ]
+    },
+    {
+      "etape": "fouilles",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "fond-fouille",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "deblais",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-2",
+          "type": "geste",
+          "attendu": 0.85,
+          "tolerance": 0.02
+        },
+        {
+          "id": "fouille",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "fouilles",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "eboulement",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "gaine",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-3",
+          "type": "geste",
+          "attendu": 0.77,
+          "tolerance": 0.02
+        },
+        {
+          "id": "fouille",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "semelles",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "proprete",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "cales",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-4",
+          "type": "geste",
+          "attendu": 5,
+          "tolerance": 0.5
+        },
+        {
+          "id": "rallonge",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "fers",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "semelles",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "attentes",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "vibration",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-5",
+          "type": "geste",
+          "attendu": 5,
+          "tolerance": 0.5
+        },
+        {
+          "id": "rallonge",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "soubassement",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "agglos-pleins",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "remblai",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "herisson",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-6",
+          "type": "geste",
+          "attendu": -19,
+          "tolerance": 2
+        },
+        {
+          "id": "agglos",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "elevation",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "cordeau",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "aplomb",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-7",
+          "type": "geste",
+          "attendu": 22,
+          "tolerance": 2
+        },
+        {
+          "id": "charge",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "ciment",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "elevation",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "chainage",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "linteau",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-8",
+          "type": "geste",
+          "attendu": -22,
+          "tolerance": 2
+        },
+        {
+          "id": "decoupe",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "dalle",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "etais",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "chapeaux",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-9",
+          "type": "geste",
+          "attendu": 4.59,
+          "tolerance": 0.03
+        },
+        {
+          "id": "stockage",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "fers",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "dalle",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "continuite",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "decoffrage",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-10",
+          "type": "geste",
+          "attendu": 4.61,
+          "tolerance": 0.03
+        },
+        {
+          "id": "stockage",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "etage",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "tremie",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "aplomb",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-11",
+          "type": "geste",
+          "attendu": 4,
+          "tolerance": 0.5
+        },
+        {
+          "id": "echafaudage",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "agglos",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "etage",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "chainage",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "tremie",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-12",
+          "type": "geste",
+          "attendu": 3,
+          "tolerance": 0.5
+        },
+        {
+          "id": "charge",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "toiture",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "pente",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "releve",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-13",
+          "type": "geste",
+          "attendu": 11,
+          "tolerance": 2
+        },
+        {
+          "id": "rive",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "finitions",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "enduit",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "gaines",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-14",
+          "type": "geste",
+          "attendu": 1,
+          "tolerance": 0
+        },
+        {
+          "id": "echafaudage",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "carrelage",
+          "type": "livraison",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "finitions",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "essai-eau",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "douche",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-15",
+          "type": "geste",
+          "attendu": 0,
+          "tolerance": 0
+        },
+        {
+          "id": "decoupe",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "finitions",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "peinture",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "enduit",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-16",
+          "type": "geste",
+          "attendu": 3,
+          "tolerance": 0
+        },
+        {
+          "id": "echafaudage",
+          "type": "securite",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "etape": "reception",
+      "taches": [
+        {
+          "id": "epi",
+          "type": "epi",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "reserves",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "repli",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "doe",
+          "type": "travail",
+          "options": [
+            true,
+            false,
+            false
+          ]
+        },
+        {
+          "id": "geste-17",
+          "type": "geste",
+          "attendu": 3,
+          "tolerance": 0
+        }
+      ]
+    }
+  ]
+}

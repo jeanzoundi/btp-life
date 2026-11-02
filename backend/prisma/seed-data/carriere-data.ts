@@ -127,11 +127,18 @@ export const OFFRES_EMPLOI: OffreSeed[] = [
   { titre: 'Directeur d’exploitation — entreprise générale', profil: 'directeur-exploitation', niveauMin: 48, reputationMin: 800, test: 'recrutement-conducteur-travaux', entreprise: 'Lagune Bâtiment', description: 'Répondre du carnet de commandes, des résultats et de la sécurité de tous les chantiers de l’entreprise.', competences: [{ slug: 'decision-chantier', niveau: 5 }, { slug: 'gestion-humaine', niveau: 4 }], chantiers: 6 },
 ];
 
-export type CertificatSeed = { slug: string; nom: string; conditions: { type: 'module'; module: string } | { type: 'metier'; profil: string } };
+export type CertificatSeed = { slug: string; nom: string; conditions: { type: 'module'; module: string } | { type: 'metier'; profil: string } | { type: 'cursus'; formation: 'BTS' | 'ingenieur' } };
+
+/** Les diplômes des deux cursus étudiants (src/carriere/cursus.ts) : semestres, examens et stages validés. */
+export const DIPLOMES_CURSUS: CertificatSeed[] = [
+  { slug: 'diplome-bts-batiment', nom: 'Diplôme — BTS Bâtiment', conditions: { type: 'cursus', formation: 'BTS' } },
+  { slug: 'diplome-ingenieur-genie-civil', nom: 'Diplôme d’ingénieur en génie civil', conditions: { type: 'cursus', formation: 'ingenieur' } },
+];
 
 /**
  * Les certificats du jeu : une attestation par module de l'académie (tous ses cours lus), un certificat de fin de
- * parcours par métier visé et un certificat de maîtrise par échelon expert (le poste atteint, par promotion ou embauche).
+ * parcours par métier visé, un certificat de maîtrise par échelon expert (le poste atteint, par promotion ou embauche),
+ * et les diplômes des cursus BTS et ingénieur.
  */
 export function certificatsDuJeu(
   modules: ReadonlyArray<{ slug: string; titre: string }>,
@@ -142,5 +149,6 @@ export function certificatsDuJeu(
     ...modules.map(m => ({ slug: `attestation-${m.slug}`, nom: `Attestation de formation — ${m.titre}`, conditions: { type: 'module' as const, module: m.slug } })),
     ...metiers.map(m => ({ slug: `parcours-${m.slug}`, nom: `Certificat de fin de parcours — ${m.nom}`, conditions: { type: 'metier' as const, profil: m.slug } })),
     ...experts.map(p => ({ slug: `maitrise-${p.slug}`, nom: `Certificat de maîtrise — ${p.nom}`, conditions: { type: 'metier' as const, profil: p.slug } })),
+    ...DIPLOMES_CURSUS,
   ];
 }

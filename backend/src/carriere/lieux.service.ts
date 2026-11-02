@@ -7,6 +7,7 @@ import { ProgressionService } from './progression.service';
 import { facteurXpLieu, lireTraits } from './traits';
 import { corrigerSeance } from './programmes-scoring';
 import { facteurXpOutils, lirePatrimoine } from './patrimoine';
+import { bonusParcours, porteDuProfil } from './parcours';
 import { coequipiersPresents, facteurEquipe, REGLES_EQUIPE } from '../monde/equipe.service';
 
 // Programmes des lieux du quartier : le contenu des séances (situations, mesures, sélections) vit
@@ -90,7 +91,7 @@ export class LieuxService {
     // Lecture, contrôle de l'étape et écriture dans une même transaction : deux envois simultanés
     // de la même séance ne la comptent (et ne la paient) qu'une fois.
     const { apres, payee, xp, argent, reputation, competence, ancienNiveau, nouveauNiveau, note } = await transactionSerializable(this.prisma, async (tx) => {
-      const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { progresLieux: true, niveau: true } });
+      const carriere = await tx.userCarriere.findUnique({ where: { userId }, select: { progresLieux: true, niveau: true, profilActuel: { select: { slug: true } } } });
       if (!carriere) throw new NotFoundException('Carrière introuvable');
       const tous = lireProgresLieux(carriere.progresLieux), avant = tous[slug];
       const attendue = avant.etapes >= total ? 0 : avant.etapes;
@@ -100,6 +101,8 @@ export class LieuxService {
       const gains = gainsSeance(note);
       // Les traits du personnage : 15 % de plus dans les lieux de son trait, 20 % sur un sans-faute pour le perfectionniste.
       const facteurTraits = facteurXpLieu(traits, slug, note);
+      // Le parcours du joueur : son activité signature lui rapporte davantage (parcours.ts).
+      const bonus = bonusParcours(porteDuProfil(carriere.profilActuel?.slug), { type: 'seance', lieu: slug });
       const etapes = Math.min(total, etape + (gains.compte ? 1 : 0));
       const boucle = etapes >= total;
       const payee = !avant.derniereRecompenseLe || maintenant - Date.parse(avant.derniereRecompenseLe) >= DELAI_RECOMPENSE_MS;
@@ -108,9 +111,9 @@ export class LieuxService {
         derniereRecompenseLe: payee ? new Date(maintenant).toISOString() : avant.derniereRecompenseLe,
       };
       await tx.userCarriere.update({ where: { userId }, data: { progresLieux: { ...tous, [slug]: apres } as unknown as Prisma.InputJsonValue } });
-      const xp = Math.round(gains.xp * facteurBesoins * facteurTraits * facteurOutils * facteurEquipe(coequipiers) * (payee ? 1 : TAUX_ENTRAINEMENT));
-      const argent = payee ? gains.argent : 0;
-      const reputation = !payee ? 0 : boucle ? 3 : gains.compte && note >= 60 ? 1 : 0;
+      const xp = Math.round(gains.xp * facteurBesoins * facteurTraits * facteurOutils * facteurEquipe(coequipiers) * bonus.xp * (payee ? 1 : TAUX_ENTRAINEMENT));
+      const argent = payee ? Math.round(gains.argent * bonus.argent) : 0;
+      const reputation = !payee ? 0 : (boucle ? 3 : gains.compte && note >= 60 ? 1 : 0) + (gains.compte ? bonus.reputation : 0);
       const payement = await this.progression.appliquerDelta(userId, { xp, argentVirtuel: argent, reputation }, tx);
       // Une séance de travail fatigue et creuse, comme une mission ou une journée de chantier.
       await this.besoins.consommer(userId, { energie: 5, faim: 4 }, tx);

@@ -196,6 +196,20 @@ export class ChapitreCampagneDto {
   reponses: Record<string, number | number[]>;
 }
 
+/** Journée terminée avec Yao sur le chantier du quartier : le jour joué dans le programme et le choix fait à chaque
+ * situation, que le serveur corrige lui-même. */
+export class JourneeChantierDto {
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  numero: number;
+
+  // Absentes quand le jeu est resté sur une version d'avant la journée payée : le service demande alors de recharger.
+  @IsOptional()
+  @IsObject()
+  reponses?: Record<string, number>;
+}
+
 /** Séance terminée dans un lieu du quartier : l'étape jouée et la réponse brute de chaque tâche (choix, mesure ou
  * sélection), que le serveur corrige lui-même. */
 export class SeanceLieuDto {

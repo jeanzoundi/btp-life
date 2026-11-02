@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CertificatsService, estMerite, lireCondition, numeroCertificat, type EtatJoueur } from './certificats.service';
-import { certificatsDuJeu, OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS } from '../../prisma/seed-data/carriere-data';
+import { certificatsDuJeu, DIPLOMES_CURSUS, OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS } from '../../prisma/seed-data/carriere-data';
 import { modulesAcademie } from '../../prisma/seed-data/academie-data';
 import { modulesGrandeEcole } from '../../prisma/seed-data/grande-ecole-batiment-data';
 import { modulesAvecAttestation } from '../../scripts/publier-contenu-monde';
@@ -24,6 +24,12 @@ describe('les conditions des certificats', () => {
     expect(estMerite(module, etat({ coursLus: new Set(['c1']) }))).toBe(false);
     expect(estMerite(module, etat({ coursLus: new Set(['c1', 'c2']) }))).toBe(true);
     expect(estMerite({ type: 'module', module: 'vide' }, etat())).toBe(false);
+    // Le diplôme : la formation choisie au départ, et son cursus entièrement validé.
+    expect(estMerite({ type: 'cursus', formation: 'BTS' }, etat({ cursus: { formation: 'BTS', valide: true } }))).toBe(true);
+    expect(estMerite({ type: 'cursus', formation: 'BTS' }, etat({ cursus: { formation: 'ingenieur', valide: true } }))).toBe(false);
+    expect(estMerite({ type: 'cursus', formation: 'BTS' }, etat({ cursus: { formation: 'BTS', valide: false } }))).toBe(false);
+    expect(estMerite({ type: 'cursus', formation: 'BTS' }, etat())).toBe(false);
+    expect(lireCondition({ type: 'cursus', formation: 'doctorat' })).toBeNull();
   });
   it('un certificat de métier se gagne au poste, plus haut dans la même filière, ou s’il a été occupé un jour', () => {
     const metier = { type: 'metier', profil: 'conducteur-travaux' } as const;
@@ -62,9 +68,10 @@ describe('le contenu de carrière', () => {
       expect(o.niveauMin).toBeGreaterThanOrEqual(regle.conditions.niveauMin);
     }
   });
-  it('fait un certificat par module, par métier visé et par échelon expert', () => {
+  it('fait un certificat par module, par métier visé et par échelon expert, plus les deux diplômes de cursus', () => {
     const certificats = certificatsDuJeu([{ slug: 'lecture-de-plans', titre: 'Lecture de plans' }], [{ slug: 'gerant', nom: 'Entrepreneur' }]);
-    expect(certificats).toHaveLength(2 + PROFILS_EXPERTS.length);
+    expect(certificats).toHaveLength(2 + PROFILS_EXPERTS.length + DIPLOMES_CURSUS.length);
+    expect(certificats.slice(-2).map((c) => lireCondition(c.conditions))).toEqual([{ type: 'cursus', formation: 'BTS' }, { type: 'cursus', formation: 'ingenieur' }]);
     expect(certificats[0]).toEqual({ slug: 'attestation-lecture-de-plans', nom: 'Attestation de formation — Lecture de plans', conditions: { type: 'module', module: 'lecture-de-plans' } });
     expect(certificats[1].nom).toBe('Certificat de fin de parcours — Entrepreneur');
   });

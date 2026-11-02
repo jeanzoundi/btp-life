@@ -5,6 +5,10 @@ import { LieuxService } from '../src/carriere/lieux.service';
 import { reponsesParfaites } from '../src/carriere/programmes-scoring';
 import { ProgressionService } from '../src/carriere/progression.service';
 import { BesoinsService } from '../src/carriere/besoins.service';
+import { JourneeChantierService } from '../src/carriere/journee-chantier.service';
+import { reponsesJournee } from '../src/carriere/journee-chantier';
+import { PremiersPasService } from '../src/monde/premiers-pas.service';
+import { bonusParcours, porteDuProfil } from '../src/carriere/parcours';
 
 for (const cle of ['DATABASE_URL', 'DIRECT_URL']) {
   const url = new URL(process.env[cle] ?? 'http://absent');
@@ -44,6 +48,28 @@ async function main() {
   assert.equal(await prisma.userCompetence.count({ where: { userId: user.id } }), 1);
   assert.ok(valide.energie < annule.energie);
   progression.notifierNiveau = notifier;
-  console.log('OK PostgreSQL : prime unique sous concurrence, rollback intégral séance, compétence et fatigue enregistrées, notification non bloquante.');
+  // La journée avec Yao, sans chantier à soi : annulée en bloc si le paiement échoue, comptée et payée une seule fois même
+  // envoyée deux fois en même temps.
+  const yao = new JourneeChantierService(prisma, progression, besoins);
+  progression.appliquerDelta = async (...args) => { await appliquer(...args); throw new Error('Paiement interrompu'); };
+  await assert.rejects(yao.journee(user.id, 0, reponsesJournee(0, true)), /Paiement interrompu/);
+  const journeeAnnulee = await prisma.userCarriere.findUniqueOrThrow({ where: { userId: user.id } });
+  assert.equal(journeeAnnulee.chantierQuartier, null);
+  assert.equal(journeeAnnulee.argentVirtuel, valide.argentVirtuel);
+  progression.appliquerDelta = appliquer;
+  const envois = await Promise.allSettled([yao.journee(user.id, 0, reponsesJournee(0, true)), yao.journee(user.id, 0, reponsesJournee(0, true))]);
+  assert.equal(envois.filter(e => e.status === 'fulfilled').length, 1);
+  const journeePayee = await prisma.userCarriere.findUniqueOrThrow({ where: { userId: user.id } });
+  // Le parcours du poste de départ module la paie (un ouvrier touche 15 % de plus) : même barème qu'au service.
+  const bonus = bonusParcours(porteDuProfil(profil.slug), { type: 'journee' });
+  assert.equal(journeePayee.argentVirtuel, valide.argentVirtuel + Math.round(7000 * bonus.argent));
+  assert.deepEqual({ ...(journeePayee.chantierQuartier as object), derniereRecompenseLe: null }, { jours: 1, journees: 1, livraisons: 0, derniereRecompenseLe: null });
+  // La première journée guidée : la paie enregistrée ouvre la suite, et le guide fini ne paie plus.
+  const guide = new PremiersPasService(prisma, progression);
+  for (const etape of ['travail', 'paie', 'objectif', 'logement']) await guide.valider(user.id, etape);
+  const guideFini = await prisma.userCarriere.findUniqueOrThrow({ where: { userId: user.id } });
+  assert.equal(guideFini.argentVirtuel, journeePayee.argentVirtuel + 4 * 500 + 2000);
+  assert.equal((await guide.valider(user.id, 'logement')).recompense, null);
+  console.log('OK PostgreSQL : prime unique sous concurrence, rollback intégral séance et journée, journée payée une fois sous concurrence, compétence et fatigue enregistrées, guide de la première journée payé une fois, notification non bloquante.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());
