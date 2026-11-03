@@ -2,6 +2,7 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, 
 import { Type } from 'class-transformer';
 import { COIFFURES_SUR_MESURE, COULEURS_CASQUE, PERSONNAGES_JOUEUR, PILOSITES, TENUES_SUR_MESURE } from '../personnages';
 import { METEOS_MONDE, type MeteoMonde } from '../besoins.service';
+import { CAMPAGNE } from '../campagne.service';
 
 export class UpdateAvatarDto {
   @IsString()
@@ -189,7 +190,7 @@ export class TempsMondeDto {
 export class ChapitreCampagneDto {
   @IsInt()
   @Min(0)
-  @Max(8)
+  @Max(CAMPAGNE.chapitres - 1)
   chapitre: number;
 
   @IsObject()

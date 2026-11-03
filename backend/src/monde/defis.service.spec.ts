@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../carriere/progression.service';
+import { CAMPAGNE } from '../carriere/campagne.service';
 import { cleJour, cleSemaine, DefisService, lireDefi, lireEtatDefis, tirer } from './defis.service';
 
 const EVENEMENTS = [
@@ -105,15 +106,16 @@ describe('DefisService.etat', () => {
 
 describe('DefisService.reclamer', () => {
   it('garde le défi du dernier chapitre jusqu’au versement de sa récompense', async () => {
-    const { prisma, etat } = fakePrisma({ campagne: { chapitres: 8 } });
+    const avantDernier = CAMPAGNE.chapitres - 1;
+    const { prisma, etat } = fakePrisma({ campagne: { chapitres: avantDernier } });
     const defis = etat.defis as { baseJour: { chapitres: number } };
-    defis.baseJour.chapitres = 8;
+    defis.baseJour.chapitres = avantDernier;
     prisma.evenement.findMany.mockResolvedValue([{ id: 'final', type: 'DEFI_JOUR', config: {
       slug: 'chapitre', titre: 'Finir un chapitre', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 25, argent: 1000 },
     } }] as typeof EVENEMENTS);
     const { svc } = await service(prisma);
     expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', progres: 0 });
-    etat.campagne = { chapitres: 9 };
+    etat.campagne = { chapitres: CAMPAGNE.chapitres };
     expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', progres: 1 });
     await expect(svc.reclamer('u1', 'chapitre')).resolves.toMatchObject({ slug: 'chapitre' });
     expect((await svc.etat('u1')).jour[0]).toMatchObject({ slug: 'chapitre', reclame: true });

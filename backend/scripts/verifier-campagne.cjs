@@ -7,5 +7,5 @@ const attendu = CHAPITRES.map(chapitre => chapitre.taches.map(({ id, contenu: c 
 if (process.argv.includes('--afficher')) console.log(JSON.stringify(attendu, null, 2));
 else {
   require('node:assert/strict').deepEqual(require('../src/carriere/campagne-corrige.json'), attendu);
-  console.log('Les 9 chapitres et leurs corrigés serveur correspondent aux exercices.');
+  console.log(`Les ${CHAPITRES.length} chapitres et leurs corrigés serveur correspondent aux exercices.`);
 }

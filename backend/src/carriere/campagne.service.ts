@@ -7,35 +7,47 @@ import { ProgressionService } from './progression.service';
 import { corrigerChapitre } from './campagne-scoring';
 
 // Le fil rouge : une campagne qui suit un même immeuble, la Résidence Akwaba (R+3, huit logements, pour Mme Touré), à
-// travers les lieux du quartier, de l'appel d'offres à la réception. Chaque chapitre se joue chez le mentor d'un lieu ;
-// le serveur tient la progression et verse les gains. Le contenu des chapitres vit dans le jeu (frontend/src/lib/campagne.ts).
+// travers les lieux du quartier, de l'appel d'offres à la réception, puis l'année de garantie, le décompte final et le
+// retour d'expérience. Chaque chapitre se joue chez le mentor d'un lieu ; le serveur tient la progression et verse les
+// gains. Le contenu des chapitres vit dans le jeu (frontend/src/lib/campagne.ts).
 
-export const CAMPAGNE = { id: 'residence-akwaba', nom: 'Résidence Akwaba', chapitres: 9 } as const;
+export const CAMPAGNE = { id: 'residence-akwaba', nom: 'Résidence Akwaba', chapitres: 12 } as const;
+/** Chapitres validés à la livraison : la réception (neuvième chapitre) livre l'immeuble, l'épilogue clôt le dossier. */
+export const CHAPITRES_LIVRAISON = 9;
 /** Un chapitre se valide à 50 sur 100 ; en dessous, il se rejoue aussitôt, sans gain. */
 export const NOTE_CHAPITRE = 50;
 const CLIENTE = 'client-madame-toure';
-/** La cliente écrit au joueur aux grands moments : le permis affiché, les clés remises. */
+/** La cliente écrit au joueur aux grands moments : le permis affiché, les clés remises, le dossier clos. */
 const MESSAGES_CLIENTE: Record<number, string> = {
   4: 'Le permis est affiché sur la parcelle : je suis passée le voir ce matin. Merci pour ce dossier si bien mené, la suite me rend impatiente !',
-  9: 'Les clés de la Résidence Akwaba sont dans mes mains. Huit familles vont y vivre grâce à ton travail : je te recommanderai à tout le Plateau.',
+  [CHAPITRES_LIVRAISON]: 'Les clés de la Résidence Akwaba sont dans mes mains. Huit familles vont y vivre grâce à ton travail : je te recommanderai à tout le Plateau.',
+  [CAMPAGNE.chapitres]: 'La réception définitive est signée et le marché soldé. Mon frère prépare un immeuble à Cocody : je lui ai donné ton nom, et conseillé de ne pas chercher ailleurs.',
 };
 
 export interface ProgresCampagne { chapitres: number; termineeLe: string | null }
 
-/** Progression bornée : un JSON abîmé ou absent repart du premier chapitre. */
+/** Progression bornée : un JSON abîmé ou absent repart du premier chapitre. La date de fin ne vaut que pour un dossier
+ * clos : une campagne finie à la livraison, avant l'épilogue, reprend à l'année de garantie. */
 export function lireCampagne(brut: unknown): ProgresCampagne {
   const c = (brut && typeof brut === 'object' ? brut : {}) as Record<string, unknown>;
   const n = Math.floor(Number(c.chapitres));
   const le = typeof c.termineeLe === 'string' && Number.isFinite(Date.parse(c.termineeLe)) ? c.termineeLe : null;
-  return { chapitres: Number.isFinite(n) ? Math.max(0, Math.min(CAMPAGNE.chapitres, n)) : 0, termineeLe: le };
+  const chapitres = Number.isFinite(n) ? Math.max(0, Math.min(CAMPAGNE.chapitres, n)) : 0;
+  return { chapitres, termineeLe: chapitres >= CAMPAGNE.chapitres ? le : null };
 }
 
-/** Gains d'un chapitre selon sa note, avant le facteur des besoins sur l'XP. La réception de l'immeuble rapporte bien plus. */
+/** Gains d'un chapitre selon sa note, avant le facteur des besoins sur l'XP. La réception, qui livre l'immeuble, rapporte
+ * bien plus ; le dernier chapitre, qui clôt le dossier, un peu plus. */
 export function gainsChapitre(chapitre: number, note: number) {
   const reussi = note >= NOTE_CHAPITRE;
   if (!reussi) return { reussi, xp: 0, argent: 0, reputation: 0 };
-  const finale = chapitre === CAMPAGNE.chapitres - 1;
-  return { reussi, xp: 30 + Math.round(note / 2) + (finale ? 200 : 0), argent: finale ? 25_000 : 2_500, reputation: finale ? 15 : 2 };
+  const livraison = chapitre === CHAPITRES_LIVRAISON - 1, cloture = chapitre === CAMPAGNE.chapitres - 1;
+  return {
+    reussi,
+    xp: 30 + Math.round(note / 2) + (livraison ? 200 : cloture ? 100 : 0),
+    argent: livraison ? 25_000 : cloture ? 10_000 : 2_500,
+    reputation: livraison ? 15 : cloture ? 8 : 2,
+  };
 }
 
 @Injectable()
@@ -85,7 +97,7 @@ export class CampagneService {
       } });
       const payee = await this.progression.appliquerDelta(userId, { xp: recompense.xp, argentVirtuel: gains.argent, reputation: gains.reputation }, tx);
       if (!payee) throw new NotFoundException('Carrière introuvable');
-      if (chapitres >= CAMPAGNE.chapitres) {
+      if (chapitres === CHAPITRES_LIVRAISON) {
         await tx.carriereHistorique.create({ data: { userId, type: 'CHANTIER_LIVRE', details: { campagne: CAMPAGNE.id, nom: CAMPAGNE.nom } } });
       }
       const message = MESSAGES_CLIENTE[chapitres];

@@ -33,8 +33,13 @@ function banc(chapitres = 0) {
 describe('correction de la campagne', () => {
   it('borne une progression abîmée', () => {
     expect(lireCampagne(null)).toEqual({ chapitres: 0, termineeLe: null });
-    expect(lireCampagne({ chapitres: 99 })).toEqual({ chapitres: 9, termineeLe: null });
+    expect(lireCampagne({ chapitres: 99 })).toEqual({ chapitres: 12, termineeLe: null });
     expect(lireCampagne({ chapitres: -1 }).chapitres).toBe(0);
+  });
+  it('rouvre à l’année de garantie une campagne finie à la livraison, avant l’épilogue', () => {
+    const fin = '2026-10-26T15:00:00.000Z';
+    expect(lireCampagne({ chapitres: 9, termineeLe: fin })).toEqual({ chapitres: 9, termineeLe: null });
+    expect(lireCampagne({ chapitres: 12, termineeLe: fin })).toEqual({ chapitres: 12, termineeLe: fin });
   });
   it.each(corrige.map((_, i) => i))('corrige les trois tâches du chapitre %i', i => {
     expect(corrigerChapitre(i, reponses(i)).note).toBe(100);
@@ -43,15 +48,17 @@ describe('correction de la campagne', () => {
     for (const brut of [100, { note: 100 }, {}, { ...reponses(0), intrus: 0 }, { ...reponses(0), 'contenu-offre': [0, 0, 0, 0, 0] }, { ...reponses(0), 'delai-offre': 99 }, { ...reponses(0), 'montant-offre': NaN }]) {
       expect(() => corrigerChapitre(0, brut)).toThrow(BadRequestException);
     }
-    expect(() => corrigerChapitre(9, {})).toThrow(BadRequestException);
+    expect(() => corrigerChapitre(12, {})).toThrow('Chapitre inconnu');
   });
   it('respecte la tolérance de mesure et les points partiels', () => {
     expect(corrigerChapitre(0, { ...reponses(0), 'montant-offre': 180.10 }).note).toBe(85);
     expect(corrigerChapitre(0, { ...reponses(0), 'contenu-offre': [0, 1] }).note).toBe(82);
   });
-  it('ne paie pas sous 50 et paie la prime finale', () => {
+  it('ne paie pas sous 50, paie la prime de livraison à la réception et celle de clôture au dernier chapitre', () => {
     expect(gainsChapitre(0, 49).argent).toBe(0);
-    expect(gainsChapitre(8, 100)).toMatchObject({ argent: 25000, xp: 280 });
+    expect(gainsChapitre(8, 100)).toMatchObject({ argent: 25000, xp: 280, reputation: 15 });
+    expect(gainsChapitre(9, 100)).toMatchObject({ argent: 2500, xp: 80, reputation: 2 });
+    expect(gainsChapitre(11, 100)).toMatchObject({ argent: 10000, xp: 180, reputation: 8 });
   });
 });
 
@@ -97,15 +104,27 @@ describe('CampagneService', () => {
     expect(r).toMatchObject({ note: 10, gains: { reussi: false, argent: 0 } });
     expect(b.etat()).toMatchObject({ campagne: { chapitres: 0 }, argentVirtuel: 1000, energie: 100 });
   });
-  it('la réception inscrit historique et message dans la transaction', async () => {
+  it('la réception inscrit historique et message dans la transaction, sans clore le dossier', async () => {
     const b = banc(8);
     await b.svc.chapitre('u1', 8, reponses(8));
-    expect(b.etat().campagne.chapitres).toBe(9);
+    expect(b.etat().campagne).toMatchObject({ chapitres: 9, termineeLe: null });
     expect(b.etat().argentVirtuel).toBe(26000);
     expect(b.tx.carriereHistorique.create).toHaveBeenCalledTimes(1);
     expect(b.tx.userMessage.create).toHaveBeenCalledTimes(1);
     await b.svc.chapitre('u1', 8, reponses(8));
     expect(b.tx.userMessage.create).toHaveBeenCalledTimes(1);
+  });
+  it('l’épilogue se joue après la livraison, et le dernier chapitre clôt le dossier sans second historique', async () => {
+    const b = banc(9);
+    expect((await b.svc.chapitre('u1', 9, reponses(9))).gains).toMatchObject({ argent: 2500 });
+    await b.svc.chapitre('u1', 10, reponses(10));
+    expect(b.tx.userMessage.create).not.toHaveBeenCalled();
+    const fin = await b.svc.chapitre('u1', 11, reponses(11));
+    expect(fin).toMatchObject({ progres: { chapitres: 12, termineeLe: expect.any(String) }, gains: { argent: 10000, reputation: 8 } });
+    expect(b.etat().argentVirtuel).toBe(1000 + 2500 * 2 + 10000);
+    expect(b.tx.userMessage.create).toHaveBeenCalledTimes(1);
+    expect(b.tx.userMessage.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ contenu: expect.stringContaining('réception définitive') }) }));
+    expect(b.tx.carriereHistorique.create).not.toHaveBeenCalled();
   });
   it('une notification en panne ne fait pas échouer le versement validé', async () => {
     const b = banc(8);
