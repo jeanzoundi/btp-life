@@ -4,12 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import {
-  appliquerChapitre, bilanChapitre, CAMPAGNE, chapitreCourant, CHAPITRES, CLIENTE_AKWABA, contenuTacheChapitre, lireProgresCampagne, nouvelleSeanceChapitre,
+  appliquerChapitre, bilanChapitre, CAMPAGNE, chapitreCourant, CHAPITRES, CHAPITRES_LIVRAISON, CLIENTE_AKWABA, contenuTacheChapitre, lireProgresCampagne, nouvelleSeanceChapitre,
   PARCELLE_AKWABA, PROGRES_CAMPAGNE_INITIAL, stadeAkwaba, type BilanChapitre, type ChapitreCampagne, type ProgresCampagne,
 } from '@/lib/campagne';
 import { LIEUX_MONDE } from '@/lib/liens-modes';
 import { LIEUX_PROGRAMME } from '@/lib/lieux-programme';
 import { noter, seanceFaite, tacheALaZoneLieu, tachesRestantes, type ContenuTache, type SeanceLieu } from '@/lib/programme-lieu';
+import { CLOTURE_CAMPAGNE } from './fin-campagne';
 import type { TypeNotification } from './hud-monde';
 import { heureLisible, PastilleTache, TacheLieu } from './panneau-programme-lieu';
 
@@ -151,7 +152,9 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
     if (r.erreur) { notifier(`${c.titre} : chapitre non enregistré, à refaire.`, 'alerte'); return; }
     if (!r.bilan.reussi) { notifier(`${c.titre} : chapitre à reprendre. Relis les explications, puis recommence quand tu veux.`, 'alerte'); return; }
     const suivant = CHAPITRES[r.index + 1];
-    notifier(suivant ? `${c.avancee} Prochain rendez-vous : ${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}.` : `${CAMPAGNE.nom} livrée ! Mme Touré a ses clés, et toi une belle référence.`, 'succes');
+    notifier(!suivant ? `${CAMPAGNE.nom} : dossier clos ! Réception définitive signée, et l’immeuble devient la référence de l’entreprise.`
+      : r.index === CHAPITRES_LIVRAISON - 1 ? `${CAMPAGNE.nom} livrée ! Mme Touré a ses clés. Reste l’année de garantie : rendez-vous ${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}.`
+      : `${c.avancee} Prochain rendez-vous : ${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}.`, 'succes');
   };
   const abandonner = () => { setSeance(null); setTache(null); setPanneau(null); notifier('Chapitre interrompu : il reste à faire.', 'info'); };
   const ouvrir = useCallback((ici: string) => setPanneau(ici), []);
@@ -179,7 +182,7 @@ export function FriseCampagne({ faits }: { faits: number }) {
   </div>;
 }
 
-/** Les neuf chapitres, faits, en cours ou à venir, avec leur lieu. */
+/** Les chapitres, faits, en cours ou à venir, avec leur lieu. */
 function ListeChapitres({ faits }: { faits: number }) {
   return <ol className="mt-2 space-y-1">{CHAPITRES.map((c, i) => {
     const etat = i < faits ? 'fait' : i === faits ? 'courant' : 'avenir';
@@ -254,7 +257,7 @@ export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAtt
     </div>
     {fiche && <>
       {statut === 'termine'
-        ? <p className="mt-3 rounded-xl bg-jeu-lagune/10 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">Huit familles vivent désormais à la Résidence Akwaba. Mme Touré te recommande à tout le Plateau.</p>
+        ? <p className="mt-3 rounded-xl bg-jeu-lagune/10 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">{CLOTURE_CAMPAGNE}</p>
         : prochain && <div className="mt-3 rounded-xl bg-jeu-or/[.1] p-3 text-[12.5px] leading-relaxed ring-1 ring-jeu-or/30">
           <p className="hud-legende text-jeu-or">{enCoursAilleurs ? 'Chapitre en cours' : 'Prochain rendez-vous'}</p>
           <p className="mt-1"><b>{prochain.titre}</b> : {nomLieu(prochain.lieu)}, avec {interlocuteur(prochain).nom}.</p>

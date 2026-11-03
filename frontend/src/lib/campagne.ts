@@ -1,7 +1,8 @@
 // Le fil rouge : une campagne qui suit un même immeuble, la Résidence Akwaba (R+3, huit logements, pour Mme Touré), à
 // travers les lieux du quartier. L'offre de l'entreprise, le sol, la structure, le permis, le prêt, la commande, le coulage,
-// la sécurité du gros œuvre, puis la réception sur la parcelle : chaque chapitre se joue chez le mentor d'un lieu, avec les
-// mêmes chiffres d'un bout à l'autre (les semelles calculées au bureau d'études sont celles qu'on commande au dépôt).
+// la sécurité du gros œuvre, la réception sur la parcelle, puis l'année de garantie, le décompte final et le retour
+// d'expérience : chaque chapitre se joue chez le mentor d'un lieu, avec les mêmes chiffres d'un bout à l'autre (les
+// semelles calculées au bureau d'études sont celles qu'on commande au dépôt, la retenue de garantie est celle du prêt).
 // Le serveur tient la progression et paie (backend/src/carriere/campagne.service.ts). Sans Three.js ni React.
 import type { SituationTerrain } from './programme-chantier';
 import { fr, type ContenuTache, type SeanceLieu } from './programme-lieu';
@@ -43,6 +44,9 @@ const CHARGE_POTEAU = SURFACE_POTEAU * CHARGE_M2 * PLANCHERS;           // 768 k
 const COTE_SEMELLE = Math.sqrt(CHARGE_POTEAU / ADMISSIBLE);              // ≈ 1,96 m, arrondi à 2,00 m
 const SEMELLES = 16, VOLUME_SEMELLES = SEMELLES * 2 * 2 * .5;          // 32 m³
 const BUDGET = 180, PART_BANQUE = .7, RETENUE = .05;
+// Après la livraison : la fissure suivie au fissuromètre (mm), l'avenant de la clôture et le coût réel du marché de base (M FCFA).
+const FISSURE_POSE = .18, FISSURE_TROIS_MOIS = .3;
+const AVENANT = 4.2, COUT_REEL = 128.4;
 
 export const CHAPITRES: ChapitreCampagne[] = [
   {
@@ -270,25 +274,111 @@ export const CHAPITRES: ChapitreCampagne[] = [
         explication: `${fr(PRIX_HT, 1)} × 5 % = ${fr(PRIX_HT * RETENUE, 3)} M FCFA, rendus à l’entreprise une fois les réserves levées.` } } },
     ],
   },
+  {
+    id: 'garantie', lieu: 'laboratoire', titre: 'L’année de garantie', resume: 'Diagnostiquer les désordres signalés et dire qui doit les reprendre.',
+    recit: 'La Résidence Akwaba est habitée depuis six mois. Mme Touré nous transmet les signalements de ses locataires : une fissure qui s’ouvre au R+2, une tache d’humidité sous une fenêtre, un chauffe-eau qui fuit. Jusqu’à la réception définitive, l’entreprise reprend ses défauts ; encore faut-il les distinguer de l’usure et des dégâts des occupants. On mesure avant de conclure.',
+    avancee: 'Désordres diagnostiqués et repris : les réserves sont levées, les locataires rassurés.',
+    taches: [
+      { id: 'ouverture-fissure', zone: 'paillasse', titre: 'La fissure du R+2', contenu: { type: 'mesure', mesure: {
+        titre: 'La fissure du R+2', enonce: 'Un fissuromètre est collé en travers de la fissure du séjour, au R+2 : on y lit son ouverture au centième de millimètre.',
+        donnees: [{ libelle: 'Ouverture à la pose', valeur: `${fr(FISSURE_POSE, 2)} mm` }, { libelle: 'Trois mois plus tard', valeur: `${fr(FISSURE_TROIS_MOIS, 2)} mm` }],
+        question: 'Vitesse d’ouverture, en millimètre par mois ?', unite: 'mm/mois', reponse: (FISSURE_TROIS_MOIS - FISSURE_POSE) / 3, tolerance: .005,
+        explication: `(${fr(FISSURE_TROIS_MOIS, 2)} − ${fr(FISSURE_POSE, 2)}) / 3 = ${fr((FISSURE_TROIS_MOIS - FISSURE_POSE) / 3, 2)} mm par mois : la fissure bouge encore. Une fissure active ne se rebouche pas : on cherche sa cause, puis on reprend l’enduit une fois qu’elle s’est stabilisée.` } } },
+      { id: 'qui-repare', zone: 'bureau', titre: 'Qui doit reprendre ?', contenu: { type: 'selection', selection: {
+        titre: 'Qui doit reprendre ?', enonce: 'Jusqu’à la réception définitive, l’entreprise reprend à ses frais les défauts de ses travaux et les réserves restées ouvertes. Le reste relève des occupants.', consigne: 'Coche ce que l’entreprise doit reprendre.',
+        options: [
+          { texte: 'La fissure du R+2, qui s’ouvre encore', attendu: true, explication: 'Un désordre de l’ouvrage : on traite sa cause, puis on reprend la fissure.' },
+          { texte: 'L’infiltration sous la fenêtre du séjour, au R+1', attendu: true, explication: 'Un joint de menuiserie mal fait laisse entrer la pluie : défaut d’exécution.' },
+          { texte: 'Le chauffe-eau posé par l’entreprise, qui fuit au raccord', attendu: true, explication: 'Fourni et posé par l’entreprise : sa pose est garantie.' },
+          { texte: 'Le carreau fêlé noté en réserve, jamais remplacé', attendu: true, explication: 'Une réserve du procès-verbal reste due, sans discussion.' },
+          { texte: 'Une vitre cassée par un ballon d’enfant', attendu: false, explication: 'Un accident d’usage : à la charge de l’occupant ou de son assurance.' },
+          { texte: 'Le climatiseur ajouté par un locataire, qui coule sur la façade', attendu: false, explication: 'Un équipement installé par l’occupant : l’entreprise n’en répond pas.' },
+          { texte: 'Des murs abîmés pendant un déménagement', attendu: false, explication: 'Des dégâts d’occupation, pas un défaut de construction.' },
+        ] } } },
+      situation('fissure-active', 'accueil', 'Reboucher tout de suite ?',
+        'Mme Touré fait visiter l’appartement du R+2 à un futur locataire la semaine prochaine. Elle voudrait qu’on rebouche la fissure et qu’on repeigne d’ici là.',
+        ['Je lui explique qu’on surveille la fissure et qu’on traite sa cause avant de la reprendre', 'Une fissure qui bouge réapparaît sous la peinture. On cherche la cause (tassement, retrait, dilatation), on la traite, puis on reprend une fois la fissure stable. Si la structure était touchée, l’assurance décennale entrerait en jeu.'],
+        [['Je rebouche et je repeins dans la semaine', 'La fissure reviendra en quelques semaines : le problème est caché, pas réglé.'], ['Je réponds que les fissures ne sont pas garanties', 'Faux : un désordre de l’ouvrage signalé avant la réception définitive est dû par l’entreprise.']]),
+    ],
+  },
+  {
+    id: 'decompte', lieu: 'banque', titre: 'Le décompte final', resume: 'Solder le marché et rendre la retenue de garantie.',
+    recit: 'Un an après la livraison, toutes les réserves sont levées : la réception définitive peut être signée. Reste à solder le marché de la Résidence Akwaba avec Mme Touré, et à rendre à l’entreprise la retenue de garantie qui dort dans notre coffre depuis la première situation.',
+    avancee: 'Réception définitive signée : le marché est soldé, la retenue de garantie rendue.',
+    taches: [
+      { id: 'retenue-rendue', zone: 'coffre', titre: 'La retenue rendue', contenu: { type: 'mesure', mesure: {
+        titre: 'La retenue rendue', enonce: 'Pendant les travaux, Mme Touré a commandé par avenant une clôture en dur et un portail. La retenue de 5 % a porté sur tous les travaux exécutés, avenant compris.',
+        donnees: [{ libelle: 'Marché hors taxes', valeur: `${fr(PRIX_HT, 1)} M FCFA` }, { libelle: 'Avenant de la clôture', valeur: `${fr(AVENANT, 1)} M FCFA HT` }, { libelle: 'Retenue de garantie', valeur: '5 %' }],
+        question: 'Montant rendu à l’entreprise, en millions de FCFA ?', unite: 'M FCFA', reponse: (PRIX_HT + AVENANT) * RETENUE, tolerance: .02,
+        explication: `(${fr(PRIX_HT, 1)} + ${fr(AVENANT, 1)}) × 5 % = ${fr((PRIX_HT + AVENANT) * RETENUE, 3)} M FCFA : la retenue suit les travaux réellement exécutés, avenant compris. À la réception, on ne comptait que le marché de base.` } } },
+      { id: 'dossier-final', zone: 'conseiller', titre: 'Le dossier de fin de marché', contenu: { type: 'selection', selection: {
+        titre: 'Le dossier de fin de marché', enonce: 'Pour signer la réception définitive et solder le prêt, Mme Touré et la banque attendent un dossier complet.', consigne: 'Coche ce que le dossier doit contenir.',
+        options: [
+          { texte: 'Le procès-verbal de levée des réserves', attendu: true, explication: 'Il prouve que chaque défaut noté à la réception a été repris.' },
+          { texte: 'Le dossier des ouvrages exécutés : les plans de ce qui a vraiment été bâti', attendu: true, explication: 'Indispensable pour entretenir, réparer ou agrandir l’immeuble plus tard.' },
+          { texte: 'Les notices et garanties des équipements : chauffe-eau, surpresseur, tableaux électriques', attendu: true, explication: 'Les occupants et le gestionnaire en auront besoin pour l’entretien.' },
+          { texte: 'Le décompte général et définitif, signé des deux parties', attendu: true, explication: 'Il arrête le prix final du marché, avenant compris : plus rien à discuter ensuite.' },
+          { texte: 'L’attestation d’assurance décennale de l’entreprise', attendu: true, explication: 'Pendant dix ans, l’entreprise répond de la solidité de l’immeuble.' },
+          { texte: 'Les fiches de pointage des ouvriers', attendu: false, explication: 'Une affaire interne à l’entreprise, sans rapport avec l’ouvrage livré.' },
+          { texte: 'L’offre de Bâti-Express, pour comparer les prix', attendu: false, explication: 'Confidentielle, et sans objet une fois le marché exécuté.' },
+        ] } } },
+      situation('solde-conteste', 'guichet', 'Retenir deux millions ?',
+        'Au moment de solder, Mme Touré veut garder 2 M FCFA : un locataire se plaint du bruit de l’avenue, la nuit.',
+        ['Je solde selon le décompte et je lui explique que le bruit de la rue n’est pas un défaut de l’ouvrage', 'Le marché prévoyait des fenêtres ordinaires, posées sans défaut : une retenue sans défaut à reprendre n’a pas de base. Si elle le souhaite, on chiffre à part un vitrage isolant.'],
+        [['J’accepte, pour garder une bonne relation', 'L’entreprise perd deux millions sans raison, et crée un précédent pour le prochain marché.'], ['Je la menace aussitôt d’un procès', 'On explique d’abord, marché et procès-verbaux en main : le procès est le dernier recours, pas le premier mot.']]),
+    ],
+  },
+  {
+    id: 'retour-experience', lieu: 'entreprise', titre: 'Le retour d’expérience', resume: 'Tirer les leçons du chantier avant le prochain marché.',
+    recit: 'La Résidence Akwaba est soldée. Avant de répondre au prochain appel d’offres, la direction veut savoir ce que ce chantier nous a appris : ce qu’il a vraiment coûté, ce qui a marché, et ce qu’on fera autrement.',
+    avancee: 'Retour d’expérience partagé : la Résidence Akwaba devient la référence de l’entreprise.',
+    taches: [
+      { id: 'marge-reelle', zone: 'finances', titre: 'La marge brute réelle', contenu: { type: 'mesure', mesure: {
+        titre: 'La marge brute réelle', enonce: 'Le ciment a augmenté pendant les travaux : le marché de base a coûté plus que le déboursé prévu à l’offre. Ce qui reste du prix couvre les frais généraux et le bénéfice.',
+        donnees: [{ libelle: 'Prix du marché de base', valeur: `${fr(PRIX_HT, 1)} M FCFA HT` }, { libelle: 'Déboursé prévu', valeur: `${fr(DEBOURSE)} M FCFA` }, { libelle: 'Coût réel', valeur: `${fr(COUT_REEL, 1)} M FCFA` }],
+        question: 'Marge brute réelle, en pourcentage du prix hors taxes ?', unite: '%', reponse: (PRIX_HT - COUT_REEL) / PRIX_HT * 100, tolerance: .2,
+        explication: `${fr(PRIX_HT, 1)} − ${fr(COUT_REEL, 1)} = ${fr(PRIX_HT - COUT_REEL, 1)} M FCFA, soit ${fr((PRIX_HT - COUT_REEL) / PRIX_HT * 100, 1)} % du prix, au lieu des ${fr((PRIX_HT - DEBOURSE) / PRIX_HT * 100)} % prévus : la hausse du ciment en a mangé plus d’un cinquième.` } } },
+      { id: 'lecons', zone: 'bureaux', titre: 'Les leçons à garder', contenu: { type: 'selection', selection: {
+        titre: 'Les leçons à garder', enonce: 'Le retour d’expérience garde ce qui servira au prochain chantier, sans chercher de coupable.', consigne: 'Coche ce qu’il faut y écrire.',
+        options: [
+          { texte: 'Prévoir une clause de révision des prix pour le ciment et l’acier', attendu: true, explication: 'La hausse du ciment a coûté plus d’un cinquième de la marge : une formule de révision partage ce risque avec le client.' },
+          { texte: 'La toupie refusée le jour du coulage : le délai de mise en œuvre a protégé les fondations', attendu: true, explication: 'Une règle tenue sous pression, à rappeler à chaque équipe.' },
+          { texte: 'Les désordres de l’année de garantie, avec leurs causes', attendu: true, explication: 'Un défaut qu’on comprend ne se répète pas au chantier suivant.' },
+          { texte: 'La Résidence Akwaba dans nos références, avec l’accord de Mme Touré', attendu: true, explication: 'Une référence vérifiable pèse lourd dans la prochaine offre.' },
+          { texte: 'Le nom de l’ouvrier responsable de chaque défaut', attendu: false, explication: 'On cherche des causes et des solutions, pas des coupables : sinon, plus personne ne signale rien.' },
+          { texte: 'Rien : le chantier est fini, on passe au suivant', attendu: false, explication: 'Sans retour d’expérience, le prochain chantier refait les mêmes erreurs.' },
+        ] } } },
+      situation('prochain-marche', 'direction', 'Le prochain marché',
+        'Le frère de Mme Touré veut bâtir un R+5 à Cocody. Il consulte trois entreprises, dont Bâti-Express, et nous demande une offre.',
+        ['On chiffre une offre neuve sur son terrain, et on cite la Résidence Akwaba en référence', 'Chaque ouvrage a son sol, sa structure et ses prix : on refait l’étude de sol et le chiffrage, et la référence Akwaba appuie l’offre.'],
+        [['On reprend l’offre d’Akwaba en changeant le nom', 'Un R+5 sur un autre sol n’a ni les mêmes fondations ni le même prix : l’offre serait fausse dès la première ligne.'], ['On passe sous nos coûts pour battre Bâti-Express', 'Un marché gagné à perte se paie pendant tout le chantier, et la qualité en souffre.']]),
+    ],
+  },
 ];
+
+/** Chapitres validés à la livraison de l'immeuble : la réception le livre ; l'année de garantie, le décompte et le
+ * retour d'expérience bouclent ensuite le dossier. */
+export const CHAPITRES_LIVRAISON = CHAPITRES.findIndex(c => c.id === 'reception') + 1;
 
 // ─── Progression ───
 
 export interface ProgresCampagne { chapitres: number; termineeLe: string | null }
 export const PROGRES_CAMPAGNE_INITIAL: ProgresCampagne = { chapitres: 0, termineeLe: null };
 
-/** Lecture bornée, comme au serveur : un JSON abîmé repart du premier chapitre. */
+/** Lecture bornée, comme au serveur : un JSON abîmé repart du premier chapitre. La date de fin ne vaut que pour un dossier
+ * clos : une campagne finie à la livraison, avant l'épilogue, reprend à l'année de garantie. */
 export function lireProgresCampagne(brut: unknown): ProgresCampagne {
   const c = (brut && typeof brut === 'object' ? brut : {}) as Record<string, unknown>;
   const n = Math.floor(Number(c.chapitres));
   const le = typeof c.termineeLe === 'string' && Number.isFinite(Date.parse(c.termineeLe)) ? c.termineeLe : null;
-  return { chapitres: Number.isFinite(n) ? Math.max(0, Math.min(CHAPITRES.length, n)) : 0, termineeLe: le };
+  const chapitres = Number.isFinite(n) ? Math.max(0, Math.min(CHAPITRES.length, n)) : 0;
+  return { chapitres, termineeLe: chapitres >= CHAPITRES.length ? le : null };
 }
 
-/** Le chapitre à jouer, ou rien quand l'immeuble est livré. */
+/** Le chapitre à jouer, ou rien quand le dossier est clos. */
 export const chapitreCourant = (p: Pick<ProgresCampagne, 'chapitres'>) => p.chapitres < CHAPITRES.length ? CHAPITRES[p.chapitres] : null;
 
-/** Applique un chapitre validé (démonstration) : le dernier livre l'immeuble. */
+/** Applique un chapitre validé (démonstration) : le dernier clôt le dossier. */
 export function appliquerChapitre(p: ProgresCampagne, reussi: boolean, maintenant: Date): ProgresCampagne {
   if (!reussi || p.chapitres >= CHAPITRES.length) return p;
   const chapitres = p.chapitres + 1;
@@ -308,25 +398,27 @@ export const contenuTacheChapitre = (index: number, id: string) => CHAPITRES[ind
 export interface BilanChapitre { note: number; reussies: number; total: number; reussi: boolean; mention: string; argent: number; xp: number; reputation: number }
 
 /** Note sur 100 comme une séance de lieu (présence 10, puis 90 points partagés), validée à 50.
- * Gains : la formule du serveur (gainsChapitre), avant le facteur des besoins ; la réception rapporte bien plus. */
+ * Gains : la formule du serveur (gainsChapitre), avant le facteur des besoins ; la réception, qui livre l'immeuble, rapporte
+ * bien plus, et le dernier chapitre, qui clôt le dossier, un peu plus. */
 export function bilanChapitre(s: SeanceLieu): BilanChapitre {
   const scores = s.taches.map(t => s.scores[t.id] ?? 0);
   const note = Math.round(10 + 90 * (scores.reduce((n, x) => n + x, 0) / Math.max(1, scores.length)) / 100);
-  const reussi = note >= NOTE_CHAPITRE, finale = s.etape === CHAPITRES.length - 1;
+  const reussi = note >= NOTE_CHAPITRE, livraison = s.etape === CHAPITRES_LIVRAISON - 1, cloture = s.etape === CHAPITRES.length - 1;
   return {
     note, reussies: scores.filter(x => x >= 80).length, total: scores.length, reussi,
     mention: note === 100 ? 'Chapitre sans faute' : note >= 70 ? 'Chapitre réussi' : reussi ? 'Chapitre validé' : 'Chapitre à reprendre',
-    argent: reussi ? (finale ? 25_000 : 2_500) : 0,
-    xp: reussi ? 30 + Math.round(note / 2) + (finale ? 200 : 0) : 0,
-    reputation: reussi ? (finale ? 15 : 2) : 0,
+    argent: reussi ? (livraison ? 25_000 : cloture ? 10_000 : 2_500) : 0,
+    xp: reussi ? 30 + Math.round(note / 2) + (livraison ? 200 : cloture ? 100 : 0) : 0,
+    reputation: reussi ? (livraison ? 15 : cloture ? 8 : 2) : 0,
   };
 }
 
 // ─── L'immeuble sur la parcelle ───
 
-/** Ce qu'on voit sur la parcelle, selon les chapitres validés (0 à 9). */
+/** Ce qu'on voit sur la parcelle, selon les chapitres validés (0 à 12 ; l'immeuble est livré dès le neuvième). */
 export const STADES_AKWABA = [
   'Parcelle bornée', 'Marché signé', 'Sol sondé', 'Implantation tracée', 'Permis affiché',
   'Base vie installée', 'Fondations en cours', 'Gros œuvre en élévation', 'Prêt pour la réception', 'Immeuble livré',
+  'Réserves levées', 'Réception définitive', 'Référence de l’entreprise',
 ] as const;
 export const stadeAkwaba = (p: Pick<ProgresCampagne, 'chapitres'>) => STADES_AKWABA[Math.max(0, Math.min(STADES_AKWABA.length - 1, p.chapitres))];

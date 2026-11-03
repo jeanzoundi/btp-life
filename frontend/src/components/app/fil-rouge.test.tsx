@@ -88,10 +88,30 @@ describe('le fil rouge en démonstration', () => {
   });
 });
 
+describe('l’épilogue du fil rouge', () => {
+  it('clôt le dossier au retour d’expérience : prime de clôture, date de fin, plus de chapitre à jouer', async () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 11, termineeLe: null }));
+    const o = options();
+    const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
+    await waitFor(() => expect(result.current.chapitre?.id).toBe('retour-experience'));
+    act(() => result.current.commencer());
+    expect(result.current.seance).toMatchObject({ slug: 'entreprise', etape: 11 });
+    toutFaire(result);
+    act(() => { result.current.surStation('entreprise', 'mentor'); });
+    act(() => result.current.faireLeBilan());
+    expect(o.recompenser).toHaveBeenCalledWith(expect.objectContaining({ xp: 180, argent: 10_000 }));
+    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: 12, termineeLe: expect.any(String) });
+    act(() => result.current.terminer());
+    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/dossier clos/), 'succes');
+    expect(result.current.chapitre).toBeNull();
+    expect(result.current.statut('entreprise')).toBe('termine');
+  });
+});
+
 describe('le fil rouge connecté', () => {
-  it('fait valider la réception par le serveur, qui paie et livre l’immeuble', async () => {
+  it('fait valider la réception par le serveur, qui paie et livre l’immeuble, puis ouvre l’année de garantie', async () => {
     api.get.mockResolvedValue({ chapitres: 8, termineeLe: null });
-    api.post.mockResolvedValue({ note: 100, progres: { chapitres: 9, termineeLe: '2026-10-26T15:00:00.000Z' }, gains: { reussi: true, xp: 266, argent: 25_000, reputation: 15, facteurBesoins: .95 } });
+    api.post.mockResolvedValue({ note: 100, progres: { chapitres: 9, termineeLe: null }, gains: { reussi: true, xp: 266, argent: 25_000, reputation: 15, facteurBesoins: .95 } });
     const o = options({ demo: false });
     const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
     await waitFor(() => expect(result.current.chapitre?.id).toBe('reception'));
@@ -105,9 +125,9 @@ describe('le fil rouge connecté', () => {
     await waitFor(() => expect(result.current.resultat?.gains?.argent).toBe(25_000));
     expect(o.recompenser).not.toHaveBeenCalled();
     act(() => result.current.terminer());
-    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/Résidence Akwaba livrée/), 'succes');
-    expect(result.current.chapitre).toBeNull();
-    expect(result.current.statut(PARCELLE_AKWABA.slug)).toBe('termine');
+    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/Résidence Akwaba livrée !.*année de garantie/), 'succes');
+    expect(result.current.chapitre?.id).toBe('garantie');
+    expect(result.current.statut(PARCELLE_AKWABA.slug)).toBe('ailleurs');
   });
 
   it('dit pourquoi un chapitre n’a pas été enregistré', async () => {

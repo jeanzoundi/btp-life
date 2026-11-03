@@ -1,6 +1,8 @@
 // Le concurrent du fil rouge : l'une des trois entreprises consultées par Mme Touré, battue au premier chapitre, qui
 // surveille la Résidence Akwaba jusqu'à la livraison. Il passe devant la parcelle aux heures de chantier, commente chaque
-// étape et appelle le joueur. Tout se joue côté jeu, à partir de la progression de la campagne.
+// étape et appelle le joueur, une dernière fois quand le dossier est clos. Tout se joue côté jeu, à partir de la
+// progression de la campagne.
+import { CHAPITRES_LIVRAISON } from './campagne';
 
 export const CONCURRENT = { nom: 'Serge Ahoussou', prenom: 'Serge', entreprise: 'Bâti-Express', role: 'Conducteur de travaux chez Bâti-Express' } as const;
 
@@ -13,6 +15,7 @@ export const REPLIQUES_CONCURRENT: ReadonlyArray<[number, string]> = [
   [7, 'Votre gros œuvre monte vite. Trop vite ? On verra au contrôle.'],
   [8, 'Bon… je dois reconnaître que c’est propre. Mais l’immeuble n’est pas encore livré.'],
   [9, 'Chapeau. Mme Touré ne parle plus que de vous. La prochaine parcelle, je ne te la laisserai pas.'],
+  [12, 'Paraît que le frère de Mme Touré prépare un R+5 à Cocody. Bâti-Express sera sur les rangs : que le meilleur gagne.'],
 ];
 
 /** La dernière réplique méritée, ou rien avant que le marché soit gagné. */
@@ -34,4 +37,4 @@ export const PENSEES_CONCURRENT = [
 export const ROUTE_CONCURRENT: [number, number][] = [[13, -70.4], [19, -70.4]];
 
 /** Le concurrent rôde tant que l'immeuble n'est pas livré, aux heures de chantier, une fois le marché attribué. */
-export const presenceConcurrent = (chapitres: number, heure: number) => chapitres >= 1 && chapitres < 9 && heure >= 8 && heure < 17;
+export const presenceConcurrent = (chapitres: number, heure: number) => chapitres >= 1 && chapitres < CHAPITRES_LIVRAISON && heure >= 8 && heure < 17;

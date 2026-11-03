@@ -25,13 +25,14 @@ export function positionPlan(plan: PlanCamera, t: number): { camera: [number, nu
   };
 }
 
-/** Le plan qui salue un chapitre validé : plus haut à mesure que l'immeuble monte, plus long à la livraison. */
-export function planChapitre({ centre, chapitres, total, etape, titreChantier }: { centre: Point; chapitres: number; total: number; etape: string; titreChantier: string }): PlanCamera {
-  const livraison = chapitres >= total;
+/** Le plan qui salue un chapitre validé : plus haut à mesure que l'immeuble monte, plus long à la livraison. `livraison` :
+ * les chapitres validés quand l'ouvrage est livré, si l'histoire continue après (par défaut, le dernier chapitre). */
+export function planChapitre({ centre, chapitres, total, livraison = total, etape, titreChantier }: { centre: Point; chapitres: number; total: number; livraison?: number; etape: string; titreChantier: string }): PlanCamera {
+  const livree = chapitres === livraison;
   return {
-    centre, hauteurCible: Math.min(7, 1.5 + chapitres * .65), rayon: livraison ? 34 : 28, hauteur: livraison ? 18 : 14,
-    duree: livraison ? 9 : 6.5, azimut: .35, tour: livraison ? .55 : .3,
-    titre: livraison ? `${titreChantier} · livrée !` : `${titreChantier} · chapitre ${chapitres}/${total} validé`,
+    centre, hauteurCible: Math.min(7, 1.5 + chapitres * .65), rayon: livree ? 34 : 28, hauteur: livree ? 18 : 14,
+    duree: livree ? 9 : 6.5, azimut: .35, tour: livree ? .55 : .3,
+    titre: livree ? `${titreChantier} · livrée !` : `${titreChantier} · chapitre ${chapitres}/${total} validé`,
     sousTitre: etape,
   };
 }

@@ -21,6 +21,12 @@ describe('les plans de caméra des chapitres', () => {
     expect(livraison.titre).toBe('Résidence Akwaba · livrée !');
     expect(livraison.duree).toBeGreaterThan(planChapitre({ centre: [0, 0], chapitres: 1, total: 9, etape: '', titreChantier: '' }).duree);
   });
+  it('salue la livraison à la réception quand l’histoire continue, et l’épilogue comme un chapitre', () => {
+    const plan = (chapitres: number) => planChapitre({ centre: [0, -78.5], chapitres, total: 12, livraison: 9, etape: '', titreChantier: 'Résidence Akwaba' });
+    expect(plan(9).titre).toBe('Résidence Akwaba · livrée !');
+    expect(plan(10).titre).toBe('Résidence Akwaba · chapitre 10/12 validé');
+    expect(plan(12).titre).toBe('Résidence Akwaba · chapitre 12/12 validé');
+  });
 });
 
 describe('le concurrent du fil rouge', () => {
@@ -30,6 +36,8 @@ describe('le concurrent du fil rouge', () => {
     expect(repliqueConcurrent(5)).toContain('permis');
     expect(nouvelleReplique(5)).toBeNull();
     expect(nouvelleReplique(9)).toContain('Chapeau');
+    expect(nouvelleReplique(10)).toBeNull();
+    expect(nouvelleReplique(12)).toContain('Cocody');
   });
   it('rôde devant la parcelle aux heures de chantier, jusqu’à la livraison', () => {
     expect(presenceConcurrent(0, 10)).toBe(false);

@@ -1,4 +1,5 @@
-// La Résidence Akwaba sur sa parcelle, en blocs : ce qu'on voit à chaque stade du fil rouge (chapitres validés, 0 à 9).
+// La Résidence Akwaba sur sa parcelle, en blocs : ce qu'on voit à chaque stade du fil rouge (chapitres validés, 0 à 12 ;
+// l'immeuble est livré et habité dès le neuvième, l'épilogue ne change plus la parcelle).
 // Repère local : origine au centre de la parcelle, façade et portail au sud (+z), côté avenue. Sans Three.js ni React.
 import type { BlocArchitecture, V3 } from './architecture-ville';
 import { PARCELLE_AKWABA } from './campagne';

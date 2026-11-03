@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import type { RendezVous } from '@/lib/journee-joueur';
 import { LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type ModeTransport, type Point } from '@/lib/transports';
 import { heureLisible } from './panneau-programme-lieu';
-import { TEASER_CAMPAGNE } from './fin-campagne';
+import { CLOTURE_CAMPAGNE, TEASER_CAMPAGNE } from './fin-campagne';
 import { useEcranTactile } from '@/lib/ecran-tactile';
 
 // Le téléphone du joueur, comme dans un GTA : les messages des personnages, les appels des mentors, le GPS, le taxi et le
@@ -151,7 +151,7 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
               <p className="mt-2 text-[12px]">Rendez-vous : <b>{filRouge.nomLieu}</b>, avec {filRouge.interlocuteur}.</p>
             </div>
             <button type="button" onClick={() => onAller(filRouge.lieu)} className="hud-bouton hud-bouton-principal mt-3 w-full p-2.5 text-[13px]">Y aller</button>
-          </div> : <Vide>La Résidence Akwaba est livrée. Mme Touré te recommande à tout le Plateau.<br />{TEASER_CAMPAGNE}</Vide>}
+          </div> : <Vide>{CLOTURE_CAMPAGNE}<br />{TEASER_CAMPAGNE}</Vide>}
         </>}
 
         {app === 'agenda' && <><EnTeteAppli titre="Agenda du jour" onRetour={() => setApp('accueil')} />

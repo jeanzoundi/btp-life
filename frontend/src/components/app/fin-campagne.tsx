@@ -1,9 +1,13 @@
 'use client';
 
-// La fin du fil rouge : une fois la Résidence Akwaba livrée et son plan de caméra passé, un écran salue le parcours,
-// oriente vers la suite du jeu (carrière, chantiers, équipes) et annonce le prochain ouvrage. Il ne s'affiche qu'une fois.
+// La fin du fil rouge : une fois le dossier de la Résidence Akwaba clos (livraison, année de garantie, décompte et retour
+// d'expérience) et son plan de caméra passé, un écran salue le parcours, oriente vers la suite du jeu (carrière, chantiers,
+// équipes) et annonce le prochain ouvrage. Il ne s'affiche qu'une fois.
+import { CHAPITRES } from '@/lib/campagne';
 
-export const TEASER_CAMPAGNE = 'Bientôt, un nouvel ouvrage à suivre de bout en bout… et Serge n’a pas dit son dernier mot.';
+export const TEASER_CAMPAGNE = 'Bientôt, le R+5 du frère de Mme Touré, à Cocody… et Serge n’a pas dit son dernier mot.';
+/** Ce que deviennent l'immeuble et le joueur une fois le dossier clos (fiche de la parcelle, téléphone). */
+export const CLOTURE_CAMPAGNE = 'La réception définitive est signée : huit familles vivent à la Résidence Akwaba, devenue la référence de l’entreprise. Mme Touré te recommande à tout le Plateau.';
 
 /** L'écran de fin se montre quand la campagne est finie, la progression chargée, le joueur libre, et seulement une fois. */
 export function finCampagneAMontrer({ chapitres, total, pret, dejaVue, occupe }: { chapitres: number; total: number; pret: boolean; dejaVue: boolean; occupe: boolean }) {
@@ -19,10 +23,10 @@ export type SuiteCampagne = (typeof SUITES)[number]['id'];
 
 export function PanneauFinCampagne({ nomJoueur, onSuite, onFermer }: { nomJoueur: string; onSuite: (suite: SuiteCampagne) => void; onFermer: () => void }) {
   return <section role="dialog" aria-label="Fin du fil rouge" className="hud-verre pointer-events-auto absolute left-1/2 top-1/2 z-40 w-[440px] max-w-[calc(100%-24px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl p-5 text-jeu-ivoire">
-    <p className="hud-legende text-jeu-or">Fil rouge terminé · 9 chapitres</p>
-    <h2 className="hud-titre mt-1 text-[20px]">La Résidence Akwaba est livrée !</h2>
+    <p className="hud-legende text-jeu-or">Fil rouge terminé · {CHAPITRES.length} chapitres</p>
+    <h2 className="hud-titre mt-1 text-[20px]">La Résidence Akwaba est bouclée !</h2>
     <p className="mt-2 text-[13px] leading-relaxed text-jeu-ivoire/80">
-      Bravo {nomJoueur} : du marché clé en main à la réception avec Mme Touré, tu as suivi l’immeuble de bout en bout. Ses huit familles s’installent, et Mme Touré te recommande à tout le Plateau.
+      Bravo {nomJoueur} : du marché clé en main à la réception définitive, tu as suivi l’immeuble de bout en bout, garantie et décompte compris. Ses huit familles y vivent, et Mme Touré te recommande à tout le Plateau.
     </p>
     <h3 className="mt-4 text-[12.5px] font-bold uppercase tracking-wide text-jeu-ivoire/60">Et maintenant ?</h3>
     <ul className="mt-2 space-y-2">

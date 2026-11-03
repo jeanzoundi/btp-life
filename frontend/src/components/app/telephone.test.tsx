@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CLOTURE_CAMPAGNE, TEASER_CAMPAGNE } from './fin-campagne';
 import { offresAuPlusPres, Telephone, type DestinationTelephone } from './telephone';
 
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() } }));
@@ -88,5 +89,12 @@ describe('le téléphone du joueur', () => {
     expect(screen.getByText('Le permis de construire')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Y aller' }));
     expect(a.onAller).toHaveBeenCalledWith('mairie');
+  });
+
+  it('dit le dossier clos quand le fil rouge est fini, et annonce le prochain ouvrage', () => {
+    ouvrir({ filRouge: null });
+    fireEvent.click(screen.getByRole('button', { name: 'Fil rouge' }));
+    expect(screen.getByText(`${CLOTURE_CAMPAGNE}${TEASER_CAMPAGNE}`)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Y aller' })).toBeNull();
   });
 });

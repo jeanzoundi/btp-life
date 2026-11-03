@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  appliquerChapitre, bilanChapitre, CHAPITRES, chapitreCourant, contenuTacheChapitre, lireProgresCampagne, NOTE_CHAPITRE, nouvelleSeanceChapitre, PARCELLE_AKWABA,
+  appliquerChapitre, bilanChapitre, CHAPITRES, CHAPITRES_LIVRAISON, chapitreCourant, contenuTacheChapitre, lireProgresCampagne, NOTE_CHAPITRE, nouvelleSeanceChapitre, PARCELLE_AKWABA,
   PROGRES_CAMPAGNE_INITIAL, stadeAkwaba, STADES_AKWABA,
 } from './campagne';
 import { LIEUX_PROGRAMME } from './lieux-programme';
@@ -19,10 +19,12 @@ const mesure = (chapitre: string, tache: string) => {
 };
 
 describe('les chapitres du fil rouge', () => {
-  it('suivent l’immeuble de lieu en lieu, jusqu’à la réception sur la parcelle', () => {
-    expect(CHAPITRES).toHaveLength(9);
+  it('suivent l’immeuble de lieu en lieu, de l’offre à la réception sur la parcelle, puis jusqu’au retour d’expérience', () => {
+    expect(CHAPITRES).toHaveLength(12);
     expect(new Set(CHAPITRES.map(c => c.id)).size).toBe(CHAPITRES.length);
-    expect(CHAPITRES.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'banque', 'fournisseur', 'logistique', 'construction-nord', PARCELLE_AKWABA.slug]);
+    expect(CHAPITRES.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'banque', 'fournisseur', 'logistique', 'construction-nord', PARCELLE_AKWABA.slug,
+      'laboratoire', 'banque', 'entreprise']);
+    expect(CHAPITRES[CHAPITRES_LIVRAISON - 1].id).toBe('reception');
   });
 
   for (const chapitre of CHAPITRES) {
@@ -69,6 +71,10 @@ describe('les chapitres du fil rouge', () => {
     expect(mesure('offre', 'montant-offre').reponse).toBeCloseTo(179.95, 2);
     expect(mesure('reception', 'retenue-finale').reponse).toBeCloseTo(152.5 * .05, 3);
     expect(mesure('financement', 'apport').reponse).toBeCloseTo(54, 6);
+    // Après la livraison : la retenue rendue suit les travaux exécutés (avenant compris), la marge le coût réel.
+    expect(mesure('garantie', 'ouverture-fissure').reponse).toBeCloseTo(.04, 6);
+    expect(mesure('decompte', 'retenue-rendue').reponse).toBeCloseTo((152.5 + 4.2) * .05, 3);
+    expect(mesure('retour-experience', 'marge-reelle').reponse).toBeCloseTo(15.8, 1);
   });
 
   it('accepte une semelle arrondie à 2,00 m à moitié, et pas une erreur d’unité', () => {
@@ -90,6 +96,11 @@ describe('séance et bilan d’un chapitre', () => {
     expect(seanceFaite(jouer(s, [100, 100, 100]))).toBe(true);
   });
 
+  it('paie la clôture du dossier un peu plus qu’un chapitre ordinaire, moins que la livraison', () => {
+    expect(bilanChapitre(jouer(nouvelleSeanceChapitre(9), [100, 100, 100]))).toMatchObject({ xp: 80, argent: 2_500, reputation: 2 });
+    expect(bilanChapitre(jouer(nouvelleSeanceChapitre(11), [100, 100, 100]))).toMatchObject({ xp: 180, argent: 10_000, reputation: 8 });
+  });
+
   it('valide à 50, paie comme le serveur, et bien plus à la réception', () => {
     const parfaite = bilanChapitre(jouer(nouvelleSeanceChapitre(0), [100, 100, 100]));
     expect(parfaite).toMatchObject({ note: 100, reussi: true, reussies: 3, xp: 80, argent: 2500, reputation: 2, mention: 'Chapitre sans faute' });
@@ -105,18 +116,28 @@ describe('séance et bilan d’un chapitre', () => {
 describe('progression de la campagne', () => {
   it('relit une sauvegarde abîmée comme le serveur', () => {
     expect(lireProgresCampagne(null)).toEqual(PROGRES_CAMPAGNE_INITIAL);
-    expect(lireProgresCampagne({ chapitres: 42, termineeLe: 'hier' })).toEqual({ chapitres: 9, termineeLe: null });
+    expect(lireProgresCampagne({ chapitres: 42, termineeLe: 'hier' })).toEqual({ chapitres: 12, termineeLe: null });
     expect(lireProgresCampagne({ chapitres: 3.8 })).toEqual({ chapitres: 3, termineeLe: null });
   });
 
-  it('avance d’un chapitre réussi, livre l’immeuble au dernier, et ne bouge pas sur un échec', () => {
+  it('reprend à l’année de garantie une campagne finie à la livraison, avant l’épilogue', () => {
+    const fin = '2026-10-26T15:00:00.000Z';
+    expect(lireProgresCampagne({ chapitres: 9, termineeLe: fin })).toEqual({ chapitres: 9, termineeLe: null });
+    expect(chapitreCourant(lireProgresCampagne({ chapitres: 9, termineeLe: fin }))?.id).toBe('garantie');
+    expect(lireProgresCampagne({ chapitres: 12, termineeLe: fin })).toEqual({ chapitres: 12, termineeLe: fin });
+  });
+
+  it('avance d’un chapitre réussi, livre l’immeuble à la réception, clôt le dossier au dernier, et ne bouge pas sur un échec', () => {
     const maintenant = new Date('2026-10-26T10:00:00.000Z');
     expect(appliquerChapitre({ chapitres: 2, termineeLe: null }, false, maintenant)).toEqual({ chapitres: 2, termineeLe: null });
     expect(appliquerChapitre({ chapitres: 2, termineeLe: null }, true, maintenant)).toEqual({ chapitres: 3, termineeLe: null });
     const livre = appliquerChapitre({ chapitres: 8, termineeLe: null }, true, maintenant);
-    expect(livre).toEqual({ chapitres: 9, termineeLe: maintenant.toISOString() });
-    expect(appliquerChapitre(livre, true, new Date())).toBe(livre);
-    expect(chapitreCourant(livre)).toBeNull();
+    expect(livre).toEqual({ chapitres: CHAPITRES_LIVRAISON, termineeLe: null });
+    expect(chapitreCourant(livre)?.id).toBe('garantie');
+    const clos = appliquerChapitre({ chapitres: 11, termineeLe: null }, true, maintenant);
+    expect(clos).toEqual({ chapitres: 12, termineeLe: maintenant.toISOString() });
+    expect(appliquerChapitre(clos, true, new Date())).toBe(clos);
+    expect(chapitreCourant(clos)).toBeNull();
     expect(chapitreCourant({ chapitres: 3 })?.id).toBe('permis');
   });
 
@@ -125,5 +146,6 @@ describe('progression de la campagne', () => {
     expect(stadeAkwaba({ chapitres: 0 })).toBe('Parcelle bornée');
     expect(stadeAkwaba({ chapitres: 4 })).toBe('Permis affiché');
     expect(stadeAkwaba({ chapitres: 9 })).toBe('Immeuble livré');
+    expect(stadeAkwaba({ chapitres: 12 })).toBe('Référence de l’entreprise');
   });
 });

@@ -48,7 +48,7 @@ import { DECORS_LIEUX, MENTORS_LIEUX } from './registre-lieux';
 import { PanneauChantiers, PanneauCompetences, PanneauEpargne, PanneauLogiciels, PanneauMarches, PanneauOffres, type EpargneDemo } from './panneaux-services';
 import { InterieurLieuProgramme } from './interieur-lieu-programme';
 import { PanneauxLieu, useProgrammesLieux } from './programmes-lieux';
-import { CAMPAGNE, CHAPITRES, PARCELLE_AKWABA, stadeAkwaba, type BilanChapitre } from '@/lib/campagne';
+import { CAMPAGNE, CHAPITRES, CHAPITRES_LIVRAISON, PARCELLE_AKWABA, stadeAkwaba, type BilanChapitre } from '@/lib/campagne';
 import { CONCURRENT, nouvelleReplique, repliqueConcurrent } from '@/lib/concurrent';
 import { planChapitre, type PlanCamera } from '@/lib/plans-camera';
 import { BandeauCinema } from './bandeau-cinema';
@@ -950,7 +950,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     const avant = chapitresFilmes.current, maintenant = campagne.progres.chapitres;
     chapitresFilmes.current = maintenant;
     if (avant === null || maintenant <= avant) return;
-    planAttente.current = planChapitre({ centre: [PARCELLE_AKWABA.x, PARCELLE_AKWABA.z], chapitres: maintenant, total: CHAPITRES.length, etape: stadeAkwaba({ chapitres: maintenant }), titreChantier: CAMPAGNE.nom });
+    planAttente.current = planChapitre({ centre: [PARCELLE_AKWABA.x, PARCELLE_AKWABA.z], chapitres: maintenant, total: CHAPITRES.length, livraison: CHAPITRES_LIVRAISON, etape: stadeAkwaba({ chapitres: maintenant }), titreChantier: CAMPAGNE.nom });
     const pique = nouvelleReplique(maintenant);
     if (!pique) return;
     const minuteur = window.setTimeout(() => notifier(`📱 ${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${pique} »`, 'info'), 10_000);

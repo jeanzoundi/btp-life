@@ -16,7 +16,8 @@ describe('la fin du fil rouge', () => {
   it('salue le joueur, propose la suite et annonce le prochain ouvrage', () => {
     const onSuite = vi.fn(), onFermer = vi.fn();
     render(<PanneauFinCampagne nomJoueur="Koffi" onSuite={onSuite} onFermer={onFermer} />);
-    expect(screen.getByRole('heading', { name: 'La Résidence Akwaba est livrée !' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'La Résidence Akwaba est bouclée !' })).toBeInTheDocument();
+    expect(screen.getByText('Fil rouge terminé · 12 chapitres')).toBeInTheDocument();
     expect(screen.getByText(/Bravo Koffi/)).toBeInTheDocument();
     expect(screen.getByText(TEASER_CAMPAGNE)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Voir mon parcours' }));
