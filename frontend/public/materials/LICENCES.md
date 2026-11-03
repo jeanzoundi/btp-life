@@ -11,7 +11,7 @@ Textures photographiques 1K de Poly Haven, licence CC0 (domaine public), héberg
 - Corrugated Iron (tôle des kiosques et abris) : https://polyhaven.com/a/corrugated_iron
 - Ciel HDRI Kloofendal 48d Partly Cloudy (Pure Sky), 1k, pour l'éclairage d'ambiance et les reflets : https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
 
-Recolorations et redimensionnements : `frontend/scripts/ressources-3d/textures-poly-haven.js`.
+Recolorations et redimensionnements : `frontend/scripts/ressources-3d/textures-poly-haven.js`. Le jeu charge leurs variantes web, produites par `frontend/scripts/ressources-3d/alleger-ressources.cjs` : textures en WebP 1024 et 512 px, devantures en WebP, ciel en carte de gain (`ciel-kloofendal-1k.jpg`, `-gain.jpg`, `.json`). Les JPG, le PNG et le HDR restent les sources.
 
 Chaque matériau utilise une couleur, une normale OpenGL et une rugosité. Sources téléchargées depuis les URL du catalogue officiel https://api.polyhaven.com/files/{asset}.
 Les personnages articulés, géométries et effets procéduraux du jeu ne proviennent pas de ces ressources.

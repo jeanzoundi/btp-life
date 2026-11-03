@@ -7,8 +7,10 @@ import * as THREE from 'three';
 import { clone as clonerAvecSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { cadenceAnimation, etatAnimation, MODELES_REALISTES, type GestePersonnage, type ModeleRealiste } from '@/lib/personnages-realistes';
 import { finitionPersonnage } from '@/lib/finitions-personnage';
+import { cheminPersonnage } from '@/lib/ressources-legeres';
 
-const chemin = (modele: ModeleRealiste) => `/personnages/${modele}.glb`;
+/** Sur téléphone, les mêmes modèles aux textures de 512 px au plus (ressources-legeres.ts). */
+const chemin = (modele: ModeleRealiste) => cheminPersonnage(modele);
 const animations = (genre: 'h' | 'f') => `/personnages/animations-${genre}.glb`;
 
 /** Ne fait avancer l'animation que si le personnage est réellement affiché (niveau de détail, intérieur fermé…). */
@@ -94,7 +96,7 @@ export function PersonnageRealiste({ modele, marche, assis, prof, allure, nom, s
   </group>;
 }
 
-// Le joueur et les animations sont demandés dès l'ouverture du monde ; les autres modèles à la première apparition.
+// Le joueur par défaut et ses animations sont demandés dès l'ouverture du monde ; les habitants une fois la ville affichée
+// (PersonnagesApresLaVille), chaque modèle et les animations féminines à leur première apparition.
 useGLTF.preload(chemin('ouvrier-casque'), false, true);
 useGLTF.preload(animations('h'), false, true);
-useGLTF.preload(animations('f'), false, true);

@@ -5,7 +5,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, MapControls, Text } from '@react-three/drei';
 import { EclairageMonde } from './eclairage-monde';
-import { HumainMonde } from './humain-monde';
+import { HumainMonde, PersonnagesApresLaVille } from './humain-monde';
 import { orienterProgressivement } from '@/lib/fluidite-monde';
 import { itineraireVille } from '@/lib/itineraire-ville';
 import { decalageVue, DISTANCE_LOIN, DISTANCE_PROCHE, inclinaisonPourDistance } from '@/lib/camera-monde';
@@ -341,7 +341,8 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
   const contexte = useMemo<ContextePensee>(() => ({ meteo, heure }), [meteo, heure]);
   const noms = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
   const choisirDestination = useCallback((point: PointMonde) => { destination.current = point; }, [destination]);
-  return <>
+  // Les habitants ne téléchargent leur modèle réaliste qu'une fois la ville affichée ; le joueur, tout de suite.
+  return <PersonnagesApresLaVille>
     <EclairageMonde heure={heure} meteo={meteo} />
     {sombre && [[-42, 4, -15], [0, 4, -15], [42, 4, -15], [-42, 4, 15], [0, 4, 15], [42, 4, 15], [0, 4, 47]].map((p, i) => <pointLight key={i} position={p as [number, number, number]} color="#ffd778" intensity={nuit ? 7 : 4} distance={18} decay={2} />)}
     {pluie > 0 && <Pluie intensite={pluie} pause={pause} />}
@@ -376,5 +377,5 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
     {/* La foule suit l'heure, le quartier et la pluie : le marché le matin, la plage le soir, des rues vides sous l'orage. */}
     {passantsPresents(heure, pluie).map(({ route: i, depart: j }) => <Passant key={`passant-${i}-${j}`} route={ROUTES_PASSANTS[i]} depart={[0, 2][j]} pause={pause} rythme={rythme} couleur={['#5f7f68', '#b66e54', '#5d75a0', '#9670a0'][i % 4]} parapluie={effetsMeteo(meteo).parapluies} />)}
     <CameraSims joueur={joueur} vue={vue} plan={plan} />
-  </>;
+  </PersonnagesApresLaVille>;
 }

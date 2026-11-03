@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useRef } from 'react';
+import { createContext, Suspense, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Detailed, Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,11 +25,26 @@ type HumainMondeProps = PersonnageStyliseProps & {
   teintes?: TeintesPersonnage;
   /** Un geste joué à l'arrêt par le modèle réaliste : saluer, ou parler avec les mains. */
   geste?: GestePersonnage;
+  /** Le joueur : son modèle réaliste se charge sans attendre la ville (PersonnagesApresLaVille). */
+  prioritaire?: boolean;
 };
+
+/** Vrai tant que la ville n'est pas affichée : les habitants gardent leur version stylisée sans télécharger leur modèle. */
+const PersonnagesEnAttente = createContext(false);
+
+/** Les modèles réalistes des habitants (2 à 4 Mo) attendent que la ville soit affichée. Demandés plus tôt, ils passent
+ * avant les textures dont la ville a besoin (le navigateur sert un fetch avant une image) et retardent d'autant l'arrivée
+ * dans le quartier sur données mobiles. La version stylisée, déjà celle du chargement, les montre d'ici là. */
+export function PersonnagesApresLaVille({ children }: { children: ReactNode }) {
+  const [villeAffichee, setVilleAffichee] = useState(false);
+  // Le premier effet ne part qu'une fois chargé tout ce qui suspend la scène : la ville est alors à l'écran.
+  useEffect(() => setVilleAffichee(true), []);
+  return <PersonnagesEnAttente.Provider value={!villeAffichee}>{children}</PersonnagesEnAttente.Provider>;
+}
 
 export function HumainMonde({ modele, ...props }: HumainMondeProps) {
   if (modele === null) {
-    const { allure: _allure, sansCasque: _sansCasque, teinteCasque: _teinteCasque, teintes: _teintes, geste: _geste, ...stylise } = props;
+    const { allure: _allure, sansCasque: _sansCasque, teinteCasque: _teinteCasque, teintes: _teintes, geste: _geste, prioritaire: _prioritaire, ...stylise } = props;
     return <PersonnageStylise {...stylise} />;
   }
   return <HumainRealiste modele={modele} {...props} />;
@@ -39,8 +54,9 @@ export function HumainMonde({ modele, ...props }: HumainMondeProps) {
  * qui garde ses identités et sa silhouette instanciée. `allure` (m/s) choisit entre marche et course.
  * La distance se mesure depuis le point visé par la caméra (le joueur) : en vue plongeante, la caméra est loin,
  * mais ce qui entoure le joueur doit rester détaillé. */
-function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque, teintes, geste, ...props }: HumainMondeProps & { modele?: ModeleRealiste }) {
+function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque, teintes, geste, prioritaire, ...props }: HumainMondeProps & { modele?: ModeleRealiste }) {
   const modele = modeleChoisi ?? modeleRealiste({ identite: props.identite ?? identiteDepuisNom(props.nom), variante: props.variante, casque: props.casque, prof: props.prof });
+  const enAttente = useContext(PersonnagesEnAttente) && !prioritaire;
   const proche = useRef<THREE.Group>(null), loin = useRef<THREE.Group>(null);
   const monde = useMemo(() => new THREE.Vector3(), []);
   const detaille = useRef<boolean | null>(null);
@@ -61,9 +77,9 @@ function HumainRealiste({ allure, sansCasque, modele: modeleChoisi, teinteCasque
   });
   return <group>
     <group ref={proche}>
-      <Suspense fallback={<PersonnageStylise {...props} />}>
+      {enAttente ? <PersonnageStylise {...props} /> : <Suspense fallback={<PersonnageStylise {...props} />}>
         <group scale={props.scale ?? 1}>{teinteCasque ? <TeinteCasque couleur={teinteCasque}>{realiste}</TeinteCasque> : realiste}</group>
-      </Suspense>
+      </Suspense>}
     </group>
     <group ref={loin} visible={false}><PersonnageStylise {...props} silhouette /></group>
   </group>;

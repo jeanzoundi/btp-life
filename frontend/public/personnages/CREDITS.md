@@ -14,4 +14,6 @@ Modèles et animations issus de la bibliothèque **Microsoft Rocketbox** (https:
 | `animations-h.glb` | m_run_neutral_01, m_walk_neutral_01, m_idle_neutral_01, m_sit_chair_idle_neutral_01, m_gestic_talk_neutral_01, m_wave_01 | Course, marche, repos, assis, parle, salue |
 | `animations-f.glb` | f_run_neutral_01, f_walk_neutral_01, f_idle_neutral_01, f_sit_chair_idle_neutral_01, f_gestic_talk_neutral_01 | Course, marche, repos, assis, parle |
 
+Chaque modèle a une variante `-512.glb` pour les téléphones, aux textures de 512 px au plus (`alleger-ressources.cjs`).
+
 La bibliothèque compte peu de personnages noirs en tenue civile. Awa et Mariam partagent donc le même modèle. Aucune couleur de peau n'a été modifiée.

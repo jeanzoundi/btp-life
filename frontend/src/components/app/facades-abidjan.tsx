@@ -3,6 +3,7 @@
 import { useTexture } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { ATLAS_DEVANTURES } from '@/lib/ressources-legeres';
 
 const VARIANTES: Record<string, number> = {
   cafe: 0, fournisseur: 1, 'bureau-etudes': 2, maquis: 3,
@@ -15,7 +16,7 @@ export const aDevanture = (slug: string) => slug in VARIANTES;
 export function FacadeAbidjan({ slug, largeur, profondeur, nuit }: {
   slug: string; largeur: number; profondeur: number; nuit: boolean;
 }) {
-  const atlas = useTexture('/materials/facades-abidjan-v1.png');
+  const atlas = useTexture(ATLAS_DEVANTURES);
   atlas.colorSpace = THREE.SRGBColorSpace;
   atlas.anisotropy = 4;
   const variante = VARIANTES[slug] ?? 0;

@@ -5,11 +5,13 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 // Toutes les scènes 3D passent par ce module : on y fixe aussi la police locale des textes 3D.
 import '@/lib/police-textes-3d';
+import { cheminTexture, type MatiereMonde } from '@/lib/ressources-legeres';
 
-export type MatiereMonde = 'concrete_floor' | 'wood_floor' | 'asphalt_02' | 'painted_plaster_wall' | 'brick_pavement_02' | 'clay_roof_tiles_02' | 'corrugated_iron';
+export type { MatiereMonde };
 
+/** Couleur, relief et rugosité en WebP ; 512 px au lieu de 1024 sur téléphone (ressources-legeres.ts). */
 export function useCartesPBR(type: MatiereMonde) {
-  const sources=useTexture([`/materials/${type}-color.jpg`,`/materials/${type}-normal.jpg`,`/materials/${type}-rough.jpg`]);
+  const sources=useTexture([cheminTexture(type,'color'),cheminTexture(type,'normal'),cheminTexture(type,'rough')]);
   return useMemo(()=>sources.map((map,i)=>{
     map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=4;
     map.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.needsUpdate=true;return map;
