@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { queryPersister } from '@/lib/offline/query-persister';
 import { abonnementActuel, activerNotifications, desactiverNotifications, pushSupporte } from '@/lib/push';
+import { SuppressionCompte } from '@/components/app/suppression-compte';
 
 interface Me {
   nom: string;
@@ -89,6 +91,13 @@ export default function ParametresPage() {
     router.push('/');
   }
 
+  /** Compte supprimé : on oublie aussi sa copie hors ligne, qui resterait sinon dans ce navigateur. */
+  async function compteSupprime() {
+    queryClient.clear();
+    try { await queryPersister.removeClient(); } catch { /* Pas de copie hors ligne : rien à oublier. */ }
+    deconnexion();
+  }
+
   return (
     <div className="anim-fade-up mx-auto max-w-xl space-y-6">
       <div>
@@ -147,6 +156,8 @@ export default function ParametresPage() {
       <button onClick={deconnexion} className="w-full rounded-full border border-graphite/20 py-3 font-semibold text-graphite hover:bg-graphite/5">
         Se déconnecter
       </button>
+
+      <SuppressionCompte onSupprime={compteSupprime} />
     </div>
   );
 }
