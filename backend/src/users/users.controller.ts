@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SupprimerCompteDto } from './dto/supprimer-compte.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users/me')
@@ -12,6 +14,14 @@ export class UsersController {
   @Patch()
   update(@CurrentUser() user: RequestUser, @Body() dto: UpdateUserDto) {
     return this.usersService.update(user.userId, dto);
+  }
+
+  /** Supprimer son compte. Le mot de passe est vérifié : peu d'essais par minute, comme à la connexion. */
+  @Post('suppression')
+  @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  supprimer(@CurrentUser() user: RequestUser, @Body() dto: SupprimerCompteDto) {
+    return this.usersService.supprimerCompte(user.userId, dto.password);
   }
 
   @Get('competences')

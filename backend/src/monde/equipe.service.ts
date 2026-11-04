@@ -29,6 +29,17 @@ export async function coequipiersPresents(prisma: Pick<PrismaService, 'membreEqu
 /** Le facteur d'XP du travail d'équipe : un coéquipier présent suffit. */
 export const facteurEquipe = (coequipiers: readonly string[]) => (coequipiers.length ? 1 + REGLES_EQUIPE.bonusXp : 1);
 
+/** Quitter son équipe : le plus ancien membre restant devient chef ; une équipe vidée disparaît, avec ses invitations.
+ * Sert aussi à la suppression d'un compte (users.service.ts), pour ne pas emporter l'équipe de ses coéquipiers. */
+export async function quitterEquipe(tx: Prisma.TransactionClient, userId: string) {
+  const membre = await tx.membreEquipe.findUnique({ where: { userId }, select: { equipeId: true, equipe: { select: { chefId: true } } } });
+  if (!membre) return;
+  await tx.membreEquipe.delete({ where: { userId } });
+  const suivant = await tx.membreEquipe.findFirst({ where: { equipeId: membre.equipeId }, orderBy: { rejointLe: 'asc' }, select: { userId: true } });
+  if (!suivant) await tx.equipeQuartier.delete({ where: { id: membre.equipeId } });
+  else if (membre.equipe.chefId === userId) await tx.equipeQuartier.update({ where: { id: membre.equipeId }, data: { chefId: suivant.userId } });
+}
+
 @Injectable()
 export class EquipeService {
   constructor(private readonly prisma: PrismaService) {}
@@ -97,7 +108,7 @@ export class EquipeService {
       if ((await tx.membreEquipe.count({ where: { equipeId: invitation.equipeId } })) >= REGLES_EQUIPE.membresMax) {
         throw new BadRequestException('Cette équipe est déjà complète.');
       }
-      await this.quitterDans(tx, userId);
+      await quitterEquipe(tx, userId);
       await tx.membreEquipe.create({ data: { userId, equipeId: invitation.equipeId } });
     });
     return this.etat(userId, maintenant);
@@ -105,17 +116,7 @@ export class EquipeService {
 
   /** Quitter son équipe. */
   async quitter(userId: string, maintenant = new Date()) {
-    await this.transaction((tx) => this.quitterDans(tx, userId));
+    await this.transaction((tx) => quitterEquipe(tx, userId));
     return this.etat(userId, maintenant);
-  }
-
-  /** Le plus ancien membre restant devient chef ; une équipe vidée disparaît, avec ses invitations. */
-  private async quitterDans(tx: Prisma.TransactionClient, userId: string) {
-    const membre = await tx.membreEquipe.findUnique({ where: { userId }, select: { equipeId: true, equipe: { select: { chefId: true } } } });
-    if (!membre) return;
-    await tx.membreEquipe.delete({ where: { userId } });
-    const suivant = await tx.membreEquipe.findFirst({ where: { equipeId: membre.equipeId }, orderBy: { rejointLe: 'asc' }, select: { userId: true } });
-    if (!suivant) await tx.equipeQuartier.delete({ where: { id: membre.equipeId } });
-    else if (membre.equipe.chefId === userId) await tx.equipeQuartier.update({ where: { id: membre.equipeId }, data: { chefId: suivant.userId } });
   }
 }

@@ -1,4 +1,6 @@
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import * as argon2 from 'argon2';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CertificatsService } from '../certificats/certificats.service';
@@ -12,6 +14,9 @@ function fakePrisma(overrides: Record<string, object> = {}) {
     userCertificat: { findMany: jest.fn().mockResolvedValue([]) },
     notification: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     userMessage: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+    compteB2b: { count: jest.fn().mockResolvedValue(0) },
+    membreEquipe: { findUnique: jest.fn().mockResolvedValue(null), delete: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
+    equipeQuartier: { update: jest.fn(), delete: jest.fn() },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fusion: any = {};
@@ -86,5 +91,42 @@ describe('UsersService — notifications et messages', () => {
     const { svc, prisma: p } = await service(prisma);
     await svc.marquerMessagesLus('u1');
     expect(p.userMessage.updateMany).toHaveBeenCalledWith({ where: { userId: 'u1', lu: false }, data: { lu: true } });
+  });
+});
+
+describe('UsersService.supprimerCompte', () => {
+  // Le hachage argon2 est exercé pour de vrai, comme dans auth.service.spec.ts : c'est lui qui protège la suppression.
+  async function banc(compte: { role?: string } = {}, overrides: Record<string, object> = {}) {
+    const passwordHash = await argon2.hash('bon-mot-de-passe');
+    const prisma = fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue({ passwordHash, role: compte.role ?? 'USER' }), delete: jest.fn().mockResolvedValue({}) }, ...overrides });
+    prisma.$transaction = jest.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(prisma));
+    return service(prisma);
+  }
+
+  it('supprime le compte avec le bon mot de passe, et laisse son équipe au plus ancien coéquipier', async () => {
+    const { svc, prisma } = await banc({}, { membreEquipe: {
+      findUnique: jest.fn().mockResolvedValue({ equipeId: 'e1', equipe: { chefId: 'u1' } }), findFirst: jest.fn().mockResolvedValue({ userId: 'u2' }),
+    } });
+    await expect(svc.supprimerCompte('u1', 'bon-mot-de-passe')).resolves.toEqual({ supprime: true });
+    expect(prisma.equipeQuartier.update).toHaveBeenCalledWith({ where: { id: 'e1' }, data: { chefId: 'u2' } });
+    expect(prisma.equipeQuartier.delete).not.toHaveBeenCalled();
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuse un mauvais mot de passe sans rien supprimer, en 400 pour ne pas passer pour une session expirée', async () => {
+    const { svc, prisma } = await banc();
+    await expect(svc.supprimerCompte('u1', 'mauvais')).rejects.toThrow(BadRequestException);
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('laisse à l’équipe un compte d’administration ou responsable d’un compte École ou Entreprise', async () => {
+    const admin = await banc({ role: 'ADMIN' });
+    await expect(admin.svc.supprimerCompte('u1', 'bon-mot-de-passe')).rejects.toThrow(ForbiddenException);
+    expect(admin.prisma.user.delete).not.toHaveBeenCalled();
+    const ecole = await banc({}, { compteB2b: { count: jest.fn().mockResolvedValue(1) } });
+    await expect(ecole.svc.supprimerCompte('u1', 'bon-mot-de-passe')).rejects.toThrow(ConflictException);
+    expect(ecole.prisma.user.delete).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { CertificatsService } from '../certificats/certificats.service';
+import { quitterEquipe } from '../monde/equipe.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -16,6 +19,25 @@ export class UsersService {
       data: dto,
     });
     return user;
+  }
+
+  /** Le joueur supprime son compte, mot de passe à l'appui. Personnage, progression, messages, notifications et le reste
+   * partent en cascade avec lui ; une équipe qu'il dirigeait passe à son plus ancien membre. Un compte d'administration ou
+   * qui gère un compte École ou Entreprise se traite à la main : ni l'administration ni des élèves sans responsable.
+   * Un mauvais mot de passe répond 400, pas 401 : le client prendrait un 401 pour une session expirée. */
+  async supprimerCompte(userId: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, role: true } });
+    if (!user) throw new NotFoundException('Compte introuvable');
+    if (!(await argon2.verify(user.passwordHash, password))) throw new BadRequestException('Mot de passe incorrect');
+    if (user.role === 'ADMIN') throw new ForbiddenException('Un compte d’administration ne se supprime pas depuis le jeu : écris à contact@btplife.com.');
+    if (await this.prisma.compteB2b.count({ where: { adminUserId: userId } })) {
+      throw new ConflictException('Ton compte gère un compte École ou Entreprise : écris à contact@btplife.com pour le transférer avant de supprimer le tien.');
+    }
+    await transactionSerializable(this.prisma, async (tx) => {
+      await quitterEquipe(tx, userId);
+      await tx.user.delete({ where: { id: userId } });
+    });
+    return { supprime: true };
   }
 
   competences(userId: string) {
