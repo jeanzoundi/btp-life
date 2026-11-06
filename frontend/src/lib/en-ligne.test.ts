@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, PROMENEURS_MAX, REGLES_EQUIPE, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, promeneurs, surBoucle, voisinsDemo } from './en-ligne';
+import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, PROMENEURS_MAX, REGLES_EQUIPE, coequipiersAuChantier, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, promeneurs, surBoucle, voisinsDemo } from './en-ligne';
 
 describe('le monde en ligne vu du jeu', () => {
   it('parcourt une boucle à vitesse constante et revient au départ', () => {
@@ -53,5 +53,16 @@ describe('les promeneurs de la place', () => {
   it('n’affiche pas en promeneur un joueur connecté, et disparaît dès que deux joueurs sont en ligne', () => {
     expect(promeneurs(recents, [{ userId: 'a' }], 0).map(p => p.userId)).toEqual(['b', 'c', 'd']);
     expect(promeneurs(recents, [{ userId: 'x' }, { userId: 'y' }], 0)).toEqual([]);
+  });
+
+  it('repère les coéquipiers connectés au Grand chantier, sans compter le joueur', () => {
+    const membres = [
+      { userId: 'moi', nom: 'Moi', enLigne: true, lieu: 'chantier' },
+      { userId: 'k', nom: 'Kader', enLigne: true, lieu: 'chantier' },
+      { userId: 'a', nom: 'Aya', enLigne: true, lieu: 'maquis' },
+      { userId: 's', nom: 'Seydou', enLigne: false, lieu: 'chantier' },
+    ];
+    expect(coequipiersAuChantier(membres, 'moi')).toEqual(['Kader']);
+    expect(coequipiersAuChantier([], 'moi')).toEqual([]);
   });
 });

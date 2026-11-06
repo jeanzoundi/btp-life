@@ -32,6 +32,7 @@ import {
 } from './hud-monde';
 import { Minicarte } from './minicarte';
 import { ChatQuartier, useMondeEnLigne, usePromeneurs } from './monde-en-ligne';
+import { coequipiersAuChantier } from '@/lib/en-ligne';
 import { InterieurChantier3D } from './interieur-chantier-3d';
 import { PanneauJourneeChantier, PanneauPlanning, PanneauRecrutement, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
 import {
@@ -742,6 +743,33 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : 'flex-1';
   const placeTelephone = large ? `bottom-3 right-3 w-[min(300px,calc(100%-296px))] ${immersif ? 'max-h-[calc(100%-404px)]' : 'max-h-[calc(100%-336px)]'}` : panneauMobile;
   const allerVers = (slug: string) => { const lieu = BATIMENTS_CARTE.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
+  // Journée en équipe : quand un coéquipier arrive au Grand chantier, on le dit (avec de quoi l'y rejoindre) ; en entrant
+  // soi-même sur le chantier, on dit avec qui la journée comptera.
+  const auChantier = useMemo(() => coequipiersAuChantier(enLigne.equipe.equipe?.membres ?? [], userId), [enLigne.equipe.equipe, userId]);
+  const signalesAuChantier = useRef(new Set<string>());
+  const allerVersRef = useRef(allerVers);
+  allerVersRef.current = allerVers;
+  useEffect(() => {
+    for (const nom of auChantier) {
+      if (signalesAuChantier.current.has(nom)) continue;
+      signalesAuChantier.current.add(nom);
+      if (interieur?.slug === 'chantier') notifier(`🤝 ${nom} te rejoint sur le chantier : votre journée compte en équipe (+10 % d’XP).`, 'succes');
+      else notifier(`🤝 ${nom} travaille au Grand chantier : fais ta journée en même temps, elle comptera en équipe (+10 % d’XP).`, 'info', { label: 'Y aller', executer: () => allerVersRef.current('chantier') });
+    }
+    for (const nom of [...signalesAuChantier.current]) if (!auChantier.includes(nom)) signalesAuChantier.current.delete(nom);
+  // Seule l'arrivée d'un coéquipier compte ; le lieu du joueur est lu au moment où elle arrive.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auChantier]);
+  const lieuPrecedent = useRef<string | null>(null);
+  useEffect(() => {
+    const ici = interieur?.slug ?? null;
+    if (ici === 'chantier' && lieuPrecedent.current !== 'chantier' && auChantier.length) {
+      notifier(`🤝 ${auChantier.join(', ')} ${auChantier.length > 1 ? 'sont' : 'est'} aussi sur le chantier : ta journée comptera en équipe (+10 % d’XP).`, 'succes');
+    }
+    lieuPrecedent.current = ici;
+  // On ne le dit qu'en entrant sur le chantier.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interieur?.slug]);
   /** On sort de chez soi pour un rendez-vous de la journée : le joueur repart vers le lieu. */
   const quitterPour = (slug: string) => { directions.clear(); setInterieur(null); allerVers(slug); };
   /** Ouvre le fil rouge dans un intérieur : le panneau du mentor, le programme et les services du lieu se ferment d'abord. */

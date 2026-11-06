@@ -37,8 +37,8 @@ frontend/
 Le module `monde` (serveur) regroupe la vie du quartier hors carrière : trajets
 payés, défis et imprévus, logement et travaux chez soi, entreprise du joueur,
 présence en ligne, émotes, chat et équipes de quartier (4 joueurs au plus ;
-+10 % d'XP sur une séance quand un coéquipier est dans le même lieu, appliqué
-dans `lieux.service.ts`). La présence se relève toutes les 10 s
++10 % d'XP sur une séance ou une journée de chantier quand un coéquipier est dans
+le même lieu, appliqué dans `lieux.service.ts` et `journee-chantier.service.ts`). La présence se relève toutes les 10 s
 (`POST /monde/presence?equipe=1` renvoie aussi l'équipe et les invitations).
 Dans le vrai jeu, l'heure du quartier est commune à tous les joueurs (`heureCommune`,
 `frontend/src/lib/temps-monde.ts`) : une heure de jeu par minute réelle, sans pause,

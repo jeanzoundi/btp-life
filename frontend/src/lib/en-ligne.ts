@@ -110,6 +110,11 @@ export interface InvitationEquipe { id: string; de: string }
 export interface EtatEquipe { equipe: EquipeQuartier | null; invitations: InvitationEquipe[] }
 export const ETAT_EQUIPE_VIDE: EtatEquipe = { equipe: null, invitations: [] };
 
+/** Les coéquipiers connectés qui travaillent en ce moment au Grand chantier (sans le joueur lui-même) : une journée faite en
+ * même temps qu'eux compte en équipe (+10 % d'XP, journee-chantier.service.ts). */
+export const coequipiersAuChantier = (membres: readonly MembreEquipe[], moi?: string | null) =>
+  membres.filter(m => m.userId !== moi && m.enLigne && m.lieu === 'chantier').map(m => m.nom);
+
 export const estCoequipier = (equipe: EquipeQuartier | null, userId: string) => Boolean(equipe?.membres.some(m => m.userId === userId));
 /** Les voisins à qui proposer l'équipe : ceux qui n'en font pas déjà partie, tant qu'il reste de la place. */
 export function invitables(voisins: readonly VoisinEnLigne[], equipe: EquipeQuartier | null) {

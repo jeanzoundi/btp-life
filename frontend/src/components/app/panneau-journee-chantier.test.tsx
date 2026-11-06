@@ -62,6 +62,12 @@ describe('Yao et la journée de travail', () => {
     render(<PanneauJourneeChantier {...base} {...actions()} statut="disponible" demo={false} journee={null} resultat={null} />);
     expect(screen.getByText(/Journée payée par Yao : jusqu’à 7\s000 F et 80 XP/)).toBeInTheDocument();
   });
+  it('salue la journée faite en équipe, avec les coéquipiers et leur bonus d’XP', () => {
+    const j = repondreTout(journee(4), true);
+    const gains = { argent: 7000, xp: 88, reputation: 1, facteurBesoins: 1, entrainement: false, prochaineRecompenseLe: '2026-10-30T10:20:00.000Z', equipe: { coequipiers: ['Kader', 'Aya'], bonus: .1 } };
+    render(<PanneauJourneeChantier {...base} {...actions()} statut="resultat" demo={false} journee={j} resultat={{ bilan: bilanJournee(j), avant: 22, apres: 28, recompenses: 'serveur', gains, etapeAvant: 'Semelles de fondation', etapeApres: 'Semelles de fondation' }} />);
+    expect(screen.getByText('🤝 Journée en équipe avec Kader, Aya : +10 % d’XP')).toBeInTheDocument();
+  });
   it('montre le journal du simulateur, ou son refus avec le lien vers le chantier', () => {
     const j = repondreTout(journee(6), true);
     const { unmount } = render(<PanneauJourneeChantier {...base} {...actions()} statut="resultat" simulateur demo={false} journee={j} resultat={{ bilan: bilanJournee(j), avant: 30, apres: 36, recompenses: 'simulateur', evenements: [{ type: 'travail', texte: 'Journée de travail : Fondations avance de 6 %.' }] }} />);

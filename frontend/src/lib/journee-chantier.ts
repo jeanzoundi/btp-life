@@ -174,7 +174,11 @@ export const reponsesJournee = (j: Journee): Record<string, number> =>
  * restent dans le navigateur. */
 export interface ChantierQuartierServeur { jours: number; journees: number; livraisons: number; derniereRecompenseLe: string | null }
 /** Ce que le serveur a versé pour une journée (POST /carriere/journee-chantier). */
-export interface GainsJournee { xp: number; argent: number; reputation: number; facteurBesoins: number; entrainement: boolean; prochaineRecompenseLe: string }
+export interface GainsJournee {
+  xp: number; argent: number; reputation: number; facteurBesoins: number; entrainement: boolean; prochaineRecompenseLe: string;
+  /** Journée en équipe : les coéquipiers qui étaient aussi sur le chantier, et le bonus d'XP qu'ils ont valu. */
+  equipe?: { coequipiers: string[]; bonus: number } | null;
+}
 export function fusionnerChantierQuartier(local: ChantierQuartier, serveur: ChantierQuartierServeur | undefined): ChantierQuartier {
   if (!serveur) return local;
   return {
