@@ -39,7 +39,12 @@ payés, défis et imprévus, logement et travaux chez soi, entreprise du joueur,
 présence en ligne, émotes, chat et équipes de quartier (4 joueurs au plus ;
 +10 % d'XP sur une séance quand un coéquipier est dans le même lieu, appliqué
 dans `lieux.service.ts`). La présence se relève toutes les 10 s
-(`POST /monde/presence?equipe=1` renvoie aussi l'équipe et les invitations). Plusieurs barèmes existent des deux côtés
+(`POST /monde/presence?equipe=1` renvoie aussi l'équipe et les invitations).
+Dans le vrai jeu, l'heure du quartier est commune à tous les joueurs (`heureCommune`,
+`frontend/src/lib/temps-monde.ts`) : une heure de jeu par minute réelle, sans pause,
+vitesse ni saut de temps ; attendre une ouverture dit combien de minutes il reste,
+dormir repose sans sauter la nuit. La démonstration garde son horloge propre (les
+captures y fixent l'heure par l'adresse). La météo suit déjà le temps réel, donc commune. Plusieurs barèmes existent des deux côtés
 (`backend/src/carriere/patrimoine.ts` et `frontend/src/lib/patrimoine.ts`,
 transports, besoins…) : la démonstration joue sans serveur avec les mêmes
 chiffres. Modifier un barème = modifier les deux, et leurs tests.

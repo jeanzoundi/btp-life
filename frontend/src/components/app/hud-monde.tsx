@@ -132,15 +132,19 @@ export function ReglageTemps({ pause, vitesse, vitesses, onPause, onVitesse }: {
 }
 
 /** Heure et météo, avec la vitesse du temps ; en version compacte (téléphone), l'heure et la météo seules, et un repère
- * quand le temps est en pause. */
-export function HorlogeMonde({ heure, meteo, pause, vitesse, vitesses, onPause, onVitesse, compacte = false }: {
+ * quand le temps est en pause. `commune` : l'heure est celle de tout le quartier (vrai jeu), sans pause ni vitesse. */
+export function HorlogeMonde({ heure, meteo, pause, vitesse, vitesses, onPause, onVitesse, compacte = false, commune = false }: {
   heure: string; meteo: { icone: string; nom: string }; pause: boolean; vitesse: number; vitesses: readonly number[];
-  onPause: () => void; onVitesse: (v: number) => void; compacte?: boolean;
+  onPause: () => void; onVitesse: (v: number) => void; compacte?: boolean; commune?: boolean;
 }) {
   const cadran = <>
     <span data-testid="meteo-monde" title={meteo.nom} className="text-[17px] leading-none">{meteo.icone}<span className="sr-only"> {meteo.nom}</span></span>
     <b className="hud-chiffre text-[17px] leading-none">{heure}</b>
   </>;
+  if (commune) return <div className={`hud-verre pointer-events-auto flex items-center gap-2 rounded-full ${compacte ? 'px-3 py-1.5' : 'py-1.5 pl-3 pr-3'}`} title="Heure commune : la même pour tous les joueurs du quartier">
+    {cadran}
+    <span aria-hidden="true" className="text-[13px] leading-none">🌍</span><span className="sr-only">Heure commune à tous les joueurs</span>
+  </div>;
   if (compacte) return <div className="hud-verre pointer-events-auto flex items-center gap-2 rounded-full px-3 py-1.5">
     {cadran}
     {pause && <span title="Temps en pause" className="text-jeu-terre">{ICONES.pause}<span className="sr-only">Temps en pause</span></span>}

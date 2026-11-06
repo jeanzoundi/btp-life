@@ -15,6 +15,14 @@ describe('le HUD de la ville', () => {
     expect(screen.getByTestId('meteo-monde')).toHaveAttribute('title', 'Nuageux · Petite saison des pluies');
   });
 
+  it('à l’heure commune, ni pause ni vitesse : l’horloge dit seulement que l’heure est la même pour tous', () => {
+    render(<HorlogeMonde {...horloge} pause={false} onPause={vi.fn()} onVitesse={vi.fn()} commune />);
+    expect(screen.queryByRole('group', { name: 'Vitesse du temps' })).not.toBeInTheDocument();
+    expect(screen.getByText('Heure commune à tous les joueurs')).toBeInTheDocument();
+    cleanup();
+    render(<HorlogeMonde {...horloge} pause={false} onPause={vi.fn()} onVitesse={vi.fn()} compacte commune />);
+    expect(screen.getByText('Heure commune à tous les joueurs')).toBeInTheDocument();
+  });
   it('sur téléphone, l’horloge garde l’heure et la météo, et signale seulement la pause', () => {
     const { rerender } = render(<HorlogeMonde {...horloge} pause={false} onPause={vi.fn()} onVitesse={vi.fn()} compacte />);
     expect(screen.getByText('17:05')).toBeInTheDocument();

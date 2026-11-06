@@ -8,6 +8,14 @@ export const AUCUN_TEMPS: TempsMonde = { eveil: 0, sommeil: 0 };
 /** Heures de jeu d'une heure de l'horloge à une autre, en avançant (le lendemain si `apres` est déjà passée). */
 export const ecartHorloge = (avant: number, apres: number) => ((apres - avant) % 24 + 24) % 24;
 
+/** L'heure commune du quartier : la même pour tous les joueurs connectés, tirée de l'horloge réelle à la vitesse du monde
+ * (une heure de jeu par minute réelle, une journée en 24 minutes). Elle ne s'arrête ni ne saute : on ne peut pas mettre en
+ * pause ou avancer le temps des autres. La démonstration, seule, garde son horloge à elle. */
+export const MS_PAR_HEURE_COMMUNE = 60_000;
+export const heureCommune = (instantMs: number) => ((instantMs / MS_PAR_HEURE_COMMUNE) % 24 + 24) % 24;
+/** Minutes réelles avant qu'il soit `cible` à l'heure commune (le lendemain si elle est passée), arrondies au-dessus. */
+export const minutesAvantHeure = (instantMs: number, cible: number) => Math.ceil(ecartHorloge(heureCommune(instantMs), cible) * MS_PAR_HEURE_COMMUNE / 60_000);
+
 /** Un pas d'horloge fait cinq minutes de jeu ; au-delà d'une heure (onglet endormi, horloge recalée), il ne compte pas. */
 export const PAS_HORLOGE_MAX = 1;
 

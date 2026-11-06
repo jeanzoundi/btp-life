@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ajouterTemps, AUCUN_TEMPS, ecartHorloge, type TempsMonde } from './temps-monde';
+import { ajouterTemps, AUCUN_TEMPS, ecartHorloge, heureCommune, minutesAvantHeure, type TempsMonde } from './temps-monde';
 
 describe('le temps du monde compté pour les besoins', () => {
   it('mesure l’écart d’horloge en avançant, jusqu’au lendemain si l’heure est passée', () => {
@@ -36,5 +36,22 @@ describe('le temps du monde compté pour les besoins', () => {
   });
   it('ignore un temps nul, négatif ou absurde', () => {
     for (const heures of [0, -2, Number.NaN]) expect(ajouterTemps({ eveil: .5, sommeil: 0 }, heures)).toEqual({ attente: { eveil: .5, sommeil: 0 }, aDeclarer: AUCUN_TEMPS });
+  });
+});
+
+describe('l’heure commune du quartier', () => {
+  it('donne la même heure à tous au même instant, une heure de jeu par minute réelle, une journée en 24 minutes', () => {
+    const instant = Date.UTC(2026, 10, 6, 12, 0, 0);
+    expect(heureCommune(instant)).toBe(heureCommune(instant));
+    expect(ecartHorloge(heureCommune(instant), heureCommune(instant + 60_000))).toBeCloseTo(1, 9);
+    expect(heureCommune(instant + 24 * 60_000)).toBeCloseTo(heureCommune(instant), 9);
+    for (const t of [0, instant, instant + 123_456]) { expect(heureCommune(t)).toBeGreaterThanOrEqual(0); expect(heureCommune(t)).toBeLessThan(24); }
+  });
+  it('dit combien de minutes réelles avant une heure, le lendemain si elle est passée', () => {
+    const minuit = 24 * 60_000 * 1000;
+    expect(heureCommune(minuit)).toBe(0);
+    expect(minutesAvantHeure(minuit, 7)).toBe(7);
+    expect(minutesAvantHeure(minuit + 7.5 * 60_000, 7)).toBe(24);
+    expect(minutesAvantHeure(minuit + 6.5 * 60_000, 7)).toBe(1);
   });
 });

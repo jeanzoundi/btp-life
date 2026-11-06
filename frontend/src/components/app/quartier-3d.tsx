@@ -94,7 +94,7 @@ import type { ConsommationLieu } from './service-lieu';
 import { appliquerEffet, DUREE_SIESTE, EFFETS_DEMO } from '@/lib/objets-interieurs';
 import { declinMonde, facteurForme, type BesoinsComplets } from '@/lib/humeurs';
 import { gainsDemo } from '@/lib/gains-demo';
-import { ajouterTemps, ecartHorloge, heuresDeBesoins, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
+import { ajouterTemps, ecartHorloge, heureCommune, heuresDeBesoins, minutesAvantHeure, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { degagerPositionPalmiers } from '@/lib/place-palmiers';
 import { NAVIGATION_VILLE } from '@/lib/decor-ville';
@@ -306,6 +306,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const localModifieRef = useRef(false);
   const pretRef = useRef(demo);
   const horlogeRef = useRef({ heure: HEURE_DE_DEPART, instant: Date.now(), pause: false });
+  // Dans le vrai jeu, l'heure est commune à tout le quartier (lib/temps-monde.ts) : ni pause, ni vitesse, ni saut. La
+  // démonstration, jouée seule, garde son horloge à elle.
+  const commune = !demo;
   const hydratationRef = useRef(false);
   // Démonstration : un point de vue fixe demandé par l'adresse (position, heure, météo), pour comparer le rendu.
   const [vueForcee, setVueForcee] = useState<VueComparaison>({});
@@ -369,16 +372,32 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   /** Laisse passer le temps jusqu'à une heure (le lendemain si elle est passée) : attendre l'ouverture d'un lieu, revenir le
    * lendemain, dormir. Les besoins baissent pendant ce temps, deux fois moins vite en dormant. */
   const passerA = useCallback((cible: number, sommeil = false) => {
+    // L'heure commune ne saute jamais : on n'avance pas le temps des autres joueurs.
+    if (commune) return;
     const maintenant = avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure;
     suivreHorloge(maintenant);
     compterTemps(ecartHorloge(maintenant, cible), sommeil);
     derniereHeure.current = cible;
     horlogeRef.current = { heure: cible, instant: Date.now(), pause: horlogeRef.current.pause };
     setHeure(cible);
-  }, [suivreHorloge, compterTemps]);
+  }, [commune, suivreHorloge, compterTemps]);
   const passerDuree = (heures: number, sommeil = false) => passerA((avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure + heures) % 24, sommeil);
-  /** Dormir : le soir, la nuit passe jusqu'au réveil et le programme du jour s'affiche ; le jour, c'est une sieste. */
+  /** Attendre une heure (l'ouverture d'un lieu, un rendez-vous) : seul, l'horloge y saute ; à l'heure commune, on dit combien
+   * de minutes réelles il reste. Renvoie faux quand le temps n'a pas sauté (l'appelant ne crie pas « il est 7 h »). */
+  const attendreJusqua = useCallback((cible: number) => {
+    if (!commune) { passerA(cible); return true; }
+    const minutes = minutesAvantHeure(Date.now(), cible);
+    notifier(`Il est ${heureLisible(heureCommune(Date.now()))}, la même heure pour tout le quartier : ${heureLisible(cible)}, c’est ${minutes <= 1 ? 'dans moins d’une minute' : `dans ${minutes} min`}.`, 'info');
+    return false;
+  }, [commune, passerA, notifier]);
+  /** Dormir : le soir, la nuit passe jusqu'au réveil et le programme du jour s'affiche ; le jour, c'est une sieste. À l'heure
+   * commune, on se repose sans que le quartier saute la nuit. */
   const dormir = () => {
+    if (commune) {
+      if (dormirJusquAuMatin(heure)) setMatin(true);
+      notifier('Bien reposé ! L’heure du quartier, commune à tous, a continué de tourner.', 'succes');
+      return;
+    }
     if (dormirJusquAuMatin(heure)) { passerA(HEURE_REVEIL, true); setMatin(true); }
     else passerDuree(DUREE_SIESTE, true);
   };
@@ -386,7 +405,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const recompenserLieu = useCallback((bilan: BilanSeance, slug: string) => demo ? payerDemo(`lieu:${slug}`, bilan, { energie: 5, faim: 4 }) : undefined, [demo, payerDemo]);
   // Fil rouge et séances des lieux se partagent le joueur : une seule séance à la fois, lue au moment de commencer.
   const campagneRef = useRef<EtatCampagne | null>(null);
-  const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA,
+  const lieux = useProgrammesLieux({ cle: `btp-life-programme:${userId ?? 'demo'}`, demo, heure, notifier, recompenser: recompenserLieu, passerA: attendreJusqua,
     occupe: () => campagneRef.current?.seance ? `Un chapitre du fil rouge est en cours (${nomLieu(campagneRef.current.seance.slug)}) : termine-le d’abord.` : null });
   // La première journée guidée : logement, première paie, compte vérifié, prochain objectif. Chaque étape est validée, et
   // récompensée, au moment où le joueur la réussit ; le téléphone signale ses applis ouvertes (banque, patrimoine, défis).
@@ -540,10 +559,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     setPositionInitiale(positionLibre); setPositionCourante(positionLibre);
     setRelations(etat.relations ?? {}); setMode(etat.mode); setEtapeMode(etat.etapeMode); setScore(etat.score); setSecondes(etat.secondes);
     setDecouvertes(etat.decouvertes ?? []); setRecords(etat.records ?? {});
-    setHeure(etat.heure); setPause(etat.pause);
-    horlogeRef.current = { heure: etat.heure, instant: Date.now(), pause: etat.pause };
+    // À l'heure commune, la sauvegarde ne dit plus l'heure : c'est celle du quartier, en ce moment, sans pause.
+    const heureReprise = commune ? heureCommune(Date.now()) : etat.heure, pauseReprise = commune ? false : etat.pause;
+    setHeure(heureReprise); setPause(pauseReprise);
+    horlogeRef.current = { heure: heureReprise, instant: Date.now(), pause: pauseReprise };
     // Le temps passé hors ligne avance l'horloge, mais pas les besoins : le serveur l'a déjà compté en temps réel.
-    derniereHeure.current = etat.heure;
+    derniereHeure.current = heureReprise;
     etatRef.current = etat;
     pretRef.current = true;
     ouvrirLieuDemande();
@@ -613,20 +634,24 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     // Toujours cinq minutes de jeu par pas, quelle que soit la vitesse : le soleil avance sans à-coups visibles.
     const timer = window.setInterval(() => {
       if (!pretRef.current) return;
-      const h = avancerHorloge(horlogeRef.current, Date.now(), vitesseRef.current).heure;
+      const maintenant = Date.now();
+      const h = commune ? heureCommune(maintenant) : avancerHorloge(horlogeRef.current, maintenant, vitesseRef.current).heure;
+      if (commune) horlogeRef.current = { heure: h, instant: maintenant, pause: false };
       suivreHorloge(h);
       setHeure(h);
     }, 5000 / vitesse);
     return () => window.clearInterval(timer);
-  }, [pause, vitesse, suivreHorloge]);
+  }, [commune, pause, vitesse, suivreHorloge]);
   const changerVitesse = useCallback((nouvelle: (typeof VITESSES)[number]) => {
+    // À l'heure commune, le temps passe au même rythme pour tous : pas de vitesse à choisir.
+    if (commune) return;
     // Recale l'horloge à l'ancienne vitesse avant de changer, pour ne pas réécrire le temps déjà écoulé.
     const maintenant = Date.now();
     horlogeRef.current = { ...avancerHorloge(horlogeRef.current, maintenant, vitesseRef.current), pause: false };
     vitesseRef.current = nouvelle;
     suivreHorloge(horlogeRef.current.heure);
     setVitesse(nouvelle); setPause(false); setHeure(horlogeRef.current.heure);
-  }, [suivreHorloge]);
+  }, [commune, suivreHorloge]);
   useEffect(() => {
     if (pause || secondes === null || secondes <= 0 || etapeMode >= modeActif.etapes.length) return;
     const timer = window.setInterval(() => setSecondes(s => s === null ? null : Math.max(0, s - 1)), 1000);
@@ -635,13 +660,13 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   useEffect(() => {
     const changer = (code: string, actif: boolean) => { const direction = TOUCHES[code]; if (!direction) return; if (actif) directions.add(direction); else directions.delete(direction); };
     if (interieur) { directions.clear(); return; }
-    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { fermerFilRougeRef.current(); setTelephone(null); setChat(false); planRef.current = null; setPlanCinema(null); setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); return; } if (e.ctrlKey || e.metaKey || e.altKey) return; const touche = e.key.toLowerCase(); if (touche === 'm') { setPlan(v => !v); setOptions(false); setSelection(null); } else if (touche === 'j') setMenuModes(v => !v); else if (touche === 'o') { setOptions(v => !v); setPlan(false); } else if (touche === 'p') setPause(v => !v); else if (touche === 't') setTelephone(v => v ? null : 'accueil'); else if (touche === 'c') setChat(v => !v); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') changerVitesse(Number(e.code.slice(-1)) as (typeof VITESSES)[number]); };
+    const down = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.matches('input, textarea, select, [contenteditable]')) return; if (e.code === 'Escape') { fermerFilRougeRef.current(); setTelephone(null); setChat(false); planRef.current = null; setPlanCinema(null); setSelection(null); setInterlocuteur(null); setPlan(false); setOptions(false); setMenuModes(false); destination.current = null; lieuEnApproche.current = null; directions.clear(); } if (TOUCHES[e.code]) { e.preventDefault(); lieuEnApproche.current = null; changer(e.code, true); return; } if (e.ctrlKey || e.metaKey || e.altKey) return; const touche = e.key.toLowerCase(); if (touche === 'm') { setPlan(v => !v); setOptions(false); setSelection(null); } else if (touche === 'j') setMenuModes(v => !v); else if (touche === 'o') { setOptions(v => !v); setPlan(false); } else if (touche === 'p') { if (!commune) setPause(v => !v); } else if (touche === 't') setTelephone(v => v ? null : 'accueil'); else if (touche === 'c') setChat(v => !v); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') changerVitesse(Number(e.code.slice(-1)) as (typeof VITESSES)[number]); };
     const up = (e: KeyboardEvent) => changer(e.code, false);
     const clear = () => directions.clear();
     window.addEventListener('blur', clear);
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('blur', clear); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); document.body.style.cursor = 'default'; };
-  }, [directions, interieur, changerVitesse]);
+  }, [commune, directions, interieur, changerVitesse]);
   const setDirection = (d: Direction, actif: boolean) => { if (actif) { lieuEnApproche.current = null; directions.add(d); } else directions.delete(d); rafraichir((v) => v + 1); };
   const minutesTotales = Math.floor(heure * 60) % 1440;
   const affichageHeure = `${String(Math.floor(minutesTotales / 60)).padStart(2, '0')}:${String(minutesTotales % 60).padStart(2, '0')}`;
@@ -721,7 +746,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const quitterPour = (slug: string) => { directions.clear(); setInterieur(null); allerVers(slug); };
   /** Ouvre le fil rouge dans un intérieur : le panneau du mentor, le programme et les services du lieu se ferment d'abord. */
   const ouvrirFilRougeIci = (slug: string) => { lieux.sortir(); setServiceLieu(null); ouvrirFilRouge(slug); };
-  const attendreFilRouge = (h: number) => { notifier(`${heure >= h ? 'Le lendemain à' : 'Il est'} ${heureLisible(h)} : ton rendez-vous du fil rouge t’attend.`, 'info'); passerA(h); };
+  const attendreFilRouge = (h: number) => { if (!commune) notifier(`${heure >= h ? 'Le lendemain à' : 'Il est'} ${heureLisible(h)} : ton rendez-vous du fil rouge t’attend.`, 'info'); attendreJusqua(h); };
   // Le chapitre du fil rouge figure en tête du programme du jour, au réveil comme chez soi.
   const rendezVousFilRouge = chapitreFilRouge && horairesFilRouge ? {
     slug: chapitreFilRouge.lieu, nom: nomLieu(chapitreFilRouge.lieu), ouverture: horairesFilRouge.ouverture, fermeture: horairesFilRouge.fermeture,
@@ -1056,7 +1081,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         {large && <>{suiviMode}{zoneMusicale}<div className="w-[320px]"><PileNotifications notifications={notifications} onFermer={fermerNotification} /></div></>}
       </div>
       <div className="relative flex shrink-0 flex-col items-end gap-2">
-        <HorlogeMonde heure={affichageHeure} meteo={{ icone: LIBELLES_METEO[meteo].icone, nom: `${LIBELLES_METEO[meteo].nom} · ${saison.nom}` }} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} />
+        <HorlogeMonde heure={affichageHeure} meteo={{ icone: LIBELLES_METEO[meteo].icone, nom: `${LIBELLES_METEO[meteo].nom} · ${saison.nom}` }} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} commune={commune} />
         <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS_CARTE} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
           onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />
         {/* Sur téléphone, la rangée de boutons passe sous la minicarte sans élargir la colonne : le bâtisseur et son objectif gardent leur place. */}
@@ -1089,7 +1114,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <button type="button" onClick={() => { const choix = qualite === 'auto' ? 'elevee' : qualite === 'elevee' ? 'fluide' : 'auto'; setQualite(choix); try { localStorage.setItem('btp-life-qualite', choix); } catch { /* Stockage facultatif. */ } }} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la qualité graphique">{qualite === 'auto' ? 'Qualité automatique' : qualite === 'elevee' ? 'Qualité élevée' : 'Mode fluide'}</button>
       <StatistiquesRendu />
       <p className="rounded-xl bg-white/[.04] px-3 py-2.5 text-[13px] text-jeu-ivoire/80">{LIBELLES_METEO[meteo].icone} {LIBELLES_METEO[meteo].nom} · {saison.nom}<span className="mt-0.5 block text-[11px] text-jeu-ivoire/50">Météo automatique, au gré des saisons.</span></p>
-      {!large && <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[.04] px-3 py-2"><span className="text-[13px] text-jeu-ivoire/80">Temps</span><ReglageTemps pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} /></div>}
+      {commune ? <p className="rounded-xl bg-white/[.04] px-3 py-2.5 text-[13px] text-jeu-ivoire/80">🌍 Heure commune<span className="mt-0.5 block text-[11px] text-jeu-ivoire/50">La même pour tous les joueurs du quartier : une journée dure 24 minutes, sans pause ni accélération.</span></p>
+        : !large && <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[.04] px-3 py-2"><span className="text-[13px] text-jeu-ivoire/80">Temps</span><ReglageTemps pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} /></div>}
       <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche ? 'Passer en caméra libre' : 'Revenir à la vue d’ensemble'}</button>
       {!large && <button type="button" onClick={basculerCroix} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">{croixVisible ? 'Masquer la croix de déplacement' : 'Afficher la croix de déplacement'}</button>}
       <p className="hud-legende px-1">{libelleSauvegarde}</p>
@@ -1162,21 +1188,21 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       {serviceLieu === 'marches' && <PanneauMarches demo={demo} onFermer={() => setServiceLieu(null)} />}
       {pileInterieur}
     </InterieurLieuProgramme>
-    : interieur && interieur.slug === 'maquis' ? <LieuMaquis demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'maquis' ? <LieuMaquis demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       allerVers={slug => { directions.clear(); setInterieur(null); allerVers(slug); }} onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuMaquis>
-    : interieur && interieur.slug === 'cafe' ? <LieuCafe demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'cafe' ? <LieuCafe demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       relations={relations} onRelation={(nom, valeur) => setRelations(r => ({ ...r, [nom]: Math.max(0, Math.min(100, valeur)) }))} onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuCafe>
-    : interieur && interieur.slug === 'universite' ? <LieuUniversite demo={demo} heure={heure} cursus={lireFormation(avatar?.config) ? <EcranCarriere seulementCursus demo={demo} niveau={niveau} porte={parcoursDuPoste(profil?.slug)} formation={lireFormation(avatar?.config)} journees={chantierQuartier.journees} livraisons={chantierQuartier.livraisons} logementDemo={logementDemo} /> : undefined} cleLocale={`btp-life-universite:${userId ?? 'demo'}`} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'universite' ? <LieuUniversite demo={demo} heure={heure} cursus={lireFormation(avatar?.config) ? <EcranCarriere seulementCursus demo={demo} niveau={niveau} porte={parcoursDuPoste(profil?.slug)} formation={lireFormation(avatar?.config)} journees={chantierQuartier.journees} livraisons={chantierQuartier.livraisons} logementDemo={logementDemo} /> : undefined} cleLocale={`btp-life-universite:${userId ?? 'demo'}`} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuUniversite>
-    : interieur && interieur.slug === 'marche' ? <LieuMarche demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'marche' ? <LieuMarche demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuMarche>
-    : interieur && interieur.slug === 'marina' ? <LieuMarina demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'marina' ? <LieuMarina demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuMarina>
-    : interieur && interieur.slug === 'sports' ? <LieuSport demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'sports' ? <LieuSport demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuSport>
-    : interieur && interieur.slug === 'centre-azur' ? <LieuAzur demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'centre-azur' ? <LieuAzur demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuAzur>
-    : interieur && interieur.slug === 'galerie-palmiers' ? <LieuGalerie demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={passerA}
+    : interieur && interieur.slug === 'galerie-palmiers' ? <LieuGalerie demo={demo} heure={heure} besoins={stats} argent={argent ?? 0} niveau={niveau} consommer={consommerArticle} notifier={notifier} passerA={attendreJusqua}
       onSortir={() => sortirDuLieu(interieur.nom)}>{pileInterieur}</LieuGalerie>
     : interieur && <InterieurLieu3D slug={interieur.slug} nom={interieur.nom} demo={demo} onDemo={effet => setDemoStats(s => appliquerEffet(s, effet))}
       onDemoArticle={id => {

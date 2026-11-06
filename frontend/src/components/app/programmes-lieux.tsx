@@ -23,7 +23,8 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
   /** Gains de démonstration, appliqués aux jauges et au solde affichés, et renvoyés pour le bilan (mêmes règles qu'au serveur). */
   recompenser: (bilan: BilanSeance, slug: string) => GainsSeance | undefined;
   /** Avance l'horloge du monde jusqu'à cette heure (le lendemain si elle est passée). */
-  passerA: (heure: number) => void;
+  /** Laisser passer le temps jusqu'à une heure ; faux si l'heure (commune) n'a pas sauté. */
+  passerA: (heure: number) => boolean | void;
   /** Lu au moment de commencer : la raison d'attendre (un chapitre du fil rouge en cours, une séance à la fois), ou rien. */
   occupe?: () => string | null;
 }) {
@@ -145,7 +146,8 @@ export function useProgrammesLieux({ cle, demo, heure, notifier, recompenser, pa
   /** Fermé, ou séance du jour déjà faite : on laisse passer le temps jusqu'à la prochaine ouverture (le panneau du mentor reste ouvert). */
   const attendreOuverture = (slug: string) => {
     const { programme } = LIEUX_PROGRAMME[slug], { ouverture } = programme.horaires;
-    passerA(ouverture);
+    // À l'heure commune, le temps ne saute pas : l'attente a déjà dit dans combien de minutes le lieu ouvre.
+    if (passerA(ouverture) === false) return;
     notifier(`${heure >= ouverture ? 'Le lendemain à' : 'Il est'} ${heureLisible(ouverture)} : ${programme.mentor.nom} t’attend.`, 'info');
   };
   /** Échap : ferme d'abord le panneau ouvert ; renvoie faux s'il n'y en avait pas. */
