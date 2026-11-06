@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { creerNavigation, MARGE_CORPS, segmentLibre } from './navigation-ville';
-import { OBSTACLES_DECOR, OBSTACLES_JOUEUR, PALMIERS, PIROGUES_PLAGE, tronconsGardeCorps, GARDE_CORPS } from './decor-ville';
+import { boucleContournee, creerNavigation, MARGE_CORPS, segmentLibre } from './navigation-ville';
+import { boucleHabitants, OBSTACLES_DECOR, OBSTACLES_JOUEUR, OBSTACLES_TERRASSE, PALMIERS, PIROGUES_PLAGE, tronconsGardeCorps, GARDE_CORPS } from './decor-ville';
+import { ROUTES_PASSANTS } from './vie-urbaine';
+import { ROUTE_CONCURRENT } from './concurrent';
 import { BATIMENTS, POINTS_DECOUVERTE } from './batiments-ville';
 import { porteBatiment } from './minicarte';
 import { LIMITES_VILLE } from './ville';
@@ -67,6 +69,20 @@ describe('la navigation du joueur dans la ville', () => {
       // On découvre un repère en s'en approchant à son rayon : il faut pouvoir aller plus près.
       expect(Math.hypot(acces[0] - repere.position[0], acces[1] - repere.position[1]), repere.id).toBeLessThan(repere.rayon - .5);
     }
+  });
+
+  it('fait contourner leur circuit aux passants et au concurrent, chacun partant de son point', () => {
+    const habitants = OBSTACLES_JOUEUR.filter(o => !OBSTACLES_TERRASSE.includes(o));
+    for (const route of [...ROUTES_PASSANTS, ROUTE_CONCURRENT]) {
+      const { points, reperes } = boucleHabitants(route);
+      expect(reperes).toHaveLength(route.length);
+      points.forEach((p, i) => expect(segmentLibre(p, points[(i + 1) % points.length], habitants, MARGE_CORPS), `${p} → ${points[(i + 1) % points.length]}`).toBe(true));
+    }
+    // Un point d'origine dans un obstacle est d'abord dégagé, puis relié aux autres.
+    const petite = creerNavigation([{ x: 0, z: 0, largeur: 4, profondeur: 4 }], { minX: -20, maxX: 20, minZ: -20, maxZ: 20 });
+    const boucle = boucleContournee(petite, [[0, 0], [10, 0], [10, 10]]);
+    expect(petite.passe(...boucle.points[boucle.reperes[0]])).toBe(true);
+    expect(boucle.points[boucle.reperes[1]]).toEqual([10, 0]);
   });
 
   it('pose les pirogues sur le sable, dans la ville, sans se chevaucher', () => {

@@ -5,6 +5,17 @@ import type { Meteo } from './meteo-monde';
 type PointMonde = [number, number];
 export interface Creneau { de: number; a: number; activite: string; route: PointMonde[] }
 
+/** Les circuits des passants, quartier par quartier (dans l'ordre de passantsPresents). La scène les fait contourner le décor
+ * (decor-ville.ts, boucleHabitants) : au Plateau Nord, ils longent la parcelle Akwaba par le trottoir de l'avenue. */
+export const ROUTES_PASSANTS: PointMonde[][] = [
+  [[-112, -12], [-62, -12], [-62, 36], [-110, 36]],
+  [[62, -12], [112, -12], [112, 37], [62, 37]],
+  [[-42, -70.4], [-42, -113], [42, -113], [42, -70.4]],
+  [[-108, 44], [-58, 44], [-58, 63], [-108, 63]],
+  [[58, 44], [108, 44], [108, 63], [58, 63]],
+  [[-48, -58], [48, -58], [48, -71.3], [-48, -71.3]],
+];
+
 /** La journée de chaque habitant, devant les portes des lieux où il travaille et se détend ; hors créneau, il est chez lui. */
 export const PLANNINGS_PNJ: Record<string, Creneau[]> = {
   Awa: [

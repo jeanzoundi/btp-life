@@ -86,6 +86,28 @@ export interface NavigationVille {
   chemin(depart: Lu, arrivee: Lu): PointVille[];
 }
 
+export interface Boucle {
+  /** Le tracé complet, qui contourne le décor. */
+  points: PointVille[];
+  /** `reperes[i]` : l'indice, dans le tracé, du i-ème point d'origine (pour faire partir chacun d'un point différent). */
+  reperes: number[];
+}
+
+/** Une boucle de passage (passants, habitants à leur poste) qui contourne le décor : chaque point est d'abord dégagé, puis
+ * relié au suivant par un itinéraire ; après le dernier, on revient au premier. */
+export function boucleContournee(navigation: NavigationVille, points: readonly Lu[]): Boucle {
+  const degages = points.map((p): PointVille => navigation.degager(p) ?? [p[0], p[1]]);
+  const trace: PointVille[] = [], reperes: number[] = [];
+  degages.forEach((p, i) => {
+    reperes.push(trace.length);
+    trace.push(p);
+    if (degages.length < 2) return;
+    // L'itinéraire finit sur le point suivant, ajouté au tour d'après.
+    trace.push(...navigation.chemin(p, degages[(i + 1) % degages.length]).slice(0, -1));
+  });
+  return { points: trace, reperes };
+}
+
 export function creerNavigation(obstacles: readonly EmpriseVille[], limites: LimitesVille): NavigationVille {
   const colonnes = Math.floor((limites.maxX - limites.minX) / PAS) + 1;
   const lignes = Math.floor((limites.maxZ - limites.minZ) / PAS) + 1;

@@ -1,7 +1,7 @@
 import type { EmpriseVille } from './itineraire-ville';
 import { BATIMENTS, PARCELLE_BATIMENT, type PointMonde } from './batiments-ville';
 import { bungalowChantier } from './journee-chantier';
-import { creerNavigation } from './navigation-ville';
+import { boucleContournee, creerNavigation, type Boucle } from './navigation-ville';
 import { BOUTIQUES_PALMIERS, EMPRISES_PALMIERS } from './place-palmiers';
 import { TABLES_TERRASSE } from './terrasse-maquis';
 import { LIMITES_VILLE, QUARTIERS } from './ville';
@@ -113,6 +113,10 @@ export const GABARIT_PIROGUE = { longueur: 7.2, largeur: 1.25 } as const;
 
 const parasolCommerce = (x: number, z: number) => empriseTournee(x, z, 2.6, 1.7);
 
+/** La terrasse du maquis : chaque table et ses quatre chaises. Le joueur la contourne ; les habitants, eux, viennent s'y
+ * asseoir (lib/terrasse-maquis.ts). */
+export const OBSTACLES_TERRASSE: EmpriseVille[] = TABLES_TERRASSE.map(([x, z]) => pied(x, z, 2.3));
+
 /** Tout le décor fixe à contourner (sans les bâtiments). */
 export const OBSTACLES_DECOR: EmpriseVille[] = [
   ...FLAMBOYANTS_CENTRE.flatMap(([x, z]) => rond(x, z, 1.8)),
@@ -142,8 +146,7 @@ export const OBSTACLES_DECOR: EmpriseVille[] = [
   ...[-12, 12].map(x => empriseTournee(x, 1.7, 2.4, 1.4)),
   ...BOUTIQUES_PALMIERS.flatMap(b => [pied(b.x - b.largeur / 2, b.z + 3.2, .8), pied(b.x + b.largeur / 2, b.z + 3.2, .8)]),
   pied(-15, -16.8, .6), ...[-7, 7].map(x => pied(x, -17, .3)), pied(10.7, -15.8, .6), pied(-11, -15.8, .6),
-  // La terrasse du maquis : chaque table et ses quatre chaises.
-  ...TABLES_TERRASSE.map(([x, z]) => pied(x, z, 2.3)),
+  ...OBSTACLES_TERRASSE,
   // Les parasols devant chaque commerce.
   ...BATIMENTS.filter(b => b.type === 'commerce').flatMap(b => [-3, 3].map(dx => parasolCommerce(b.position[0] + dx, b.position[2] + b.taille[2] / 2 + 4))),
   // La plage.
@@ -165,5 +168,16 @@ export const EMPRISES_BATIMENTS: EmpriseVille[] = (() => {
 
 /** Ce que le joueur ne traverse pas. */
 export const OBSTACLES_JOUEUR: EmpriseVille[] = [...EMPRISES_BATIMENTS, ...OBSTACLES_DECOR];
-/** Les déplacements du joueur dans la ville : itinéraires, glissement contre le décor, points d'arrivée dégagés. */
+/** Les déplacements du joueur dans la ville : itinéraires, glissement contre le décor, points d'arrivée dégagés. Les voisins
+ * en ligne, joueurs eux aussi, la suivent entre deux relevés de position. */
 export const NAVIGATION_VILLE = creerNavigation(OBSTACLES_JOUEUR, LIMITES_VILLE);
+/** Les habitants contournent le même décor, sauf la terrasse du maquis où ils s'attablent. */
+export const NAVIGATION_HABITANTS = creerNavigation(OBSTACLES_JOUEUR.filter(o => !OBSTACLES_TERRASSE.includes(o)), LIMITES_VILLE);
+
+const boucles = new WeakMap<object, Boucle>();
+/** Le circuit d'un passant ou d'un habitant à son poste, contourné une fois pour toutes (en cache par circuit). */
+export function boucleHabitants(points: readonly (readonly [number, number])[]) {
+  let boucle = boucles.get(points);
+  if (!boucle) { boucle = boucleContournee(NAVIGATION_HABITANTS, points); boucles.set(points, boucle); }
+  return boucle;
+}

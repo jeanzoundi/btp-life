@@ -14,6 +14,8 @@ import {
 } from '@/lib/en-ligne';
 import { echelleGabarit } from '@/lib/gabarit-personnage';
 import { personnageDe, porteLeCasque } from '@/lib/personnages-joueur';
+import { NAVIGATION_VILLE } from '@/lib/decor-ville';
+import type { PointVille } from '@/lib/itineraire-ville';
 import { HumainMonde } from './humain-monde';
 import { BullePensee } from './humeur-monde';
 
@@ -152,20 +154,37 @@ function VoisinMonde({ voisin, coequipier, onSelect }: { voisin: VoisinEnLigne; 
   const personnage = useMemo(() => personnageDe(voisin.avatarConfig), [voisin.avatarConfig]);
   // Un voisin sur mesure ne porte le casque que s'il l'a choisi (sa coiffure reste visible), comme le joueur.
   const design = useMemo(() => ({ ...personnage.design, casque: porteLeCasque(personnage) ? personnage.couleurCasque ?? personnage.design.casque ?? '#f4c430' : undefined }), [personnage]);
-  cible.set(voisin.x, 0, voisin.z);
+  // Entre deux relevés, il rejoint sa nouvelle position par un itinéraire qui contourne le décor, comme le joueur.
+  const route = useRef<PointVille[]>([]), releve = useRef('');
   useFrame((_, delta) => {
     const g = ref.current;
     if (!g) return;
-    ecart.subVectors(cible, g.position);
-    const distance = ecart.length();
-    if (distance > 30) g.position.copy(cible);
-    else if (distance > .05) {
-      // Le prochain relevé arrive dans dix secondes : le voisin couvre l'écart dans ce temps-là, entre la marche et la course.
-      const vitesse = THREE.MathUtils.clamp(distance / (PERIODE_PRESENCE_MS / 1000) * 1.25, 1.3, 6);
-      g.position.addScaledVector(ecart.normalize(), Math.min(distance, vitesse * Math.min(delta, .05)));
-      g.rotation.y = Math.atan2(ecart.x, ecart.z);
+    const cle = `${voisin.x}|${voisin.z}`;
+    if (cle !== releve.current) {
+      releve.current = cle;
+      cible.set(voisin.x, 0, voisin.z);
+      if (cible.distanceTo(g.position) > 30) { g.position.copy(cible); route.current = []; }
+      else {
+        const etapes = NAVIGATION_VILLE.chemin([g.position.x, g.position.z], [voisin.x, voisin.z]);
+        // Le relevé dit où il est vraiment : l'itinéraire finit sur ce point exact.
+        route.current = [...etapes.slice(0, -1), [voisin.x, voisin.z]];
+      }
     }
-    const bouge = distance > .15;
+    let restant = 0, x = g.position.x, z = g.position.z;
+    for (const [px, pz] of route.current) { restant += Math.hypot(px - x, pz - z); x = px; z = pz; }
+    const suivant = route.current[0];
+    if (suivant) {
+      ecart.set(suivant[0] - g.position.x, 0, suivant[1] - g.position.z);
+      const distance = ecart.length();
+      if (distance < .05) route.current.shift();
+      else {
+        // Le prochain relevé arrive dans dix secondes : le voisin couvre le trajet dans ce temps-là, entre la marche et la course.
+        const vitesse = THREE.MathUtils.clamp(restant / (PERIODE_PRESENCE_MS / 1000) * 1.25, 1.3, 6);
+        g.position.addScaledVector(ecart.normalize(), Math.min(distance, vitesse * Math.min(delta, .05)));
+        g.rotation.y = Math.atan2(ecart.x, ecart.z);
+      }
+    }
+    const bouge = restant > .15;
     if (bouge !== marcheRef.current) { marcheRef.current = bouge; setMarche(bouge); }
   });
   return <group ref={ref} position={[voisin.x, 0, voisin.z]} onClick={e => { e.stopPropagation(); if (e.delta < 5 && !voisin.promeneur) onSelect?.(); }}>

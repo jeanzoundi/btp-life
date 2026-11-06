@@ -26,12 +26,12 @@ import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
 import { postesChantier, type EtatVisuel, type PosteVille } from '@/lib/journee-chantier';
 import { PARCELLE_AKWABA } from '@/lib/campagne';
 import { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE, type Batiment3D, type PointMonde } from '@/lib/batiments-ville';
-import { EMPRISES_BATIMENTS, NAVIGATION_VILLE as NAVIGATION } from '@/lib/decor-ville';
+import { boucleHabitants, NAVIGATION_VILLE as NAVIGATION } from '@/lib/decor-ville';
 import { CONCURRENT, PENSEES_CONCURRENT, ROUTE_CONCURRENT, presenceConcurrent } from '@/lib/concurrent';
 import { positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
-import { creneauPnj, effetsMeteo, passantsPresents } from '@/lib/vie-urbaine';
+import { creneauPnj, effetsMeteo, passantsPresents, ROUTES_PASSANTS } from '@/lib/vie-urbaine';
 import { etapePnj, JOURNEES_PNJ } from '@/lib/journee-pnj';
 import { HabitantJournee } from './habitant-journee';
 import { HumainJoueur } from './personnage-joueur';
@@ -48,19 +48,6 @@ export { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE };
 export const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
 export const POSTES_CHANTIER = postesChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2]);
-/** Bâtiments, parcelle, boutiques de la place et bungalow du chantier : ce que les habitants contournent sur leurs trajets.
- * Le joueur, lui, contourne aussi tout le décor (NAVIGATION_VILLE) : arbres, bancs, parasols, abribus, étals, pirogues… */
-const EMPRISES = EMPRISES_BATIMENTS;
-
-const ROUTES_PASSANTS: PointMonde[][] = [
-  [[-112, -12], [-62, -12], [-62, 36], [-110, 36]],
-  [[62, -12], [112, -12], [112, 37], [62, 37]],
-  // Au Plateau Nord, les passants longent la parcelle Akwaba par le trottoir de l'avenue, sans traverser l'immeuble.
-  [[-42, -70.4], [-42, -113], [42, -113], [42, -70.4]],
-  [[-108, 44], [-58, 44], [-58, 63], [-108, 63]],
-  [[58, 44], [108, 44], [108, 63], [58, 63]],
-  [[-48, -58], [48, -58], [48, -71.3], [-48, -71.3]],
-];
 
 /** `progression` : où en est le joueur dans le programme du lieu, écrit sous son nom sur l'enseigne. */
 function Batiment({ batiment, selectionne, nuit, onSelect, progression }: { batiment: Batiment3D; selectionne: boolean; nuit: boolean; onSelect: (b: Batiment3D) => void; progression?: string }) {
@@ -143,7 +130,10 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
   const ref = useRef<THREE.Group>(null);
   // La minicarte lit directement la position de l'habitant, sans copie à chaque image.
   useEffect(() => { const carte = suivi?.current; if (!carte || !ref.current) return; carte.set(nom, ref.current.position); return () => { carte.delete(nom); }; }, [nom, suivi]);
-  const index = useRef(depart % route.length);
+  // Son circuit contourne le décor ; il part du point d'origine qui lui revient.
+  const { points: trace, reperes } = useMemo(() => boucleHabitants(route), [route]);
+  const debut = reperes[depart % reperes.length];
+  const index = useRef(debut);
   const approche = useRef(false);
   const [attend, setAttend] = useState(false);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
@@ -157,24 +147,26 @@ function PnjAutonome({ nom, couleur, route, depart, pause, joueur, destination, 
       if (ref.current.position.distanceTo(joueur.current) <= 4) { approche.current = false; setAttend(false); destination.current = null; onParler(nom); }
       return;
     }
-    const cible = route[index.current % route.length];
+    const cible = trace[index.current % trace.length];
     mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
-    if (mouvement.lengthSq() < 0.18) index.current = (index.current % route.length + 1) % route.length;
+    if (mouvement.lengthSq() < 0.18) index.current = (index.current % trace.length + 1) % trace.length;
     else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.8 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
   });
-  const point = route[depart % route.length];
+  const point = trace[debut];
   return <group ref={ref} position={[point[0], 0, point[1]]} onClick={e => {
     e.stopPropagation(); if (e.delta >= 5 || !ref.current) return;
     if (ref.current.position.distanceTo(joueur.current) <= 4) onParler(nom);
     else { approche.current = true; setAttend(true); destination.current = [ref.current.position.x, ref.current.position.z]; }
   }}><Personnage nom={`${nom} · Parler`} couleur={couleur} marche={!pause && !attend} variante={depart + 1} allure={1.8 * rythme} identite={IDENTITES_PNJ[nom]} /><BullePensee pensee={pensee} hauteur={2.9} /></group>;
 }
-/** Passant sur son itinéraire ; sous la pluie, il sort son parapluie. */
+/** Passant sur son itinéraire, qui contourne le décor ; sous la pluie, il sort son parapluie. */
 function Passant({ route, depart, pause, couleur, rythme, parapluie = false }: { route: PointMonde[]; depart: number; pause: boolean; couleur: string; rythme: number; parapluie?: boolean }) {
-  const ref = useRef<THREE.Group>(null); const index = useRef(depart % route.length);
+  const { points: trace, reperes } = useMemo(() => boucleHabitants(route), [route]);
+  const debut = reperes[depart % reperes.length];
+  const ref = useRef<THREE.Group>(null); const index = useRef(debut);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
-  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = route[index.current]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % route.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
-  const point = route[depart % route.length];
+  useFrame((_, delta) => { if (!ref.current || pause) return; const cible = trace[index.current % trace.length]; mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z); if (mouvement.lengthSq() < 0.2) index.current = (index.current + 1) % trace.length; else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, 1.5 * Math.min(delta, 0.05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); } });
+  const point = trace[debut];
   return <group ref={ref} position={[point[0], 0, point[1]]}><Personnage couleur={couleur} marche={!pause} casque={!parapluie && depart % 3 === 0} variante={depart + Math.round(point[0])} allure={1.5 * rythme} />
     {parapluie && <group position={[.18, 0, .12]}>
       <mesh position={[0, 1.75, 0]}><cylinderGeometry args={[.012, .012, .9, 6]} /><meshStandardMaterial color="#2B2B2E" /></mesh>
@@ -186,16 +178,17 @@ export type PlanEnCours = { plan: PlanCamera; debut: number };
 /** Le concurrent du fil rouge, qui fait les cent pas devant la parcelle Akwaba ; un clic, et il lâche sa dernière pique. */
 function Concurrent3D({ pause, rythme, bulles, onParler }: { pause: boolean; rythme: number; bulles: boolean; onParler: () => void }) {
   const ref = useRef<THREE.Group>(null), index = useRef(0);
+  const trace = useMemo(() => boucleHabitants(ROUTE_CONCURRENT).points, []);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   const pensee = usePenseePeriodique(graine => PENSEES_CONCURRENT[Math.abs(Math.floor(graine)) % PENSEES_CONCURRENT.length], bulles && !pause, 4, 16);
   useFrame((_, delta) => {
     if (!ref.current || pause) return;
-    const cible = ROUTE_CONCURRENT[index.current];
+    const cible = trace[index.current % trace.length];
     mouvement.set(cible[0] - ref.current.position.x, 0, cible[1] - ref.current.position.z);
-    if (mouvement.lengthSq() < .05) index.current = (index.current + 1) % ROUTE_CONCURRENT.length;
+    if (mouvement.lengthSq() < .05) index.current = (index.current + 1) % trace.length;
     else { mouvement.normalize(); ref.current.position.addScaledVector(mouvement, .9 * Math.min(delta, .05) * rythme); ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta); }
   });
-  return <group ref={ref} position={[ROUTE_CONCURRENT[0][0], 0, ROUTE_CONCURRENT[0][1]]} onClick={e => { e.stopPropagation(); if (e.delta < 5) onParler(); }}>
+  return <group ref={ref} position={[trace[0][0], 0, trace[0][1]]} onClick={e => { e.stopPropagation(); if (e.delta < 5) onParler(); }}>
     <Personnage nom={`${CONCURRENT.prenom} · ${CONCURRENT.entreprise}`} couleur="#3B4A6B" marche={!pause} casque variante={7} allure={.9 * rythme} />
     <BullePensee pensee={pensee} hauteur={2.9} />
   </group>;
@@ -326,7 +319,7 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
       if (JOURNEES_PNJ[nom]) {
         const etape = nom === 'Yao' && yaoAuChantier ? { de: 0, a: 24, phase: 'travail' as const, activite: 'Au chantier', allees: [POSTES_CHANTIER.yao], avancee: 0 } : etapePnj(nom, heure);
         return etape ? <HabitantJournee key={`${nom}-${i}`} nom={nom} identite={IDENTITES_PNJ[nom]} couleur={HABITANTS[i].couleur} variante={i + 1} etape={etape} heure={heure} rythme={rythme} pause={pause} enConversation={interlocuteur === nom}
-          joueur={joueur} destination={destination} onParler={onParler} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} emprises={EMPRISES} /> : null;
+          joueur={joueur} destination={destination} onParler={onParler} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} /> : null;
       }
       const route = creneauPnj(nom, heure)?.route;
       return route ? <PnjAutonome key={`${nom}-${i}`} nom={nom} couleur={HABITANTS[i].couleur} route={route} depart={i} pause={pause || interlocuteur === nom} joueur={joueur} destination={destination} onParler={onParler} rythme={rythme} contexte={contexte} bulles={bulles && !interlocuteur} suivi={suiviPnj} /> : null;

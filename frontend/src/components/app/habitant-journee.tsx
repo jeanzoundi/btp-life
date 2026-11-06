@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { longueurChemin, pointSurChemin, type EtapePnj } from '@/lib/journee-pnj';
-import { itineraireVille } from '@/lib/itineraire-ville';
+import { NAVIGATION_HABITANTS } from '@/lib/decor-ville';
 import { orienterProgressivement } from '@/lib/fluidite-monde';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import type { IdentitePersonnage } from '@/lib/identites-personnages';
@@ -14,7 +14,6 @@ import { HumainMonde } from './humain-monde';
 import { BullePensee, usePenseePeriodique } from './humeur-monde';
 
 type PointMonde = [number, number];
-type Emprise = { x: number; z: number; largeur: number; profondeur: number };
 type Allure = { marche: boolean; assis: boolean; geste?: GestePersonnage; allure: number };
 
 /** Le salut se donne une fois quand le joueur s'approche, pas à chaque pas : au plus une fois toutes les 45 secondes. */
@@ -23,10 +22,10 @@ const DISTANCE_SALUT = 6, DUREE_SALUT = 1.9, RELANCE_SALUT = 45;
 /** Un habitant à la journée continue (lib/journee-pnj.ts) : il suit son trajet à l'heure près, fait ses allées et venues
  * au travail, s'assoit à la terrasse du maquis pour déjeuner et le soir. Quand le joueur arrive, il le salue de la main ;
  * en conversation, il se tourne vers lui et parle avec les mains. Un clic : on va lui parler. */
-export function HabitantJournee({ nom, identite, couleur, variante, etape, heure, rythme, pause, enConversation, joueur, destination, onParler, contexte, bulles, suivi, emprises }: {
+export function HabitantJournee({ nom, identite, couleur, variante, etape, heure, rythme, pause, enConversation, joueur, destination, onParler, contexte, bulles, suivi }: {
   nom: string; identite: IdentitePersonnage; couleur: string; variante: number; etape: EtapePnj; heure: number; rythme: number; pause: boolean; enConversation: boolean;
   joueur: React.MutableRefObject<THREE.Vector3>; destination: React.MutableRefObject<PointMonde | null>; onParler: (nom: string) => void;
-  contexte: ContextePensee; bulles: boolean; suivi?: React.MutableRefObject<Map<string, THREE.Vector3>>; emprises: readonly Emprise[];
+  contexte: ContextePensee; bulles: boolean; suivi?: React.MutableRefObject<Map<string, THREE.Vector3>>;
 }) {
   const ref = useRef<THREE.Group>(null);
   useEffect(() => { const carte = suivi?.current; if (!carte || !ref.current) return; carte.set(nom, ref.current.position); return () => { carte.delete(nom); }; }, [nom, suivi]);
@@ -35,8 +34,10 @@ export function HabitantJournee({ nom, identite, couleur, variante, etape, heure
   useEffect(() => { horloge.current = { heure, depuis: 0 }; }, [heure]);
   const chemin = useMemo<PointMonde[] | null>(() => {
     if (etape.phase !== 'trajet' || !etape.depart || !etape.arrivee) return null;
-    const itineraire = itineraireVille(etape.depart, etape.arrivee, [...emprises]);
-    return [etape.depart, ...(itineraire.length ? itineraire : [etape.arrivee])];
+    // Il contourne bâtiments et décor (sauf la terrasse du maquis, où il s'attable), et finit sur le point exact : sa chaise,
+    // son poste, sa porte.
+    const itineraire = NAVIGATION_HABITANTS.chemin(etape.depart, etape.arrivee);
+    return [etape.depart, ...itineraire.slice(0, -1), etape.arrivee];
   // Un trajet se calcule une fois, à son début.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [etape.de, etape.phase, nom]);
