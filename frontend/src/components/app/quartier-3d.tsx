@@ -68,8 +68,8 @@ import { contributionAuChantier, progressionAuLieu } from '@/lib/consequences-mo
 import { ENERGIE_JOURNEE_TRAVAUX, type NiveauLogement } from '@/lib/patrimoine';
 import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
 import { effetsMeteo } from '@/lib/vie-urbaine';
-import { minutesLisibles, trajet } from '@/lib/transports';
-import { Telephone, TrajetEnCours, type AppelTelephone, type AppTelephone, type DestinationTelephone } from './telephone';
+import { deroulementTrajet, minutesLisibles, trajet, type EtapeTrajet } from '@/lib/transports';
+import { DUREE_TRAJET_MS, Telephone, TrajetEnCours, type AppelTelephone, type AppTelephone, type DestinationTelephone } from './telephone';
 import { EcranDefis, PanneauImprevu, useDefisQuartier } from './defis-quartier';
 import { EcranPatrimoine } from './patrimoine-telephone';
 import { gagnerAffinite } from '@/lib/affinite';
@@ -97,6 +97,7 @@ import { gainsDemo } from '@/lib/gains-demo';
 import { ajouterTemps, ecartHorloge, heuresDeBesoins, PAS_HORLOGE_MAX } from '@/lib/temps-monde';
 import { POLICES_JEU } from '@/lib/polices-jeu';
 import { degagerPositionPalmiers } from '@/lib/place-palmiers';
+import { NAVIGATION_VILLE } from '@/lib/decor-ville';
 import { useEcranTactile } from '@/lib/ecran-tactile';
 import { BATIMENT_CHANTIER, type Batiment3D, BATIMENTS, BATIMENTS_CARTE, type Direction, PARCELLE_BATIMENT, type PlanEnCours, type PointMonde, POINTS_DECOUVERTE, POSTES_CHANTIER, Scene } from './scene-quartier';
 
@@ -126,7 +127,7 @@ const TOUCHES: Record<string, Direction | undefined> = {
 };
 
 function BoutonDirection({ direction, symbole, setDirection }: { direction: Direction; symbole: string; setDirection: (d: Direction, actif: boolean) => void }) {
-  return <button type="button" aria-label={direction} className="hud-verre hud-bouton h-10 w-10 select-none rounded-xl text-base" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
+  return <button type="button" aria-label={direction} className="hud-verre hud-bouton h-9 w-9 select-none rounded-xl text-sm" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDirection(direction, true); }} onPointerUp={() => setDirection(direction, false)} onPointerCancel={() => setDirection(direction, false)}>{symbole}</button>;
 }
 
 export interface ProfilJoueur { argent?: number; niveau?: number; poste?: string; xp?: number; reputation?: number;
@@ -181,11 +182,15 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [matin, setMatin] = useState(false);
   // Le téléphone ouvert (et son application de départ), et la course en taxi ou en gbaka en cours.
   const [telephone, setTelephone] = useState<AppTelephone | null>(null);
-  const [voyage, setVoyage] = useState<{ mode: 'gbaka' | 'taxi'; nom: string; minutes: number; prix: number } | null>(null);
+  const [voyage, setVoyage] = useState<{ mode: 'gbaka' | 'taxi'; nom: string; minutes: number; prix: number; etapes: EtapeTrajet[] } | null>(null);
   // Trajets de la démonstration (ils comptent pour les défis), et l'imprévu du jour ouvert au Grand chantier.
   const [trajetsDemo, setTrajetsDemo] = useState(0);
   const [imprevuOuvert, setImprevuOuvert] = useState(false);
   const [cameraProche,setCameraProche]=useState(true);
+  // La croix de déplacement du téléphone : on peut la masquer et se déplacer en touchant le sol ou la minicarte.
+  const [croixVisible, setCroixVisible] = useState(true);
+  useEffect(() => { try { if (localStorage.getItem('btp-life-croix') === 'masquee') setCroixVisible(false); } catch { /* Stockage facultatif. */ } }, []);
+  const basculerCroix = () => setCroixVisible(v => { try { localStorage.setItem('btp-life-croix', v ? 'masquee' : 'visible'); } catch { /* Stockage facultatif. */ } return !v; });
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? BESOINS_DEPART);
   // La démonstration paie comme le serveur (lib/gains-demo.ts) : forme du moment, et l'instant de la dernière paie de
@@ -530,7 +535,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     if (!plusRecent) return;
     const etat = appliquerTempsEcoule(plusRecent);
     hydratationRef.current = true;
-    const positionLibre = degagerPositionPalmiers([etat.position.x, etat.position.z]);
+    // Une ancienne sauvegarde peut tomber dans un élément du décor ajouté depuis : on repose le joueur juste à côté.
+    const positionLibre = degagerPositionPalmiers(NAVIGATION_VILLE.degager([etat.position.x, etat.position.z]) ?? [etat.position.x, etat.position.z]);
     setPositionInitiale(positionLibre); setPositionCourante(positionLibre);
     setRelations(etat.relations ?? {}); setMode(etat.mode); setEtapeMode(etat.etapeMode); setScore(etat.score); setSecondes(etat.secondes);
     setDecouvertes(etat.decouvertes ?? []); setRecords(etat.records ?? {});
@@ -744,8 +750,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   if (piqueConcurrent) appelsTelephone.push({ id: 'concurrent', de: CONCURRENT.nom, role: CONCURRENT.role, message: piqueConcurrent });
   if (stats.faim < 35) appelsTelephone.push({ id: 'bintou', de: 'Tantie Bintou', role: 'Le Maquis', lieu: 'maquis', nomLieu: nomLieu('maquis'), message: 'Le garba est chaud : viens manger avant qu’il n’y en ait plus !' });
   const pluie = ambianceMeteo(meteo).pluie > 0;
-  /** Course en taxi ou en gbaka : payée (au serveur, ou sur le solde de démonstration), puis le trajet, l'arrivée à la porte
-   * du lieu et le temps du trajet qui passe sur l'horloge du monde. Renvoie l'erreur à afficher dans le téléphone. */
+  /** Course en taxi ou en gbaka : payée (au serveur, ou sur le solde de démonstration), puis le voyage étape par étape. Le
+   * taxi dépose devant la porte ; le gbaka à l'arrêt le plus proche, d'où le joueur finit à pied, guidé jusqu'au lieu. Le
+   * temps passé dans le véhicule avance l'horloge du monde. Renvoie l'erreur à afficher dans le téléphone. */
   const voyager = async (mode: 'gbaka' | 'taxi', slug: string): Promise<string | null> => {
     const d = destinationsTelephone.find(x => x.slug === slug);
     if (!d) return 'Destination inconnue.';
@@ -757,14 +764,22 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       try { await api.post('/monde/transport', { mode, distance: t.distance, pluie }); client.invalidateQueries({ queryKey: ['carriere', 'me'] }); }
       catch (e) { return (e as Error).message || 'Le chauffeur ne répond pas.'; }
     }
+    const deroule = deroulementTrajet(mode, positionCourante, d.porte, d.nom, pluie);
     setTelephone(null); directions.clear(); destination.current = null; lieuEnApproche.current = null;
-    setVoyage({ mode, nom: d.nom, minutes: t.minutes, prix: t.prix });
+    setVoyage({ mode, nom: d.nom, minutes: t.minutes, prix: t.prix, etapes: deroule.etapes });
     window.setTimeout(() => {
-      setPositionInitiale([d.porte[0], d.porte[1]]); setPositionCourante([d.porte[0], d.porte[1]]);
-      passerDuree(t.minutes / 60);
+      // Jamais au milieu d'un étal ou d'un abribus : le point libre le plus proche de la porte ou de l'arrêt.
+      const arrivee = NAVIGATION_VILLE.degager(deroule.arriveeJoueur) ?? [deroule.arriveeJoueur[0], deroule.arriveeJoueur[1]] as PointMonde;
+      setPositionInitiale(arrivee); setPositionCourante(arrivee);
+      passerDuree(deroule.minutesVehicule / 60);
       setVoyage(null);
-      notifier(`Arrivé : ${d.nom}, en ${mode === 'taxi' ? 'taxi' : 'gbaka'} · ${minutesLisibles(t.minutes)} · ${t.prix.toLocaleString('fr-FR')} F.`, 'succes');
-    }, 2400);
+      const lieu = BATIMENTS_CARTE.find(b => b.slug === d.slug) ?? null;
+      if (deroule.resteAPied) {
+        // Le joueur est posé à l'arrêt : on lance la marche une fois sa nouvelle position prise par la scène.
+        window.setTimeout(() => { destination.current = [d.porte[0], d.porte[1]]; lieuEnApproche.current = lieu; }, 150);
+        notifier(`Descendu du gbaka (${t.prix.toLocaleString('fr-FR')} F) : encore ${minutesLisibles(deroule.resteAPied.minutes)} à pied jusqu’à ${d.nom}.`, 'trajet');
+      } else notifier(`Arrivé : ${d.nom}, en ${mode === 'taxi' ? 'taxi' : 'gbaka'} · ${minutesLisibles(t.minutes)} · ${t.prix.toLocaleString('fr-FR')} F.`, 'succes');
+    }, DUREE_TRAJET_MS);
     return null;
   };
   // Cible de l'objectif : la porte du lieu à rejoindre, ou le repère non découvert le plus proche.
@@ -999,10 +1014,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const pileInterieur = <div className={`pointer-events-none absolute z-30 ${large ? 'right-5 top-24 w-[330px]' : 'inset-x-3 bottom-[120px]'}`}><PileNotifications notifications={notifications} onFermer={fermerNotification} max={large ? undefined : 1} /></div>;
   const cap = <CapObjectif texte={objectif.texte} etiquette={objectif.etiquette} cible={cibleObjectif} joueur={joueurRef} vue={vueRef} ouvert={menuModes} onClick={() => setMenuModes(v => !v)} compacte={!large} />;
   const suiviMode = !menuModes && <SuiviModeJeu mode={mode} etape={etapeMode} score={score} secondes={secondes} record={records[mode] ?? 0} />;
-  const zoneMusicale = <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} />;
+  const zoneMusicale = <ControleZoneMusicale position={positionCourante} interieur={Boolean(interieur)} compacte={!large} />;
   // Le guide laisse la place aux grands panneaux, aux intérieurs et aux plans de cinéma.
   const guideVisible = premiersPas.afficher && !guide.masque && !interieur && !panneauOuvert && !planCinema;
-  const panneauGuide = <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} dansObjectif={source === 'guide'} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} />;
+  const panneauGuide = <PanneauPremiersPas faites={premiersPas.faites} ouvert={guide.ouvert} dansObjectif={source === 'guide'} onBasculer={() => setGuide(g => ({ ...g, ouvert: !g.ouvert }))} onMasquer={masquerGuide} compacte={!large} />;
   const chatQuartier = chat && !interieur ? <ChatQuartier place={placeChat} demo={demo} moi={nomJoueur ?? 'Moi'} voisins={enLigne.voisins} onEmote={enLigne.emote} onFermer={() => setChat(false)}
     equipe={enLigne.equipe} onInviter={enLigne.inviter} onRepondre={enLigne.repondre} onQuitter={enLigne.quitter} /> : null;
   // Panneaux de la journée : dans la ville devant le portail, ou par-dessus l'intérieur du chantier.
@@ -1060,7 +1075,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         en cours et la zone musicale en bas, puis le fil d'événements. Rien ne s'y chevauche : quand une notification
         grandit (un bouton d'action), le haut de la colonne lui cède la place. */}
     {!large && <div className={`pointer-events-none absolute inset-x-3 bottom-[120px] z-20 flex flex-col gap-2 ${sousLesBoutons}`}>
-      {chatQuartier ?? (guideVisible && <div className="flex min-h-0 w-[230px] flex-col self-end">{panneauGuide}</div>)}
+      {chatQuartier ?? (guideVisible && <div className={`flex min-h-0 flex-col self-end ${guide.ouvert ? 'w-[230px]' : 'max-w-[230px]'}`}>{panneauGuide}</div>)}
       <div className={`mt-auto flex w-[min(320px,100%)] flex-col items-start gap-2 ${panneauOuvert ? 'hidden' : ''}`}>{suiviMode}{zoneMusicale}</div>
       <PileNotifications notifications={notifications} onFermer={fermerNotification} max={1} />
     </div>}
@@ -1076,6 +1091,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       <p className="rounded-xl bg-white/[.04] px-3 py-2.5 text-[13px] text-jeu-ivoire/80">{LIBELLES_METEO[meteo].icone} {LIBELLES_METEO[meteo].nom} · {saison.nom}<span className="mt-0.5 block text-[11px] text-jeu-ivoire/50">Météo automatique, au gré des saisons.</span></p>
       {!large && <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[.04] px-3 py-2"><span className="text-[13px] text-jeu-ivoire/80">Temps</span><ReglageTemps pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} /></div>}
       <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche ? 'Passer en caméra libre' : 'Revenir à la vue d’ensemble'}</button>
+      {!large && <button type="button" onClick={basculerCroix} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">{croixVisible ? 'Masquer la croix de déplacement' : 'Afficher la croix de déplacement'}</button>}
       <p className="hud-legende px-1">{libelleSauvegarde}</p>
       <div className="rounded-xl bg-black/25 p-3 text-[11.5px] leading-relaxed text-jeu-ivoire/75">
         <p className="hud-legende mb-1.5">Commandes</p>
@@ -1198,7 +1214,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3">
       <JaugesBesoins besoins={stats} compacte={!large} />
       {large && !panneauOuvert && <p className="hud-verre mb-1 hidden items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] text-jeu-ivoire/70 lg:flex">Clique un lieu, le sol ou la minicarte<span className="px-1 text-jeu-ivoire/30">·</span><b className="hud-chiffre text-jeu-or">M</b> plan <b className="hud-chiffre ml-1 text-jeu-or">J</b> planning <b className="hud-chiffre ml-1 text-jeu-or">P</b> pause</p>}
-      {large ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1.5"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
+      {large || !croixVisible ? <span aria-hidden="true" className="w-px" /> : <div className="pointer-events-auto grid grid-cols-3 gap-1 opacity-80"><span /><BoutonDirection direction="avant" symbole="▲" setDirection={setDirection} /><span /><BoutonDirection direction="gauche" symbole="◀" setDirection={setDirection} /><BoutonDirection direction="arriere" symbole="▼" setDirection={setDirection} /><BoutonDirection direction="droite" symbole="▶" setDirection={setDirection} /></div>}
     </div>
     <p role="status" className="sr-only">{libelleSauvegarde}</p>
     {(premierChoix || choixPersonnageOuvert) && <ChoixPersonnage initial={idPersonnage ?? personnageProche(avatar?.config)} nomInitial={nomJoueur ?? ''} avatarConfig={configPortrait}

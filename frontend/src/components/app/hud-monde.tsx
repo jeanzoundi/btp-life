@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import type * as THREE from 'three';
 import { humeurDuMoment, humeursDe, type BesoinsComplets } from '@/lib/humeurs';
 import { angleEcran, distance, distanceLisible, type Point2 } from '@/lib/minicarte';
@@ -162,11 +162,25 @@ const BESOINS = [
 export function JaugesBesoins({ besoins, compacte = false }: { besoins: BesoinsComplets; compacte?: boolean }) {
   const humeur = humeurDuMoment(besoins);
   const humeurs = humeursDe(besoins);
+  // Sur téléphone, les six jauges se replient en une pastille (humeur, forme, besoins en alerte) : la ville reste visible.
+  const [deplie, setDeplie] = useState(false);
+  const alertes = BESOINS.filter(b => besoins[b.cle] < 25);
+  if (compacte && !deplie) {
+    return <div role="group" aria-label="Besoins">
+      <button type="button" onClick={() => setDeplie(true)} aria-expanded={false} aria-label={`Humeur : ${humeur.nom}, forme ${humeur.forme} %. Voir les besoins`}
+        className="hud-verre pointer-events-auto flex items-center gap-2 rounded-full px-3 py-1.5 text-[11.5px] font-bold">
+        <span>{humeur.icone}</span>
+        <span className={`hud-chiffre ${humeur.pleineForme ? 'text-jeu-lagune' : humeur.forme < 85 ? 'text-[#F08A4B]' : 'text-jeu-ivoire/80'}`}>{humeur.pleineForme ? 'XP +5 %' : `${humeur.forme} %`}</span>
+        {alertes.map(b => <span key={b.cle} title={b.label} className="flex h-[22px] w-[22px] animate-pulse items-center justify-center rounded-[7px] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ backgroundColor: `${b.couleur}33`, color: b.couleur }}>{ICONES[b.cle]}</span>)}
+      </button>
+    </div>;
+  }
   return <div role="group" aria-label="Besoins" className={`hud-verre pointer-events-auto grid ${compacte ? 'w-[186px] grid-cols-3 gap-x-2 gap-y-1.5 p-2' : 'w-[252px] grid-cols-2 gap-x-3 gap-y-2.5 p-3'}`}>
     <p role="status" aria-label={`Humeur : ${humeur.nom}, forme ${humeur.forme} %`} title={humeurs.length ? humeurs.map(h => `${h.icone} ${h.nom}`).join(' · ') : 'Rien de particulier'}
       className="col-span-full flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-[11px] font-bold">
       <span className="min-w-0 truncate">{humeur.icone} {humeur.nom}</span>
       <span className={`hud-chiffre shrink-0 ${humeur.pleineForme ? 'text-jeu-lagune' : humeur.forme < 85 ? 'text-[#F08A4B]' : 'text-jeu-ivoire/70'}`}>{humeur.pleineForme ? 'XP +5 %' : `Forme ${humeur.forme} %`}</span>
+      {compacte && <button type="button" onClick={() => setDeplie(false)} aria-label="Replier les besoins" className="-mr-1 rounded-full px-1.5 leading-none hover:bg-white/10">−</button>}
     </p>
     {BESOINS.map(b => {
       const valeur = Math.max(0, Math.min(100, besoins[b.cle]));

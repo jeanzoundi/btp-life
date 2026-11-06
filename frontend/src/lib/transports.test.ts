@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arretLePlusProche, distanceRues, minutesLisibles, prixTrajet, trajet, trajetMotorise } from './transports';
+import { arretLePlusProche, deroulementTrajet, distanceRues, gbakaUtile, minutesLisibles, prixTrajet, trajet, trajetMotorise } from './transports';
 
 describe('les prix des transports', () => {
   it('fait payer le gbaka au forfait, avec un supplément au-delà de 4 km', () => {
@@ -43,5 +43,27 @@ describe('les trajets', () => {
   it('affiche les durées lisiblement', () => {
     expect(minutesLisibles(45)).toBe('45 min');
     expect(minutesLisibles(75)).toBe('1 h 15');
+  });
+});
+
+describe('le déroulé d’une course', () => {
+  it('en taxi, on est pris où l’on est et déposé devant la porte, le temps de la course passé', () => {
+    const d = deroulementTrajet('taxi', [-100, -100], [89, 62], 'la Marina');
+    expect(d.arriveeJoueur).toEqual([89, 62]);
+    expect(d.resteAPied).toBeNull();
+    expect(d.minutesVehicule).toBe(trajet('taxi', [-100, -100], [89, 62]).minutes);
+    expect(d.etapes.at(-1)!.texte).toContain('la Marina');
+  });
+  it('en gbaka, on descend à l’arrêt le plus proche et on finit à pied, ce temps-là compté en marchant', () => {
+    const d = deroulementTrajet('gbaka', [-100, -58], [89, 62], 'la Marina');
+    expect(d.arriveeJoueur).toEqual([27, 6.2]);
+    expect(d.resteAPied).toEqual({ depuis: [27, 6.2], minutes: Math.round(distanceRues([27, 6.2], [89, 62]) / 4.5) });
+    expect(d.etapes.map(e => e.texte)).toEqual(['À pied jusqu’à : Gare des gbakas', 'Gbaka jusqu’à : Arrêt de l’avenue de la Lagune', 'À pied jusqu’à la Marina']);
+    expect(d.minutesVehicule).toBeLessThan(trajet('gbaka', [-100, -58], [89, 62]).minutes);
+  });
+  it('dépose devant la porte quand l’arrêt y est, et ne propose pas le gbaka qui ne rapproche pas', () => {
+    expect(deroulementTrajet('gbaka', [-100, -58], [-27, -2], 'la banque').resteAPied).toBeNull();
+    expect(gbakaUtile([-100, -58], [89, 62])).toBe(true);
+    expect(gbakaUtile([-20, -5], [-30, 2])).toBe(false);
   });
 });

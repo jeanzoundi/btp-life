@@ -1,12 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { BATIMENTS, POINTS_DECOUVERTE } from './batiments-ville';
 
-// Contrôle les coordonnées réellement utilisées par la scène, sans charger WebGL.
-const source = readFileSync('src/components/app/scene-quartier.tsx', 'utf8');
-const batiments = [...source.matchAll(/slug: '([^']+)'[^\n]+position: \[([^\]]+)\], taille: \[([^\]]+)\]/g)]
-  .map((m) => ({ slug: m[1], position: m[2].split(',').map(Number), taille: m[3].split(',').map(Number) }));
-const points = [...source.matchAll(/id: '([^']+)'[^\n]+position: \[([^\]]+)\] as PointMonde/g)]
-  .map((m) => ({ id: m[1], position: m[2].split(',').map(Number) }));
+// Les coordonnées réellement utilisées par la scène, sans charger WebGL : elles vivent dans lib/batiments-ville.ts.
+const batiments = BATIMENTS;
+const points = POINTS_DECOUVERTE;
 
 describe('repères de découverte', () => {
   it('vérifie bien les six repères et les bâtiments de la scène', () => {

@@ -82,17 +82,18 @@ export function usePremiersPas({ demo, onEtape }: {
 /** Le panneau du guide : les quatre étapes de la première journée, la prochaine détaillée, et ce qu'elles rapportent ; replié, la prochaine étape reste
  * affichée. Quand elle est déjà l'objectif de la case objectif (`dansObjectif`), le guide replié dit seulement comment la
  * réussir, pour ne pas montrer deux fois la même consigne. */
-export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer, dansObjectif = false }: {
-  faites: readonly EtapePremiersPas[]; ouvert: boolean; onBasculer: () => void; onMasquer: () => void; dansObjectif?: boolean;
+/** `compacte` (téléphone) : replié, le guide n'est plus qu'une étiquette ; l'objectif en haut dit déjà l'étape à faire. */
+export function PanneauPremiersPas({ faites, ouvert, onBasculer, onMasquer, dansObjectif = false, compacte = false }: {
+  faites: readonly EtapePremiersPas[]; ouvert: boolean; onBasculer: () => void; onMasquer: () => void; dansObjectif?: boolean; compacte?: boolean;
 }) {
   const prochaine = prochaineEtape(faites);
   const { etape, finale } = RECOMPENSES_PREMIERS_PAS;
-  return <section aria-label="Première journée" className="hud-verre pointer-events-auto min-h-0 overflow-y-auto rounded-2xl p-3 text-jeu-ivoire">
+  return <section aria-label="Première journée" className={`hud-verre pointer-events-auto min-h-0 overflow-y-auto text-jeu-ivoire ${compacte && !ouvert ? 'rounded-full px-3 py-1.5' : 'rounded-2xl p-3'}`}>
     <header className="flex items-center gap-2">
-      <h3 className="hud-titre flex-1 text-[13.5px]">Première journée · {faites.length}/{ETAPES_PREMIERS_PAS.length}</h3>
+      <h3 className={`hud-titre flex-1 ${compacte && !ouvert ? 'text-[12px]' : 'text-[13.5px]'}`}>Première journée · {faites.length}/{ETAPES_PREMIERS_PAS.length}</h3>
       <button type="button" aria-expanded={ouvert} aria-label={ouvert ? 'Replier le guide' : 'Déplier le guide'} onClick={onBasculer} className="rounded-full px-2 text-[15px] leading-none hover:bg-white/10">{ouvert ? '−' : '+'}</button>
     </header>
-    {!ouvert && prochaine && (dansObjectif
+    {!ouvert && !compacte && prochaine && (dansObjectif
       ? <p className="mt-1 text-[11.5px] leading-snug text-jeu-ivoire/75">{prochaine.detail}</p>
       : <p className="mt-1 truncate text-[12px] font-semibold text-jeu-or">▸ {prochaine.titre}</p>)}
     {ouvert && <>

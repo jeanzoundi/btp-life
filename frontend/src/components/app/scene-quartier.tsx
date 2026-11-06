@@ -7,7 +7,6 @@ import { Billboard, MapControls, Text } from '@react-three/drei';
 import { EclairageMonde } from './eclairage-monde';
 import { HumainMonde, PersonnagesApresLaVille } from './humain-monde';
 import { orienterProgressivement } from '@/lib/fluidite-monde';
-import { itineraireVille } from '@/lib/itineraire-ville';
 import { decalageVue, DISTANCE_LOIN, DISTANCE_PROCHE, inclinaisonPourDistance } from '@/lib/camera-monde';
 import { ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -24,8 +23,10 @@ import { penseeJoueur, penseePnj, type ContextePensee } from '@/lib/pensees-mond
 import { EmoteJoueur3D, VoisinsEnLigne3D } from './monde-en-ligne';
 import type { Emote, VoisinEnLigne } from '@/lib/en-ligne';
 import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
-import { bungalowChantier, postesChantier, type EtatVisuel, type PosteVille } from '@/lib/journee-chantier';
-import { CAMPAGNE, PARCELLE_AKWABA } from '@/lib/campagne';
+import { postesChantier, type EtatVisuel, type PosteVille } from '@/lib/journee-chantier';
+import { PARCELLE_AKWABA } from '@/lib/campagne';
+import { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE, type Batiment3D, type PointMonde } from '@/lib/batiments-ville';
+import { EMPRISES_BATIMENTS, NAVIGATION_VILLE as NAVIGATION } from '@/lib/decor-ville';
 import { CONCURRENT, PENSEES_CONCURRENT, ROUTE_CONCURRENT, presenceConcurrent } from '@/lib/concurrent';
 import { positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
@@ -34,8 +35,6 @@ import { creneauPnj, effetsMeteo, passantsPresents } from '@/lib/vie-urbaine';
 import { etapePnj, JOURNEES_PNJ } from '@/lib/journee-pnj';
 import { HabitantJournee } from './habitant-journee';
 import { HumainJoueur } from './personnage-joueur';
-import { LIEUX_MONDE } from '@/lib/liens-modes';
-import { EMPRISES_PALMIERS } from '@/lib/place-palmiers';
 import type { IdentitePersonnage } from '@/lib/identites-personnages';
 
 type Critique = { icone: string; label: string } | null;
@@ -43,56 +42,15 @@ type Critique = { icone: string; label: string } | null;
 const IDENTITES_PNJ: Record<string, IdentitePersonnage> = { Awa: 'awa', Yao: 'yao', Mariam: 'mariam', Koffi: 'koffi', Fatou: 'fatou' };
 
 export type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
-export type PointMonde = [number, number];
+export type { Batiment3D, PointMonde };
+export { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE };
 
-export interface Batiment3D {
-  slug: string; nom: string; href: string;
-  position: [number, number, number]; taille: [number, number, number]; couleur: string;
-  type: 'tour' | 'campus' | 'maison' | 'chantier' | 'commerce';
-}
-
-export const BATIMENTS: Batiment3D[] = [
-  { slug: 'universite', ...LIEUX_MONDE['universite'], position: [-29, 4, -23], taille: [17, 8, 12], couleur: '#d8c092', type: 'campus' },
-  { slug: 'entreprise', ...LIEUX_MONDE['entreprise'], position: [29, 9, -24], taille: [13, 18, 11], couleur: '#53677a', type: 'tour' },
-  { slug: 'chantier', ...LIEUX_MONDE['chantier'], position: [31, 2, 22], taille: [21, 4, 15], couleur: '#d97706', type: 'chantier' },
-  { slug: 'residence', ...LIEUX_MONDE['residence'], position: [-31, 4, 22], taille: [15, 8, 12], couleur: '#b45309', type: 'maison' },
-  { slug: 'maquis', ...LIEUX_MONDE['maquis'], position: [-11, 2.3, 31], taille: [10, 4.6, 8], couleur: '#be563c', type: 'commerce' },
-  { slug: 'cafe', ...LIEUX_MONDE['cafe'], position: [10, 2.3, -34], taille: [10, 4.6, 8], couleur: '#6b7a3f', type: 'commerce' },
-  { slug: 'banque', ...LIEUX_MONDE['banque'], position: [-41, 4, -1], taille: [12, 8, 10], couleur: '#d6bd75', type: 'campus' },
-  { slug: 'fournisseur', ...LIEUX_MONDE['fournisseur'], position: [42, 3.5, -1], taille: [14, 7, 11], couleur: '#8e785e', type: 'commerce' },
-  { slug: 'mairie', ...LIEUX_MONDE['mairie'], position: [-26, 4.5, -91], taille: [18, 9, 13], couleur: '#d8ccb2', type: 'campus' },
-  { slug: 'laboratoire', ...LIEUX_MONDE['laboratoire'], position: [28, 3, -91], taille: [16, 6, 12], couleur: '#98b8ae', type: 'campus' },
-  { slug: 'bureau-etudes', ...LIEUX_MONDE['bureau-etudes'], position: [0, 6, -114], taille: [16, 12, 10], couleur: '#6e8e99', type: 'tour' },
-  { slug: 'jardins-residence', ...LIEUX_MONDE['jardins-residence'], position: [-88, 3, -33], taille: [14, 6, 12], couleur: '#d7b58b', type: 'maison' },
-  { slug: 'marche', ...LIEUX_MONDE['marche'], position: [-88, 2, -58], taille: [16, 4, 10], couleur: '#b65d45', type: 'commerce' },
-  { slug: 'atelier', ...LIEUX_MONDE['atelier'], position: [87, 3, -33], taille: [18, 6, 12], couleur: '#b1aa82', type: 'campus' },
-  { slug: 'logistique', ...LIEUX_MONDE['logistique'], position: [88, 3, -54], taille: [22, 6, 14], couleur: '#788d99', type: 'campus' },
-  { slug: 'agence', ...LIEUX_MONDE['agence'], position: [-88, 4.5, -88], taille: [14, 9, 12], couleur: '#a2b5a1', type: 'tour' },
-  { slug: 'construction-nord', ...LIEUX_MONDE['construction-nord'], position: [87, 2, -88], taille: [20, 4, 16], couleur: '#c39b64', type: 'chantier' },
-  { slug: 'centre-azur', ...LIEUX_MONDE['centre-azur'], position: [-84, 5, 24], taille: [28, 10, 18], couleur: '#88aeb2', type: 'commerce' },
-  { slug: 'galerie-palmiers', ...LIEUX_MONDE['galerie-palmiers'], position: [84, 4, 25], taille: [26, 8, 18], couleur: '#c0936f', type: 'commerce' },
-  { slug: 'marina', ...LIEUX_MONDE['marina'], position: [89, 2.5, 55], taille: [18, 5, 10], couleur: '#4b858c', type: 'commerce' },
-  { slug: 'sports', ...LIEUX_MONDE['sports'], position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
-];
-/** La parcelle du fil rouge, traitée comme un lieu pour y aller (porte côté avenue) ; on n'y entre pas, on y retrouve Mme Touré. */
-export const PARCELLE_BATIMENT: Batiment3D = {
-  slug: PARCELLE_AKWABA.slug, nom: CAMPAGNE.nom, href: '', position: [PARCELLE_AKWABA.x, 1, PARCELLE_AKWABA.z],
-  taille: [PARCELLE_AKWABA.largeur, 2, PARCELLE_AKWABA.profondeur], couleur: '#A88C66', type: 'chantier',
-};
-/** La minicarte montre la parcelle avec les lieux, et la touche y envoie le joueur. */
-export const BATIMENTS_CARTE = [...BATIMENTS, PARCELLE_BATIMENT];
 export const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
 export const POSTES_CHANTIER = postesChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2]);
-const EMPRISES=[...[...BATIMENTS, PARCELLE_BATIMENT].map(b=>({x:b.position[0],z:b.position[2],largeur:b.taille[0],profondeur:b.taille[2]})), ...EMPRISES_PALMIERS, bungalowChantier(CENTRE_CHANTIER, BATIMENT_CHANTIER.taille[0], BATIMENT_CHANTIER.taille[2])];
-export const POINTS_DECOUVERTE = [
-  { id: 'fontaine-plateau', nom: 'Fontaine du Plateau', position: [0, -52] as PointMonde },
-  { id: 'promenade-lagune', nom: 'Promenade de la Lagune', position: [0, 47] as PointMonde },
-  { id: 'marche-jardins', nom: 'Marché des Jardins', position: [-88, 11] as PointMonde },
-  { id: 'marina', nom: 'Marina BTP Life', position: [89, 47] as PointMonde },
-  { id: 'campus-batisseurs', nom: 'Campus des Bâtisseurs', position: [87, -24] as PointMonde },
-  { id: 'plage-sables', nom: 'Plage des Sables', position: [-25, 58] as PointMonde },
-];
+/** Bâtiments, parcelle, boutiques de la place et bungalow du chantier : ce que les habitants contournent sur leurs trajets.
+ * Le joueur, lui, contourne aussi tout le décor (NAVIGATION_VILLE) : arbres, bancs, parasols, abribus, étals, pirogues… */
+const EMPRISES = EMPRISES_BATIMENTS;
 
 const ROUTES_PASSANTS: PointMonde[][] = [
   [[-112, -12], [-62, -12], [-62, 36], [-110, 36]],
@@ -126,7 +84,7 @@ function Personnage(props: { nom?: string; couleur?: string; marche?: boolean; c
 function Joueur({ nom, directions, destination, positionRef, pause, positionInitiale, onPosition, humeur, critique, contexte, bulles, vitesse = 4.5, parle = false }: { nom?: string; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; positionRef: React.MutableRefObject<THREE.Vector3>; pause: boolean; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; humeur: Humeur; critique: Critique; contexte: ContextePensee; bulles: boolean; vitesse?: number; parle?: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const pensee = usePenseePeriodique(graine => penseeJoueur(critique, contexte, graine), bulles, 3, critique ? 11 : 26);
-  const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null);
+  const route=useRef<PointMonde[]>([]),cibleRoute=useRef<PointMonde|null>(null),essais=useRef(0);
   const delaiSignal = useRef(0);
   const vecteurs = useMemo(() => ({ mouvement: new THREE.Vector3(), avant: new THREE.Vector3(), droite: new THREE.Vector3(), prochain: new THREE.Vector3() }), []);
   const [marche, setMarche] = useState(false);
@@ -149,7 +107,7 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
       destination.current = null;
       route.current=[];cibleRoute.current=null;
     } else if (destination.current) {
-      if(cibleRoute.current!==destination.current){cibleRoute.current=destination.current;route.current=itineraireVille([ref.current.position.x,ref.current.position.z],destination.current,EMPRISES);}
+      if(cibleRoute.current!==destination.current){cibleRoute.current=destination.current;route.current=NAVIGATION.chemin([ref.current.position.x,ref.current.position.z],destination.current);}
       const point=route.current[0];
       if(point){mouvement.set(point[0]-ref.current.position.x,0,point[1]-ref.current.position.z);if(mouvement.lengthSq()<.025){route.current.shift();mouvement.set(0,0,0);}}
       if(!route.current.length){destination.current=null;cibleRoute.current=null;}
@@ -158,14 +116,13 @@ function Joueur({ nom, directions, destination, positionRef, pause, positionInit
     if (actif) {
       const distance=Math.min(mouvement.length(),vitesse*Math.min(delta,.05));mouvement.normalize();
       prochain.copy(ref.current.position).addScaledVector(mouvement, distance);
-      const bloque = EMPRISES.some(b => Math.abs(prochain.x - b.x) < b.largeur / 2 + 0.7 && Math.abs(prochain.z - b.z) < b.profondeur / 2 + 0.7);
-      if (!bloque) ref.current.position.copy(prochain);
-      else {
-        const libre = (x: number, z: number) => !EMPRISES.some(b => Math.abs(x - b.x) < b.largeur / 2 + 0.7 && Math.abs(z - b.z) < b.profondeur / 2 + 0.7);
-        if (libre(prochain.x, ref.current.position.z)) ref.current.position.x = prochain.x;
-        else if (libre(ref.current.position.x, prochain.z)) ref.current.position.z = prochain.z;
-        else destination.current = null;
-      }
+      // Ni bâtiment ni décor : contre un obstacle, on glisse le long ; coincé sur un trajet, on cherche un autre chemin
+      // (deux fois au plus, puis on s'arrête).
+      if (NAVIGATION.passe(prochain.x, prochain.z)) { ref.current.position.copy(prochain); essais.current = 0; }
+      else if (NAVIGATION.passe(prochain.x, ref.current.position.z)) ref.current.position.x = prochain.x;
+      else if (NAVIGATION.passe(ref.current.position.x, prochain.z)) ref.current.position.z = prochain.z;
+      else if (destination.current && essais.current < 2) { essais.current++; cibleRoute.current = null; route.current = []; }
+      else { destination.current = null; essais.current = 0; }
       ref.current.position.x = THREE.MathUtils.clamp(ref.current.position.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX);
       ref.current.position.z = THREE.MathUtils.clamp(ref.current.position.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ);
       ref.current.rotation.y = orienterProgressivement(ref.current.rotation.y, Math.atan2(mouvement.x, mouvement.z), delta);
@@ -350,7 +307,7 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
     <SolsMouilles pluie={pluie} pause={pause} />
     <PaysageLagune pause={pause} rythme={rythme} heure={Math.floor(heure)} onDestination={choisirDestination} /><MarqueurDestination destination={destination} />
     {POINTS_DECOUVERTE.map(point => <PointDecouverte key={point.id} point={point} trouve={decouvertes.includes(point.id)} onTrouver={(id, nom) => {
-      if (Math.hypot(joueur.current.x - point.position[0], joueur.current.z - point.position[1]) <= 6) onDecouverte(id, nom);
+      if (Math.hypot(joueur.current.x - point.position[0], joueur.current.z - point.position[1]) <= point.rayon) onDecouverte(id, nom);
       else destination.current = point.position;
     }} />)}
     {BATIMENTS.map((b) => b.slug === 'chantier'

@@ -2,20 +2,23 @@
 
 import { useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 // Toutes les scènes 3D passent par ce module : on y fixe aussi la police locale des textes 3D.
 import '@/lib/police-textes-3d';
-import { cheminTexture, type MatiereMonde } from '@/lib/ressources-legeres';
+import { cheminTexture, ressourcesLegeres, type MatiereMonde } from '@/lib/ressources-legeres';
 
 export type { MatiereMonde };
 
 /** Couleur, relief et rugosité en WebP ; 512 px au lieu de 1024 sur téléphone (ressources-legeres.ts). */
 export function useCartesPBR(type: MatiereMonde) {
   const sources=useTexture([cheminTexture(type,'color'),cheminTexture(type,'normal'),cheminTexture(type,'rough')]);
+  // Filtrage anisotrope : les sols vus en biais (rues, pavés) restent nets au loin. 8 sur ordinateur, 4 sur téléphone.
+  const maxAnisotropie=useThree(s=>s.gl.capabilities.getMaxAnisotropy());
   return useMemo(()=>sources.map((map,i)=>{
-    map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=4;
+    map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=Math.max(1,Math.min(maxAnisotropie,ressourcesLegeres()?4:8));
     map.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.needsUpdate=true;return map;
-  }),[sources[0],sources[1],sources[2]]);
+  }),[sources[0],sources[1],sources[2],maxAnisotropie]);
 }
 
 /** Humidité des sols de la ville (0 sec, 1 détrempé), partagée par tous les matériaux mouillables : la pluie l'élève et le
@@ -108,7 +111,9 @@ export function SurfaceBloc({dimensions:s,couleur,metal=0,mouillable=false}:{dim
     const rgb=new THREE.Color(couleur);
     const bois=rgb.r>rgb.b*1.7&&s[0]<35;
     const route=couleur==='#555d60';
-    return <MateriauPBR type={route?'asphalt_02':bois?'wood_floor':'concrete_floor'} couleur={route?'#c2c9cf':bois?'#dfcbb3':'#e0dbcd'} repeat={Math.max(1,Math.min(32,Math.max(s[0],s[2])/3))} mouillable={mouillable}/>;
+    // Projetée au mètre : une chaussée de 240 m sur 6 garde le grain de l'enrobé dans les deux sens, au lieu d'une même
+    // répétition écrasée quarante fois en travers (des traînées floues le long de la route).
+    return <MateriauMonde type={route?'asphalt_02':bois?'wood_floor':'concrete_floor'} couleur={route?'#c2c9cf':bois?'#dfcbb3':'#e0dbcd'} echelle={route?3.5:bois?2.4:3} relief={route?.75:.6} rugosite={route?.95:.9} mouillable={mouillable}/>;
   }
   return <Finition couleur={couleur} metal={metal} mouillable={mouillable}/>;
 }

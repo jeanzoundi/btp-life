@@ -6,7 +6,8 @@ import { zoneMusicaleProche } from '@/lib/zones-musicales';
 type ContexteAudio = AudioContext;
 function frequence(note: number) { return 440 * 2 ** ((note - 69) / 12); }
 
-export function ControleZoneMusicale({ position, interieur }: { position: [number, number]; interieur: boolean }) {
+/** `compacte` (téléphone) : replié, le contrôle n'est qu'une pastille ♫ ; déplié, le même panneau qu'ailleurs. */
+export function ControleZoneMusicale({ position, interieur, compacte = false }: { position: [number, number]; interieur: boolean; compacte?: boolean }) {
   const zone = interieur ? null : zoneMusicaleProche(position);
   const [active, setActive] = useState<string | null>(null);
   const [volume, setVolume] = useState(.16);
@@ -38,8 +39,8 @@ export function ControleZoneMusicale({ position, interieur }: { position: [numbe
   };
   if (!zone) return null;
   // Placé par le HUD dans une colonne : sous l'objectif sur grand écran, au-dessus des notifications sur téléphone.
-  return <details aria-label={`Zone musicale : ${zone.nom}`} className="hud-verre pointer-events-auto max-w-56 rounded-2xl px-3 py-2">
-    <summary className="cursor-pointer py-0.5 text-[12px] font-bold text-jeu-ivoire/85">♫ Musique{active ? ' · en écoute' : ''}</summary>
+  return <details aria-label={`Zone musicale : ${zone.nom}`} className={`hud-verre pointer-events-auto max-w-56 ${compacte ? 'rounded-2xl px-2.5 py-1.5' : 'rounded-2xl px-3 py-2'}`}>
+    <summary className="cursor-pointer py-0.5 text-[12px] font-bold text-jeu-ivoire/85" title="Musique">{compacte ? `♫${active ? ' ●' : ''}` : `♫ Musique${active ? ' · en écoute' : ''}`}</summary>
     <div className="mt-2 border-t border-white/10 pt-2">
     <p className="hud-legende text-jeu-or">Zone musicale</p><strong className="mt-1 block text-sm">{zone.nom}</strong><span className="text-[11px] text-jeu-ivoire/60">{zone.style}</span>
     <button onClick={active ? arreter : demarrer} className="hud-bouton hud-bouton-principal mt-2 w-full px-3 py-2 text-xs">{active ? '■ Arrêter' : '▶ Écouter'}</button>

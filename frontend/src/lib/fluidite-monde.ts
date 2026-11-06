@@ -9,12 +9,17 @@ export function qualiteMemorisee(): QualiteMonde {
   return 'auto';
 }
 
-/** Hysteresis avoids oscillating between resolutions near the same frame rate. */
-export function ajusterResolution(dpr: number, fps: number, plafond: number) {
+/** Hysteresis avoids oscillating between resolutions near the same frame rate. `plancher` : la résolution la plus basse
+ * permise (1 tant qu'il reste des effets à retirer : une image floue se voit plus qu'un halo en moins). */
+export function ajusterResolution(dpr: number, fps: number, plafond: number, plancher = .8) {
   if (!Number.isFinite(fps) || fps <= 0) return dpr;
   const suivant = fps < 38 ? dpr - .15 : fps > 57 ? dpr + .1 : dpr;
-  return Math.round(Math.max(Math.min(.8, plafond), Math.min(plafond, suivant)) * 100) / 100;
+  return Math.round(Math.max(Math.min(plancher, plafond), Math.min(plafond, suivant)) * 100) / 100;
 }
+
+/** Résolution maximale : celle de l'écran, jusqu'à 2 sur ordinateur et 1,5 sur téléphone (au-delà, le coût grimpe pour un
+ * gain que l'œil ne voit plus sur un petit écran). */
+export const plafondResolution = (pixelsParPoint: number, petitEcran: boolean) => Math.min(pixelsParPoint || 1, petitEcran ? 1.5 : 2);
 
 export function orienterProgressivement(angle: number, cible: number, delta: number) {
   const ecart = Math.atan2(Math.sin(cible - angle), Math.cos(cible - angle));

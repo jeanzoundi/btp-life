@@ -49,5 +49,47 @@ export function trajet(mode: ModeTransport, depart: Point, arrivee: Point, pluie
 /** Le trajet vaut-il la peine d'un véhicule ? Sous 40 m, on y va à pied. */
 export const trajetMotorise = (depart: Point, arrivee: Point) => distanceRues(depart, arrivee) >= 40;
 
+/** Les noms des arrêts, dans l'ordre d'ARRETS_GBAKA. */
+export const NOMS_ARRETS_GBAKA = ['Gare des gbakas', 'Avenue du Plateau, côté mairie', 'Avenue du Plateau, côté laboratoire', 'Arrêt de la place des Palmiers', 'Arrêt de l’avenue de la Lagune'] as const;
+export const nomArret = (p: Point) => NOMS_ARRETS_GBAKA[ARRETS_GBAKA.indexOf(p)] ?? 'Arrêt';
+/** Le gbaka rapproche-t-il ? Pas si l'arrêt de montée est aussi celui de descente : autant marcher. */
+export const gbakaUtile = (depart: Point, arrivee: Point) => arretLePlusProche(depart) !== arretLePlusProche(arrivee);
+
+/** Au-delà, on descend du gbaka à l'arrêt et on finit à pied ; en deçà, l'arrêt est devant la porte. */
+const MARCHE_FINALE_MIN = 12;
+
+export interface EtapeTrajet { icone: string; texte: string; minutes: number }
+/** Le déroulé d'une course, pour l'écran du voyage : ses étapes, où se retrouve le joueur, le temps passé dans le
+ * véhicule (l'horloge avance d'autant) et, en gbaka, la marche qui reste de l'arrêt jusqu'à la porte. */
+export function deroulementTrajet(mode: 'gbaka' | 'taxi', depart: Point, arrivee: Point, nomArrivee: string, pluie = false) {
+  const t = trajet(mode, depart, arrivee, pluie);
+  if (mode === 'taxi') {
+    const roulage = Math.max(1, t.minutes - TARIFS.taxi.attenteMin);
+    return {
+      etapes: [
+        { icone: '📱', texte: 'Le taxi arrive', minutes: TARIFS.taxi.attenteMin },
+        { icone: '🚕', texte: pluie ? 'Course sous la pluie, au compteur' : 'Course au compteur', minutes: roulage },
+        { icone: '🚪', texte: `Déposé devant ${nomArrivee}`, minutes: 0 },
+      ] as EtapeTrajet[],
+      arriveeJoueur: arrivee, minutesVehicule: t.minutes, resteAPied: null as null | { depuis: Point; minutes: number },
+    };
+  }
+  const montee = arretLePlusProche(depart), descente = arretLePlusProche(arrivee);
+  const avant = Math.round(distanceRues(depart, montee) / MARCHE_PAR_MINUTE);
+  const roulage = Math.max(1, Math.round(distanceRues(montee, descente) * ECHELLE_DISTANCES / 1000 / TARIFS.gbaka.vitesseKmH * 60));
+  const metresApres = distanceRues(descente, arrivee), apres = Math.round(metresApres / MARCHE_PAR_MINUTE);
+  const finAPied = metresApres > MARCHE_FINALE_MIN;
+  return {
+    etapes: [
+      { icone: '🚶', texte: `À pied jusqu’à : ${nomArret(montee)}`, minutes: avant },
+      { icone: '🚐', texte: `Gbaka jusqu’à : ${nomArret(descente)}`, minutes: TARIFS.gbaka.attenteMin + roulage },
+      { icone: '🚶', texte: finAPied ? `À pied jusqu’à ${nomArrivee}` : `Descente devant ${nomArrivee}`, minutes: apres },
+    ] as EtapeTrajet[],
+    arriveeJoueur: finAPied ? descente : arrivee,
+    minutesVehicule: avant + TARIFS.gbaka.attenteMin + roulage + (finAPied ? 0 : apres),
+    resteAPied: finAPied ? { depuis: descente, minutes: apres } : null,
+  };
+}
+
 export const LIBELLES_MODES: Record<ModeTransport, string> = { pied: 'À pied', gbaka: 'Gbaka', taxi: 'Taxi compteur' };
 export const minutesLisibles = (m: number) => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;

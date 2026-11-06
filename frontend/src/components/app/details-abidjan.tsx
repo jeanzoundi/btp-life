@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import type { BlocArchitecture } from '@/lib/architecture-ville';
 import { COULEURS_CHAISES, siegeTerrasse, TABLES_TERRASSE } from '@/lib/terrasse-maquis';
 import { BlocsInstances } from './blocs-instances';
+import { CoquePirogue } from './bateaux-plage';
 
 // Les détails qui font Abidjan dans le quartier pilote : pirogues sur la lagune, terrasse de chaises plastique devant le
 // maquis, enseignes peintes à la main, et, la nuit, les flaques de lumière des lampadaires sur la chaussée.
@@ -48,13 +49,11 @@ export const FlaquesLumiere = memo(function FlaquesLumiere({ points, nuit }: { p
   </instancedMesh>;
 });
 
-/** Pirogue de pêcheur en bois, son pêcheur assis et sa pagaie. */
-function Pirogue({ couleur = '#5b3a22', pecheur = true }: { couleur?: string; pecheur?: boolean }) {
+/** Pirogue de pêcheur peinte (bateaux-plage.tsx), son pêcheur assis et sa pagaie. */
+function Pirogue({ modele, pecheur = true }: { modele: number; pecheur?: boolean }) {
   return <group>
-    <mesh position={[0, .18, 0]} castShadow><boxGeometry args={[4.4, .38, .78]} /><meshStandardMaterial color={couleur} roughness={.85} /></mesh>
-    {[-1, 1].map(s => <mesh key={s} position={[s * 2.55, .24, 0]} rotation={[0, Math.PI / 4, 0]} castShadow><boxGeometry args={[.62, .36, .62]} /><meshStandardMaterial color={couleur} roughness={.85} /></mesh>)}
-    <mesh position={[0, .38, 0]}><boxGeometry args={[4.1, .04, .62]} /><meshStandardMaterial color="#c9573a" roughness={.7} /></mesh>
-    {pecheur && <group position={[.6, .38, 0]}>
+    <CoquePirogue modele={modele} />
+    {pecheur && <group position={[.6, .42, 0]}>
       <mesh position={[0, .38, 0]} castShadow><capsuleGeometry args={[.17, .42, 4, 8]} /><meshStandardMaterial color="#d8b04a" roughness={.8} /></mesh>
       <mesh position={[0, .86, 0]} castShadow><sphereGeometry args={[.14, 10, 8]} /><meshStandardMaterial color="#4a2e1f" roughness={.7} /></mesh>
       <mesh position={[.25, .45, .36]} rotation={[.6, 0, -.5]}><cylinderGeometry args={[.025, .025, 1.7, 6]} /><meshStandardMaterial color="#7a5a3a" /></mesh>
@@ -62,7 +61,7 @@ function Pirogue({ couleur = '#5b3a22', pecheur = true }: { couleur?: string; pe
   </group>;
 }
 
-/** Trois pirogues glissent sur la lagune ; deux autres attendent, tirées sur le sable. */
+/** Trois pirogues glissent sur la lagune ; les autres attendent sur la plage ou au mouillage (bateaux-plage.tsx). */
 function PiroguesLagune({ pause, rythme }: { pause: boolean; rythme: number }) {
   const refs = useRef<(THREE.Group | null)[]>([]);
   const depart = useMemo(() => [{ x: -80, z: 74, v: .5 }, { x: 10, z: 79, v: -.35 }, { x: 70, z: 88, v: .3 }], []);
@@ -75,9 +74,7 @@ function PiroguesLagune({ pause, rythme }: { pause: boolean; rythme: number }) {
     });
   });
   return <group>
-    {depart.map((p, i) => <group key={i} ref={g => { refs.current[i] = g; }} position={[p.x, .12, p.z]} rotation={[0, p.v < 0 ? Math.PI : 0, 0]}><Pirogue couleur={['#5b3a22', '#6b4a2a', '#4a3020'][i]} /></group>)}
-    <group position={[-38, .05, 66.5]} rotation={[0, .5, 0]}><Pirogue pecheur={false} couleur="#2f6f8f" /></group>
-    <group position={[33, .05, 66.8]} rotation={[0, -.35, 0]}><Pirogue pecheur={false} couleur="#7a3a2a" /></group>
+    {depart.map((p, i) => <group key={i} ref={g => { refs.current[i] = g; }} position={[p.x, .12, p.z]} rotation={[0, p.v < 0 ? Math.PI : 0, 0]}><Pirogue modele={i} /></group>)}
   </group>;
 }
 

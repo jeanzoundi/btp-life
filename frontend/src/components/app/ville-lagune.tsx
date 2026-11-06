@@ -19,6 +19,12 @@ import { construireVoirie } from '@/lib/voirie-ville';
 import { BlocsInstances } from './blocs-instances';
 import { ToitTuiles } from './toits-monde';
 import { PlacePalmiers } from './place-palmiers';
+import { BateauxPlage } from './bateaux-plage';
+import {
+  ARRETS_BUS, BANCS_PROMENADE, ETALS_RUE, FEUX_TRICOLORES, FILET_PLAGE, FLAMBOYANTS_CENTRE, GARDE_CORPS, GBAKAS_GARES, KIOSQUE_TRANSFERT,
+  KIOSQUES_PLAGE, LAMPADAIRES_CENTRE, MOTOS_GAREES, PALMIERS, PANNEAUX_AFFICHAGE, PANNEAUX_RUE, PARASOLS_PLAGE, POTEAUX_ELECTRIQUES,
+  REPERES_QUARTIERS, transatParasol, tronconsGardeCorps, VOITURES_GAREES, Z_ETALS,
+} from '@/lib/decor-ville';
 
 type V = [number, number, number];
 function Bloc({ p, s, c, r = 0, e, m }: { p: V; s: V; c: string; r?: number; e?: string; m?: MatiereMonde }) {
@@ -59,47 +65,86 @@ function Palmier({ p, scale = 1 }: { p: V; scale?: number }) {
   </group>;
 }
 
+/** Une foliole de palme : quatre triangles en V, nervure au milieu. */
+function geometrieFoliole() {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0, -.11, -.04, .42, 0, .035, .55,
+    0, .035, .55, -.11, -.04, .42, 0, -.2, 1,
+    0, 0, 0, 0, .035, .55, .11, -.04, .42,
+    0, .035, .55, 0, -.2, 1, .11, -.04, .42,
+  ], 3));
+  g.computeVertexNormals();
+  return g;
+}
+const FOLIOLES_PAR_PALMIER = 216;
+/** Les folioles d'un cocotier, dans le repère du palmier : neuf palmes de douze paires, qui s'inclinent vers le bout. */
+function placerFolioles(appliquer: (matrice: THREE.Matrix4, sombre: boolean) => void) {
+  const m = new THREE.Object3D();
+  for (let frond = 0; frond < 9; frond++) {
+    const angle = frond * Math.PI * 2 / 9;
+    for (let leaf = 0; leaf < 12; leaf++) {
+      const t = (leaf + .5) / 12, radius = t * 2.8;
+      for (const side of [-1, 1]) {
+        m.position.set(.2 + Math.sin(angle) * radius, 5.1 + Math.sin(t * Math.PI) * .55 - t * t * 1.2, Math.cos(angle) * radius);
+        m.rotation.set(.18 + t * .6, angle + side * .95, 0);
+        m.scale.setScalar(.9 * (1 - t * .65));
+        m.updateMatrix();
+        appliquer(m.matrix, frond % 3 !== 0);
+      }
+    }
+  }
+}
+
 /** Feathered fronds, batched into one draw call per palm instead of solid paddles. */
 function FeuillagePalmier() {
   const ref = useRef<THREE.InstancedMesh>(null);
-  const geometry = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute([
-      0, 0, 0, -.11, -.04, .42, 0, .035, .55,
-      0, .035, .55, -.11, -.04, .42, 0, -.2, 1,
-      0, 0, 0, 0, .035, .55, .11, -.04, .42,
-      0, .035, .55, 0, -.2, 1, .11, -.04, .42,
-    ], 3));
-    g.computeVertexNormals();
-    return g;
-  }, []);
+  const geometry = useMemo(geometrieFoliole, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   useLayoutEffect(() => {
     if (!ref.current) return;
-    const m = new THREE.Object3D();
     let index = 0;
-    for (let frond = 0; frond < 9; frond++) {
-      const angle = frond * Math.PI * 2 / 9;
-      for (let leaf = 0; leaf < 12; leaf++) {
-        const t = (leaf + .5) / 12, radius = t * 2.8;
-        for (const side of [-1, 1]) {
-          m.position.set(.2 + Math.sin(angle) * radius, 5.1 + Math.sin(t * Math.PI) * .55 - t * t * 1.2, Math.cos(angle) * radius);
-          m.rotation.set(.18 + t * .6, angle + side * .95, 0);
-          m.scale.setScalar(.9 * (1 - t * .65));
-          m.updateMatrix();
-          ref.current.setMatrixAt(index, m.matrix);
-          ref.current.setColorAt(index++, new THREE.Color(frond % 3 === 0 ? '#657b39' : '#3e6336'));
-        }
-      }
-    }
+    const clair = new THREE.Color('#657b39'), sombre = new THREE.Color('#3e6336');
+    placerFolioles((matrice, fonce) => { ref.current!.setMatrixAt(index, matrice); ref.current!.setColorAt(index++, fonce ? sombre : clair); });
     ref.current.instanceMatrix.needsUpdate = true;
     if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
     ref.current.computeBoundingSphere();
   }, []);
-  return <instancedMesh ref={ref} args={[geometry, undefined, 216]} castShadow receiveShadow>
+  return <instancedMesh ref={ref} args={[geometry, undefined, FOLIOLES_PAR_PALMIER]} castShadow receiveShadow>
     <meshStandardMaterial roughness={.92} side={THREE.DoubleSide} />
   </instancedMesh>;
 }
+
+/** Tous les cocotiers de la ville en trois commandes de dessin (troncs, folioles, noix) au lieu de quatre par arbre : le
+ * même dessin que Palmier, assemblé une fois pour toutes. */
+const Palmiers = memo(function Palmiers({ palmiers }: { palmiers: readonly { p: readonly [number, number]; echelle: number; y: number }[] }) {
+  const troncs = useRef<THREE.InstancedMesh>(null), folioles = useRef<THREE.InstancedMesh>(null), noix = useRef<THREE.InstancedMesh>(null);
+  const geometrie = useMemo(geometrieFoliole, []);
+  useEffect(() => () => geometrie.dispose(), [geometrie]);
+  useLayoutEffect(() => {
+    if (!troncs.current || !folioles.current || !noix.current) return;
+    const arbre = new THREE.Object3D(), piece = new THREE.Object3D(), m = new THREE.Matrix4();
+    const clair = new THREE.Color('#657b39'), sombre = new THREE.Color('#3e6336');
+    let f = 0;
+    palmiers.forEach(({ p: [x, z], echelle, y }, i) => {
+      arbre.position.set(x, y, z); arbre.scale.setScalar(echelle * 1.25); arbre.updateMatrix();
+      piece.position.set(0, 2.5, 0); piece.rotation.set(0, 0, -.08); piece.updateMatrix();
+      troncs.current!.setMatrixAt(i, m.multiplyMatrices(arbre.matrix, piece.matrix));
+      [-.17, .17].forEach((dx, k) => {
+        piece.position.set(dx + .2, 4.8, .12); piece.rotation.set(0, 0, 0); piece.updateMatrix();
+        noix.current!.setMatrixAt(i * 2 + k, m.multiplyMatrices(arbre.matrix, piece.matrix));
+      });
+      placerFolioles((matrice, fonce) => { folioles.current!.setMatrixAt(f, m.multiplyMatrices(arbre.matrix, matrice)); folioles.current!.setColorAt(f++, fonce ? sombre : clair); });
+    });
+    for (const mesh of [troncs.current, folioles.current, noix.current]) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); }
+    if (folioles.current.instanceColor) folioles.current.instanceColor.needsUpdate = true;
+  }, [palmiers]);
+  return <group>
+    <instancedMesh ref={troncs} args={[undefined, undefined, palmiers.length]} castShadow><cylinderGeometry args={[0.13, 0.26, 5, 12]} /><meshStandardMaterial color="#887053" roughness={1} /></instancedMesh>
+    <instancedMesh ref={folioles} args={[geometrie, undefined, palmiers.length * FOLIOLES_PAR_PALMIER]} castShadow receiveShadow><meshStandardMaterial roughness={.92} side={THREE.DoubleSide} /></instancedMesh>
+    <instancedMesh ref={noix} args={[undefined, undefined, palmiers.length * 2]} castShadow><sphereGeometry args={[.18, 8, 6]} /><meshStandardMaterial color="#697341" roughness={1} /></instancedMesh>
+  </group>;
+});
 function Banc({ p, r = 0 }: { p: V; r?: number }) {
   return <group position={p} rotation={[0, r, 0]}>
     {[0, 0.23, 0.46].map(z => <Bloc key={z} p={[0, 0.55, z]} s={[2.2, 0.12, 0.18]} c="#9b603c" />)}
@@ -125,6 +170,39 @@ function Lampadaire({ p, r = 0 }: { p: V; r?: number }) {
     <mesh position={[1.12, 5.94, 0]}><boxGeometry args={[.62, .03, .26]} /><meshStandardMaterial color="#fff2bd" emissive="#ffd76a" emissiveIntensity={1.4} /></mesh>
   </group>;
 }
+/** Les lampadaires de la ville en cinq commandes de dessin (socle, mât, crosse, tête, LED) au lieu de cinq par lampadaire :
+ * le même dessin que Lampadaire, assemblé une fois. */
+const PIECES_LAMPADAIRE: { position: V; rotation: V; geometrie: THREE.BufferGeometry; couleur: string; metal: number; rugosite: number; emissive?: string }[] = [
+  { position: [0, .25, 0], rotation: [0, 0, 0], geometrie: new THREE.BoxGeometry(.36, .5, .36), couleur: '#2a3437', metal: .2, rugosite: .7 },
+  { position: [0, 3.1, 0], rotation: [0, 0, 0], geometrie: new THREE.CylinderGeometry(.07, .11, 5.6, 10), couleur: '#2c383c', metal: .5, rugosite: .45 },
+  { position: [.52, 5.86, 0], rotation: [0, 0, -1.25], geometrie: new THREE.CylinderGeometry(.045, .045, 1.15, 8), couleur: '#2c383c', metal: .5, rugosite: .45 },
+  { position: [1.12, 6.02, 0], rotation: [0, 0, 0], geometrie: new THREE.BoxGeometry(.72, .14, .32), couleur: '#1f2a2d', metal: .4, rugosite: .5 },
+  { position: [1.12, 5.94, 0], rotation: [0, 0, 0], geometrie: new THREE.BoxGeometry(.62, .03, .26), couleur: '#fff2bd', metal: 0, rugosite: .5, emissive: '#ffd76a' },
+];
+const Lampadaires = memo(function Lampadaires({ lampadaires }: { lampadaires: readonly { p: readonly [number, number]; r: number }[] }) {
+  const refs = useRef<(THREE.InstancedMesh | null)[]>([]);
+  useLayoutEffect(() => {
+    const pied = new THREE.Object3D(), piece = new THREE.Object3D(), m = new THREE.Matrix4();
+    PIECES_LAMPADAIRE.forEach((p, k) => {
+      const mesh = refs.current[k];
+      if (!mesh) return;
+      lampadaires.forEach(({ p: [x, z], r }, i) => {
+        pied.position.set(x, 0, z); pied.rotation.set(0, r, 0); pied.updateMatrix();
+        piece.position.set(...p.position); piece.rotation.set(...p.rotation); piece.updateMatrix();
+        mesh.setMatrixAt(i, m.multiplyMatrices(pied.matrix, piece.matrix));
+      });
+      mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();
+    });
+  }, [lampadaires]);
+  return <group>{PIECES_LAMPADAIRE.map((p, k) => <instancedMesh key={k} ref={m => { refs.current[k] = m; }} args={[p.geometrie, undefined, lampadaires.length]} castShadow={!p.emissive}>
+    <meshStandardMaterial color={p.couleur} metalness={p.metal} roughness={p.rugosite} emissive={p.emissive ?? '#000000'} emissiveIntensity={p.emissive ? 1.4 : 0} />
+  </instancedMesh>)}</group>;
+});
+const TOUS_LES_LAMPADAIRES = [
+  ...LAMPADAIRES_CENTRE.map(([x, z]) => ({ p: [x, z] as const, r: z < 0 ? -Math.PI / 2 : Math.PI / 2 })),
+  ...REPERES_QUARTIERS.map(q => ({ p: q.lampadaire, r: 0 })),
+];
+
 function ArretBus({ p, r = 0 }: { p: V; r?: number }) {
   return <group position={p} rotation={[0, r, 0]}>
     <Bloc p={[0, 1.25, 0]} s={[3.5, 0.12, 1.5]} c="#d4ddd8" />
@@ -199,21 +277,19 @@ function FeuTricolore({ p, axe }: { p: V; axe: 'horizontal' | 'vertical' }) {
 const BLOCS_REPETES: BlocArchitecture[] = [
   ...[-66, -10, 10].flatMap(z => Array.from({ length: 56 }, (_, i): BlocArchitecture => ({ position: [(i - 27.5) * 4.3, 0.08, z], taille: [2, 0.015, 0.1], couleur: '#e6dcbf', rotation: 0 }))),
   ...construireVoirie(),
-  ...Array.from({ length: 60 }, (_, i): BlocArchitecture[] => [
-    { position: [(i - 29.5) * 4, 0.9, 49], taille: [0.12, 1.4, 0.12], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
-    { position: [(i - 29.5) * 4, 1.55, 49], taille: [4, 0.08, 0.08], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
-  ]).flat(),
+  // Le garde-corps de la promenade, ouvert là où l'on descend à la plage (decor-ville.ts).
+  ...tronconsGardeCorps().flatMap((t): BlocArchitecture[] => [
+    ...t.poteaux.map((x): BlocArchitecture => ({ position: [x, 0.9, GARDE_CORPS.z], taille: [0.12, 1.4, 0.12], couleur: '#e1dfca', rotation: 0, matiere: 'metal' })),
+    { position: [(t.de + t.a) / 2, 1.55, GARDE_CORPS.z], taille: [t.a - t.de, 0.08, 0.08], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
+    { position: [(t.de + t.a) / 2, 1.1, GARDE_CORPS.z], taille: [t.a - t.de, 0.05, 0.05], couleur: '#e1dfca', rotation: 0, matiere: 'metal' },
+  ]),
 ];
 
-/** Les lampadaires du centre, bras tourné vers la chaussée ; la nuit, leur lumière tombe sous leur tête, comme celle des
- * lampadaires des places de quartier. */
-const LAMPADAIRES_CENTRE = [-42, -28, -14, 14, 28, 42].flatMap(x => [-15, 15].map(z => [x, z] as [number, number]));
+/** La nuit, la lumière des lampadaires du centre tombe sous leur tête, comme celle des lampadaires des places de quartier. */
 const TACHES_LUMIERE: [number, number][] = [
   ...LAMPADAIRES_CENTRE.map(([x, z]): [number, number] => [x, z < 0 ? z + 1.12 : z - 1.12]),
   ...QUARTIERS.slice(1).map((q): [number, number] => [q.x - 3.68, q.z - 3.5]),
 ];
-/** Des flamboyants au cœur du quartier pilote, en bord d'avenue et près du chantier : leur ombre et leur rouge. */
-const FLAMBOYANTS_CENTRE: [number, number][] = [[-47, 30], [16, 31], [47, 34]];
 
 /** `rythme` suit la vitesse du temps (1x, 2x, 3x) : la circulation accélère avec l'horloge. */
 /** `heure` (entière) règle la densité de la circulation : moins de véhicules la nuit, plus aux heures de pointe. */
@@ -232,45 +308,38 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     {[-54, 54].map(x => <Bloc key={x} p={[x, 0.075, -40]} s={[6, 0.035, 176]} c="#555d60" />)}
     {/* Bordures, caniveaux, trottoirs et passages piétons, coupés aux carrefours : une vraie échelle routière. */}
     <BlocsInstances blocs={BLOCS_REPETES} interactif={false} mouillable />
-    {[-66, -10, 10].flatMap(z => [-54, 54].map(x => <FeuTricolore key={`signal-${x}-${z}`} p={[x + 3.8, 0, z + 3.8]} axe={x < 0 ? 'horizontal' : 'vertical'} />))}
-    {QUARTIERS.slice(1).map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
+    {FEUX_TRICOLORES.map(({ p: [x, z], axe }) => <FeuTricolore key={`signal-${x}-${z}`} p={[x, 0, z]} axe={axe} />)}
+    {REPERES_QUARTIERS.map(q => <group key={q.nom} position={[q.x, 0, q.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.14, 0]}><ringGeometry args={[4.7, 5.1, 40]} /><meshStandardMaterial color="#8d9b7e" /></mesh>
       <Billboard position={[0, 4.2, 0]}><Text fontSize={0.52} color="#183c3d" outlineColor="#fff0d3" outlineWidth={0.055}>{q.nom}</Text></Billboard>
-      <Palmier p={[4.8, 0, 3.5]} scale={0.8} /><Lampadaire p={[-4.8, 0, -3.5]} />
     </group>)}
-    {[-108, -72, 72, 108].flatMap(x => [-55, -110].map(z => <Palmier key={`${x}-${z}`} p={[x, 0, z]} />))}
+    <Lampadaires lampadaires={TOUS_LES_LAMPADAIRES} />
+    {/* Tous les cocotiers de la ville, dessinés en trois commandes (troncs, palmes, noix). */}
+    <Palmiers palmiers={PALMIERS} />
     {/* Arrêts du bus de ligne sur l'avenue du Plateau (il s'y arrête), gare des gbakas à l'ouest, côté Jardins. */}
-    {[-30, 30].map(x => <ArretBus key={x} p={[x, 0.1, -61]} r={Math.PI} />)}
-    <VehiculeGare p={[-112, 0, -60.5]} type="gbaka" /><VehiculeGare p={[-104.5, 0, -60.5]} type="gbaka" couleur="#C8A52E" />
-    <PanneauRue p={[-117, 0, -59]} texte="GARE DES GBAKAS" />
-    <LigneElectrique z={-69.6} poteaux={[-112, -96, -80, -64, -40, -24, -8, 8, 24, 40, 64, 80, 96, 112]} />
-    <PanneauRue p={[-48, 0, -4]} texte="PLATEAU" /><PanneauRue p={[48, 0, 16]} texte="LAGUNE" />
-    <PanneauAffichage p={[-18, 0, 7]} titre="BTP LIFE" texte={'Missions · Formations\nDécouvre la ville'} />
-    <PanneauAffichage p={[18, 0, -7]} r={Math.PI} titre="SÉCURITÉ CHANTIER" texte={'Casque · Chaussures\nConsignes avant action'} couleur="#e9c94e" />
-    <PanneauAffichage p={[-55, 0, -47]} r={Math.PI / 2} titre="QUARTIER DES JARDINS" texte={'Marché · Résidences\nZone musicale à proximité'} couleur="#68a979" />
-    <PanneauAffichage p={[55, 0, -46]} r={-Math.PI / 2} titre="PLATEAU TECHNIQUE" texte={'Atelier · Logistique\nChantier du Plateau'} couleur="#5fa5b2" />
-    <PanneauAffichage p={[72, 0, 48]} titre="MARINA" texte={'Promenade · Détente\nMusique lounge'} couleur="#589da6" />
+    {ARRETS_BUS.map(({ p: [x, z], r }) => <ArretBus key={`${x}-${z}`} p={[x, 0.1, z]} r={r} />)}
+    {GBAKAS_GARES.map(({ p: [x, z], couleur }) => <VehiculeGare key={x} p={[x, 0, z]} type="gbaka" couleur={couleur} />)}
+    <LigneElectrique z={POTEAUX_ELECTRIQUES.z} poteaux={POTEAUX_ELECTRIQUES.x} />
+    {PANNEAUX_RUE.map(({ p: [x, z], texte }) => <PanneauRue key={texte} p={[x, 0, z]} texte={texte} />)}
+    {PANNEAUX_AFFICHAGE.map(({ p: [x, z], r, titre, texte, couleur }) => <PanneauAffichage key={titre} p={[x, 0, z]} r={r} titre={titre} texte={texte} couleur={couleur} />)}
     <Bloc p={[-31.5, 0.08, -15.2]} s={[17, 0.05, 3.2]} c="#666b69" />
     <Bloc p={[31.5, 0.08, -74]} s={[22, 0.05, 5.5]} c="#666b69" />
-    <VoitureStationnee p={[-36, 0, -15.2]} c="#7e2831" /><VoitureStationnee p={[-27, 0, -15.2]} c="#d5c9aa" />
-    <VoitureStationnee p={[26, 0, -74]} c="#416f84" /><VoitureStationnee p={[37, 0, -74]} c="#b88735" />
+    {VOITURES_GAREES.map(({ p: [x, z], couleur }) => <VoitureStationnee key={`${x}-${z}`} p={[x, 0, z]} c={couleur} />)}
     <PlaceCentrale artistique={artistique} />
-    {LAMPADAIRES_CENTRE.map(([x, z]) => <Lampadaire key={`${x}-${z}`} p={[x, 0, z]} r={z < 0 ? -Math.PI / 2 : Math.PI / 2} />)}
-    <ArretBus p={[-27, 0.1, -6.2]} r={Math.PI} /><ArretBus p={[27, 0.1, 6.2]} />
     {/* Le commerce du trottoir, au sud de l'avenue de la Lagune, et les motos garées à côté. */}
-    {([[-34, '#D4664F'], [-8, '#2F6FB3'], [34, '#3F8F4E']] as const).map(([x, couleur], i) => <EtalRue key={x} p={[x, 0.1, 15.9]} r={Math.PI} couleur={couleur} vendeuse={i} />)}
-    <VehiculeGare p={[-30.4, 0.1, 15.2]} r={.35} type="moto" /><VehiculeGare p={[-4.6, 0.1, 15.1]} r={-.3} type="moto" couleur="#2B2E30" />
-    <VehiculeGare p={[37.6, 0.1, 15.2]} r={.25} type="moto" couleur="#2F6FB3" /><VehiculeGare p={[-17, 0.1, 37.6]} r={1.4} type="moto" />
-    <Kiosque p={[0, 0, 20]} />
-    {[-46, -22, 22, 46].flatMap(x => [-16, 16].map(z => <Palmier key={`${x}-${z}`} p={[x, 0.1, z]} scale={1.15} />))}
+    {ETALS_RUE.map(({ x, couleur }, i) => <EtalRue key={x} p={[x, 0.1, Z_ETALS]} r={Math.PI} couleur={couleur} vendeuse={i} />)}
+    {MOTOS_GAREES.map(({ p: [x, z], r, couleur }) => <VehiculeGare key={`${x}-${z}`} p={[x, 0.1, z]} r={r} type="moto" couleur={couleur} />)}
+    <Kiosque p={[KIOSQUE_TRANSFERT[0], 0, KIOSQUE_TRANSFERT[1]]} />
     {/* Beach district, waterfront and timber promenade. */}
     <Bloc p={[0, 0.08, 58]} s={[240, 0.16, 20]} c="#e7cf92" />
     <Bloc p={[0, -0.06, 82]} s={[300, 0.1, 30]} c="#44878b" />
     <Bloc p={[0, 0.18, 47]} s={[240, 0.35, 5]} c="#a58c6d" />
-    {[-42, -21, 0, 21, 42].map(x => <group key={x}><Palmier p={[x, 0, 44]} /><Banc p={[x + 3, 0.3, 46]} /></group>)}
-    {[-70, -50, -30, -10, 10, 30, 50, 70].map((x, i) => <group key={x}><Parasol p={[x, 0.1, 57]} c={i % 2 ? '#d4664f' : '#f1d471'} /><Bloc p={[x + 2.2, 0.18, 59]} s={[2.4, 0.18, 0.75]} c="#55a1a2" r={-0.15} /></group>)}
-    <group position={[0, 0.1, 57]}><Bloc p={[0, 0.08, 0]} s={[12, 0.12, 7]} c="#e8d5a4" />{[-6, 6].map(x => <Bloc key={x} p={[x, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#e8ece5" />)}<Bloc p={[0, 2.75, 0]} s={[12, 0.12, 0.12]} c="#e8ece5" /></group>
-    <group position={[-93, 0, 60]}>{[-7, 0, 7].map((x, i) => <group key={x} position={[x, 0, 0]}><Kiosque p={[0, 0, 0]} />{i < 2 && <Parasol p={[3.3, 0, 2]} c="#efcf78" />}</group>)}</group>
+    {BANCS_PROMENADE.map(([x, z]) => <Banc key={x} p={[x, 0.3, z]} />)}
+    {PARASOLS_PLAGE.map(([x, z], i) => { const [tx, tz] = transatParasol([x, z]); return <group key={x}><Parasol p={[x, 0.1, z]} c={i % 2 ? '#d4664f' : '#f1d471'} /><Bloc p={[tx, 0.18, tz]} s={[2.4, 0.18, 0.75]} c="#55a1a2" r={-0.15} /></group>; })}
+    <group position={[FILET_PLAGE.x, 0.1, FILET_PLAGE.z]}><Bloc p={[0, 0.08, 0]} s={[12, 0.12, 7]} c="#e8d5a4" />{[-FILET_PLAGE.demiLargeur, FILET_PLAGE.demiLargeur].map(x => <Bloc key={x} p={[x, 1.4, 0]} s={[0.12, 2.8, 0.12]} c="#e8ece5" />)}<Bloc p={[0, 2.75, 0]} s={[12, 0.12, 0.12]} c="#e8ece5" /></group>
+    {KIOSQUES_PLAGE.map(([x, z], i) => <group key={x} position={[x, 0, z]}><Kiosque p={[0, 0, 0]} />{i < 2 && <Parasol p={[3.3, 0, 2]} c="#efcf78" />}</group>)}
+    {/* Les pirogues des pêcheurs, tirées sur le sable au bord de l'eau, et celles qui rentrent de la pêche. */}
+    <BateauxPlage pause={pause} rythme={rythme} />
     <Fontaine /><CirculationVille pause={pause} rythme={rythme} heure={heure} /><Bateau pause={pause} offset={-60} rythme={rythme} /><Bateau pause={pause} offset={30} rythme={rythme} /><Oiseaux pause={pause} />
     {/* Skyline gives the playable district a wider urban context. */}
     {Array.from({ length: 12 }, (_, i) => <ArchitectureBlock key={i} i={i} />)}

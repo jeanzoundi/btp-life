@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import type { RendezVous } from '@/lib/journee-joueur';
-import { LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type ModeTransport, type Point } from '@/lib/transports';
+import { gbakaUtile, LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type EtapeTrajet, type ModeTransport, type Point } from '@/lib/transports';
 import { heureLisible } from './panneau-programme-lieu';
 import { CLOTURE_CAMPAGNE, TEASER_CAMPAGNE } from './fin-campagne';
 import { useEcranTactile } from '@/lib/ecran-tactile';
@@ -175,14 +175,24 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
 }
 
 /** Pendant un trajet en taxi ou en gbaka : l'écran attend l'arrivée, le temps du monde passe à l'arrivée. */
-export function TrajetEnCours({ mode, nom, minutes, prix }: { mode: 'gbaka' | 'taxi'; nom: string; minutes: number; prix: number }) {
+/** Durée de l'écran du voyage, le temps de lire ses étapes. */
+export const DUREE_TRAJET_MS = 3400;
+
+/** L'écran du voyage : où l'on va, ce que ça coûte, et ses étapes qui s'allument l'une après l'autre. */
+export function TrajetEnCours({ mode, nom, minutes, prix, etapes = [] }: { mode: 'gbaka' | 'taxi'; nom: string; minutes: number; prix: number; etapes?: EtapeTrajet[] }) {
+  const parEtape = DUREE_TRAJET_MS / 1000 / Math.max(1, etapes.length);
   return <div role="status" aria-live="polite" className="absolute inset-0 z-50 flex items-center justify-center bg-[#0c1214]/85 backdrop-blur-sm">
-    <style>{'@keyframes btp-trajet { from { width: 0 } to { width: 100% } }'}</style>
+    <style>{'@keyframes btp-trajet { from { width: 0 } to { width: 100% } } @keyframes btp-etape { to { opacity: 1 } }'}</style>
     <div className="w-[320px] max-w-[calc(100%-32px)] rounded-2xl bg-white/[.06] p-5 text-center ring-1 ring-white/10">
       <p className="text-4xl" aria-hidden="true">{mode === 'taxi' ? '🚕' : '🚐'}</p>
       <p className="hud-titre mt-2 text-lg">{mode === 'taxi' ? 'En taxi' : 'En gbaka'} vers {nom}</p>
       <p className="mt-1 text-[12.5px] text-jeu-ivoire/70">{minutesLisibles(minutes)} de trajet · {prix.toLocaleString('fr-FR')} F</p>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-jeu-or" style={{ animation: 'btp-trajet 2.4s linear forwards' }} /></div>
+      {etapes.length > 0 && <ol className="mt-3 space-y-1.5 text-left">
+        {etapes.map((e, i) => <li key={e.texte} className="flex items-center gap-2 rounded-lg bg-white/[.05] px-2.5 py-1.5 text-[12px] opacity-35" style={{ animation: `btp-etape .35s ease ${(i * parEtape).toFixed(2)}s forwards` }}>
+          <span aria-hidden="true">{e.icone}</span><span className="min-w-0 flex-1">{e.texte}</span>{e.minutes > 0 && <span className="hud-chiffre shrink-0 text-[11px] text-jeu-or">{minutesLisibles(e.minutes)}</span>}
+        </li>)}
+      </ol>}
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-jeu-or" style={{ animation: `btp-trajet ${DUREE_TRAJET_MS / 1000}s linear forwards` }} /></div>
     </div>
   </div>;
 }
@@ -201,7 +211,8 @@ function AppliTransport({ destinations, position, pluie, argent, onVoyager }: { 
   const [enCours, setEnCours] = useState(false);
   if (!cible) return <><p className="px-3 pt-2.5 text-[11.5px] text-jeu-ivoire/65">Où vas-tu ?</p><ListeDestinations destinations={destinations} position={position} action="Choisir" onChoisir={slug => { setCible(destinations.find(d => d.slug === slug) ?? null); setErreur(null); }} /></>;
   const proche = !trajetMotorise(position, cible.porte);
-  const choix = (['taxi', 'gbaka', 'pied'] as const).map(mode => ({ mode, t: trajet(mode, position, cible.porte, pluie) }));
+  // Le gbaka n'est proposé que s'il rapproche : quand l'arrêt de montée est aussi celui de descente, autant marcher.
+  const choix = (['taxi', 'gbaka', 'pied'] as const).filter(mode => mode !== 'gbaka' || gbakaUtile(position, cible.porte)).map(mode => ({ mode, t: trajet(mode, position, cible.porte, pluie) }));
   const commander = async (mode: 'gbaka' | 'taxi') => {
     setEnCours(true); setErreur(null);
     const e = await onVoyager(mode, cible.slug);
@@ -213,7 +224,7 @@ function AppliTransport({ destinations, position, pluie, argent, onVoyager }: { 
     <p className="text-[11px] text-jeu-ivoire/60">{cible.quartier} · solde {argent.toLocaleString('fr-FR')} F{pluie ? ' · il pleut, les taxis sont majorés' : ''}</p>
     {proche ? <p className="mt-3 rounded-xl bg-white/[.06] p-3 text-[12px]">C’est à deux pas : vas-y à pied.</p> : <ul className="mt-3 space-y-2">{choix.map(({ mode, t }) => <li key={mode} className="rounded-xl bg-white/[.06] p-2.5">
       <div className="flex items-baseline justify-between gap-2"><b className="text-[12.5px]">{mode === 'taxi' ? '🚕' : mode === 'gbaka' ? '🚐' : '🚶'} {LIBELLES_MODES[mode]}</b><b className="hud-chiffre text-[12.5px] text-jeu-or">{t.prix ? `${t.prix.toLocaleString('fr-FR')} F` : 'Gratuit'}</b></div>
-      <p className="mt-0.5 text-[11px] text-jeu-ivoire/65">{minutesLisibles(t.minutes)}{mode === 'gbaka' ? ` · dont ${Math.round(t.marche)} m à pied jusqu’aux arrêts` : mode === 'taxi' ? ' · il vient te chercher' : ''}</p>
+      <p className="mt-0.5 text-[11px] text-jeu-ivoire/65">{minutesLisibles(t.minutes)}{mode === 'gbaka' ? ` · dont ${Math.round(t.marche)} m à pied jusqu’aux arrêts` : mode === 'taxi' ? ' · il vient te chercher et te dépose devant la porte' : ''}</p>
       {mode !== 'pied' && <button type="button" disabled={enCours || argent < t.prix} onClick={() => commander(mode)} className="hud-bouton hud-bouton-principal mt-2 w-full p-2 text-[12px]">{argent < t.prix ? 'Solde insuffisant' : enCours ? 'Réservation…' : mode === 'taxi' ? 'Commander le taxi' : 'Prendre le gbaka'}</button>}
     </li>)}</ul>}
     {erreur && <p role="alert" className="mt-2 rounded-lg bg-[#E2653C]/15 p-2 text-[11.5px] text-[#F08A4B]">{erreur}</p>}
