@@ -96,8 +96,11 @@ describe('UsersService — notifications et messages', () => {
 
 describe('UsersService.supprimerCompte', () => {
   // Le hachage argon2 est exercé pour de vrai, comme dans auth.service.spec.ts : c'est lui qui protège la suppression.
+  // Volontairement lent, il est calculé une seule fois, avec la même marge de temps que là-bas quand toute la suite tourne.
+  jest.setTimeout(30_000);
+  let passwordHash = '';
+  beforeAll(async () => { passwordHash = await argon2.hash('bon-mot-de-passe'); });
   async function banc(compte: { role?: string } = {}, overrides: Record<string, object> = {}) {
-    const passwordHash = await argon2.hash('bon-mot-de-passe');
     const prisma = fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue({ passwordHash, role: compte.role ?? 'USER' }), delete: jest.fn().mockResolvedValue({}) }, ...overrides });
     prisma.$transaction = jest.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(prisma));
     return service(prisma);

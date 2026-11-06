@@ -69,13 +69,16 @@ describe('la journée sur le chantier du quartier', () => {
 
 const BESOINS_PLEINS = { energie: 100, moral: 100, faim: 100, social: 100 };
 
-function fakePrisma(overrides: { chantierQuartier?: unknown; profil?: string } = {}) {
+function fakePrisma(overrides: { chantierQuartier?: unknown; profil?: string; coequipiers?: string[] } = {}) {
   const etat: Record<string, unknown> = { userId: 'u1', niveau: 3, chantierQuartier: overrides.chantierQuartier ?? null, profilActuel: overrides.profil ? { slug: overrides.profil } : null };
   const prisma = {
     userCarriere: {
       findUnique: jest.fn().mockImplementation(() => Promise.resolve({ ...etat })),
       update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => { Object.assign(etat, data); return Promise.resolve({ ...etat }); }),
     },
+    // L'équipe et les coéquipiers signalés sur le chantier (coequipiersPresents, equipe.service.ts).
+    membreEquipe: { findUnique: jest.fn().mockResolvedValue(overrides.coequipiers ? { equipeId: 'e1' } : null) },
+    presenceMonde: { findMany: jest.fn().mockResolvedValue((overrides.coequipiers ?? []).map(pseudo => ({ user: { pseudo, avatar: null } }))) },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation((operation: (tx: typeof prisma) => unknown) => operation(prisma));
@@ -111,6 +114,19 @@ describe('JourneeChantierService.journee', () => {
     expect(besoins.consommer).toHaveBeenCalledWith('u1', { energie: 8, faim: 6 }, prisma);
     expect(ecrit(prisma)).toMatchObject({ jours: 1, journees: 1, livraisons: 0 });
     expect(progression.notifierNiveau).toHaveBeenCalledWith('u1', 3, 3);
+  });
+
+  it('compte une journée en équipe quand un coéquipier est aussi sur le chantier : +10 % d’XP, salaire inchangé', async () => {
+    const seul = await service(fakePrisma());
+    const sansEquipe = (await seul.svc.journee('u1', 0, reponsesJournee(0, true))).gains;
+    expect(sansEquipe).toMatchObject({ xp: 80, argent: 7000, equipe: null });
+    const prisma = fakePrisma({ coequipiers: ['Kader'] });
+    const ensemble = await service(prisma);
+    const gains = (await ensemble.svc.journee('u1', 0, reponsesJournee(0, true))).gains;
+    expect(gains).toMatchObject({ xp: 88, argent: 7000, equipe: { coequipiers: ['Kader'], bonus: .1 } });
+    expect(ensemble.progression.appliquerDelta).toHaveBeenCalledWith('u1', { xp: 88, argentVirtuel: 7000, reputation: 1 }, prisma);
+    // Seuls comptent les coéquipiers signalés sur le chantier lui-même.
+    expect(prisma.presenceMonde.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ lieu: 'chantier' }) }));
   });
 
   it('paie mieux l’ouvrier et fait progresser l’encadrant, selon leur parcours', async () => {

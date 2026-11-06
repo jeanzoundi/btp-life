@@ -5,6 +5,7 @@ import { transactionSerializable } from '../prisma/transaction';
 import { BesoinsService } from './besoins.service';
 import { ProgressionService } from './progression.service';
 import { bonusParcours, porteDuProfil } from './parcours';
+import { coequipiersPresents, facteurEquipe, REGLES_EQUIPE } from '../monde/equipe.service';
 import {
   corrigerJournee, DELAI_JOURNEE_MS, gainsJournee, jourAttendu, lireChantierQuartier, TAUX_ENTRAINEMENT_JOURNEE, TOTAL_JOURS_CHANTIER,
   type ChantierQuartierServeur,
@@ -12,7 +13,8 @@ import {
 
 // Le premier travail payé du jeu, sans avoir son propre chantier : une journée avec Yao sur le chantier du quartier.
 // Le serveur tient l'avancement de l'ouvrage, corrige les situations du jour et verse le salaire (une journée payée toutes
-// les 20 minutes réelles au plus) ; l'équipe recrutée et le repos du jour restent dans le navigateur.
+// les 20 minutes réelles au plus) ; l'équipe recrutée et le repos du jour restent dans le navigateur. Faite pendant qu'un
+// coéquipier est lui aussi sur le chantier, c'est une journée en équipe : +10 % d'XP, comme les séances (lieux.service.ts).
 @Injectable()
 export class JourneeChantierService {
   private readonly logger = new Logger(JourneeChantierService.name);
@@ -35,6 +37,8 @@ export class JourneeChantierService {
     const actualisee = await this.besoins.actualiser(userId);
     const facteurBesoins = BesoinsService.facteurPerformance(actualisee);
     const maintenant = Date.now();
+    // Les coéquipiers signalés sur le chantier en ce moment (leur relevé de présence dit le lieu où ils sont).
+    const coequipiers = await coequipiersPresents(this.prisma, userId, 'chantier', new Date(maintenant));
 
     // Lecture, contrôle du jour et écriture dans une même transaction : deux envois simultanés de la même journée ne la
     // comptent (et ne la paient) qu'une fois.
@@ -55,7 +59,7 @@ export class JourneeChantierService {
       await tx.userCarriere.update({ where: { userId }, data: { chantierQuartier: apres as unknown as Prisma.InputJsonValue } });
       // Le parcours du joueur : l'ouvrier est mieux payé, l'encadrant gagne en expérience et en réputation (parcours.ts).
       const bonus = bonusParcours(porteDuProfil(carriere.profilActuel?.slug), { type: 'journee' });
-      const xp = Math.round(gains.xp * facteurBesoins * bonus.xp * (payee ? 1 : TAUX_ENTRAINEMENT_JOURNEE));
+      const xp = Math.round(gains.xp * facteurBesoins * facteurEquipe(coequipiers) * bonus.xp * (payee ? 1 : TAUX_ENTRAINEMENT_JOURNEE));
       const argent = payee ? Math.round(gains.argent * bonus.argent) : 0;
       const reputation = !payee ? 0 : (livraison ? 3 : gains.compte && note >= 60 ? 1 : 0) + (gains.compte ? bonus.reputation : 0);
       const payement = await this.progression.appliquerDelta(userId, { xp, argentVirtuel: argent, reputation }, tx);
@@ -72,6 +76,7 @@ export class JourneeChantierService {
       note: r.note,
       gains: {
         xp: r.xp, argent: r.argent, reputation: r.reputation, facteurBesoins, entrainement: !r.payee,
+        equipe: coequipiers.length ? { coequipiers, bonus: REGLES_EQUIPE.bonusXp } : null,
         prochaineRecompenseLe: new Date(Date.parse(r.apres.derniereRecompenseLe ?? new Date(maintenant).toISOString()) + DELAI_JOURNEE_MS).toISOString(),
       },
       carriere,
