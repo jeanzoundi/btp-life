@@ -14,7 +14,7 @@ export const DEFIS_JOUR: DefiConfig[] = [
   { slug: 'mission-du-jour', titre: 'Mission accomplie', description: 'Réussis une mission.', objectif: { type: 'missions', cible: 1 }, recompense: { xp: 30, argent: 1200 } },
   { slug: 'cours-du-jour', titre: 'Un cours de plus', description: 'Termine un cours de l’académie.', objectif: { type: 'cours', cible: 1 }, recompense: { xp: 20, argent: 600 } },
   { slug: 'en-route', titre: 'En route', description: 'Prends un taxi ou un gbaka pour traverser le quartier.', objectif: { type: 'trajets', cible: 1 }, recompense: { xp: 10, argent: 300 } },
-  { slug: 'le-fil-rouge-avance', titre: 'Le fil rouge avance', description: 'Valide un chapitre de la Résidence Akwaba.', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 40, argent: 1500 } },
+  { slug: 'le-fil-rouge-avance', titre: 'Le fil rouge avance', description: 'Valide un chapitre du fil rouge.', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 40, argent: 1500 } },
 ];
 
 export const DEFIS_SEMAINE: DefiConfig[] = [

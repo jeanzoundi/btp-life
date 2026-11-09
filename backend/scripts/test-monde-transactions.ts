@@ -34,14 +34,21 @@ async function main() {
   // Les attestations des modules de la Grande École aussi, comme en production avant leur ajout à la publication.
   const attestationsGrandeEcole = modulesGrandeEcole.map(m => `attestation-${m.slug}`);
   await prisma.certificat.deleteMany({ where: { slug: { in: attestationsGrandeEcole } } });
+  // Le client du deuxième dossier du fil rouge, comme en production avant son ajout (ses messages de test d'abord).
+  const daouda = await prisma.pnj.findUniqueOrThrow({ where: { slug: 'client-daouda-toure' } });
+  await prisma.userMessage.deleteMany({ where: { pnjId: daouda.id } });
+  await prisma.pnj.delete({ where: { id: daouda.id } });
   const avantPublication = await prisma.userCarriere.findMany({ orderBy: { id: 'asc' } });
   const publier = () => execFileSync(process.execPath, ['-r', 'ts-node/register', 'scripts/publier-contenu-monde.ts', '--apply'], { stdio: 'inherit', env: process.env });
   publier();
   const nombre = await prisma.evenement.count();
   const certificats = await prisma.certificat.count();
+  const pnj = await prisma.pnj.count();
   publier();
   assert.equal(await prisma.evenement.count(), nombre);
   assert.equal(await prisma.certificat.count(), certificats);
+  assert.equal(await prisma.pnj.count(), pnj);
+  assert.equal(await prisma.pnj.count({ where: { slug: 'client-daouda-toure', role: 'CLIENT' } }), 1);
   assert.equal(await prisma.evenement.count({ where: { type: 'DEFI_JOUR', config: { path: ['slug'], equals: DEFIS_JOUR[0].slug } } }), 1);
   assert.equal(await prisma.certificat.count({ where: { slug: { in: attestationsGrandeEcole } } }), attestationsGrandeEcole.length);
   assert.deepEqual(await prisma.userCarriere.findMany({ orderBy: { id: 'asc' } }), avantPublication);

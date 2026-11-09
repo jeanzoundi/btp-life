@@ -3,6 +3,7 @@ import { DEFIS_JOUR, DEFIS_SEMAINE, IMPREVUS } from '../prisma/seed-data/defis-d
 import { OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS, certificatsDuJeu } from '../prisma/seed-data/carriere-data';
 import { modulesAcademie } from '../prisma/seed-data/academie-data';
 import { modulesGrandeEcole } from '../prisma/seed-data/grande-ecole-batiment-data';
+import { PNJ_DU_JEU } from '../prisma/seed-data/pnj-data';
 
 // Publication additive uniquement : aucun compte, progrès, cours ou contenu administré n'est remplacé.
 // --apply est obligatoire. Toutes les insertions sont validées ensemble ou annulées ensemble.
@@ -16,7 +17,12 @@ async function main(prisma: PrismaClient) {
   if (!process.argv.includes('--apply')) throw new Error('Ajouter --apply pour publier le contenu du monde.');
   const resultat = await prisma.$transaction(async tx => {
     const pays = await tx.pays.findUniqueOrThrow({ where: { codeIso: 'CIV' } });
-    const ajouts = { profils: 0, offres: 0, regles: 0, certificats: 0, defis: 0, imprevus: 0 };
+    const ajouts = { pnj: 0, profils: 0, offres: 0, regles: 0, certificats: 0, defis: 0, imprevus: 0 };
+    // Les personnages qui écrivent au joueur, dont les clients du fil rouge : sans eux, leurs messages ne partent pas.
+    for (const p of PNJ_DU_JEU) {
+      if (await tx.pnj.findUnique({ where: { slug: p.slug } })) continue;
+      await tx.pnj.create({ data: { slug: p.slug, nom: p.nom, role: p.role, personnalite: { ton: 'bienveillant' } } }); ajouts.pnj++;
+    }
     for (const p of PROFILS_EXPERTS) {
       if (await tx.profil.findUnique({ where: { slug: p.slug } })) continue;
       await tx.profil.create({ data: p }); ajouts.profils++;

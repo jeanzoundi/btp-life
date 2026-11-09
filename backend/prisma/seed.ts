@@ -12,6 +12,7 @@ import { modulesGrandeEcole, missionsGrandeEcole } from './seed-data/grande-ecol
 import { avatarItemsData } from './seed-data/avatar-items-data';
 import { DEFIS_JOUR, DEFIS_SEMAINE, IMPREVUS } from './seed-data/defis-data';
 import { OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS, certificatsDuJeu } from './seed-data/carriere-data';
+import { PNJ_DU_JEU } from './seed-data/pnj-data';
 
 const prisma = new PrismaClient();
 
@@ -571,21 +572,11 @@ async function main() {
   }
 
   console.log('Seed — PNJ...');
-  const pnjData: Array<{ slug: string; nom: string; role: string }> = [
-    { slug: 'mentor-akissi', nom: 'Akissi — Mentor', role: 'PROFESSEUR' },
-    { slug: 'maitre-stage-kouame', nom: 'Kouamé — Maître de stage', role: 'MAITRE_STAGE' },
-    { slug: 'superviseur-fatou', nom: 'Fatou — Superviseur', role: 'SUPERVISEUR' },
-    { slug: 'chef-entreprise-diallo', nom: 'M. Diallo — Chef d\'entreprise', role: 'CHEF_ENTREPRISE' },
-    { slug: 'recruteur-adama', nom: 'Adama — Recruteur', role: 'RECRUTEUR' },
-    { slug: 'client-madame-toure', nom: 'Mme Touré — Cliente', role: 'CLIENT' },
-    { slug: 'chef-chantier-yao', nom: 'Yao — Chef chantier', role: 'CHEF_CHANTIER' },
-    { slug: 'controleur-brou', nom: 'Brou — Contrôleur qualité', role: 'CONTROLEUR' },
-  ];
   const pnjs: Record<string, { id: string }> = {};
-  for (const p of pnjData) {
+  for (const p of PNJ_DU_JEU) {
     pnjs[p.slug] = await prisma.pnj.upsert({
       where: { slug: p.slug },
-      create: { slug: p.slug, nom: p.nom, role: p.role as never, personnalite: { ton: 'bienveillant' } },
+      create: { slug: p.slug, nom: p.nom, role: p.role, personnalite: { ton: 'bienveillant' } },
       update: { nom: p.nom },
     });
   }

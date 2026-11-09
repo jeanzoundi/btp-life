@@ -11,8 +11,9 @@ for (const cle of ['DATABASE_URL', 'DIRECT_URL']) {
   if (url.hostname !== 'localhost' || url.port !== '5433' || url.pathname !== '/btp_life_test') throw new Error('Base temporaire locale requise');
 }
 const prisma = new PrismaService();
-const reponses = Object.fromEntries(corrige[0].map(t => [t.id,
+const reponsesDe = (chapitre: number) => Object.fromEntries(corrige[chapitre].map(t => [t.id,
   t.type === 'mesure' ? t.reponse! : t.type === 'situation' ? t.options!.findIndex(Boolean) : t.options!.flatMap((b, i) => b ? [i] : [])]));
+const reponses = reponsesDe(0);
 
 async function main() {
   const joueur = await prisma.user.create({ data: { nom: 'Test transaction', email: 'transaction-campagne@example.invalid', passwordHash: 'compte-local-inutilisable',
@@ -39,6 +40,15 @@ async function main() {
   assert.equal(apres.energie, 95);
   assert.equal(apres.faim, 96);
   await assert.rejects(campagne.chapitre(joueur.id, 1, { note: 100 }));
-  console.log('OK PostgreSQL réel : rollback après paiement, double envoi et reprise sans double gain.');
+
+  // Deuxième dossier : le permis des Rôniers (rang 15 du fil rouge) paie au barème du R+5, et M. Touré, créé par le seed,
+  // écrit au joueur dans la même transaction.
+  await prisma.userCarriere.update({ where: { userId: joueur.id }, data: { campagne: { chapitres: 15, termineeLe: null } } });
+  const permis = await campagne.chapitre(joueur.id, 15, reponsesDe(15));
+  assert.equal(permis.progres.chapitres, 16);
+  assert.equal(permis.gains.argent, 4000);
+  const message = await prisma.userMessage.findFirst({ where: { userId: joueur.id, pnj: { slug: 'client-daouda-toure' } } });
+  assert.match(message?.contenu ?? '', /permis est affiché/);
+  console.log('OK PostgreSQL réel : rollback après paiement, double envoi, reprise sans double gain, et deuxième dossier avec son client.');
 }
 main().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => prisma.$disconnect());

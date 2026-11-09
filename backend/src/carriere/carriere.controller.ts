@@ -175,7 +175,7 @@ export class CarriereController {
     return this.journeeChantierService.journee(user.userId, dto.numero, dto.reponses);
   }
 
-  /** Le fil rouge : où en est la Résidence Akwaba. */
+  /** Le fil rouge : combien de chapitres sont validés, dossier après dossier (Résidence Akwaba, puis Les Rôniers). */
   @Get('campagne')
   campagne(@CurrentUser() user: RequestUser) {
     return this.campagneService.etat(user.userId);

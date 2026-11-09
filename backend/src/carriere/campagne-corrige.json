@@ -336,5 +336,349 @@
         false
       ]
     }
+  ],
+  [
+    {
+      "id": "estimation-r5",
+      "type": "mesure",
+      "reponse": 249.66666666666666,
+      "tolerance": 0.5
+    },
+    {
+      "id": "clauses-marche",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "variante-r5",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "teneur-eau",
+      "type": "mesure",
+      "reponse": 40,
+      "tolerance": 0.5
+    },
+    {
+      "id": "essais-sol",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "semelles-ou-pieux",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "nombre-pieux",
+      "type": "mesure",
+      "reponse": 23,
+      "tolerance": 0
+    },
+    {
+      "id": "longueur-pieu",
+      "type": "mesure",
+      "reponse": 13.5,
+      "tolerance": 0.05
+    },
+    {
+      "id": "pieux-fores",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "foncier-r5",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "cos-r5",
+      "type": "mesure",
+      "reponse": 3.58974358974359,
+      "tolerance": 0.01
+    },
+    {
+      "id": "voisin-soleil",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "constat-kouame",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "duree-forage",
+      "type": "mesure",
+      "reponse": 8,
+      "tolerance": 0
+    },
+    {
+      "id": "beton-5h",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "appel-fonds",
+      "type": "mesure",
+      "reponse": 33.599999999999994,
+      "tolerance": 0.05
+    },
+    {
+      "id": "pret-promoteur",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "etage-de-plus",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "gaine-poutre",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "metre-poteaux",
+      "type": "mesure",
+      "reponse": 3.0239999999999996,
+      "tolerance": 0.02
+    },
+    {
+      "id": "synthese",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "benne-grue",
+      "type": "mesure",
+      "reponse": 0.6458333333333334,
+      "tolerance": 0.01
+    },
+    {
+      "id": "rafales",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "installation-chantier",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "hourdis",
+      "type": "mesure",
+      "reponse": 1076,
+      "tolerance": 2
+    },
+    {
+      "id": "livraison-aciers",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "poutrelles",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "ancrages",
+      "type": "mesure",
+      "reponse": 23,
+      "tolerance": 0
+    },
+    {
+      "id": "sous-la-charge",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "avant-de-monter",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "mise-en-eau",
+      "type": "mesure",
+      "reponse": 7,
+      "tolerance": 0.1
+    },
+    {
+      "id": "reserves-r5",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "cles-acquereurs",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "revision-prix",
+      "type": "mesure",
+      "reponse": 42.732142857142854,
+      "tolerance": 0.05
+    },
+    {
+      "id": "groupement",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "convention",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
   ]
 ]
