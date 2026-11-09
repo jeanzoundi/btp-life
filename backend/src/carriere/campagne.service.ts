@@ -47,6 +47,47 @@ const DOSSIERS_SANS_RANG: Dossier[] = [
     },
     argent: { chapitre: 4_000, livraison: 40_000, cloture: 15_000 }, xpBase: 40, xpPrime: { livraison: 250, cloture: 120 }, reputation: { chapitre: 3, livraison: 20, cloture: 10 },
   },
+  {
+    id: 'groupe-scolaire', nom: 'Groupe scolaire des Palmiers', chapitres: 8, livraison: 7, client: 'client-mairie-kanga',
+    messages: {
+      3: 'L’ordre de service est notifié : le chantier de l’école peut commencer. La mairie compte sur le groupement pour la rentrée.',
+      7: 'Les élèves ont fait leur rentrée dans des classes claires et fraîches. Merci au groupement : la mairie s’en souviendra.',
+      8: 'Le groupement est soldé. La mairie lance un centre de santé : votre offre sera la bienvenue.',
+    },
+    argent: { chapitre: 5_000, livraison: 50_000, cloture: 18_000 }, xpBase: 50, xpPrime: { livraison: 260, cloture: 130 }, reputation: { chapitre: 4, livraison: 25, cloture: 12 },
+  },
+  {
+    id: 'centre-sante', nom: 'Centre de santé de la Lagune', chapitres: 8, livraison: 7, client: 'client-docteur-fofana',
+    messages: {
+      7: 'Nos premiers patients sont soignés dans un centre propre, ventilé et sûr. Merci pour votre exigence, jusqu’à l’éclairage de secours.',
+      8: 'Le décompte est soldé. Tantie Bintou m’a parlé de son marché couvert : je lui ai donné votre nom.',
+    },
+    argent: { chapitre: 6_000, livraison: 60_000, cloture: 20_000 }, xpBase: 55, xpPrime: { livraison: 270, cloture: 140 }, reputation: { chapitre: 4, livraison: 25, cloture: 12 },
+  },
+  {
+    id: 'marche-couvert', nom: 'Marché couvert du Plateau', chapitres: 8, livraison: 7, client: 'client-tantie-bintou',
+    messages: {
+      7: 'Soixante étals à l’abri de la pluie et du soleil : les commerçantes vendent dans un vrai marché. Le garba est offert, passe quand tu veux !',
+      8: 'Les loyers remboursent le prêt, et il reste de quoi entretenir la halle. L’université cherche une entreprise sérieuse : je leur ai parlé de toi.',
+    },
+    argent: { chapitre: 7_000, livraison: 70_000, cloture: 22_000 }, xpBase: 60, xpPrime: { livraison: 280, cloture: 150 }, reputation: { chapitre: 5, livraison: 30, cloture: 14 },
+  },
+  {
+    id: 'residence-universitaire', nom: 'Résidence universitaire des Bâtisseurs', chapitres: 8, livraison: 7, client: 'client-professeur-ndri',
+    messages: {
+      7: 'Les étudiants sont installés, à temps pour la rentrée. La préfabrication a tenu ses promesses.',
+      8: 'La Régie des eaux prépare un château d’eau pour les Jardins : nous vous avons recommandés.',
+    },
+    argent: { chapitre: 8_000, livraison: 80_000, cloture: 25_000 }, xpBase: 65, xpPrime: { livraison: 290, cloture: 160 }, reputation: { chapitre: 5, livraison: 30, cloture: 15 },
+  },
+  {
+    id: 'chateau-eau', nom: 'Château d’eau des Jardins', chapitres: 8, livraison: 7, client: 'client-regie-yeo',
+    messages: {
+      7: 'Le château d’eau est en service : six mille habitants ont l’eau au robinet, sous une pression régulière.',
+      8: 'Le dossier est clos. Un ouvrage qui dessert tout un quartier : bravo à toute l’équipe.',
+    },
+    argent: { chapitre: 9_000, livraison: 90_000, cloture: 30_000 }, xpBase: 70, xpPrime: { livraison: 300, cloture: 180 }, reputation: { chapitre: 6, livraison: 35, cloture: 18 },
+  },
 ];
 /** Les dossiers, avec le rang de leur premier chapitre dans tout le fil rouge. */
 export const DOSSIERS = DOSSIERS_SANS_RANG.map((d, i) => ({ ...d, debut: DOSSIERS_SANS_RANG.slice(0, i).reduce((n, x) => n + x.chapitres, 0) }));

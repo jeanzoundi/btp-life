@@ -680,5 +680,1139 @@
         false
       ]
     }
+  ],
+  [
+    {
+      "id": "prix-ecole",
+      "type": "mesure",
+      "reponse": 188.89200000000002,
+      "tolerance": 0.1
+    },
+    {
+      "id": "dossier-candidature",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "enveloppe",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "compactage",
+      "type": "mesure",
+      "reponse": 92.3076923076923,
+      "tolerance": 0.3
+    },
+    {
+      "id": "recompacter",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "essais-plateforme",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "penalites-ecole",
+      "type": "mesure",
+      "reponse": 3.7778400000000008,
+      "tolerance": 0.02
+    },
+    {
+      "id": "panneau-public",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "avant-rentree",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "rampe",
+      "type": "mesure",
+      "reponse": 8,
+      "tolerance": 0.05
+    },
+    {
+      "id": "unites-passage",
+      "type": "mesure",
+      "reponse": 2,
+      "tolerance": 0
+    },
+    {
+      "id": "ventilation-ecole",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "agglos-ecole",
+      "type": "mesure",
+      "reponse": 6300,
+      "tolerance": 10
+    },
+    {
+      "id": "controle-agglos",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "sortie-ecoles",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "deux-regles",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "etais-ecole",
+      "type": "mesure",
+      "reponse": 112,
+      "tolerance": 0
+    },
+    {
+      "id": "enfants-chantier",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "commission",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "lumiere-classe",
+      "type": "mesure",
+      "reponse": 8.166666666666666,
+      "tolerance": 0.1
+    },
+    {
+      "id": "fuite-classe",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "part-resultat",
+      "type": "mesure",
+      "reponse": 10.615200000000021,
+      "tolerance": 0.05
+    },
+    {
+      "id": "lecons-groupement",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "centre-sante",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "avance-demarrage",
+      "type": "mesure",
+      "reponse": 21.3,
+      "tolerance": 0.05
+    },
+    {
+      "id": "exigences-soins",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "radiologie",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "eau-fouille",
+      "type": "mesure",
+      "reponse": 32.4,
+      "tolerance": 0.3
+    },
+    {
+      "id": "fouille-en-eau",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "pompe-panne",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "stationnement-sante",
+      "type": "mesure",
+      "reponse": 6,
+      "tolerance": 0
+    },
+    {
+      "id": "dossier-sante",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "ambulance",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "reserve-eau",
+      "type": "mesure",
+      "reponse": 3400,
+      "tolerance": 20
+    },
+    {
+      "id": "groupe-electrogene",
+      "type": "mesure",
+      "reponse": 28.125,
+      "tolerance": 0.2
+    },
+    {
+      "id": "eaux-usees",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "carrelage-soins",
+      "type": "mesure",
+      "reponse": 105,
+      "tolerance": 0
+    },
+    {
+      "id": "revetements-soins",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "peinture-sante",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "equipe-second-oeuvre",
+      "type": "mesure",
+      "reponse": 5,
+      "tolerance": 0
+    },
+    {
+      "id": "habilitations",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "electricien-habilitation",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "renouvellement-air",
+      "type": "mesure",
+      "reponse": 3.0000000000000004,
+      "tolerance": 0.05
+    },
+    {
+      "id": "reserves-sante",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "ouvrir-sante",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "solde-sante",
+      "type": "mesure",
+      "reponse": 6.875,
+      "tolerance": 0.02
+    },
+    {
+      "id": "garanties-sante",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "marche-bintou",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "loyer-equilibre",
+      "type": "mesure",
+      "reponse": 23333.333333333332,
+      "tolerance": 50
+    },
+    {
+      "id": "programme-halle",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "bois-ou-metal",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "pression-massif",
+      "type": "mesure",
+      "reponse": 83.33333333333334,
+      "tolerance": 0.5
+    },
+    {
+      "id": "sol-halle",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "vent-arrachement",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "issues-marche",
+      "type": "mesure",
+      "reponse": 3,
+      "tolerance": 0
+    },
+    {
+      "id": "dossier-marche",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "commercantes-chantier",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "pente-toit",
+      "type": "mesure",
+      "reponse": 0.75,
+      "tolerance": 0.02
+    },
+    {
+      "id": "poids-charpente",
+      "type": "mesure",
+      "reponse": 3646.1000000000004,
+      "tolerance": 10
+    },
+    {
+      "id": "souder-ou-boulonner",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "peinture-acier",
+      "type": "mesure",
+      "reponse": 27,
+      "tolerance": 0
+    },
+    {
+      "id": "controle-profiles",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "rouille-profiles",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "effort-elingue",
+      "type": "mesure",
+      "reponse": 421.4656965084268,
+      "tolerance": 3
+    },
+    {
+      "id": "vent-portique",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "balisage-levage",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "gouttiere",
+      "type": "mesure",
+      "reponse": 2.2222222222222223,
+      "tolerance": 0.05
+    },
+    {
+      "id": "reserves-marche",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "meilleurs-etals",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "reste-entretien",
+      "type": "mesure",
+      "reponse": 100000,
+      "tolerance": 0
+    },
+    {
+      "id": "entretien-halle",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "residence-etudiants",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "cout-chambre",
+      "type": "mesure",
+      "reponse": 7,
+      "tolerance": 0.02
+    },
+    {
+      "id": "prefabrication",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "planning-rebours",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "resistance-eprouvette",
+      "type": "mesure",
+      "reponse": 29.990759588879026,
+      "tolerance": 0.3
+    },
+    {
+      "id": "visite-usine",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "lot-douteux",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "chambres-accessibles",
+      "type": "mesure",
+      "reponse": 3,
+      "tolerance": 0
+    },
+    {
+      "id": "incendie-residence",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "etage-futur",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "eau-chaude-solaire",
+      "type": "mesure",
+      "reponse": 38.4,
+      "tolerance": 0.2
+    },
+    {
+      "id": "brise-soleil",
+      "type": "mesure",
+      "reponse": 0.5459553513993036,
+      "tolerance": 0.02
+    },
+    {
+      "id": "bruit-chambres",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "rotations-predalles",
+      "type": "mesure",
+      "reponse": 12,
+      "tolerance": 0
+    },
+    {
+      "id": "predalle-fissuree",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "pose-predalles",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "maquette-exploitation",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "tests-detecteurs",
+      "type": "mesure",
+      "reponse": 19.2,
+      "tolerance": 0.1
+    },
+    {
+      "id": "reperer-equipements",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "debit-douche",
+      "type": "mesure",
+      "reponse": 9,
+      "tolerance": 0.1
+    },
+    {
+      "id": "reserves-residence",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "rentree-residence",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "gain-delai",
+      "type": "mesure",
+      "reponse": 7.199999999999999,
+      "tolerance": 0.05
+    },
+    {
+      "id": "lecons-prefa",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "chateau-eau",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "besoin-eau",
+      "type": "mesure",
+      "reponse": 480,
+      "tolerance": 1
+    },
+    {
+      "id": "risques-chateau",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "specialiste-coffrage",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "pression-radier",
+      "type": "mesure",
+      "reponse": 220.06609415175654,
+      "tolerance": 1
+    },
+    {
+      "id": "etude-chateau",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "tassement-chateau",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "pression-robinets",
+      "type": "mesure",
+      "reponse": 2.5,
+      "tolerance": 0.05
+    },
+    {
+      "id": "dossier-chateau",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "voisins-chateau",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "hauteur-eau",
+      "type": "mesure",
+      "reponse": 5.261320432789929,
+      "tolerance": 0.02
+    },
+    {
+      "id": "poussee-fond",
+      "type": "mesure",
+      "reponse": 52.61320432789929,
+      "tolerance": 0.3
+    },
+    {
+      "id": "etancheite-cuve",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "levees-fut",
+      "type": "mesure",
+      "reponse": 24,
+      "tolerance": 0
+    },
+    {
+      "id": "hauteur-chateau",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "orage-fut",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "diametre-conduite",
+      "type": "mesure",
+      "reponse": 195.44100476116796,
+      "tolerance": 2
+    },
+    {
+      "id": "materiaux-eau-potable",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "revetement-non-agree",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "essai-etancheite",
+      "type": "mesure",
+      "reponse": 10.522640865579858,
+      "tolerance": 0.1
+    },
+    {
+      "id": "avant-distribution",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "eau-trouble",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
+  ],
+  [
+    {
+      "id": "taux-frequence",
+      "type": "mesure",
+      "reponse": 8,
+      "tolerance": 0.1
+    },
+    {
+      "id": "reputation",
+      "type": "selection",
+      "options": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "grands-projets",
+      "type": "situation",
+      "options": [
+        true,
+        false,
+        false
+      ]
+    }
   ]
 ]

@@ -42,8 +42,14 @@ describe('correction de la campagne', () => {
     expect(lireCampagne({ chapitres: 12, termineeLe: fin })).toEqual({ chapitres: 12, termineeLe: null });
     expect(lireCampagne({ chapitres: CAMPAGNE.chapitres, termineeLe: fin })).toEqual({ chapitres: CAMPAGNE.chapitres, termineeLe: fin });
   });
-  it('enchaîne les dossiers : Akwaba en douze chapitres, puis Les Rôniers', () => {
-    expect(DOSSIERS.map(d => [d.id, d.debut, d.chapitres, d.livraison])).toEqual([['residence-akwaba', 0, 12, 9], ['residence-roniers', 12, 12, 11]]);
+  it('enchaîne les dossiers : Akwaba et Les Rôniers en douze chapitres, puis cinq dossiers de huit', () => {
+    expect(DOSSIERS.map(d => [d.id, d.debut, d.chapitres, d.livraison])).toEqual([
+      ['residence-akwaba', 0, 12, 9], ['residence-roniers', 12, 12, 11], ['groupe-scolaire', 24, 8, 7], ['centre-sante', 32, 8, 7],
+      ['marche-couvert', 40, 8, 7], ['residence-universitaire', 48, 8, 7], ['chateau-eau', 56, 8, 7],
+    ]);
+    expect(gainsChapitre(30, 100)).toMatchObject({ argent: 50_000, xp: 360, reputation: 25 });
+    expect(gainsChapitre(63, 100)).toMatchObject({ argent: 30_000, xp: 300, reputation: 18 });
+    expect(dossierDe(63)).toMatchObject({ dossier: { id: 'chateau-eau', client: 'client-regie-yeo' }, rang: 7 });
     expect(CAMPAGNE.chapitres).toBe(corrige.length);
     expect(dossierDe(11)).toMatchObject({ dossier: { id: 'residence-akwaba' }, rang: 11 });
     expect(dossierDe(12)).toMatchObject({ dossier: { id: 'residence-roniers' }, rang: 0 });
@@ -140,7 +146,7 @@ describe('CampagneService', () => {
     expect(b.tx.userMessage.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ contenu: expect.stringContaining('réception définitive') }) }));
     expect(b.tx.carriereHistorique.create).not.toHaveBeenCalled();
   });
-  it('le deuxième dossier suit le premier : M. Touré écrit au permis, la réception livre les Rôniers, le dernier chapitre clôt le fil rouge', async () => {
+  it('le deuxième dossier suit le premier : M. Touré écrit au permis, la réception livre les Rôniers, le dernier chapitre clôt le dossier', async () => {
     const b = banc(12);
     expect((await b.svc.chapitre('u1', 12, reponses(12))).gains).toMatchObject({ argent: 4000, reputation: 3 });
     expect(b.tx.userMessage.create).not.toHaveBeenCalled();
@@ -152,9 +158,18 @@ describe('CampagneService', () => {
     expect((await b.svc.chapitre('u1', 22, reponses(22))).gains).toMatchObject({ argent: 40000, reputation: 20 });
     expect(b.tx.carriereHistorique.create).toHaveBeenCalledWith({ data: { userId: 'u1', type: 'CHANTIER_LIVRE', details: { campagne: 'residence-roniers', nom: 'Résidence Les Rôniers' } } });
     const fin = await b.svc.chapitre('u1', 23, reponses(23));
-    expect(fin).toMatchObject({ progres: { chapitres: 24, termineeLe: expect.any(String) }, gains: { argent: 15000, reputation: 10 } });
+    // Le dossier des Rôniers est clos ; le fil rouge continue avec l'école de la mairie.
+    expect(fin).toMatchObject({ progres: { chapitres: 24, termineeLe: null }, gains: { argent: 15000, reputation: 10 } });
     expect(b.tx.userMessage.create).toHaveBeenCalledTimes(3);
     expect(b.tx.carriereHistorique.create).toHaveBeenCalledTimes(1);
+  });
+  it('le château d’eau, septième dossier, se livre au septième chapitre et clôt tout le fil rouge au huitième', async () => {
+    const b = banc(CAMPAGNE.chapitres - 2);
+    await b.svc.chapitre('u1', CAMPAGNE.chapitres - 2, reponses(CAMPAGNE.chapitres - 2));
+    expect(b.tx.carriereHistorique.create).toHaveBeenCalledWith({ data: { userId: 'u1', type: 'CHANTIER_LIVRE', details: { campagne: 'chateau-eau', nom: 'Château d’eau des Jardins' } } });
+    expect(b.tx.pnj.findUnique).toHaveBeenLastCalledWith(expect.objectContaining({ where: { slug: 'client-regie-yeo' } }));
+    const fin = await b.svc.chapitre('u1', CAMPAGNE.chapitres - 1, reponses(CAMPAGNE.chapitres - 1));
+    expect(fin).toMatchObject({ progres: { chapitres: CAMPAGNE.chapitres, termineeLe: expect.any(String) }, gains: { argent: 30_000, reputation: 18 } });
   });
   it('une notification en panne ne fait pas échouer le versement validé', async () => {
     const b = banc(8);

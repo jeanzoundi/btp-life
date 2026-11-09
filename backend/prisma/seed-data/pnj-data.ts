@@ -13,4 +13,10 @@ export const PNJ_DU_JEU: Array<{ slug: string; nom: string; role: PnjRole }> = [
   { slug: 'controleur-brou', nom: 'Brou — Contrôleur qualité', role: 'CONTROLEUR' },
   // Le client du deuxième dossier du fil rouge, la Résidence Les Rôniers.
   { slug: 'client-daouda-toure', nom: 'M. Touré — Client', role: 'CLIENT' },
+  // Les clients des dossiers suivants : l'école, le centre de santé, le marché couvert, la résidence universitaire, le château d'eau.
+  { slug: 'client-mairie-kanga', nom: 'M. Kanga — Services techniques de la mairie', role: 'CLIENT' },
+  { slug: 'client-docteur-fofana', nom: 'Dr Fofana — Centre de santé', role: 'CLIENT' },
+  { slug: 'client-tantie-bintou', nom: 'Tantie Bintou — Commerçantes du Plateau', role: 'CLIENT' },
+  { slug: 'client-professeur-ndri', nom: 'Pr N’Dri — Université', role: 'CLIENT' },
+  { slug: 'client-regie-yeo', nom: 'M. Yéo — Régie des eaux', role: 'CLIENT' },
 ];
