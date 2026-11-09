@@ -171,7 +171,7 @@ export type EtatProgrammesLieux = ReturnType<typeof useProgrammesLieux>;
 export function PanneauxLieu({ slug, lieux, nomJoueur, demo, filRouge }: {
   slug: string; lieux: EtatProgrammesLieux; nomJoueur: string; demo: boolean;
   /** Le chapitre du fil rouge qui attend chez ce mentor, s'il y en a un. */
-  filRouge?: { libelle: string; onOuvrir: () => void } | null;
+  filRouge?: { libelle: string; dossier?: string; onOuvrir: () => void } | null;
 }) {
   const { programme } = LIEUX_PROGRAMME[slug];
   const progres = lieux.progresDe(slug), enCours = lieux.seance?.slug === slug;

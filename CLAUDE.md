@@ -95,7 +95,10 @@ le serveur à partir des réponses brutes, jamais d'une note envoyée par le jeu
 Après tout changement d'un programme de lieu (`frontend/src/lib/lieux-programme/`),
 régénérer le corrigé : `node scripts/generer-corrige-programmes.cjs` (backend).
 Le test `corrige-programmes.test.ts` (frontend) échoue tant qu'il est périmé.
-Pour le fil rouge, c'est `scripts/verifier-campagne.cjs`. `generer-corrige-programmes.cjs` régénère aussi `journees-corrige.json` après tout
+Pour le fil rouge, c'est `scripts/verifier-campagne.cjs` (`--afficher > src/carriere/campagne-corrige.json` le régénère). Le fil rouge
+enchaîne des dossiers dans une seule progression (`frontend/src/lib/campagne.ts` : Akwaba, chapitres 0 à 11 ; `dossier-roniers.ts` :
+Les Rôniers, 12 à 23) : un dossier de plus = ses chapitres, sa parcelle et son barème des deux côtés (`DOSSIERS` dans `campagne.ts`
+et `campagne.service.ts`), son client dans `prisma/seed-data/pnj-data.ts`. `generer-corrige-programmes.cjs` régénère aussi `journees-corrige.json` après tout
 changement des journées du chantier ou de leurs gestes (`journee-chantier.ts`, `gestes-chantier.ts`) ;
 `corrige-journees.test.ts` échoue tant qu'il est périmé. Parcours (`parcours.ts`) et cursus (`cursus.ts`) existent
 aussi des deux côtés. Captures et mesures à points de vue fixes : `node scripts/captures-monde.mjs` (frontend) ;

@@ -1,6 +1,7 @@
 // Ce que les habitants disent en premier quand on leur parle : une réplique qui tient compte de ce qu'ils font à cette
 // heure, du temps qu'il fait, et de ce que le joueur a fait (sa dernière journée, ses journées avec Yao, son niveau, sa
 // première journée, le fil rouge, sa fatigue ou sa faim). Sans React : le dialogue l'affiche, les tests la vérifient.
+import { dossierDe, faitsDossier } from './campagne';
 import { etapePnj } from './journee-pnj';
 import type { Meteo } from './meteo-monde';
 
@@ -45,7 +46,11 @@ export function repliqueAccueil(nom: string, c: ContexteDialogue): string | null
       return null;
     case 'Mariam':
       if (c.niveau >= 8) return 'Tu as le profil pour monter ta propre entreprise. La Tour BTP Life t’attend pour en parler.';
-      if (c.chapitresFilRouge > 0) return `La Résidence Akwaba avance : ${c.chapitresFilRouge} chapitre${c.chapitresFilRouge > 1 ? 's' : ''} déjà validé${c.chapitresFilRouge > 1 ? 's' : ''}. Mme Touré parle de toi.`;
+      if (c.chapitresFilRouge > 0) {
+        // Le dossier dont on parle : celui du dernier chapitre validé, compté dans son dossier.
+        const d = dossierDe(c.chapitresFilRouge - 1), faits = faitsDossier(d, c.chapitresFilRouge);
+        return `La ${d.nom} avance : ${faits} chapitre${faits > 1 ? 's' : ''} déjà validé${faits > 1 ? 's' : ''}. ${d.client} parle de toi.`;
+      }
       return null;
     case 'Fatou':
       if (c.faim < 30) return 'Tu as l’air affamé ! Le maquis sert du garba à toute heure, va manger un morceau.';

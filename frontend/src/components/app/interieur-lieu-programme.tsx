@@ -25,7 +25,8 @@ export interface ProprietesLieuProgramme {
   /** Fermé ou séance du jour faite : passer le temps jusqu'à la prochaine ouverture. */
   onAttendre: () => void;
   /** Le fil rouge passe par ce lieu : le chapitre à proposer, ou la séance de ce chapitre, en cours ici. */
-  filRouge?: { titre: string; seance: SeanceLieu | null; bilan: boolean; onOuvrir: () => void } | null;
+  /** Le chapitre du fil rouge qui se joue ici ; `dossier` nomme l'immeuble suivi (la Résidence Akwaba par défaut). */
+  filRouge?: { titre: string; dossier?: string; seance: SeanceLieu | null; bilan: boolean; onOuvrir: () => void } | null;
   children?: ReactNode;
 }
 
@@ -92,7 +93,7 @@ export function InterieurLieuProgramme({ nom, href, programme, plan, decor: Deco
         {(statut === 'repos' || statut === 'ferme') && <button onClick={onAttendre} className="hud-bouton hud-bouton-verre mt-2.5 w-full px-3 py-2 text-[12.5px]">⏭ {statut === 'repos' ? 'Revenir demain' : 'Attendre l’ouverture'} · {heureLisible(programme.horaires.ouverture)}</button>}
       </p>}
       {filRouge && !filRouge.seance && <div className="mt-3 rounded-xl bg-jeu-or/[.12] p-2.5 text-[12.5px] ring-1 ring-jeu-or/40">
-        <p className="hud-legende text-jeu-or">Fil rouge · Résidence Akwaba</p>
+        <p className="hud-legende text-jeu-or">Fil rouge · {filRouge.dossier ?? 'Résidence Akwaba'}</p>
         <p className="mt-1 font-semibold">{filRouge.titre}</p>
         <button onClick={filRouge.onOuvrir} className="mt-1 font-bold text-jeu-or underline">Ouvrir le chapitre</button>
       </div>}

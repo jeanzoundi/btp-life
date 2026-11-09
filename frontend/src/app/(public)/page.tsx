@@ -18,7 +18,7 @@ interface Profil {
 const ETAPES = [
   { num: '01', titre: 'Crée ton personnage', texte: 'Un modèle réaliste ou ton personnage sur mesure, puis ton profil de départ : étudiant, ouvrier, dessinateur, ingénieur…', icone: '🧍' },
   { num: '02', titre: 'Apprends en jouant', texte: 'Académie BTP, logiciels simulés, séances avec les mentors du quartier — 5 à 20 minutes par session.', icone: '🎮' },
-  { num: '03', titre: 'Travaille sur le terrain', texte: 'Missions, chantiers avec budget et imprévus, et le fil rouge de la Résidence Akwaba de bout en bout.', icone: '🏗️' },
+  { num: '03', titre: 'Travaille sur le terrain', texte: 'Missions, chantiers avec budget et imprévus, et un fil rouge qui suit deux immeubles de bout en bout.', icone: '🏗️' },
   { num: '04', titre: 'Fais carrière', texte: "XP, promotions, offres d'emploi, attestations : un CV virtuel qui se remplit au fil de ta vie de bâtisseur.", icone: '📈' },
 ];
 
@@ -27,7 +27,7 @@ const NOUVEAUTES = [
   { icone: '🧑🏾‍🔧', titre: 'Ton personnage sur mesure', texte: 'Coiffure, barbe, teint, lunettes, tenue et couleurs : compose ton bâtisseur, le même dans les deux modes.' },
   { icone: '🤝', titre: 'Les équipes de quartier', texte: 'Invite jusqu’à trois voisins : à deux dans le même lieu, chaque séance rapporte 10 % d’XP en plus.' },
   { icone: '🧭', titre: 'Une première journée guidée', texte: 'Ton logement, ta première paie, ton compte et ton prochain objectif : quatre étapes récompensées, et une prime d’installation de 15 000 à 60 000 F selon ton poste.' },
-  { icone: '🏢', titre: 'Le fil rouge Akwaba', texte: 'Neuf chapitres pour suivre un immeuble du marché clé en main jusqu’à la réception avec la cliente.' },
+  { icone: '🏢', titre: 'Le fil rouge', texte: 'Vingt-quatre chapitres pour suivre deux immeubles du marché à la réception : la Résidence Akwaba, puis le R+5 des Rôniers, sur pieux.' },
   { icone: '🌦️', titre: 'La météo des saisons', texte: 'Harmattan, grande et petite saisons des pluies : un ciel qui change au hasard des saisons ivoiriennes.' },
   { icone: '📱', titre: 'Jouable sur téléphone', texte: 'Un écran pensé pour le pouce : objectif lisible, commandes à portée, un menu pour le reste.' },
 ];

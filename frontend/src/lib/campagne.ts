@@ -1,11 +1,17 @@
-// Le fil rouge : une campagne qui suit un même immeuble, la Résidence Akwaba (R+3, huit logements, pour Mme Touré), à
-// travers les lieux du quartier. L'offre de l'entreprise, le sol, la structure, le permis, le prêt, la commande, le coulage,
-// la sécurité du gros œuvre, la réception sur la parcelle, puis l'année de garantie, le décompte final et le retour
-// d'expérience : chaque chapitre se joue chez le mentor d'un lieu, avec les mêmes chiffres d'un bout à l'autre (les
-// semelles calculées au bureau d'études sont celles qu'on commande au dépôt, la retenue de garantie est celle du prêt).
+// Le fil rouge : des dossiers joués l'un après l'autre, chacun un immeuble suivi à travers les lieux du quartier.
+// D'abord la Résidence Akwaba (R+3, huit logements, pour Mme Touré) : l'offre de l'entreprise, le sol, la structure, le
+// permis, le prêt, la commande, le coulage, la sécurité du gros œuvre, la réception sur la parcelle, puis l'année de
+// garantie, le décompte final et le retour d'expérience. Ensuite la Résidence Les Rôniers (R+5 pour son frère, dans
+// dossier-roniers.ts). Chaque chapitre se joue chez le mentor d'un lieu, avec les mêmes chiffres d'un bout à l'autre du
+// dossier (les semelles calculées au bureau d'études sont celles qu'on commande au dépôt, la retenue de garantie est celle
+// du prêt). Les chapitres se suivent dans une seule progression : le premier des Rôniers est le treizième du fil rouge.
 // Le serveur tient la progression et paie (backend/src/carriere/campagne.service.ts). Sans Three.js ni React.
-import type { SituationTerrain } from './programme-chantier';
-import { fr, type ContenuTache, type SeanceLieu } from './programme-lieu';
+import { situation, type ChapitreCampagne } from './chapitres-campagne';
+import { CHAPITRES_RONIERS, CLIENT_RONIERS, PARCELLE_RONIERS, RONIERS, STADES_RONIERS } from './dossier-roniers';
+import { fr, type SeanceLieu } from './programme-lieu';
+
+export type { ChapitreCampagne, TacheCampagne } from './chapitres-campagne';
+export { CHAPITRES_RONIERS, CLIENT_RONIERS, PARCELLE_RONIERS, RONIERS, STADES_RONIERS } from './dossier-roniers';
 
 export const CAMPAGNE = { id: 'residence-akwaba', nom: 'Résidence Akwaba', ouvrage: 'R+3 · 8 logements', cliente: 'Mme Touré' } as const;
 /** Un chapitre se valide à 50 sur 100 (comme au serveur) ; en dessous, il se rejoue aussitôt. */
@@ -14,26 +20,6 @@ export const NOTE_CHAPITRE = 50;
 export const PARCELLE_AKWABA = { slug: 'parcelle-akwaba', x: 0, z: -78.5, largeur: 20, profondeur: 13 } as const;
 /** Mme Touré reçoit sur sa parcelle aux heures de chantier. */
 export const CLIENTE_AKWABA = { nom: 'Mme Touré', role: 'Cliente, propriétaire de la parcelle', horaires: { ouverture: 8, fermeture: 17 } } as const;
-
-export interface TacheCampagne { id: string; zone: string; titre: string; contenu: ContenuTache }
-export interface ChapitreCampagne {
-  id: string;
-  /** Lieu du chapitre : un lieu à programme du quartier, ou la parcelle elle-même pour la réception. */
-  lieu: string;
-  titre: string;
-  /** Ce qui se joue, en une ligne, pour la liste des chapitres. */
-  resume: string;
-  /** Ce que dit l'interlocuteur en ouvrant le chapitre. */
-  recit: string;
-  /** Ce qui change sur la parcelle une fois le chapitre validé. */
-  avancee: string;
-  taches: TacheCampagne[];
-}
-
-const s = (id: string, titre: string, situation: string, bonne: [string, string], mauvaises: [string, string][]): SituationTerrain =>
-  ({ id, titre, situation, choix: [{ texte: bonne[0], correct: true, retour: bonne[1] }, ...mauvaises.map(([texte, retour]) => ({ texte, correct: false, retour }))] });
-const situation = (id: string, zone: string, titre: string, texte: string, bonne: [string, string], mauvaises: [string, string][]): TacheCampagne =>
-  ({ id, zone, titre, contenu: { type: 'situation', situation: s(id, titre, texte, bonne, mauvaises) } });
 
 // Les chiffres de l'immeuble, repris d'un chapitre à l'autre.
 const DEBOURSE = 122, COEF_VENTE = 1.25, TVA = .18;
@@ -48,7 +34,7 @@ const BUDGET = 180, PART_BANQUE = .7, RETENUE = .05;
 const FISSURE_POSE = .18, FISSURE_TROIS_MOIS = .3;
 const AVENANT = 4.2, COUT_REEL = 128.4;
 
-export const CHAPITRES: ChapitreCampagne[] = [
+const CHAPITRES_AKWABA: ChapitreCampagne[] = [
   {
     id: 'offre', lieu: 'entreprise', titre: 'Le marché clé en main', resume: 'Chiffrer et défendre l’offre de l’entreprise.',
     recit: 'Mme Touré a une parcelle au Plateau Nord, entre l’hôtel de ville et le laboratoire. Elle veut y bâtir la Résidence Akwaba : un R+3 de huit logements, livré clé en main, et consulte trois entreprises. Si notre offre l’emporte, c’est toi qui suivras cet immeuble de bout en bout.',
@@ -356,9 +342,75 @@ export const CHAPITRES: ChapitreCampagne[] = [
   },
 ];
 
-/** Chapitres validés à la livraison de l'immeuble : la réception le livre ; l'année de garantie, le décompte et le
- * retour d'expérience bouclent ensuite le dossier. */
-export const CHAPITRES_LIVRAISON = CHAPITRES.findIndex(c => c.id === 'reception') + 1;
+/** Chapitres validés à la livraison de la Résidence Akwaba : la réception la livre ; l'année de garantie, le décompte et
+ * le retour d'expérience bouclent ensuite le dossier. */
+export const CHAPITRES_LIVRAISON = CHAPITRES_AKWABA.findIndex(c => c.id === 'reception') + 1;
+
+/** Ce qu'on voit sur la parcelle Akwaba, selon les chapitres validés (0 à 12 ; l'immeuble est livré dès le neuvième). */
+export const STADES_AKWABA = [
+  'Parcelle bornée', 'Marché signé', 'Sol sondé', 'Implantation tracée', 'Permis affiché',
+  'Base vie installée', 'Fondations en cours', 'Gros œuvre en élévation', 'Prêt pour la réception', 'Immeuble livré',
+  'Réserves levées', 'Réception définitive', 'Référence de l’entreprise',
+] as const;
+
+// ─── Les dossiers ───
+
+export interface ParcelleCampagne { slug: string; x: number; z: number; largeur: number; profondeur: number }
+export interface AccueilParcelle { nom: string; role: string; horaires: { ouverture: number; fermeture: number } }
+/** Gains d'un chapitre validé, comme au serveur (gainsChapitre) : chapitre ordinaire, livraison (la réception), clôture
+ * (le dernier chapitre du dossier). L'XP vaut `xpBase` + la moitié de la note, plus la prime de livraison ou de clôture. */
+export interface BaremeDossier {
+  argent: { chapitre: number; livraison: number; cloture: number };
+  xpBase: number; xpPrime: { livraison: number; cloture: number };
+  reputation: { chapitre: number; livraison: number; cloture: number };
+}
+export interface DossierCampagne {
+  id: string; nom: string; ouvrage: string; client: string;
+  parcelle: ParcelleCampagne;
+  /** Le nom de la parcelle dans le jeu (carte, rendez-vous). */
+  nomParcelle: string;
+  /** Qui reçoit sur la parcelle : le client, aux heures de chantier. */
+  accueil: AccueilParcelle;
+  chapitres: ChapitreCampagne[];
+  /** Chapitres du dossier validés à la livraison de l'immeuble (la réception, sur la parcelle). */
+  livraison: number;
+  /** Ce qu'on voit sur la parcelle à chaque stade, de 0 à la longueur du dossier. */
+  stades: readonly string[];
+  bareme: BaremeDossier;
+  /** Ce que deviennent l'immeuble et le joueur une fois le dossier clos (fiche de la parcelle, téléphone). */
+  cloture: string;
+  /** Rang, dans tout le fil rouge, du premier chapitre du dossier. */
+  debut: number;
+}
+
+const DOSSIERS_SANS_RANG: Omit<DossierCampagne, 'debut'>[] = [
+  {
+    id: CAMPAGNE.id, nom: CAMPAGNE.nom, ouvrage: CAMPAGNE.ouvrage, client: CAMPAGNE.cliente, parcelle: PARCELLE_AKWABA, nomParcelle: 'Parcelle Akwaba',
+    accueil: CLIENTE_AKWABA, chapitres: CHAPITRES_AKWABA, livraison: CHAPITRES_LIVRAISON, stades: STADES_AKWABA,
+    bareme: { argent: { chapitre: 2_500, livraison: 25_000, cloture: 10_000 }, xpBase: 30, xpPrime: { livraison: 200, cloture: 100 }, reputation: { chapitre: 2, livraison: 15, cloture: 8 } },
+    cloture: 'La réception définitive est signée : huit familles vivent à la Résidence Akwaba, devenue la référence de l’entreprise. Mme Touré te recommande à tout le Plateau.',
+  },
+  {
+    id: RONIERS.id, nom: RONIERS.nom, ouvrage: RONIERS.ouvrage, client: RONIERS.client, parcelle: PARCELLE_RONIERS, nomParcelle: 'Parcelle des Rôniers',
+    accueil: CLIENT_RONIERS, chapitres: CHAPITRES_RONIERS, livraison: CHAPITRES_RONIERS.findIndex(c => c.id === 'reception-r5') + 1, stades: STADES_RONIERS,
+    bareme: { argent: { chapitre: 4_000, livraison: 40_000, cloture: 15_000 }, xpBase: 40, xpPrime: { livraison: 250, cloture: 120 }, reputation: { chapitre: 3, livraison: 20, cloture: 10 } },
+    cloture: 'Le dossier est clos : dix familles et deux commerces font vivre la Résidence Les Rôniers, et la révision des prix a protégé la marge. Bâti-Express et BTP Life préparent ensemble le groupe scolaire.',
+  },
+];
+/** Les dossiers du fil rouge, dans l'ordre où ils se jouent. */
+export const DOSSIERS: DossierCampagne[] = DOSSIERS_SANS_RANG.map((d, i) => ({ ...d, debut: DOSSIERS_SANS_RANG.slice(0, i).reduce((n, x) => n + x.chapitres.length, 0) }));
+/** Tous les chapitres du fil rouge, dossier après dossier : c'est leur rang qui fait la progression. */
+export const CHAPITRES: ChapitreCampagne[] = DOSSIERS.flatMap(d => d.chapitres);
+
+/** Le dossier d'un chapitre (rang dans le fil rouge) ; au-delà du dernier chapitre, le dernier dossier. */
+export const dossierDe = (rang: number) => DOSSIERS.find(d => rang < d.debut + d.chapitres.length) ?? DOSSIERS[DOSSIERS.length - 1];
+/** Chapitres validés d'un dossier, de 0 à sa longueur, d'après la progression du fil rouge. */
+export const faitsDossier = (d: DossierCampagne, chapitres: number) => Math.max(0, Math.min(d.chapitres.length, chapitres - d.debut));
+/** Le dossier dont c'est la parcelle, ou rien pour un autre lieu. */
+export const dossierDeParcelle = (slug: string) => DOSSIERS.find(d => d.parcelle.slug === slug) ?? null;
+export const estParcelle = (slug: string) => dossierDeParcelle(slug) !== null;
+/** Ce qu'on voit sur la parcelle d'un dossier, d'après la progression du fil rouge. */
+export const stadeDossier = (d: DossierCampagne, p: Pick<ProgresCampagne, 'chapitres'>) => d.stades[faitsDossier(d, p.chapitres)];
 
 // ─── Progression ───
 
@@ -397,28 +449,29 @@ export const contenuTacheChapitre = (index: number, id: string) => CHAPITRES[ind
 
 export interface BilanChapitre { note: number; reussies: number; total: number; reussi: boolean; mention: string; argent: number; xp: number; reputation: number }
 
-/** Note sur 100 comme une séance de lieu (présence 10, puis 90 points partagés), validée à 50.
- * Gains : la formule du serveur (gainsChapitre), avant le facteur des besoins ; la réception, qui livre l'immeuble, rapporte
- * bien plus, et le dernier chapitre, qui clôt le dossier, un peu plus. */
+/** Ce que rapporte un chapitre (rang dans le fil rouge) validé avec cette note, avant le facteur des besoins : le barème
+ * de son dossier, comme au serveur (gainsChapitre). La réception, qui livre l'immeuble, rapporte bien plus ; le dernier
+ * chapitre, qui clôt le dossier, un peu plus. */
+export function gainsChapitreJeu(rang: number, note: number) {
+  if (note < NOTE_CHAPITRE) return { argent: 0, xp: 0, reputation: 0 };
+  const d = dossierDe(rang), dans = rang - d.debut, { bareme: b } = d;
+  const quand = dans === d.livraison - 1 ? 'livraison' : dans === d.chapitres.length - 1 ? 'cloture' : 'chapitre';
+  return { argent: b.argent[quand], xp: b.xpBase + Math.round(note / 2) + (quand === 'chapitre' ? 0 : b.xpPrime[quand]), reputation: b.reputation[quand] };
+}
+
+/** Note sur 100 comme une séance de lieu (présence 10, puis 90 points partagés), validée à 50, et gains du barème. */
 export function bilanChapitre(s: SeanceLieu): BilanChapitre {
   const scores = s.taches.map(t => s.scores[t.id] ?? 0);
   const note = Math.round(10 + 90 * (scores.reduce((n, x) => n + x, 0) / Math.max(1, scores.length)) / 100);
-  const reussi = note >= NOTE_CHAPITRE, livraison = s.etape === CHAPITRES_LIVRAISON - 1, cloture = s.etape === CHAPITRES.length - 1;
+  const reussi = note >= NOTE_CHAPITRE;
   return {
     note, reussies: scores.filter(x => x >= 80).length, total: scores.length, reussi,
     mention: note === 100 ? 'Chapitre sans faute' : note >= 70 ? 'Chapitre réussi' : reussi ? 'Chapitre validé' : 'Chapitre à reprendre',
-    argent: reussi ? (livraison ? 25_000 : cloture ? 10_000 : 2_500) : 0,
-    xp: reussi ? 30 + Math.round(note / 2) + (livraison ? 200 : cloture ? 100 : 0) : 0,
-    reputation: reussi ? (livraison ? 15 : cloture ? 8 : 2) : 0,
+    ...gainsChapitreJeu(s.etape, note),
   };
 }
 
 // ─── L'immeuble sur la parcelle ───
 
-/** Ce qu'on voit sur la parcelle, selon les chapitres validés (0 à 12 ; l'immeuble est livré dès le neuvième). */
-export const STADES_AKWABA = [
-  'Parcelle bornée', 'Marché signé', 'Sol sondé', 'Implantation tracée', 'Permis affiché',
-  'Base vie installée', 'Fondations en cours', 'Gros œuvre en élévation', 'Prêt pour la réception', 'Immeuble livré',
-  'Réserves levées', 'Réception définitive', 'Référence de l’entreprise',
-] as const;
 export const stadeAkwaba = (p: Pick<ProgresCampagne, 'chapitres'>) => STADES_AKWABA[Math.max(0, Math.min(STADES_AKWABA.length - 1, p.chapitres))];
+export const stadeRoniers = (p: Pick<ProgresCampagne, 'chapitres'>) => stadeDossier(DOSSIERS[1], p);

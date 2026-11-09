@@ -8,6 +8,8 @@ import { ATLAS_DEVANTURES } from '@/lib/ressources-legeres';
 const VARIANTES: Record<string, number> = {
   cafe: 0, fournisseur: 1, 'bureau-etudes': 2, maquis: 3,
   marche: 1, 'centre-azur': 0, 'galerie-palmiers': 3, marina: 3, agence: 2,
+  // Les deux commerces du rez-de-chaussée de la Résidence Les Rôniers (fil rouge).
+  'residence-roniers': 3,
 };
 
 export const aDevanture = (slug: string) => slug in VARIANTES;

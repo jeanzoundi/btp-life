@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { adoucir, planChapitre, positionPlan } from './plans-camera';
-import { nouvelleReplique, presenceConcurrent, repliqueConcurrent } from './concurrent';
+import { nouvelleReplique, presenceConcurrent, repliqueConcurrent, ROUTE_CONCURRENT, ROUTE_CONCURRENT_RONIERS, routeConcurrent } from './concurrent';
 
 describe('les plans de caméra des chapitres', () => {
   it('démarre et finit en douceur, en tournant autour de l’immeuble qu’il regarde', () => {
@@ -44,5 +44,26 @@ describe('le concurrent du fil rouge', () => {
     expect(presenceConcurrent(4, 10)).toBe(true);
     expect(presenceConcurrent(4, 19)).toBe(false);
     expect(presenceConcurrent(9, 10)).toBe(false);
+  });
+  it('perd encore le R+5, rôde devant les Rôniers pendant leur chantier, puis devient partenaire', () => {
+    expect(routeConcurrent(4, 10)).toBe(ROUTE_CONCURRENT);
+    expect(routeConcurrent(12, 10)).toBeNull();
+    expect(routeConcurrent(13, 10)).toBe(ROUTE_CONCURRENT_RONIERS);
+    expect(routeConcurrent(22, 10)).toBe(ROUTE_CONCURRENT_RONIERS);
+    expect(routeConcurrent(23, 10)).toBeNull();
+    expect(routeConcurrent(18, 20)).toBeNull();
+    expect(nouvelleReplique(13)).toContain('Daouda Touré');
+    expect(repliqueConcurrent(30)).toContain('Associés');
+  });
+});
+
+describe('le plan de caméra du R+5', () => {
+  it('regarde plus haut et de plus loin un immeuble plus haut, sans changer celui d’Akwaba', () => {
+    const akwaba = planChapitre({ centre: [0, 0], chapitres: 8, total: 12, livraison: 9, etape: '', titreChantier: 'Résidence Akwaba' });
+    expect(akwaba).toMatchObject({ hauteurCible: 6.7, rayon: 28, hauteur: 14 });
+    const roniers = planChapitre({ centre: [-70.5, -35], chapitres: 11, total: 12, livraison: 11, etape: '', titreChantier: 'Résidence Les Rôniers', hauteurMax: 11 });
+    expect(roniers.titre).toBe('Résidence Les Rôniers · livrée !');
+    expect(roniers.hauteurCible).toBe(11);
+    expect(roniers.rayon).toBeGreaterThan(akwaba.rayon);
   });
 });

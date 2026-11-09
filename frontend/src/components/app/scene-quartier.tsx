@@ -25,11 +25,12 @@ import type { Emote, VoisinEnLigne } from '@/lib/en-ligne';
 import { ChantierVivant, type ChargementLivraison } from './chantier-vivant';
 import { postesChantier, type EtatVisuel, type PosteVille } from '@/lib/journee-chantier';
 import { PARCELLE_AKWABA } from '@/lib/campagne';
-import { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE, type Batiment3D, type PointMonde } from '@/lib/batiments-ville';
+import { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, PARCELLE_RONIERS_BATIMENT, PARCELLES_BATIMENTS, POINTS_DECOUVERTE, type Batiment3D, type PointMonde } from '@/lib/batiments-ville';
 import { boucleHabitants, NAVIGATION_VILLE as NAVIGATION } from '@/lib/decor-ville';
-import { CONCURRENT, PENSEES_CONCURRENT, ROUTE_CONCURRENT, presenceConcurrent } from '@/lib/concurrent';
+import { CONCURRENT, PENSEES_CONCURRENT, routeConcurrent } from '@/lib/concurrent';
 import { positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
+import { ImmeubleRoniers } from './immeuble-roniers';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import { creneauPnj, effetsMeteo, passantsPresents, ROUTES_PASSANTS } from '@/lib/vie-urbaine';
 import { etapePnj, JOURNEES_PNJ } from '@/lib/journee-pnj';
@@ -43,7 +44,7 @@ const IDENTITES_PNJ: Record<string, IdentitePersonnage> = { Awa: 'awa', Yao: 'ya
 
 export type Direction = 'avant' | 'arriere' | 'gauche' | 'droite';
 export type { Batiment3D, PointMonde };
-export { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, POINTS_DECOUVERTE };
+export { BATIMENTS, BATIMENTS_CARTE, PARCELLE_BATIMENT, PARCELLES_BATIMENTS, POINTS_DECOUVERTE };
 
 export const BATIMENT_CHANTIER = BATIMENTS.find(b => b.slug === 'chantier')!;
 const CENTRE_CHANTIER: PointMonde = [BATIMENT_CHANTIER.position[0], BATIMENT_CHANTIER.position[2]];
@@ -175,10 +176,11 @@ function Passant({ route, depart, pause, couleur, rythme, parapluie = false }: {
 }
 
 export type PlanEnCours = { plan: PlanCamera; debut: number };
-/** Le concurrent du fil rouge, qui fait les cent pas devant la parcelle Akwaba ; un clic, et il lâche sa dernière pique. */
-function Concurrent3D({ pause, rythme, bulles, onParler }: { pause: boolean; rythme: number; bulles: boolean; onParler: () => void }) {
+/** Le concurrent du fil rouge, qui fait les cent pas devant la parcelle du dossier en cours ; un clic, et il lâche sa
+ * dernière pique. */
+function Concurrent3D({ route, pause, rythme, bulles, onParler }: { route: [number, number][]; pause: boolean; rythme: number; bulles: boolean; onParler: () => void }) {
   const ref = useRef<THREE.Group>(null), index = useRef(0);
-  const trace = useMemo(() => boucleHabitants(ROUTE_CONCURRENT).points, []);
+  const trace = useMemo(() => boucleHabitants(route).points, [route]);
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   const pensee = usePenseePeriodique(graine => PENSEES_CONCURRENT[Math.abs(Math.floor(graine)) % PENSEES_CONCURRENT.length], bulles && !pause, 4, 16);
   useFrame((_, delta) => {
@@ -278,11 +280,13 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwaba, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[]; contribution?: string; ouvriers?: number };
+export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwaba, roniers, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[]; contribution?: string; ouvriers?: number };
   /** La progression du joueur dans le programme de chaque lieu à mentor, affichée sur son enseigne. */
   progressionLieux?: Record<string, string>;
   /** La Résidence Akwaba : son stade (chapitres validés du fil rouge) et la balise du portail quand Mme Touré attend. */
-  akwaba: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void;
+  akwaba: { stade: number; appel: string | null };
+  /** La Résidence Les Rôniers, deuxième dossier : son stade (chapitres validés du dossier) et la balise quand M. Touré attend. */
+  roniers: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void;
   /** Une journée de chantier est en cours : Yao reste à son poste, quelle que soit l'heure. */
   yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void; coequipiers: string[]; onVoisin: () => void }) {
   const nuit = heure >= 19 || heure < 6;
@@ -307,9 +311,10 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
       ? <ChantierVivant key={b.slug} centre={CENTRE_CHANTIER} largeur={b.taille[0]} profondeur={b.taille[2]} etat={chantier.etat} nomChantier={chantier.nom} livraison={chantier.livraison} postes={chantier.postes} pause={pause} rythme={rythme} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onPoste={onPoste} onSelect={() => onSelect(b)} contribution={chantier.contribution} ouvriers={chantier.ouvriers} />
       : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} progression={progressionLieux?.[b.slug]} />)}
     <ImmeubleAkwaba stade={akwaba.stade} appel={akwaba.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_AKWABA.slug} onSelect={() => onSelect(PARCELLE_BATIMENT)} />
+    <ImmeubleRoniers stade={roniers.stade} appel={roniers.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_RONIERS_BATIMENT.slug} onSelect={() => onSelect(PARCELLE_RONIERS_BATIMENT)} />
     <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} vitesse={4.5 * effetsMeteo(meteo).vitesseMarche} parle={Boolean(interlocuteur)} />
     {/* Le concurrent du fil rouge rôde devant la parcelle Akwaba aux heures de chantier, jusqu'à la livraison. */}
-    {presenceConcurrent(akwaba.stade, heure) && <Concurrent3D pause={pause} rythme={rythme} bulles={bulles} onParler={onConcurrent} />}
+    {routeConcurrent(akwaba.stade, heure) && <Concurrent3D key={routeConcurrent(akwaba.stade, heure)!.join()} route={routeConcurrent(akwaba.stade, heure)!} pause={pause} rythme={rythme} bulles={bulles} onParler={onConcurrent} />}
     {/* Les autres joueurs connectés, avec leur personnage et leurs émotes (monde en ligne). */}
     <VoisinsEnLigne3D voisins={voisins} coequipiers={coequipiers} onSelect={onVoisin} /><EmoteJoueur3D position={joueur} emote={monEmote} />
     {/* Yao, Koffi et Awa vivent une journée continue (lib/journee-pnj) : trajet, travail, déjeuner assis au maquis, soirée,

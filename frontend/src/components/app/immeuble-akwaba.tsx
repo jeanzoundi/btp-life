@@ -16,7 +16,7 @@ import { HumainMonde } from './humain-monde';
 import { Architecture } from './ville-lagune';
 
 /** Panneau sur deux pieds (ou fixé à la palissade) : bandeau de couleur, titre, trois lignes. */
-function PanneauParcelle({ position, titre, lignes, couleur, pieds = true }: { position: V3; titre: string; lignes: readonly string[]; couleur: string; pieds?: boolean }) {
+export function PanneauParcelle({ position, titre, lignes, couleur, pieds = true }: { position: V3; titre: string; lignes: readonly string[]; couleur: string; pieds?: boolean }) {
   return <group position={position}>
     <mesh castShadow><boxGeometry args={[4.2, 1.7, .08]} /><meshStandardMaterial color="#F7F2E8" roughness={.7} /></mesh>
     <mesh position={[0, .66, .05]}><planeGeometry args={[4.2, .38]} /><meshBasicMaterial color={couleur} /></mesh>

@@ -4,13 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import {
-  appliquerChapitre, bilanChapitre, CAMPAGNE, chapitreCourant, CHAPITRES, CHAPITRES_LIVRAISON, CLIENTE_AKWABA, contenuTacheChapitre, lireProgresCampagne, nouvelleSeanceChapitre,
-  PARCELLE_AKWABA, PROGRES_CAMPAGNE_INITIAL, stadeAkwaba, type BilanChapitre, type ChapitreCampagne, type ProgresCampagne,
+  appliquerChapitre, bilanChapitre, chapitreCourant, CHAPITRES, CLIENTE_AKWABA, contenuTacheChapitre, DOSSIERS, dossierDe, dossierDeParcelle, estParcelle, faitsDossier, gainsChapitreJeu,
+  lireProgresCampagne, nouvelleSeanceChapitre, PROGRES_CAMPAGNE_INITIAL, stadeDossier, type BilanChapitre, type ChapitreCampagne, type DossierCampagne, type ProgresCampagne,
 } from '@/lib/campagne';
 import { LIEUX_MONDE } from '@/lib/liens-modes';
 import { LIEUX_PROGRAMME } from '@/lib/lieux-programme';
 import { noter, seanceFaite, tacheALaZoneLieu, tachesRestantes, type ContenuTache, type SeanceLieu } from '@/lib/programme-lieu';
-import { CLOTURE_CAMPAGNE } from './fin-campagne';
 import type { TypeNotification } from './hud-monde';
 import { heureLisible, PastilleTache, TacheLieu } from './panneau-programme-lieu';
 
@@ -26,15 +25,22 @@ export interface ResultatChapitre {
 /** Où en est le chapitre, vu depuis un lieu : à jouer ici, en cours, à faire ailleurs, fermé pour l'heure… */
 export type StatutChapitre = 'disponible' | 'en_cours' | 'bilan' | 'resultat' | 'ferme' | 'occupe' | 'ailleurs' | 'termine';
 
-/** Qui reçoit le joueur pour un chapitre : le mentor du lieu, ou Mme Touré sur sa parcelle. */
+/** Qui reçoit le joueur pour un chapitre : le mentor du lieu, ou le client du dossier sur sa parcelle. */
 export function interlocuteur(c: ChapitreCampagne) {
   const p = LIEUX_PROGRAMME[c.lieu]?.programme;
-  return p ? { nom: p.mentor.nom, role: p.mentor.role, horaires: p.horaires } : CLIENTE_AKWABA;
+  return p ? { nom: p.mentor.nom, role: p.mentor.role, horaires: p.horaires } : dossierDeParcelle(c.lieu)?.accueil ?? CLIENTE_AKWABA;
 }
-export const nomLieu = (slug: string) => slug === PARCELLE_AKWABA.slug ? 'Parcelle Akwaba' : LIEUX_MONDE[slug]?.nom ?? slug;
+export const nomLieu = (slug: string) => dossierDeParcelle(slug)?.nomParcelle ?? LIEUX_MONDE[slug]?.nom ?? slug;
 const ouvertA = (h: { ouverture: number; fermeture: number }, heure: number) => heure >= h.ouverture && heure < h.fermeture;
+/** « Le sol des Jardins » → « le sol des Jardins », pour l'écrire dans une phrase sans toucher aux noms propres. */
+const enPhrase = (titre: string) => titre.charAt(0).toLowerCase() + titre.slice(1);
+/** Où en est un chapitre (rang dans le fil rouge) dans son dossier : « 3/12 », pour les écrans du jeu. */
+export function reperesChapitre(rang: number) {
+  const d = dossierDe(rang);
+  return { dossier: d, numero: rang - d.debut + 1, total: d.chapitres.length };
+}
 
-/** Le fil rouge : progression de la Résidence Akwaba, la séance du chapitre en cours (une à la fois), sa tâche ouverte, son bilan.
+/** Le fil rouge : progression des dossiers (Résidence Akwaba, puis Les Rôniers), la séance du chapitre en cours (une à la fois), sa tâche ouverte, son bilan.
  * Connecté, le serveur valide et paie chaque chapitre ; en démonstration, tout reste dans le navigateur. */
 export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }: {
   cle: string; demo: boolean; heure: number;
@@ -93,10 +99,11 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
     if (occupe) { notifier(`Termine d’abord ta séance en cours (${occupe}).`, 'alerte'); return; }
     const nouvelle = nouvelleSeanceChapitre(progres.chapitres);
     setSeance(nouvelle); setResultat(null); setReponses({});
-    // À la réception, les vérifications se font depuis le panneau, avec Mme Touré ; ailleurs, aux postes du lieu.
-    if (chapitre.lieu === PARCELLE_AKWABA.slug) { notifier('Visite de réception commencée avec Mme Touré.', 'trajet'); return; }
+    // À la réception, les vérifications se font depuis le panneau, avec le client ; ailleurs, aux postes du lieu.
+    if (estParcelle(chapitre.lieu)) { notifier(`Visite de réception commencée avec ${interlocuteur(chapitre).nom}.`, 'trajet'); return; }
     setPanneau(null);
-    notifier(`Fil rouge, chapitre ${progres.chapitres + 1} : ${chapitre.titre.toLowerCase()}. Les balises dorées montrent les postes.`, 'trajet');
+    const { dossier, numero } = reperesChapitre(progres.chapitres);
+    notifier(`Fil rouge${dossier.debut ? ` · ${dossier.nom}` : ''}, chapitre ${numero} : ${enPhrase(chapitre.titre)}. Les balises dorées montrent les postes.`, 'trajet');
   };
   const ouvrirTache = (id: string) => {
     if (!seance || seance.scores[id] !== undefined) return;
@@ -151,10 +158,16 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
     const c = CHAPITRES[r.index];
     if (r.erreur) { notifier(`${c.titre} : chapitre non enregistré, à refaire.`, 'alerte'); return; }
     if (!r.bilan.reussi) { notifier(`${c.titre} : chapitre à reprendre. Relis les explications, puis recommence quand tu veux.`, 'alerte'); return; }
-    const suivant = CHAPITRES[r.index + 1];
-    notifier(!suivant ? `${CAMPAGNE.nom} : dossier clos ! Réception définitive signée, et l’immeuble devient la référence de l’entreprise.`
-      : r.index === CHAPITRES_LIVRAISON - 1 ? `${CAMPAGNE.nom} livrée ! Mme Touré a ses clés. Reste l’année de garantie : rendez-vous ${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}.`
-      : `${c.avancee} Prochain rendez-vous : ${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}.`, 'succes');
+    const suivant = CHAPITRES[r.index + 1], d = dossierDe(r.index), rang = r.index - d.debut;
+    const rendezVous = suivant ? `${nomLieu(suivant.lieu)}, avec ${interlocuteur(suivant).nom}` : '';
+    // Le dernier chapitre d'un dossier le clôt, et ouvre le suivant s'il y en a un.
+    if (rang === d.chapitres.length - 1) {
+      const nouveau = suivant ? dossierDe(r.index + 1) : null;
+      notifier(`${d.nom} : dossier clos ! ${c.avancee}${nouveau ? ` Nouveau dossier : ${nouveau.nom}, pour ${nouveau.client}. Rendez-vous : ${rendezVous}.` : ''}`, 'succes');
+      return;
+    }
+    notifier(rang === d.livraison - 1 ? `${d.nom} livrée ! ${d.client} a ses clés. Reste ${enPhrase(suivant.titre)} : rendez-vous ${rendezVous}.`
+      : `${c.avancee} Prochain rendez-vous : ${rendezVous}.`, 'succes');
   };
   const abandonner = () => { setSeance(null); setTache(null); setPanneau(null); notifier('Chapitre interrompu : il reste à faire.', 'info'); };
   const ouvrir = useCallback((ici: string) => setPanneau(ici), []);
@@ -175,17 +188,17 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
 
 export type EtatCampagne = ReturnType<typeof useCampagne>;
 
-/** Frise du fil rouge : un segment par chapitre, validé, en cours ou à venir. */
-export function FriseCampagne({ faits }: { faits: number }) {
-  return <div className="mt-2 flex h-2 gap-[2px] overflow-hidden rounded-full" role="img" aria-label={`${faits} chapitre${faits > 1 ? 's' : ''} validé${faits > 1 ? 's' : ''} sur ${CHAPITRES.length}`}>
-    {CHAPITRES.map((c, i) => <span key={c.id} title={c.titre} className={`flex-1 ${i < faits ? 'bg-jeu-lagune' : i === faits ? 'bg-jeu-or' : 'bg-white/10'}`} />)}
+/** Frise d'un dossier du fil rouge : un segment par chapitre, validé, en cours ou à venir. */
+export function FriseCampagne({ dossier, faits, enCours }: { dossier: DossierCampagne; faits: number; enCours: boolean }) {
+  return <div className="mt-2 flex h-2 gap-[2px] overflow-hidden rounded-full" role="img" aria-label={`${faits} chapitre${faits > 1 ? 's' : ''} validé${faits > 1 ? 's' : ''} sur ${dossier.chapitres.length}`}>
+    {dossier.chapitres.map((c, i) => <span key={c.id} title={c.titre} className={`flex-1 ${i < faits ? 'bg-jeu-lagune' : i === faits && enCours ? 'bg-jeu-or' : 'bg-white/10'}`} />)}
   </div>;
 }
 
-/** Les chapitres, faits, en cours ou à venir, avec leur lieu. */
-function ListeChapitres({ faits }: { faits: number }) {
-  return <ol className="mt-2 space-y-1">{CHAPITRES.map((c, i) => {
-    const etat = i < faits ? 'fait' : i === faits ? 'courant' : 'avenir';
+/** Les chapitres d'un dossier, faits, en cours ou à venir, avec leur lieu. */
+function ListeChapitres({ dossier, faits, enCours }: { dossier: DossierCampagne; faits: number; enCours: boolean }) {
+  return <ol className="mt-2 space-y-1">{dossier.chapitres.map((c, i) => {
+    const etat = i < faits ? 'fait' : i === faits && enCours ? 'courant' : 'avenir';
     return <li key={c.id} className={`flex items-baseline gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] ${etat === 'courant' ? 'bg-jeu-or/[.12] ring-1 ring-jeu-or/40' : ''}`}>
       <span className={`hud-chiffre w-5 shrink-0 text-[11px] ${etat === 'fait' ? 'text-jeu-lagune' : etat === 'courant' ? 'text-jeu-or' : 'text-jeu-ivoire/45'}`}>{etat === 'fait' ? '✓' : i + 1}</span>
       <span className={`min-w-0 flex-1 font-semibold ${etat === 'avenir' ? 'text-jeu-ivoire/55' : ''}`}>{c.titre}</span>
@@ -211,7 +224,7 @@ function GainsChapitreResultat({ resultat }: { resultat: ResultatChapitre }) {
   </div>;
 }
 
-/** Le panneau du fil rouge : l'interlocuteur du chapitre (mentor du lieu ou cliente), sa consigne, la séance, le bilan.
+/** Le panneau du fil rouge : l'interlocuteur du chapitre (mentor du lieu ou client), sa consigne, la séance, le bilan.
  * Sur la parcelle, hors réception, c'est la fiche du projet : où en est l'immeuble et où aller ensuite. */
 export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAttendre }: {
   ici: string; campagne: EtatCampagne; nomJoueur: string; demo: boolean;
@@ -224,46 +237,53 @@ export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAtt
   const { progres, resultat, seance } = campagne;
   const index = Math.min(resultat?.index ?? seance?.etape ?? progres.chapitres, CHAPITRES.length - 1);
   const chapitre = CHAPITRES[index], qui = interlocuteur(chapitre);
-  const surParcelle = chapitre.lieu === PARCELLE_AKWABA.slug;
+  const surParcelle = estParcelle(chapitre.lieu);
   const fiche = statut === 'ailleurs' || statut === 'termine';
+  // Le dossier montré : celui de la parcelle devant laquelle on se tient (sa fiche), sinon celui du chapitre.
+  const dossier = (fiche ? dossierDeParcelle(ici) : null) ?? dossierDe(index);
+  const faits = faitsDossier(dossier, progres.chapitres), clos = faits === dossier.chapitres.length;
+  const ouvert = !clos && progres.chapitres >= dossier.debut;
+  const precedent = DOSSIERS[DOSSIERS.indexOf(dossier) - 1];
   const replique = statut === 'disponible' ? `Bonjour ${nomJoueur} ! ${chapitre.recit}`
     : statut === 'en_cours' ? (surParcelle ? 'Faisons le tour : trois vérifications, puis on parle du procès-verbal.' : 'Les balises dorées montrent les postes. Reviens me voir quand tout est fait.')
     : statut === 'bilan' ? (surParcelle ? 'Tout est vu ? Alors parlons du procès-verbal.' : 'C’est fait ? Voyons ce que ça donne.')
     : statut === 'resultat' ? (resultat?.erreur ? 'Ton travail est fait, mais il n’a pas pu être enregistré. On le refera ensemble.' : !resultat?.bilan.reussi ? 'Pas encore : relis bien les explications, puis on recommence quand tu veux.'
       : surParcelle ? (resultat.bilan.note === 100 ? 'Tout est en ordre : je signe. Merci pour ce bel immeuble !' : 'Je signe, avec les réserves notées au procès-verbal. Merci pour ce bel immeuble !')
-      : resultat.bilan.note === 100 ? 'Sans faute. La Résidence Akwaba avance grâce à toi.' : 'Bon travail. On avance : relis ce qui a coincé avant la suite.')
-    : statut === 'occupe' ? 'Termine d’abord ta séance en cours ; je t’attends ensuite pour la Résidence Akwaba.'
+      : resultat.bilan.note === 100 ? `Sans faute. La ${dossier.nom} avance grâce à toi.` : 'Bon travail. On avance : relis ce qui a coincé avant la suite.')
+    : statut === 'occupe' ? `Termine d’abord ta séance en cours ; je t’attends ensuite pour la ${dossier.nom}.`
     : `Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}. Reviens à ce moment-là.`;
   const enCoursAilleurs = seance && seance.slug !== ici ? CHAPITRES[seance.etape] : null;
   const prochain = enCoursAilleurs ?? campagne.chapitre;
-  return <section role="dialog" aria-label={fiche ? `Fil rouge : ${CAMPAGNE.nom}` : `${qui.nom}, ${qui.role}`} className="hud-verre absolute inset-x-3 bottom-3 z-40 mx-auto max-h-[78%] max-w-md overflow-y-auto p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[390px]">
+  const dossierProchain = prochain ? dossierDe(CHAPITRES.indexOf(prochain)) : null;
+  const gainsMax = gainsChapitreJeu(index, 100);
+  return <section role="dialog" aria-label={fiche ? `Fil rouge : ${dossier.nom}` : `${qui.nom}, ${qui.role}`} className="hud-verre absolute inset-x-3 bottom-3 z-40 mx-auto max-h-[78%] max-w-md overflow-y-auto p-4 sm:left-auto sm:right-3 sm:mx-0 sm:w-[390px]">
     <div className="flex items-center gap-3">
-      <span aria-hidden="true" className={`hud-titre flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg text-white ring-2 ring-jeu-or/60 ${fiche ? 'bg-[#9b6422]' : 'bg-[#4f8a7f]'}`}>{fiche ? '🏗️' : qui.nom.replace('Mme ', '')[0]}</span>
+      <span aria-hidden="true" className={`hud-titre flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg text-white ring-2 ring-jeu-or/60 ${fiche ? 'bg-[#9b6422]' : 'bg-[#4f8a7f]'}`}>{fiche ? '🏗️' : qui.nom.replace(/^(Mme|M\.) /, '')[0]}</span>
       <div className="min-w-0 flex-1">
-        <h2 className="hud-titre text-lg leading-tight">{fiche ? CAMPAGNE.nom : qui.nom}</h2>
-        <p className="text-[12px] font-semibold text-jeu-ivoire/65">{fiche ? `${CAMPAGNE.ouvrage} · pour ${CAMPAGNE.cliente}` : qui.role}</p>
+        <h2 className="hud-titre text-lg leading-tight">{fiche ? dossier.nom : qui.nom}</h2>
+        <p className="text-[12px] font-semibold text-jeu-ivoire/65">{fiche ? `${dossier.ouvrage} · pour ${dossier.client}` : qui.role}</p>
       </div>
       <button aria-label="Fermer" onClick={campagne.fermer} className="hud-bouton hud-bouton-verre h-8 w-8 shrink-0 rounded-full text-xs">✕</button>
     </div>
     {!fiche && <p className="my-3 rounded-2xl rounded-tl-sm bg-white/[.08] p-3 text-sm leading-relaxed">{replique}</p>}
     <div className={`rounded-xl bg-black/20 p-3 ${fiche ? 'mt-3' : ''}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="hud-legende text-jeu-or">Fil rouge · {CAMPAGNE.nom}</span>
-        <b className="hud-chiffre text-sm text-jeu-or">{Math.min(progres.chapitres, CHAPITRES.length)}/{CHAPITRES.length}</b>
+        <span className="hud-legende text-jeu-or">Fil rouge · {dossier.nom}</span>
+        <b className="hud-chiffre text-sm text-jeu-or">{faits}/{dossier.chapitres.length}</b>
       </div>
-      <FriseCampagne faits={progres.chapitres} />
-      {fiche ? <p className="mt-2 text-[12.5px] text-jeu-ivoire/80">Sur la parcelle : <b>{stadeAkwaba(progres)}</b>{statut === 'termine' && progres.termineeLe ? `, le ${new Date(progres.termineeLe).toLocaleDateString('fr-FR')}` : ''}.</p>
-        : <p className="mt-2 text-[13px] font-bold">Chapitre {index + 1} · {chapitre.titre}</p>}
+      <FriseCampagne dossier={dossier} faits={faits} enCours={ouvert} />
+      {fiche ? <p className="mt-2 text-[12.5px] text-jeu-ivoire/80">Sur la parcelle : <b>{stadeDossier(dossier, progres)}</b>{statut === 'termine' && clos && progres.termineeLe && dossier.debut + dossier.chapitres.length === CHAPITRES.length ? `, le ${new Date(progres.termineeLe).toLocaleDateString('fr-FR')}` : ''}.</p>
+        : <p className="mt-2 text-[13px] font-bold">Chapitre {index - dossier.debut + 1} · {chapitre.titre}</p>}
     </div>
     {fiche && <>
-      {statut === 'termine'
-        ? <p className="mt-3 rounded-xl bg-jeu-lagune/10 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">{CLOTURE_CAMPAGNE}</p>
-        : prochain && <div className="mt-3 rounded-xl bg-jeu-or/[.1] p-3 text-[12.5px] leading-relaxed ring-1 ring-jeu-or/30">
-          <p className="hud-legende text-jeu-or">{enCoursAilleurs ? 'Chapitre en cours' : 'Prochain rendez-vous'}</p>
-          <p className="mt-1"><b>{prochain.titre}</b> : {nomLieu(prochain.lieu)}, avec {interlocuteur(prochain).nom}.</p>
-          <p className="mt-0.5 text-jeu-ivoire/65">{prochain.resume}</p>
-        </div>}
-      <ListeChapitres faits={progres.chapitres} />
+      {clos && <p className="mt-3 rounded-xl bg-jeu-lagune/10 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">{dossier.cloture}</p>}
+      {!clos && !ouvert && precedent && <p className="mt-3 rounded-xl bg-white/[.06] p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/80">Projet à venir : le chantier commencera une fois la {precedent.nom} bouclée.</p>}
+      {prochain && dossierProchain && <div className="mt-3 rounded-xl bg-jeu-or/[.1] p-3 text-[12.5px] leading-relaxed ring-1 ring-jeu-or/30">
+        <p className="hud-legende text-jeu-or">{enCoursAilleurs ? 'Chapitre en cours' : 'Prochain rendez-vous'}{dossierProchain !== dossier ? ` · ${dossierProchain.nom}` : ''}</p>
+        <p className="mt-1"><b>{prochain.titre}</b> : {nomLieu(prochain.lieu)}, avec {interlocuteur(prochain).nom}.</p>
+        <p className="mt-0.5 text-jeu-ivoire/65">{prochain.resume}</p>
+      </div>}
+      <ListeChapitres dossier={dossier} faits={faits} enCours={ouvert} />
     </>}
     {(statut === 'en_cours' || statut === 'bilan') && seance && <ol className="mt-3 space-y-1.5">
       {seance.taches.map(t => {
@@ -284,7 +304,9 @@ export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAtt
     </div>}
     <div className="mt-3 space-y-2">
       {statut === 'disponible' && <button onClick={campagne.commencer} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">{surParcelle ? 'Commencer la visite de réception' : 'Commencer le chapitre'}</button>}
-      {statut === 'disponible' && <p className="text-center text-[10.5px] text-jeu-ivoire/50">{demo ? 'Démonstration : progression gardée dans ce navigateur.' : surParcelle ? 'Réception validée à 50/100 : 25 000 F, jusqu’à 280 XP et 15 de réputation.' : 'Chapitre validé à 50/100 : 2 500 F et jusqu’à 80 XP, une seule fois.'}</p>}
+      {statut === 'disponible' && <p className="text-center text-[10.5px] text-jeu-ivoire/50">{demo ? 'Démonstration : progression gardée dans ce navigateur.'
+        : surParcelle ? `Réception validée à 50/100 : ${gainsMax.argent.toLocaleString('fr-FR')} F, jusqu’à ${gainsMax.xp} XP et ${gainsMax.reputation} de réputation.`
+        : `Chapitre validé à 50/100 : ${gainsMax.argent.toLocaleString('fr-FR')} F et jusqu’à ${gainsMax.xp} XP, une seule fois.`}</p>}
       {statut === 'en_cours' && !surParcelle && <button onClick={campagne.fermer} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">Continuer</button>}
       {statut === 'bilan' && <button onClick={campagne.faireLeBilan} disabled={campagne.enregistrement} className="hud-bouton hud-bouton-principal w-full p-3 text-sm">{campagne.enregistrement ? 'Enregistrement du chapitre…' : surParcelle ? 'Signer le procès-verbal' : 'Faire le bilan'}</button>}
       {statut === 'resultat' && <button onClick={campagne.terminer} className="hud-bouton hud-bouton-or w-full p-3 text-sm">{resultat?.bilan.reussi && !resultat.erreur ? 'Continuer l’histoire' : 'Fermer'}</button>}

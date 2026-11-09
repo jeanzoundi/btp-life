@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHAPITRES, PARCELLE_AKWABA } from '@/lib/campagne';
+import { CHAPITRES, DOSSIERS, PARCELLE_AKWABA, PARCELLE_RONIERS } from '@/lib/campagne';
 import { PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
@@ -89,7 +89,7 @@ describe('le fil rouge en démonstration', () => {
 });
 
 describe('l’épilogue du fil rouge', () => {
-  it('clôt le dossier au retour d’expérience : prime de clôture, date de fin, plus de chapitre à jouer', async () => {
+  it('clôt le dossier Akwaba au retour d’expérience, avec sa prime, et ouvre le R+5 des Rôniers', async () => {
     localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 11, termineeLe: null }));
     const o = options();
     const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
@@ -100,11 +100,35 @@ describe('l’épilogue du fil rouge', () => {
     act(() => { result.current.surStation('entreprise', 'mentor'); });
     act(() => result.current.faireLeBilan());
     expect(o.recompenser).toHaveBeenCalledWith(expect.objectContaining({ xp: 180, argent: 10_000 }));
-    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: 12, termineeLe: expect.any(String) });
+    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: 12, termineeLe: null });
     act(() => result.current.terminer());
-    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/dossier clos/), 'succes');
-    expect(result.current.chapitre).toBeNull();
-    expect(result.current.statut('entreprise')).toBe('termine');
+    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/Résidence Akwaba : dossier clos !.*Nouveau dossier : Résidence Les Rôniers, pour M\. Touré\. Rendez-vous : Tour BTP Life, avec Joseph Amani/), 'succes');
+    expect(result.current.chapitre?.id).toBe('offre-r5');
+    expect(result.current.statut('entreprise')).toBe('disponible');
+  });
+
+  it('numérote les chapitres du R+5 dans leur dossier, et clôt le fil rouge au dernier', async () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 16, termineeLe: null }));
+    const o = options();
+    const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
+    await waitFor(() => expect(result.current.chapitre?.id).toBe('voisins'));
+    act(() => result.current.commencer());
+    expect(o.notifier).toHaveBeenLastCalledWith('Fil rouge · Résidence Les Rôniers, chapitre 5 : les voisins du chantier. Les balises dorées montrent les postes.', 'trajet');
+    expect(result.current.postes('jardins-residence')).toEqual(['kouame', 'akissi', 'diallo']);
+    act(() => result.current.abandonner());
+
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 23, termineeLe: null }));
+    const fin = renderHook(() => useCampagne(options({ cle: 'campagne-test' })), { wrapper: avecClient });
+    await waitFor(() => expect(fin.result.current.chapitre?.id).toBe('bilan-r5'));
+    act(() => fin.result.current.commencer());
+    toutFaire(fin.result);
+    act(() => { fin.result.current.surStation('entreprise', 'mentor'); });
+    act(() => fin.result.current.faireLeBilan());
+    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: CHAPITRES.length, termineeLe: expect.any(String) });
+    expect(fin.result.current.resultat?.bilan).toMatchObject({ argent: 15_000, xp: 210 });
+    act(() => fin.result.current.terminer());
+    expect(fin.result.current.chapitre).toBeNull();
+    expect(fin.result.current.statut('entreprise')).toBe('termine');
   });
 });
 
@@ -168,9 +192,43 @@ describe('le panneau du fil rouge', () => {
     const fiche = screen.getByRole('dialog', { name: 'Fil rouge : Résidence Akwaba' });
     expect(fiche).toHaveTextContent('Sur la parcelle : Parcelle bornée');
     expect(fiche).toHaveTextContent('Le marché clé en main : Tour BTP Life, avec Joseph Amani');
-    expect(screen.getAllByRole('listitem')).toHaveLength(CHAPITRES.length);
+    expect(screen.getAllByRole('listitem')).toHaveLength(DOSSIERS[0].chapitres.length);
     fireEvent.click(screen.getByRole('button', { name: 'Y aller · Tour BTP Life' }));
     expect(onAller).toHaveBeenCalledWith('entreprise');
+  });
+
+  it('devant la parcelle des Rôniers, avant leur tour : un projet à venir, et le rendez-vous en cours d’Akwaba', () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 3, termineeLe: null }));
+    render(<Banc ici={PARCELLE_RONIERS.slug} />, { wrapper: avecClient });
+    fireEvent.click(screen.getByRole('button', { name: 'ouvrir' }));
+    const fiche = screen.getByRole('dialog', { name: 'Fil rouge : Résidence Les Rôniers' });
+    expect(fiche).toHaveTextContent('R+5 · 10 logements et 2 commerces · pour M. Touré');
+    expect(fiche).toHaveTextContent('Sur la parcelle : Terrain à bâtir');
+    expect(fiche).toHaveTextContent('Projet à venir : le chantier commencera une fois la Résidence Akwaba bouclée.');
+    expect(fiche).toHaveTextContent('Prochain rendez-vous · Résidence Akwaba');
+    expect(fiche).toHaveTextContent('0/12');
+  });
+
+  it('devant la parcelle Akwaba bouclée : sa clôture, et le rendez-vous du R+5', () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 14, termineeLe: null }));
+    render(<Banc ici={PARCELLE_AKWABA.slug} />, { wrapper: avecClient });
+    fireEvent.click(screen.getByRole('button', { name: 'ouvrir' }));
+    const fiche = screen.getByRole('dialog', { name: 'Fil rouge : Résidence Akwaba' });
+    expect(fiche).toHaveTextContent('Sur la parcelle : Référence de l’entreprise');
+    expect(fiche).toHaveTextContent('huit familles vivent à la Résidence Akwaba');
+    expect(fiche).toHaveTextContent('Prochain rendez-vous · Résidence Les Rôniers');
+    expect(fiche).toHaveTextContent('Les pieux : Maison des ingénieurs, avec Inès Diabaté');
+    expect(fiche).toHaveTextContent('12/12');
+  });
+
+  it('à la réception du R+5 : M. Touré reçoit sur sa parcelle, au barème du R+5', () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 22, termineeLe: null }));
+    render(<Banc ici={PARCELLE_RONIERS.slug} demo={false} />, { wrapper: avecClient });
+    fireEvent.click(screen.getByRole('button', { name: 'ouvrir' }));
+    const panneau = screen.getByRole('dialog', { name: /M\. Touré, Client, frère de Mme Touré/ });
+    expect(panneau).toHaveTextContent('Bonjour Jean ! Mon immeuble est fini !');
+    expect(panneau).toHaveTextContent('Chapitre 11 · La réception du R+5');
+    expect(panneau).toHaveTextContent(/Réception validée à 50\/100 : 40\s000 F, jusqu’à 340 XP et 20 de réputation\./);
   });
 
   it('à la réception : les vérifications s’ouvrent depuis le panneau de Mme Touré', () => {

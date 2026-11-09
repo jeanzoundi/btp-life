@@ -20,7 +20,7 @@ type DefiDemo = Omit<Defi, 'progres' | 'reclame'>;
 export const DEFIS_DEMO: DefiDemo[] = [
   { slug: 'seance-du-jour', periode: 'jour', titre: 'Une séance chez un mentor', description: 'Termine une séance dans un lieu du quartier.', objectif: { type: 'seances_lieu', cible: 1 }, recompense: { xp: 25, argent: 1000 } },
   { slug: 'en-route', periode: 'jour', titre: 'En route', description: 'Prends un taxi ou un gbaka pour traverser le quartier.', objectif: { type: 'trajets', cible: 1 }, recompense: { xp: 10, argent: 300 } },
-  { slug: 'le-fil-rouge-avance', periode: 'jour', titre: 'Le fil rouge avance', description: 'Valide un chapitre de la Résidence Akwaba.', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 40, argent: 1500 } },
+  { slug: 'le-fil-rouge-avance', periode: 'jour', titre: 'Le fil rouge avance', description: 'Valide un chapitre du fil rouge.', objectif: { type: 'chapitres', cible: 1 }, recompense: { xp: 40, argent: 1500 } },
   { slug: 'habitue-du-quartier', periode: 'semaine', titre: 'Habitué du quartier', description: 'Termine cinq séances dans les lieux cette semaine.', objectif: { type: 'seances_lieu', cible: 5 }, recompense: { xp: 150, argent: 6000, reputation: 3 } },
 ];
 export const IMPREVUS_DEMO: (ImprevuDuJour & { decisions: DecisionImprevu[] })[] = [

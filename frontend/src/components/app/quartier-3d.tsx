@@ -49,13 +49,13 @@ import { DECORS_LIEUX, MENTORS_LIEUX } from './registre-lieux';
 import { PanneauChantiers, PanneauCompetences, PanneauEpargne, PanneauLogiciels, PanneauMarches, PanneauOffres, type EpargneDemo } from './panneaux-services';
 import { InterieurLieuProgramme } from './interieur-lieu-programme';
 import { PanneauxLieu, useProgrammesLieux } from './programmes-lieux';
-import { CAMPAGNE, CHAPITRES, CHAPITRES_LIVRAISON, PARCELLE_AKWABA, stadeAkwaba, type BilanChapitre } from '@/lib/campagne';
+import { CHAPITRES, DOSSIERS, dossierDe, dossierDeParcelle, estParcelle, faitsDossier, stadeDossier, type BilanChapitre, type DossierCampagne } from '@/lib/campagne';
 import { CONCURRENT, nouvelleReplique, repliqueConcurrent } from '@/lib/concurrent';
 import { planChapitre, type PlanCamera } from '@/lib/plans-camera';
 import { BandeauCinema } from './bandeau-cinema';
 import { EcranTravaux, useTravauxMaison } from './renovation-maison';
 import { PanneauPremiersPas, usePremiersPas } from './premiers-pas';
-import { PanneauFinCampagne, finCampagneAMontrer, type SuiteCampagne } from './fin-campagne';
+import { cleFinDossier, PanneauFinCampagne, finCampagneAMontrer, type SuiteCampagne } from './fin-campagne';
 import { EcranCelebration, celebrationsEntre, celebrer, useCelebrations } from './celebration';
 import { useRouter } from 'next/navigation';
 import { ETAPES_PREMIERS_PAS, prochaineEtape as prochaineEtapeGuide, type EtapePremiersPas } from '@/lib/premiers-pas';
@@ -67,7 +67,7 @@ import { EcranCarriere } from './carriere-telephone';
 import { PanneauGeste } from './gestes-chantier';
 import { contributionAuChantier, progressionAuLieu } from '@/lib/consequences-monde';
 import { ENERGIE_JOURNEE_TRAVAUX, type NiveauLogement } from '@/lib/patrimoine';
-import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, useCampagne, type EtatCampagne } from './fil-rouge';
+import { interlocuteur as interlocuteurChapitre, nomLieu, PanneauxFilRouge, reperesChapitre, useCampagne, type EtatCampagne } from './fil-rouge';
 import { effetsMeteo } from '@/lib/vie-urbaine';
 import { deroulementTrajet, minutesLisibles, trajet, type EtapeTrajet } from '@/lib/transports';
 import { DUREE_TRAJET_MS, Telephone, TrajetEnCours, type AppelTelephone, type AppTelephone, type DestinationTelephone } from './telephone';
@@ -100,7 +100,7 @@ import { POLICES_JEU } from '@/lib/polices-jeu';
 import { degagerPositionPalmiers } from '@/lib/place-palmiers';
 import { NAVIGATION_VILLE } from '@/lib/decor-ville';
 import { useEcranTactile } from '@/lib/ecran-tactile';
-import { BATIMENT_CHANTIER, type Batiment3D, BATIMENTS, BATIMENTS_CARTE, type Direction, PARCELLE_BATIMENT, type PlanEnCours, type PointMonde, POINTS_DECOUVERTE, POSTES_CHANTIER, Scene } from './scene-quartier';
+import { BATIMENT_CHANTIER, type Batiment3D, BATIMENTS, BATIMENTS_CARTE, type Direction, PARCELLES_BATIMENTS, type PlanEnCours, type PointMonde, POINTS_DECOUVERTE, POSTES_CHANTIER, Scene } from './scene-quartier';
 
 const VITESSES = [1, 2, 3] as const;
 const NOMS_PNJ = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
@@ -497,8 +497,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       notifier(`En route vers ${b.nom}.`, 'trajet'); setPlan(false); return;
     }
     lieuEnApproche.current = null;
-    // Devant la parcelle Akwaba : pas de fiche de lieu, c'est le fil rouge qui s'ouvre (projet, ou réception avec Mme Touré).
-    if (b.slug === PARCELLE_AKWABA.slug) { setSelection(null); setPlan(false); directionsRef.current.clear(); destination.current = null; ouvrirFilRouge(b.slug); return; }
+    // Devant une parcelle du fil rouge : pas de fiche de lieu, c'est le fil rouge qui s'ouvre (projet, ou réception avec le client).
+    if (estParcelle(b.slug)) { setSelection(null); setPlan(false); directionsRef.current.clear(); destination.current = null; ouvrirFilRouge(b.slug); return; }
     setSelection(b); setPlan(false); directionsRef.current.clear(); destination.current = null;
     if (mode === 'libre' || secondes === 0) return;
     const resultat = avancerMode(MODES_JEU.find(m => m.id === mode)!, etapeMode, b.slug);
@@ -689,6 +689,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const travailPropose = !etapeEnCours && !journee && !objectifVie.lieu && yaoRecoit;
   // Le fil rouge passe avant la journée de Yao quand son interlocuteur reçoit à cette heure ; un besoin urgent passe avant tout.
   const chapitreFilRouge = campagne.chapitre;
+  // Le chapitre en cours dans son dossier : « Résidence Les Rôniers, chapitre 3/12 ».
+  const reperesFilRouge = reperesChapitre(Math.min(campagne.progres.chapitres, CHAPITRES.length - 1));
   const horairesFilRouge = chapitreFilRouge ? interlocuteurChapitre(chapitreFilRouge).horaires : null;
   const filRougePropose = Boolean(chapitreFilRouge && horairesFilRouge && !etapeEnCours && !journee && !lieux.seance && !campagne.seance && !objectifVie.lieu
     && heure >= horairesFilRouge.ouverture && heure < horairesFilRouge.fermeture);
@@ -715,7 +717,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : lieux.seance ? { texte: `Séance en cours · ${BATIMENTS.find(b => b.slug === lieux.seance!.slug)?.nom ?? LIEUX_PROGRAMME[lieux.seance.slug].programme.titre}`, etiquette: `${Object.keys(lieux.seance.scores).length}/${lieux.seance.taches.length}`, lieu: lieux.seance.slug }
     : campagne.seance ? { texte: `Fil rouge · ${CHAPITRES[campagne.seance.etape].titre}`, etiquette: `${Object.keys(campagne.seance.scores).length}/${campagne.seance.taches.length}`, lieu: campagne.seance.slug }
     : source === 'guide' && etapeGuide ? { texte: etapeGuide.titre, etiquette: `Première journée ${premiersPas.faites.length}/${ETAPES_PREMIERS_PAS.length}`, lieu: lieuGuide }
-    : filRougePropose && chapitreFilRouge ? { texte: `Fil rouge · ${chapitreFilRouge.titre}`, etiquette: `Ch. ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`, lieu: chapitreFilRouge.lieu }
+    : filRougePropose && chapitreFilRouge ? { texte: `Fil rouge · ${chapitreFilRouge.titre}`, etiquette: `Ch. ${reperesFilRouge.numero}/${reperesFilRouge.total}`, lieu: chapitreFilRouge.lieu }
     : yaoEnTete ? { texte: 'Journée de travail avec Yao', etiquette: '6 h – 18 h', lieu: 'chantier' }
     : objectifVie;
   const argent = profil?.argent ?? (demo ? progresDemo.argent : undefined);
@@ -778,10 +780,15 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Le chapitre du fil rouge figure en tête du programme du jour, au réveil comme chez soi.
   const rendezVousFilRouge = chapitreFilRouge && horairesFilRouge ? {
     slug: chapitreFilRouge.lieu, nom: nomLieu(chapitreFilRouge.lieu), ouverture: horairesFilRouge.ouverture, fermeture: horairesFilRouge.fermeture,
-    titre: `Fil rouge · ${chapitreFilRouge.titre}`, detail: `${CAMPAGNE.nom}, chapitre ${campagne.progres.chapitres + 1}/${CHAPITRES.length}`,
+    titre: `Fil rouge · ${chapitreFilRouge.titre}`, detail: `${reperesFilRouge.dossier.nom}, chapitre ${reperesFilRouge.numero}/${reperesFilRouge.total}`,
   } : null;
-  const akwabaScene = useMemo(() => ({ stade: campagne.progres.chapitres, appel: chapitreFilRouge?.lieu === PARCELLE_AKWABA.slug ? 'Réception · Mme Touré' : null }),
-    [campagne.progres.chapitres, chapitreFilRouge?.lieu]);
+  // Les deux parcelles du fil rouge : Akwaba suit tout le fil rouge (elle reste livrée ensuite), les Rôniers leur dossier ;
+  // la balise du portail appelle le joueur quand le client l'attend pour la réception.
+  const appelParcelle = (slug: string) => chapitreFilRouge?.lieu === slug ? `Réception · ${dossierDeParcelle(slug)?.accueil.nom ?? ''}` : null;
+  const akwabaScene = useMemo(() => ({ stade: campagne.progres.chapitres, appel: appelParcelle(DOSSIERS[0].parcelle.slug) }),
+    [campagne.progres.chapitres, chapitreFilRouge?.lieu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const roniersScene = useMemo(() => ({ stade: faitsDossier(DOSSIERS[1], campagne.progres.chapitres), appel: appelParcelle(DOSSIERS[1].parcelle.slug) }),
+    [campagne.progres.chapitres, chapitreFilRouge?.lieu]); // eslint-disable-line react-hooks/exhaustive-deps
   // Le téléphone : les destinations du GPS et du taxi (porte de chaque lieu), et les appels du moment, tirés de l'état du jeu.
   const destinationsTelephone = useMemo<DestinationTelephone[]>(() => BATIMENTS_CARTE.map(b => ({
     slug: b.slug, nom: b.nom, porte: porteBatiment(b.position, b.taille, LIMITES_VILLE),
@@ -791,7 +798,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   if (chapitreFilRouge && !campagne.seance) {
     const qui = interlocuteurChapitre(chapitreFilRouge);
     appelsTelephone.push({ id: `fil-rouge-${chapitreFilRouge.id}`, de: qui.nom, role: qui.role, lieu: chapitreFilRouge.lieu, nomLieu: nomLieu(chapitreFilRouge.lieu),
-      message: `Bonjour ${nomJoueur ?? 'Bâtisseur'} ! Pour la Résidence Akwaba, j’ai besoin de toi : ${chapitreFilRouge.resume.charAt(0).toLowerCase()}${chapitreFilRouge.resume.slice(1)} Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}.` });
+      message: `Bonjour ${nomJoueur ?? 'Bâtisseur'} ! Pour la ${reperesFilRouge.dossier.nom}, j’ai besoin de toi : ${chapitreFilRouge.resume.charAt(0).toLowerCase()}${chapitreFilRouge.resume.slice(1)} Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}.` });
   }
   if (lieux.seance) {
     const { mentor } = LIEUX_PROGRAMME[lieux.seance.slug].programme;
@@ -838,11 +845,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   // Cible de l'objectif : la porte du lieu à rejoindre, ou le repère non découvert le plus proche.
   const lieuObjectif = etapeEnCours?.lieu ?? ('lieu' in objectif ? objectif.lieu : undefined);
   const batimentObjectif = lieuObjectif ? BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
+  const parcelleObjectif = lieuObjectif ? PARCELLES_BATIMENTS.find(b => b.slug === lieuObjectif) : undefined;
   const repereProche = useMemo(() => POINTS_DECOUVERTE.filter(p => !decouvertes.includes(p.id)).sort((a, b) => distanceEntre(a.position, positionCourante) - distanceEntre(b.position, positionCourante))[0], [decouvertes, positionCourante]);
   // Pendant la journée, la flèche ramène à l'entrée du chantier ; avant, elle vise Yao (s'il est l'objectif affiché).
   const posteCible: PosteVille | null = journee ? 'entree' : yaoEnTete ? 'yao' : null;
   const cibleObjectif: PointMonde | null = posteCible ? POSTES_CHANTIER[posteCible]
-    : lieuObjectif === PARCELLE_AKWABA.slug ? porteBatiment(PARCELLE_BATIMENT.position, PARCELLE_BATIMENT.taille, LIMITES_VILLE)
+    : parcelleObjectif ? porteBatiment(parcelleObjectif.position, parcelleObjectif.taille, LIMITES_VILLE)
     : batimentObjectif ? porteBatiment(batimentObjectif.position, batimentObjectif.taille, LIMITES_VILLE)
     : !etapeEnCours && objectif.texte === 'Trouve les repères' && repereProche ? repereProche.position : null;
   // Pendant une journée, le chantier montre le jour joué (un nouvel ouvrage peut démarrer après une livraison).
@@ -1005,11 +1013,23 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     if (!campagne.pret) return;
     const avant = chapitresVus.current, maintenant = campagne.progres.chapitres;
     chapitresVus.current = maintenant;
-    if (avant === null || maintenant <= avant || !campagne.chapitre) return;
-    const qui = interlocuteurChapitre(campagne.chapitre);
-    const minuteur = window.setTimeout(() => notifier(`📞 ${qui.nom} t’appelle au sujet de la Résidence Akwaba.`, 'info', { label: 'Décrocher', executer: () => setTelephone('appels') }), 4000);
+    if (!campagne.chapitre) return;
+    const { dossier, numero } = reperesChapitre(maintenant), qui = interlocuteurChapitre(campagne.chapitre);
+    // Un nouveau dossier s'ouvre (le premier chapitre d'un dossier après Akwaba) : on l'annonce une fois, y compris à qui
+    // avait fini Akwaba avant qu'il existe.
+    const cleAnnonce = `btp-life-dossier-annonce:${userId ?? 'demo'}:${dossier.id}`;
+    let annonceVue = true;
+    try { annonceVue = localStorage.getItem(cleAnnonce) === 'vue'; localStorage.setItem(cleAnnonce, 'vue'); } catch { /* Stockage facultatif. */ }
+    if (avant === null) {
+      if (numero !== 1 || dossier.debut === 0 || annonceVue) return;
+      const minuteur = window.setTimeout(() => notifier(`📁 Nouveau dossier du fil rouge : ${dossier.nom}, ${dossier.ouvrage}, pour ${dossier.client}. ${qui.nom} t’attend : ${nomLieu(campagne.chapitre!.lieu)}.`, 'info',
+        { label: 'Y aller', executer: () => allerVersRef.current(campagne.chapitre!.lieu) }), 2500);
+      return () => window.clearTimeout(minuteur);
+    }
+    if (maintenant <= avant) return;
+    const minuteur = window.setTimeout(() => notifier(`📞 ${qui.nom} t’appelle au sujet de la ${dossier.nom}.`, 'info', { label: 'Décrocher', executer: () => setTelephone('appels') }), 4000);
     return () => window.clearTimeout(minuteur);
-  }, [campagne.pret, campagne.progres.chapitres, campagne.chapitre, notifier]);
+  }, [campagne.pret, campagne.progres.chapitres, campagne.chapitre, notifier, userId]);
   // Un chapitre validé : la caméra salue l'étape franchie par l'immeuble dès que le joueur est dans la rue, bilan refermé
   // (la validation se fait souvent chez le mentor), puis le concurrent envoie sa pique.
   const chapitresFilmes = useRef<number | null>(null);
@@ -1018,7 +1038,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     const avant = chapitresFilmes.current, maintenant = campagne.progres.chapitres;
     chapitresFilmes.current = maintenant;
     if (avant === null || maintenant <= avant) return;
-    planAttente.current = planChapitre({ centre: [PARCELLE_AKWABA.x, PARCELLE_AKWABA.z], chapitres: maintenant, total: CHAPITRES.length, livraison: CHAPITRES_LIVRAISON, etape: stadeAkwaba({ chapitres: maintenant }), titreChantier: CAMPAGNE.nom });
+    // La caméra salue l'immeuble du dossier dont un chapitre vient d'être validé, au stade qu'il vient d'atteindre.
+    const d = dossierDe(maintenant - 1), haut = d.parcelle.slug !== DOSSIERS[0].parcelle.slug;
+    planAttente.current = planChapitre({ centre: [d.parcelle.x, d.parcelle.z], chapitres: faitsDossier(d, maintenant), total: d.chapitres.length, livraison: d.livraison,
+      etape: stadeDossier(d, { chapitres: maintenant }), titreChantier: d.nom, ...(haut ? { hauteurMax: 11 } : {}) });
     const pique = nouvelleReplique(maintenant);
     if (!pique) return;
     const minuteur = window.setTimeout(() => notifier(`📱 ${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${pique} »`, 'info'), 10_000);
@@ -1036,16 +1059,18 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     const fin = window.setTimeout(() => setPlanCinema(null), planCinema.duree * 1000);
     return () => window.clearTimeout(fin);
   }, [planCinema]);
-  // La campagne finie, et son dernier plan de caméra passé : un écran salue le parcours et oriente vers la suite, une fois.
+  // Un dossier clos, et son dernier plan de caméra passé : un écran salue le parcours et oriente vers la suite, une fois par
+  // dossier. Seul le dernier dossier clos compte : on ne salue pas après coup un dossier plus ancien.
   const router = useRouter();
-  const cleFinCampagne = `btp-life-fin-campagne:${userId ?? 'demo'}`;
-  const [finCampagne, setFinCampagne] = useState(false);
+  const [finCampagne, setFinCampagne] = useState<DossierCampagne | null>(null);
   useEffect(() => {
+    const clos = [...DOSSIERS].reverse().find(d => campagne.progres.chapitres >= d.debut + d.chapitres.length);
+    if (!clos) return;
     let dejaVue = false;
-    try { dejaVue = localStorage.getItem(cleFinCampagne) === 'vue'; } catch { /* Stockage facultatif. */ }
+    try { dejaVue = localStorage.getItem(cleFinDossier(clos, userId ?? 'demo')) === 'vue'; } catch { /* Stockage facultatif. */ }
     const occupe = Boolean(interieur || campagne.panneau || planCinema || planAttente.current);
-    if (finCampagneAMontrer({ chapitres: campagne.progres.chapitres, total: CHAPITRES.length, pret: campagne.pret, dejaVue, occupe })) setFinCampagne(true);
-  }, [campagne.progres.chapitres, campagne.pret, campagne.panneau, interieur, planCinema, cleFinCampagne]);
+    if (finCampagneAMontrer({ chapitres: campagne.progres.chapitres, total: clos.debut + clos.chapitres.length, pret: campagne.pret, dejaVue, occupe })) setFinCampagne(f => f ?? clos);
+  }, [campagne.progres.chapitres, campagne.pret, campagne.panneau, interieur, planCinema, userId]);
   // Les grands moments du joueur : niveau, promotion, équipe formée, comparés à l'état précédent (jamais au chargement).
   const celebrations = useCelebrations();
   const etatCelebre = useRef<{ niveau?: number; poste?: string; coequipiers?: number } | null>(null);
@@ -1056,7 +1081,10 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     celebrationsEntre(etatCelebre.current, apres).forEach(celebrer);
     etatCelebre.current = apres;
   }, [demo, profil, enLigne.equipePrete, enLigne.equipe.equipe, nomJoueur]);
-  const fermerFinCampagne = () => { setFinCampagne(false); try { localStorage.setItem(cleFinCampagne, 'vue'); } catch { /* Stockage facultatif. */ } };
+  const fermerFinCampagne = () => {
+    if (finCampagne) try { localStorage.setItem(cleFinDossier(finCampagne, userId ?? 'demo'), 'vue'); } catch { /* Stockage facultatif. */ }
+    setFinCampagne(null);
+  };
   const suiteCampagne = (suite: SuiteCampagne) => {
     fermerFinCampagne();
     if (suite === 'equipe') setChat(true);
@@ -1095,7 +1123,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} roniers={roniersScene} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>
@@ -1134,7 +1162,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     </div>}
     {menuModes && <PanneauModesJeu place={placePlanning} mode={mode} record={records[mode] ?? 0} decouvertes={decouvertes.length} totalDecouvertes={POINTS_DECOUVERTE.length} conseil={objectifDuMoment(stats, decouvertes.length, POINTS_DECOUVERTE.length)} onAller={allerVers} onToggle={() => setMenuModes(v => !v)} onMode={changerMode} />}
     {!surLeChantier && panneauxChantier}
-    {!interieur && <PanneauxFilRouge ici={PARCELLE_AKWABA.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo} onAller={slug => { campagne.fermer(); allerVers(slug); }} onAttendre={attendreFilRouge} />}
+    {!interieur && DOSSIERS.map(d => <PanneauxFilRouge key={d.id} ici={d.parcelle.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo} onAller={slug => { campagne.fermer(); allerVers(slug); }} onAttendre={attendreFilRouge} />)}
     {options && <section aria-label="Options" className={`hud-verre absolute z-30 grid content-start gap-2 overflow-y-auto p-4 text-sm ${placeDroite('w-[min(300px,calc(100%-296px))]')}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="hud-titre text-[17px]">Options</h2><button type="button" aria-label="Fermer les options" onClick={() => setOptions(false)} className="hud-bouton hud-bouton-verre h-8 w-8 rounded-full text-xs">✕</button></div>
       <div className="hud-separateur" />
@@ -1197,15 +1225,16 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         if (campagne.seance?.slug === interieur.slug) { notifier(`${LIEUX_PROGRAMME[interieur.slug].plan.libelles[station] ?? station} : rien à faire ici pour ce chapitre.`, 'info'); return; }
         campagne.fermer(); lieux.surStation(interieur.slug, station);
       }}
-      filRouge={campagne.concerne(interieur.slug) ? {
-        titre: `Chapitre ${(campagne.seance?.etape ?? campagne.progres.chapitres) + 1}/${CHAPITRES.length} · ${CHAPITRES[campagne.seance?.etape ?? campagne.progres.chapitres].titre}`,
-        seance: campagne.seance?.slug === interieur.slug ? campagne.seance : null, bilan: campagne.statut(interieur.slug) === 'bilan', onOuvrir: () => ouvrirFilRougeIci(interieur.slug),
-      } : null}
+      filRouge={campagne.concerne(interieur.slug) ? (() => {
+        const rang = campagne.seance?.etape ?? campagne.progres.chapitres, { dossier, numero, total } = reperesChapitre(rang);
+        return { titre: `Chapitre ${numero}/${total} · ${CHAPITRES[rang].titre}`, dossier: dossier.nom,
+          seance: campagne.seance?.slug === interieur.slug ? campagne.seance : null, bilan: campagne.statut(interieur.slug) === 'bilan', onOuvrir: () => ouvrirFilRougeIci(interieur.slug) };
+      })() : null}
       onProgramme={() => lieux.setProgrammeOuvert(true)} onAttendre={() => lieux.attendreOuverture(interieur.slug)}
       onEchap={() => { if (serviceLieu) { setServiceLieu(null); return true; } if (campagne.fermerPanneau()) return true; return lieux.fermerPanneau(); }}
       onSortir={() => { directions.clear(); lieux.sortir(); campagne.sortir(); setServiceLieu(null); setInterieur(null); notifier(`Tu es sorti de ${interieur.nom}.`, 'info'); }}>
       <PanneauxLieu slug={interieur.slug} lieux={lieux} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo}
-        filRouge={campagne.concerne(interieur.slug) && !campagne.seance && campagne.chapitre ? { libelle: `Chapitre ${campagne.progres.chapitres + 1} · ${campagne.chapitre.titre}`, onOuvrir: () => ouvrirFilRougeIci(interieur.slug) } : null} />
+        filRouge={campagne.concerne(interieur.slug) && !campagne.seance && campagne.chapitre ? { libelle: `Chapitre ${reperesFilRouge.numero} · ${campagne.chapitre.titre}`, dossier: reperesFilRouge.dossier.nom, onOuvrir: () => ouvrirFilRougeIci(interieur.slug) } : null} />
       <PanneauxFilRouge ici={interieur.slug} campagne={campagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} demo={demo}
         onAller={slug => { campagne.fermer(); directions.clear(); lieux.sortir(); setServiceLieu(null); setInterieur(null); allerVers(slug); }} onAttendre={() => lieux.attendreOuverture(interieur.slug)} />
       {serviceLieu === 'epargne' && <PanneauEpargne demo={demo} epargneDemo={epargneDemoOps} onFermer={() => setServiceLieu(null)} />}
@@ -1247,7 +1276,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         : <InteractionLieu {...interieur} demo={demo} onClose={() => setInterieur(null)} onDemo={action => setDemoStats(s => appliquerEffet(s, EFFETS_DEMO[action.besoin]))} />}
     </InterieurLieu3D>}
     {planCinema && !interieur && <BandeauCinema titre={planCinema.titre} sousTitre={planCinema.sousTitre} onPasser={passerPlan} />}
-    {finCampagne && !interieur && <PanneauFinCampagne nomJoueur={nomJoueur ?? 'Bâtisseur'} onSuite={suiteCampagne} onFermer={fermerFinCampagne} />}
+    {finCampagne && !interieur && <PanneauFinCampagne dossier={finCampagne} nomJoueur={nomJoueur ?? 'Bâtisseur'} onSuite={suiteCampagne} onFermer={fermerFinCampagne} />}
     {celebrations.courante && !planCinema && <EcranCelebration celebration={celebrations.courante} onFermer={celebrations.fermer} />}
     {/* Sur grand écran, le guide sous la colonne de droite du HUD (68 px plus bas en mode immersif), sans descendre sur les
         commandes du bas, et le chat en bas à droite ; sur téléphone, ils vivent dans la colonne du milieu. */}
@@ -1256,7 +1285,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     {telephone && !interieur && <Telephone place={placeTelephone} appInitiale={telephone} onApp={surAppTelephone} demo={demo} heure={affichageHeure} meteo={LIBELLES_METEO[meteo].nom} pluie={pluie} position={positionCourante}
       destinations={destinationsTelephone} argent={argent ?? 0} epargne={epargneDemo} niveau={niveau} appels={appelsTelephone}
       rendezVous={programmeDuJour(lieux.progresDe, journeeDisponible(chantierQuartier, heure, Date.now()), rendezVousFilRouge)}
-      filRouge={chapitreFilRouge ? { chapitre: campagne.progres.chapitres + 1, total: CHAPITRES.length, titre: chapitreFilRouge.titre, resume: chapitreFilRouge.resume, lieu: chapitreFilRouge.lieu, nomLieu: nomLieu(chapitreFilRouge.lieu), interlocuteur: interlocuteurChapitre(chapitreFilRouge).nom } : null}
+      filRouge={chapitreFilRouge ? { dossier: reperesFilRouge.dossier.nom, chapitre: reperesFilRouge.numero, total: reperesFilRouge.total, titre: chapitreFilRouge.titre, resume: chapitreFilRouge.resume, lieu: chapitreFilRouge.lieu, nomLieu: nomLieu(chapitreFilRouge.lieu), interlocuteur: interlocuteurChapitre(chapitreFilRouge).nom } : null}
       defis={<EcranDefis etat={defisQuartier} onChantier={() => { setTelephone(null); allerVers('chantier'); }} />} defisAReclamer={defisQuartier.aReclamer}
       carriere={<EcranCarriere demo={demo} niveau={niveau} porte={parcoursDuPoste(profil?.slug)} formation={lireFormation(avatar?.config)} journees={chantierQuartier.journees} livraisons={chantierQuartier.livraisons} logementDemo={logementDemo} />}
       patrimoine={<EcranPatrimoine demo={demo} argent={argent ?? 0} depenserDemo={depenserDemo} travaux={<EcranTravaux travaux={travaux} chezToi={false} />} onLogementDemo={setLogementDemo} />}

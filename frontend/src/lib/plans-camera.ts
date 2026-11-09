@@ -1,5 +1,6 @@
 // Les plans de caméra des moments clés : quand un chapitre du fil rouge est validé, la caméra quitte le joueur, tourne
-// autour de la Résidence Akwaba qui vient de franchir une étape, puis revient. Sans Three.js ni React.
+// autour de l'immeuble du dossier (la Résidence Akwaba, puis Les Rôniers) qui vient de franchir une étape, puis revient.
+// Sans Three.js ni React.
 
 type Point = [number, number];
 export interface PlanCamera {
@@ -26,11 +27,12 @@ export function positionPlan(plan: PlanCamera, t: number): { camera: [number, nu
 }
 
 /** Le plan qui salue un chapitre validé : plus haut à mesure que l'immeuble monte, plus long à la livraison. `livraison` :
- * les chapitres validés quand l'ouvrage est livré, si l'histoire continue après (par défaut, le dernier chapitre). */
-export function planChapitre({ centre, chapitres, total, livraison = total, etape, titreChantier }: { centre: Point; chapitres: number; total: number; livraison?: number; etape: string; titreChantier: string }): PlanCamera {
-  const livree = chapitres === livraison;
+ * les chapitres validés quand l'ouvrage est livré, si l'histoire continue après (par défaut, le dernier chapitre).
+ * `hauteurMax` : le point regardé le plus haut (7 m pour un R+3 ; plus pour un immeuble plus haut, cadré de plus loin). */
+export function planChapitre({ centre, chapitres, total, livraison = total, etape, titreChantier, hauteurMax = 7 }: { centre: Point; chapitres: number; total: number; livraison?: number; etape: string; titreChantier: string; hauteurMax?: number }): PlanCamera {
+  const livree = chapitres === livraison, recul = hauteurMax / 7;
   return {
-    centre, hauteurCible: Math.min(7, 1.5 + chapitres * .65), rayon: livree ? 34 : 28, hauteur: livree ? 18 : 14,
+    centre, hauteurCible: Math.min(hauteurMax, 1.5 + chapitres * .65 * recul), rayon: (livree ? 34 : 28) * Math.max(1, recul * .9), hauteur: (livree ? 18 : 14) * Math.max(1, recul * .9),
     duree: livree ? 9 : 6.5, azimut: .35, tour: livree ? .55 : .3,
     titre: livree ? `${titreChantier} · livrée !` : `${titreChantier} · chapitre ${chapitres}/${total} validé`,
     sousTitre: etape,

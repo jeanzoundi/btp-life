@@ -133,9 +133,8 @@ export function Bungalow({ position, taille, nuit, libelle = 'BUREAU DE CHANTIER
 }
 
 /** Grue à tour : la flèche tourne lentement, le chariot va et vient, la charge pend au bout du câble. */
-export function Grue({ position, hauteurCharge, pause, rythme }: { position: V3; hauteurCharge: number; pause: boolean; rythme: number }) {
+export function Grue({ position, hauteurCharge, pause, rythme, hauteur = 17 }: { position: V3; hauteurCharge: number; pause: boolean; rythme: number; hauteur?: number }) {
   const tete = useRef<THREE.Group>(null), chariot = useRef<THREE.Group>(null);
-  const hauteur = 17;
   useFrame(({ clock }, delta) => {
     if (pause || !tete.current || !chariot.current) return;
     tete.current.rotation.y += Math.min(delta, .05) * .12 * rythme;
@@ -145,7 +144,7 @@ export function Grue({ position, hauteurCharge, pause, rythme }: { position: V3;
   return <group position={position}>
     <mesh position={[0, .3, 0]} castShadow><boxGeometry args={[2.4, .6, 2.4]} /><meshStandardMaterial color="#9E9A91" /></mesh>
     {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => <mesh key={`${x}${z}`} position={[x * .45, hauteur / 2, z * .45]} castShadow><boxGeometry args={[.1, hauteur, .1]} /><meshStandardMaterial color={JAUNE_GRUE} /></mesh>)}
-    {Array.from({ length: 11 }, (_, i) => <mesh key={i} position={[0, 1 + i * 1.5, .45]} rotation={[0, 0, i % 2 ? .78 : -.78]}><boxGeometry args={[1.25, .05, .05]} /><meshStandardMaterial color={JAUNE_GRUE} /></mesh>)}
+    {Array.from({ length: Math.round((hauteur - 1) / 1.5) }, (_, i) => <mesh key={i} position={[0, 1 + i * 1.5, .45]} rotation={[0, 0, i % 2 ? .78 : -.78]}><boxGeometry args={[1.25, .05, .05]} /><meshStandardMaterial color={JAUNE_GRUE} /></mesh>)}
     <group ref={tete} position={[0, hauteur, 0]}>
       <mesh position={[0, .7, 0]} castShadow><boxGeometry args={[1.3, 1.2, 1.2]} /><meshStandardMaterial color="#F0EDE4" /></mesh>
       <mesh position={[7, .1, 0]} castShadow><boxGeometry args={[16, .45, .55]} /><meshStandardMaterial color={JAUNE_GRUE} /></mesh>

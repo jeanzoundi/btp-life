@@ -69,7 +69,7 @@ export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, sean
   /** Bilan envoyé au serveur, réponse attendue. */
   enregistrement?: boolean;
   /** Un chapitre du fil rouge attend chez ce mentor : il le rappelle en tête du panneau. */
-  filRouge?: { libelle: string; onOuvrir: () => void } | null;
+  filRouge?: { libelle: string; dossier?: string; onOuvrir: () => void } | null;
   onCommencer: () => void; onBilan: () => void; onTerminer: () => void; onAbandonner: () => void; onProgramme: () => void; onAttendre?: () => void; onFermer: () => void;
 }) {
   const { mentor, horaires } = programme;
@@ -87,7 +87,7 @@ export function PanneauMentor({ programme, statut, nomJoueur, etape, cycle, sean
     </div>
     {filRouge && statut !== 'resultat' && <button onClick={filRouge.onOuvrir} className="mt-3 flex w-full items-center gap-2.5 rounded-xl bg-jeu-or/[.14] px-3 py-2.5 text-left ring-1 ring-jeu-or/50 hover:bg-jeu-or/25">
       <span aria-hidden="true" className="text-lg">📜</span>
-      <span className="min-w-0 flex-1"><span className="hud-legende block text-jeu-or">Fil rouge · Résidence Akwaba</span><span className="block truncate text-[13px] font-bold">{filRouge.libelle}</span></span>
+      <span className="min-w-0 flex-1"><span className="hud-legende block text-jeu-or">Fil rouge · {filRouge.dossier ?? 'Résidence Akwaba'}</span><span className="block truncate text-[13px] font-bold">{filRouge.libelle}</span></span>
       <span className="text-[12px] font-bold text-jeu-or">Ouvrir →</span>
     </button>}
     <p className="my-3 rounded-2xl rounded-tl-sm bg-white/[.08] p-3 text-sm leading-relaxed">{replique}</p>

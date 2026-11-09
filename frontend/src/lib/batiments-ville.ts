@@ -1,4 +1,5 @@
 import { CAMPAGNE, PARCELLE_AKWABA } from './campagne';
+import { PARCELLE_RONIERS, RONIERS } from './dossier-roniers';
 import { LIEUX_MONDE } from './liens-modes';
 
 // Les bâtiments de la ville et les repères à découvrir : des données pures, partagées par la scène 3D, la minicarte, les
@@ -36,13 +37,16 @@ export const BATIMENTS: Batiment3D[] = [
   { slug: 'sports', ...LIEUX_MONDE['sports'], position: [-89, 3, 55], taille: [20, 6, 10], couleur: '#6f8f55', type: 'campus' },
 ];
 
-/** La parcelle du fil rouge, traitée comme un lieu pour y aller (porte côté avenue) ; on n'y entre pas, on y retrouve Mme Touré. */
-export const PARCELLE_BATIMENT: Batiment3D = {
-  slug: PARCELLE_AKWABA.slug, nom: CAMPAGNE.nom, href: '', position: [PARCELLE_AKWABA.x, 1, PARCELLE_AKWABA.z],
-  taille: [PARCELLE_AKWABA.largeur, 2, PARCELLE_AKWABA.profondeur], couleur: '#A88C66', type: 'chantier',
-};
-/** La minicarte montre la parcelle avec les lieux, et la touche y envoie le joueur. */
-export const BATIMENTS_CARTE = [...BATIMENTS, PARCELLE_BATIMENT];
+/** Les parcelles du fil rouge, traitées comme des lieux pour y aller (porte côté rue) ; on n'y entre pas, on y retrouve le
+ * client du dossier. */
+const parcelle = (p: { slug: string; x: number; z: number; largeur: number; profondeur: number }, nom: string): Batiment3D => ({
+  slug: p.slug, nom, href: '', position: [p.x, 1, p.z], taille: [p.largeur, 2, p.profondeur], couleur: '#A88C66', type: 'chantier',
+});
+export const PARCELLE_BATIMENT = parcelle(PARCELLE_AKWABA, CAMPAGNE.nom);
+export const PARCELLE_RONIERS_BATIMENT = parcelle(PARCELLE_RONIERS, RONIERS.nom);
+export const PARCELLES_BATIMENTS = [PARCELLE_BATIMENT, PARCELLE_RONIERS_BATIMENT];
+/** La minicarte montre les parcelles avec les lieux, et la touche y envoie le joueur. */
+export const BATIMENTS_CARTE = [...BATIMENTS, ...PARCELLES_BATIMENTS];
 
 /** Les repères à découvrir : on les découvre en s'en approchant à `rayon` mètres (plus loin pour la fontaine, dont le
  * bassin fait 9 m de large et qu'on ne traverse pas). */

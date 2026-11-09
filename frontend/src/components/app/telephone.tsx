@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
+import { DOSSIERS } from '@/lib/campagne';
 import type { RendezVous } from '@/lib/journee-joueur';
 import { gbakaUtile, LIBELLES_MODES, minutesLisibles, trajet, trajetMotorise, type EtapeTrajet, type ModeTransport, type Point } from '@/lib/transports';
 import { heureLisible } from './panneau-programme-lieu';
@@ -16,7 +17,8 @@ import { useEcranTactile } from '@/lib/ecran-tactile';
 export type AppTelephone = 'accueil' | 'messages' | 'appels' | 'gps' | 'transport' | 'banque' | 'offres' | 'filrouge' | 'agenda' | 'defis' | 'patrimoine' | 'carriere';
 export interface DestinationTelephone { slug: string; nom: string; quartier: string; porte: Point }
 export interface AppelTelephone { id: string; de: string; role: string; message: string; lieu?: string; nomLieu?: string }
-export interface FilRougeTelephone { chapitre: number; total: number; titre: string; resume: string; lieu: string; nomLieu: string; interlocuteur: string }
+/** Le chapitre en cours du fil rouge, numéroté dans son dossier (l'immeuble suivi : `dossier`). */
+export interface FilRougeTelephone { dossier?: string; chapitre: number; total: number; titre: string; resume: string; lieu: string; nomLieu: string; interlocuteur: string }
 interface Message { id: string; contenu: string; lu: boolean; createdAt: string; pnj: { nom: string; role: string } }
 
 const MESSAGES_DEMO: Message[] = [
@@ -142,7 +144,7 @@ export function Telephone({ demo, heure, meteo, pluie, position, destinations, a
           <AppliOffres demo={demo} niveau={niveau} onAller={onAller} />
         </>}
 
-        {app === 'filrouge' && <><EnTeteAppli titre="Fil rouge · Résidence Akwaba" onRetour={() => setApp('accueil')} />
+        {app === 'filrouge' && <><EnTeteAppli titre={`Fil rouge · ${filRouge ? filRouge.dossier ?? DOSSIERS[0].nom : DOSSIERS[DOSSIERS.length - 1].nom}`} onRetour={() => setApp('accueil')} />
           {filRouge ? <div className="p-3">
             <div className="rounded-xl bg-white/[.06] p-3">
               <p className="hud-legende text-jeu-or">Chapitre {filRouge.chapitre}/{filRouge.total}</p>

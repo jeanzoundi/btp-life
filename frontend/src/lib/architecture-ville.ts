@@ -49,6 +49,8 @@ export const STYLES_LIEUX: Record<string, StyleFacade> = {
   'centre-azur': { brise: 'casquettes', climatiseurs: true, citernes: 2 },
   'galerie-palmiers': { brise: 'claustras', climatiseurs: true, citernes: 1 },
   sports: { brise: 'casquettes', citernes: 1, accent: '#4f7f3f' },
+  // Le R+5 du fil rouge : logements à persiennes au-dessus de ses deux commerces, citernes sur le toit-terrasse.
+  'residence-roniers': { persiennes: '#8a5a33', climatiseurs: true, citernes: 2 },
 };
 
 const COULEURS_FLEURS = ['#e8476b', '#f2c14e', '#fff4e0', '#d94f9c', '#f08a4b'];

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { boucleContournee, creerNavigation, MARGE_CORPS, segmentLibre } from './navigation-ville';
 import { boucleHabitants, OBSTACLES_DECOR, OBSTACLES_JOUEUR, OBSTACLES_TERRASSE, PALMIERS, PIROGUES_PLAGE, tronconsGardeCorps, GARDE_CORPS } from './decor-ville';
 import { ROUTES_PASSANTS } from './vie-urbaine';
-import { ROUTE_CONCURRENT } from './concurrent';
-import { BATIMENTS, POINTS_DECOUVERTE } from './batiments-ville';
+import { ROUTE_CONCURRENT, ROUTE_CONCURRENT_RONIERS } from './concurrent';
+import { BATIMENTS, PARCELLES_BATIMENTS, POINTS_DECOUVERTE } from './batiments-ville';
 import { porteBatiment } from './minicarte';
 import { LIMITES_VILLE } from './ville';
 import type { PointVille } from './itineraire-ville';
@@ -57,8 +57,8 @@ describe('la navigation du joueur dans la ville', () => {
     expect(VILLE.passe(-32, GARDE_CORPS.z)).toBe(true);
   });
 
-  it('laisse libres les portes des lieux et les repères à découvrir', () => {
-    for (const b of BATIMENTS) {
+  it('laisse libres les portes des lieux, des parcelles du fil rouge et les repères à découvrir', () => {
+    for (const b of [...BATIMENTS, ...PARCELLES_BATIMENTS]) {
       const porte = porteBatiment(b.position, b.taille, LIMITES_VILLE);
       const acces = VILLE.degager(porte)!;
       // Le jeu tient le joueur pour arrivé à 2,5 m de la porte (quartier-3d.tsx).
@@ -73,7 +73,7 @@ describe('la navigation du joueur dans la ville', () => {
 
   it('fait contourner leur circuit aux passants et au concurrent, chacun partant de son point', () => {
     const habitants = OBSTACLES_JOUEUR.filter(o => !OBSTACLES_TERRASSE.includes(o));
-    for (const route of [...ROUTES_PASSANTS, ROUTE_CONCURRENT]) {
+    for (const route of [...ROUTES_PASSANTS, ROUTE_CONCURRENT, ROUTE_CONCURRENT_RONIERS]) {
       const { points, reperes } = boucleHabitants(route);
       expect(reperes).toHaveLength(route.length);
       points.forEach((p, i) => expect(segmentLibre(p, points[(i + 1) % points.length], habitants, MARGE_CORPS), `${p} → ${points[(i + 1) % points.length]}`).toBe(true));

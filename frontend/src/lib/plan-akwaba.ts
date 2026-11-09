@@ -1,12 +1,16 @@
 // La Résidence Akwaba sur sa parcelle, en blocs : ce qu'on voit à chaque stade du fil rouge (chapitres validés, 0 à 12 ;
-// l'immeuble est livré et habité dès le neuvième, l'épilogue ne change plus la parcelle).
+// l'immeuble est livré et habité dès le neuvième, l'épilogue ne change plus la parcelle). Bornage, sondages, implantation,
+// structure, échafaudage et muret servent aussi au R+5 des Rôniers (plan-roniers.ts), à ses dimensions.
 // Repère local : origine au centre de la parcelle, façade et portail au sud (+z), côté avenue. Sans Three.js ni React.
 import type { BlocArchitecture, V3 } from './architecture-ville';
 import { PARCELLE_AKWABA } from './campagne';
 
+/** Les dimensions d'un immeuble sur sa parcelle (repère local de la parcelle). */
+export interface GabaritImmeuble { largeur: number; profondeur: number; centreZ: number; niveaux: number; hauteurNiveau: number }
+
 export const DEMI_LARGEUR = PARCELLE_AKWABA.largeur / 2, DEMI_PROFONDEUR = PARCELLE_AKWABA.profondeur / 2;
 /** L'immeuble : 12 × 9 m (la surface du permis), quatre niveaux de 3 m, en retrait de la clôture côté avenue. */
-export const IMMEUBLE = { largeur: 12, profondeur: 9, centreZ: -.8, niveaux: 4, hauteurNiveau: 3 } as const;
+export const IMMEUBLE = { largeur: 12, profondeur: 9, centreZ: -.8, niveaux: 4, hauteurNiveau: 3 } as const satisfies GabaritImmeuble;
 /** Les seize poteaux, donc les seize semelles du bureau d'études : quatre files de quatre. */
 export const POTEAUX: [number, number][] = [-5.75, -1.92, 1.92, 5.75].flatMap(x => [-4.25, -1.42, 1.42, 4.25].map(dz => [x, IMMEUBLE.centreZ + dz] as [number, number]));
 /** Les trois points de sondage du laboratoire. */
@@ -23,11 +27,12 @@ export function elementsAkwaba(stade: number) {
 }
 export type ElementsAkwaba = ReturnType<typeof elementsAkwaba>;
 
-const ajouteur = (liste: BlocArchitecture[]) => (position: V3, taille: V3, couleur: string, rotation = 0) => { liste.push({ position, taille, couleur, rotation }); };
+export const ajouteur = (liste: BlocArchitecture[]) => (position: V3, taille: V3, couleur: string, rotation = 0) => { liste.push({ position, taille, couleur, rotation }); };
 
 /** Bornes aux quatre coins et rubalise tendue entre des piquets : la parcelle est réservée, on n'y entre pas. */
-export function bornageAkwaba(): BlocArchitecture[] {
-  const blocs: BlocArchitecture[] = [], b = ajouteur(blocs), hx = DEMI_LARGEUR, hz = DEMI_PROFONDEUR;
+export const bornageAkwaba = () => bornage(DEMI_LARGEUR, DEMI_PROFONDEUR);
+export function bornage(hx: number, hz: number): BlocArchitecture[] {
+  const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
   for (const x of [-hx, hx]) for (const z of [-hz, hz]) { b([x, .25, z], [.26, .5, .26], '#E8E2D6'); b([x, .54, z], [.28, .08, .28], '#C1502E'); }
   // Piquets tous les 2,5 m environ, deux rangs de ruban rouge et blanc.
   for (const [longueur, axe, fixe] of [[hx * 2, 'x', -hz], [hx * 2, 'x', hz], [hz * 2, 'z', -hx], [hz * 2, 'z', hx]] as const) {
@@ -39,24 +44,26 @@ export function bornageAkwaba(): BlocArchitecture[] {
 }
 
 /** Points de sondage piquetés (stades 2 à 5). */
-export function sondagesAkwaba(): BlocArchitecture[] {
+export const sondagesAkwaba = () => sondages(SONDAGES);
+export function sondages(points: readonly (readonly [number, number])[]): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  for (const [x, z] of SONDAGES) { b([x, .09, z], [.5, .02, .5], '#3A2E24'); b([x + .35, .45, z], [.06, .9, .06], '#E2653C'); b([x + .35, .93, z], [.07, .07, .07], '#F2EFE8'); }
+  for (const [x, z] of points) { b([x, .09, z], [.5, .02, .5], '#3A2E24'); b([x + .35, .45, z], [.06, .9, .06], '#E2653C'); b([x + .35, .93, z], [.07, .07, .07], '#F2EFE8'); }
   return blocs;
 }
 
 /** Implantation : chaises en bois aux angles, cordeaux et traits de chaux sur le périmètre de l'immeuble (stades 3 à 5). */
-export function implantationAkwaba(): BlocArchitecture[] {
+export const implantationAkwaba = () => implantation(IMMEUBLE);
+export function implantation(im: GabaritImmeuble): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  const hx = IMMEUBLE.largeur / 2, z0 = IMMEUBLE.centreZ - IMMEUBLE.profondeur / 2, z1 = IMMEUBLE.centreZ + IMMEUBLE.profondeur / 2;
+  const hx = im.largeur / 2, z0 = im.centreZ - im.profondeur / 2, z1 = im.centreZ + im.profondeur / 2;
   for (const x of [-hx, hx]) for (const z of [z0, z1]) {
-    const sx = Math.sign(x), sz = Math.sign(z - IMMEUBLE.centreZ);
+    const sx = Math.sign(x), sz = Math.sign(z - im.centreZ);
     b([x + sx * 1, .6, z + sz * .4], [.05, .12, 1.2], '#B08850'); b([x + sx * .4, .6, z + sz * 1], [1.2, .12, .05], '#B08850');
     for (const [px, pz] of [[x + sx * 1, z + sz * 1], [x + sx * 1, z - sz * .2], [x - sx * .2, z + sz * 1]]) b([px, .33, pz], [.07, .66, .07], '#8A6A48');
   }
   // Cordeaux tendus d'une chaise à l'autre, et traits de chaux au sol.
   for (const z of [z0, z1]) { b([0, .64, z], [hx * 2 + 2, .012, .012], '#F7F4EC'); b([0, .09, z], [hx * 2, .01, .12], '#F4F1E8'); }
-  for (const x of [-hx, hx]) { b([x, .64, IMMEUBLE.centreZ], [.012, .012, IMMEUBLE.profondeur + 2], '#F7F4EC'); b([x, .09, IMMEUBLE.centreZ], [.12, .01, IMMEUBLE.profondeur], '#F4F1E8'); }
+  for (const x of [-hx, hx]) { b([x, .64, im.centreZ], [.012, .012, im.profondeur + 2], '#F7F4EC'); b([x, .09, im.centreZ], [.12, .01, im.profondeur], '#F4F1E8'); }
   return blocs;
 }
 
@@ -81,16 +88,18 @@ export function stocksAkwaba(): BlocArchitecture[] {
 }
 
 /** Le gros œuvre en élévation (stade 7) : dallage, poteaux et planchers des quatre niveaux, maçonnerie des deux premiers. */
-export function structureAkwaba(): BlocArchitecture[] {
+export const structureAkwaba = () => structure(IMMEUBLE, POTEAUX);
+/** Dallage, puis poteaux et plancher de chacun des `montes` premiers niveaux ; les agglos suivent, deux niveaux en retard. */
+export function structure(im: GabaritImmeuble, poteaux: readonly (readonly [number, number])[], montes = im.niveaux): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  const { largeur: l, profondeur: p, centreZ: cz, niveaux, hauteurNiveau: h } = IMMEUBLE;
+  const { largeur: l, profondeur: p, centreZ: cz, hauteurNiveau: h } = im;
   b([0, .2, cz], [l + .6, .4, p + .6], '#B8B3A8');
-  for (let n = 0; n < niveaux; n++) {
+  for (let n = 0; n < montes; n++) {
     const base = .4 + n * h;
-    for (const [x, z] of POTEAUX) b([x, base + (h - .25) / 2, z], [.3, h - .25, .3], '#C9C4B8');
+    for (const [x, z] of poteaux) b([x, base + (h - .25) / 2, z], [.3, h - .25, .3], '#C9C4B8');
     b([0, base + h - .12, cz], [l + .4, .25, p + .4], '#BDB8AD');
     // Les agglos suivent la structure, deux niveaux en retard : murs pignons et façade arrière.
-    if (n < 2) {
+    if (n < montes - 2) {
       b([0, base + (h - .25) / 2, cz - p / 2 + .12], [l - .3, h - .25, .2], '#A8A49B');
       for (const x of [-l / 2 + .12, l / 2 - .12]) b([x, base + (h - .25) / 2, cz], [.2, h - .25, p - .3], '#A8A49B');
     }
@@ -99,9 +108,10 @@ export function structureAkwaba(): BlocArchitecture[] {
 }
 
 /** Échafaudage de la façade sud : montants, planchers et garde-corps à chaque niveau. */
-export function echafaudageAkwaba(): BlocArchitecture[] {
+export const echafaudageAkwaba = () => echafaudage(IMMEUBLE);
+export function echafaudage(im: GabaritImmeuble): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  const { largeur: l, profondeur: p, centreZ: cz, niveaux, hauteurNiveau: h } = IMMEUBLE, zFace = cz + p / 2;
+  const { largeur: l, profondeur: p, centreZ: cz, niveaux, hauteurNiveau: h } = im, zFace = cz + p / 2;
   const hauteur = .4 + niveaux * h + 1;
   for (let i = 0; i <= 6; i++) for (const dz of [.45, 1.35]) b([-l / 2 + i * l / 6, hauteur / 2, zFace + dz], [.06, hauteur, .06], '#C8CDD0');
   for (let n = 1; n <= niveaux; n++) {
@@ -114,8 +124,9 @@ export function echafaudageAkwaba(): BlocArchitecture[] {
 }
 
 /** Muret de clôture de l'immeuble livré, ouvert au portail. */
-export function muretAkwaba(): BlocArchitecture[] {
-  const blocs: BlocArchitecture[] = [], b = ajouteur(blocs), hx = DEMI_LARGEUR, hz = DEMI_PROFONDEUR, portail = 1.6;
+export const muretAkwaba = () => muret(DEMI_LARGEUR, DEMI_PROFONDEUR);
+export function muret(hx: number, hz: number): BlocArchitecture[] {
+  const blocs: BlocArchitecture[] = [], b = ajouteur(blocs), portail = 1.6;
   b([0, .45, -hz], [hx * 2, .9, .25], '#E8DCC4');
   for (const x of [-hx, hx]) b([x, .45, 0], [.25, .9, hz * 2], '#E8DCC4');
   for (const s of [-1, 1]) { b([s * (hx + portail) / 2, .45, hz], [hx - portail, .9, .25], '#E8DCC4'); b([s * portail, .7, hz], [.5, 1.4, .5], '#D9C9A8'); }

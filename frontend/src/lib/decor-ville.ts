@@ -1,5 +1,5 @@
 import type { EmpriseVille } from './itineraire-ville';
-import { BATIMENTS, PARCELLE_BATIMENT, type PointMonde } from './batiments-ville';
+import { BATIMENTS, PARCELLES_BATIMENTS, type PointMonde } from './batiments-ville';
 import { bungalowChantier } from './journee-chantier';
 import { boucleContournee, creerNavigation, type Boucle } from './navigation-ville';
 import { BOUTIQUES_PALMIERS, EMPRISES_PALMIERS } from './place-palmiers';
@@ -160,7 +160,7 @@ export const OBSTACLES_DECOR: EmpriseVille[] = [
 export const EMPRISES_BATIMENTS: EmpriseVille[] = (() => {
   const chantier = BATIMENTS.find(b => b.slug === 'chantier')!;
   return [
-    ...[...BATIMENTS, PARCELLE_BATIMENT].map(b => ({ x: b.position[0], z: b.position[2], largeur: b.taille[0], profondeur: b.taille[2] })),
+    ...[...BATIMENTS, ...PARCELLES_BATIMENTS].map(b => ({ x: b.position[0], z: b.position[2], largeur: b.taille[0], profondeur: b.taille[2] })),
     ...EMPRISES_PALMIERS,
     bungalowChantier([chantier.position[0], chantier.position[2]], chantier.taille[0], chantier.taille[2]),
   ];

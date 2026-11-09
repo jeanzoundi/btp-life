@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  appliquerChapitre, bilanChapitre, CHAPITRES, CHAPITRES_LIVRAISON, chapitreCourant, contenuTacheChapitre, lireProgresCampagne, NOTE_CHAPITRE, nouvelleSeanceChapitre, PARCELLE_AKWABA,
-  PROGRES_CAMPAGNE_INITIAL, stadeAkwaba, STADES_AKWABA,
+  appliquerChapitre, bilanChapitre, CHAPITRES, CHAPITRES_LIVRAISON, chapitreCourant, contenuTacheChapitre, dossierDe, dossierDeParcelle, DOSSIERS, faitsDossier, gainsChapitreJeu,
+  lireProgresCampagne, NOTE_CHAPITRE, nouvelleSeanceChapitre, PARCELLE_AKWABA, PARCELLE_RONIERS, PROGRES_CAMPAGNE_INITIAL, stadeAkwaba, STADES_AKWABA, stadeRoniers,
 } from './campagne';
 import { LIEUX_PROGRAMME } from './lieux-programme';
 import { ordreChoix } from './programme-chantier';
@@ -20,11 +20,27 @@ const mesure = (chapitre: string, tache: string) => {
 
 describe('les chapitres du fil rouge', () => {
   it('suivent l’immeuble de lieu en lieu, de l’offre à la réception sur la parcelle, puis jusqu’au retour d’expérience', () => {
-    expect(CHAPITRES).toHaveLength(12);
+    const [akwaba] = DOSSIERS;
+    expect(akwaba.chapitres).toHaveLength(12);
     expect(new Set(CHAPITRES.map(c => c.id)).size).toBe(CHAPITRES.length);
-    expect(CHAPITRES.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'banque', 'fournisseur', 'logistique', 'construction-nord', PARCELLE_AKWABA.slug,
+    expect(akwaba.chapitres.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'banque', 'fournisseur', 'logistique', 'construction-nord', PARCELLE_AKWABA.slug,
       'laboratoire', 'banque', 'entreprise']);
     expect(CHAPITRES[CHAPITRES_LIVRAISON - 1].id).toBe('reception');
+  });
+
+  it('enchaîne le R+5 des Rôniers après Akwaba, par de nouveaux lieux, jusqu’à sa réception et au groupement', () => {
+    const [akwaba, roniers] = DOSSIERS;
+    expect(CHAPITRES).toHaveLength(akwaba.chapitres.length + roniers.chapitres.length);
+    expect(roniers).toMatchObject({ id: 'residence-roniers', debut: 12, livraison: 11, client: 'M. Touré' });
+    expect(roniers.chapitres.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'jardins-residence', 'banque', 'atelier', 'logistique', 'fournisseur',
+      'construction-nord', PARCELLE_RONIERS.slug, 'entreprise']);
+    expect(CHAPITRES[roniers.debut + roniers.livraison - 1].id).toBe('reception-r5');
+    expect(dossierDe(11).id).toBe('residence-akwaba');
+    expect(dossierDe(12).id).toBe('residence-roniers');
+    expect(dossierDe(99).id).toBe('residence-roniers');
+    expect(dossierDeParcelle(PARCELLE_RONIERS.slug)).toBe(roniers);
+    expect(dossierDeParcelle('mairie')).toBeNull();
+    expect([0, 5, 12, 15, 24].map(n => faitsDossier(roniers, n))).toEqual([0, 0, 0, 3, 12]);
   });
 
   for (const chapitre of CHAPITRES) {
@@ -77,6 +93,24 @@ describe('les chapitres du fil rouge', () => {
     expect(mesure('retour-experience', 'marge-reelle').reponse).toBeCloseTo(15.8, 1);
   });
 
+  it('garde les mêmes chiffres d’un chapitre à l’autre dans le R+5', () => {
+    // Le coût réel d'Akwaba, ramené au m², estime le R+5 ; ses 840 m² font le COS du permis et la charge des pieux.
+    expect(mesure('offre-r5', 'estimation-r5').reponse).toBeCloseTo(128.4 / 432 * 840, 6);
+    expect(mesure('permis-r5', 'cos-r5').reponse).toBeCloseTo(840 / 234, 6);
+    expect(mesure('permis-r5', 'cos-r5').reponse).toBeLessThan(3.6);
+    // Un étage de plus (980 m²) dépasserait le COS : c'est la réponse attendue à la banque.
+    expect(980 / 234).toBeGreaterThan(3.6);
+    expect(mesure('pieux', 'nombre-pieux').reponse).toBe(23);
+    expect(mesure('pieux', 'longueur-pieu').reponse).toBe(13.5);
+    // Les vingt-quatre pieux du plan, forés à trois par jour : les huit jours annoncés aux voisins.
+    expect(mesure('voisins', 'duree-forage').reponse).toBe(8);
+    expect(mesure('vente-plans', 'appel-fonds').reponse).toBeCloseTo(33.6, 6);
+    expect(mesure('planchers', 'hourdis').reponse).toBe(1076);
+    expect(mesure('facades', 'ancrages').reponse).toBe(23);
+    expect(mesure('reception-r5', 'mise-en-eau').reponse).toBe(7);
+    expect(mesure('bilan-r5', 'revision-prix').reponse).toBeCloseTo(42.73, 2);
+  });
+
   it('accepte une semelle arrondie à 2,00 m à moitié, et pas une erreur d’unité', () => {
     const semelle = mesure('structure', 'semelle');
     expect(scoreMesure(semelle, 1.96)).toBe(100);
@@ -111,41 +145,62 @@ describe('séance et bilan d’un chapitre', () => {
     expect(ratee.note).toBeLessThan(NOTE_CHAPITRE);
     expect(bilanChapitre(jouer(nouvelleSeanceChapitre(8), [100, 100, 100]))).toMatchObject({ xp: 280, argent: 25_000, reputation: 15 });
   });
+
+  it('paie le R+5 à son barème, comme le serveur : plus qu’Akwaba, livraison au onzième chapitre du dossier', () => {
+    expect(gainsChapitreJeu(12, 100)).toEqual({ argent: 4_000, xp: 90, reputation: 3 });
+    expect(gainsChapitreJeu(22, 100)).toEqual({ argent: 40_000, xp: 340, reputation: 20 });
+    expect(gainsChapitreJeu(23, 100)).toEqual({ argent: 15_000, xp: 210, reputation: 10 });
+    expect(gainsChapitreJeu(23, 49)).toEqual({ argent: 0, xp: 0, reputation: 0 });
+    expect(bilanChapitre(jouer(nouvelleSeanceChapitre(16), [100, 100, 100]))).toMatchObject({ note: 100, argent: 4_000, xp: 90 });
+    expect(nouvelleSeanceChapitre(16)).toMatchObject({ slug: 'jardins-residence', etape: 16 });
+  });
 });
 
 describe('progression de la campagne', () => {
   it('relit une sauvegarde abîmée comme le serveur', () => {
     expect(lireProgresCampagne(null)).toEqual(PROGRES_CAMPAGNE_INITIAL);
-    expect(lireProgresCampagne({ chapitres: 42, termineeLe: 'hier' })).toEqual({ chapitres: 12, termineeLe: null });
+    expect(lireProgresCampagne({ chapitres: 42, termineeLe: 'hier' })).toEqual({ chapitres: CHAPITRES.length, termineeLe: null });
     expect(lireProgresCampagne({ chapitres: 3.8 })).toEqual({ chapitres: 3, termineeLe: null });
   });
 
-  it('reprend à l’année de garantie une campagne finie à la livraison, avant l’épilogue', () => {
+  it('reprend à l’année de garantie une campagne finie à la livraison, et au R+5 une campagne finie avec Akwaba', () => {
     const fin = '2026-10-26T15:00:00.000Z';
     expect(lireProgresCampagne({ chapitres: 9, termineeLe: fin })).toEqual({ chapitres: 9, termineeLe: null });
     expect(chapitreCourant(lireProgresCampagne({ chapitres: 9, termineeLe: fin }))?.id).toBe('garantie');
-    expect(lireProgresCampagne({ chapitres: 12, termineeLe: fin })).toEqual({ chapitres: 12, termineeLe: fin });
+    // Qui avait bouclé Akwaba avant les Rôniers retrouve le fil rouge au premier chapitre du R+5.
+    expect(lireProgresCampagne({ chapitres: 12, termineeLe: fin })).toEqual({ chapitres: 12, termineeLe: null });
+    expect(chapitreCourant({ chapitres: 12 })?.id).toBe('offre-r5');
+    expect(lireProgresCampagne({ chapitres: CHAPITRES.length, termineeLe: fin })).toEqual({ chapitres: CHAPITRES.length, termineeLe: fin });
   });
 
-  it('avance d’un chapitre réussi, livre l’immeuble à la réception, clôt le dossier au dernier, et ne bouge pas sur un échec', () => {
+  it('avance d’un chapitre réussi, livre l’immeuble à la réception, passe au dossier suivant, et ne bouge pas sur un échec', () => {
     const maintenant = new Date('2026-10-26T10:00:00.000Z');
     expect(appliquerChapitre({ chapitres: 2, termineeLe: null }, false, maintenant)).toEqual({ chapitres: 2, termineeLe: null });
     expect(appliquerChapitre({ chapitres: 2, termineeLe: null }, true, maintenant)).toEqual({ chapitres: 3, termineeLe: null });
     const livre = appliquerChapitre({ chapitres: 8, termineeLe: null }, true, maintenant);
     expect(livre).toEqual({ chapitres: CHAPITRES_LIVRAISON, termineeLe: null });
     expect(chapitreCourant(livre)?.id).toBe('garantie');
-    const clos = appliquerChapitre({ chapitres: 11, termineeLe: null }, true, maintenant);
-    expect(clos).toEqual({ chapitres: 12, termineeLe: maintenant.toISOString() });
+    const akwabaClose = appliquerChapitre({ chapitres: 11, termineeLe: null }, true, maintenant);
+    expect(akwabaClose).toEqual({ chapitres: 12, termineeLe: null });
+    expect(chapitreCourant(akwabaClose)?.id).toBe('offre-r5');
+    const clos = appliquerChapitre({ chapitres: CHAPITRES.length - 1, termineeLe: null }, true, maintenant);
+    expect(clos).toEqual({ chapitres: CHAPITRES.length, termineeLe: maintenant.toISOString() });
     expect(appliquerChapitre(clos, true, new Date())).toBe(clos);
     expect(chapitreCourant(clos)).toBeNull();
     expect(chapitreCourant({ chapitres: 3 })?.id).toBe('permis');
   });
 
-  it('nomme ce qu’on voit sur la parcelle à chaque stade', () => {
-    expect(STADES_AKWABA).toHaveLength(CHAPITRES.length + 1);
+  it('nomme ce qu’on voit sur chaque parcelle à chaque stade', () => {
+    expect(STADES_AKWABA).toHaveLength(DOSSIERS[0].chapitres.length + 1);
     expect(stadeAkwaba({ chapitres: 0 })).toBe('Parcelle bornée');
     expect(stadeAkwaba({ chapitres: 4 })).toBe('Permis affiché');
     expect(stadeAkwaba({ chapitres: 9 })).toBe('Immeuble livré');
     expect(stadeAkwaba({ chapitres: 12 })).toBe('Référence de l’entreprise');
+    expect(stadeAkwaba({ chapitres: 20 })).toBe('Référence de l’entreprise');
+    expect(DOSSIERS[1].stades).toHaveLength(DOSSIERS[1].chapitres.length + 1);
+    expect(stadeRoniers({ chapitres: 3 })).toBe('Terrain à bâtir');
+    expect(stadeRoniers({ chapitres: 18 })).toBe('Pieux forés');
+    expect(stadeRoniers({ chapitres: 23 })).toBe('Immeuble livré');
+    expect(stadeRoniers({ chapitres: 24 })).toBe('Référence de l’entreprise');
   });
 });
