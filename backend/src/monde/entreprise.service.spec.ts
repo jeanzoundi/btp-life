@@ -68,6 +68,14 @@ describe('EntrepriseService', () => {
     const debutant = fakePrisma({ niveau: 5 });
     await expect((await service(debutant.prisma)).creer('u1', 'Trop tôt', 200_000)).rejects.toThrow(BadRequestException);
   });
+  it('rejoue une création que PostgreSQL a annulée pour conflit (P2034), sans la compter deux fois', async () => {
+    const { prisma, carriere } = fakePrisma();
+    prisma.$transaction.mockRejectedValueOnce(Object.assign(new Error('write conflict'), { code: 'P2034' }));
+    const svc = await service(prisma);
+    await expect(svc.creer('u1', 'Bâti-Lagune', 200_000)).resolves.toMatchObject({ entreprise: { nom: 'Bâti-Lagune' } });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(carriere.argentVirtuel).toBe(300_000);
+  });
   it('embauche contre un mois de salaire en capital, et licencie avec une indemnité', async () => {
     const { prisma, lire } = fakePrisma({ entreprise: { id: 'e1', userId: 'u1', nom: 'Bâti-Lagune', capitalVirtuel: 120_000, reputationEntreprise: 50, employes: { equipe: [], majLe: MAINTENANT.toISOString(), journal: [] } } });
     const svc = await service(prisma);

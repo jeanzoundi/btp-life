@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 
 // L'entreprise du joueur, sur le modèle EntrepriseVirtuelle : un capital, une équipe salariée, et chaque jour une activité.
 // Le chiffre d'affaires dépend de la capacité de l'équipe et de la réputation de l'entreprise ; les salaires et les frais
@@ -68,8 +69,9 @@ type Tx = Prisma.TransactionClient;
 export class EntrepriseService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Les journées de l'entreprise se règlent à la lecture : un conflit entre deux lectures simultanées (P2034) se rejoue. */
   private transaction<T>(operation: (tx: Tx) => Promise<T>) {
-    return this.prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 10_000 });
+    return transactionSerializable(this.prisma, operation);
   }
 
   /** L'entreprise à jour (journées rattrapées et enregistrées), ou rien. */

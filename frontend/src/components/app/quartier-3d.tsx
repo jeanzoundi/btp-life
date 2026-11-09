@@ -32,7 +32,7 @@ import {
 } from './hud-monde';
 import { Minicarte } from './minicarte';
 import { ChatQuartier, useMondeEnLigne, usePromeneurs } from './monde-en-ligne';
-import { coequipiersAuChantier } from '@/lib/en-ligne';
+import { coequipiersAuChantier, voisinsADessiner } from '@/lib/en-ligne';
 import { InterieurChantier3D } from './interieur-chantier-3d';
 import { PanneauJourneeChantier, PanneauPlanning, PanneauRecrutement, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
 import {
@@ -158,7 +158,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const directionsRef = useRef(new Set<Direction>());
   const destination = useRef<PointMonde | null>(null);
   const [, rafraichir] = useState(0);
-  const [heure, setHeure] = useState(HEURE_DE_DEPART);
+  // Dans le vrai jeu, l'heure commune ne dépend pas de la sauvegarde : elle est juste dès l'ouverture (sans elle, le ciel
+  // passait de 9 h à l'heure du quartier une fois la sauvegarde lue, vu au test à deux comptes).
+  const [heure, setHeure] = useState(() => demo ? HEURE_DE_DEPART : heureCommune(Date.now()));
   const [qualite, setQualite] = useState<QualiteMonde>('auto');
   useEffect(() => {
     try { const choix = localStorage.getItem('btp-life-qualite'); if (choix === 'fluide' || choix === 'elevee' || choix === 'auto') setQualite(choix); } catch { /* Stockage facultatif. */ }
@@ -306,7 +308,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const modifieRef = useRef(false);
   const localModifieRef = useRef(false);
   const pretRef = useRef(demo);
-  const horlogeRef = useRef({ heure: HEURE_DE_DEPART, instant: Date.now(), pause: false });
+  const horlogeRef = useRef({ heure: heure, instant: Date.now(), pause: false });
   // Dans le vrai jeu, l'heure est commune à tout le quartier (lib/temps-monde.ts) : ni pause, ni vitesse, ni saut. La
   // démonstration, jouée seule, garde son horloge à elle.
   const commune = !demo;
@@ -529,7 +531,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const { data: joueurs = [] } = useQuery({ queryKey: ['carriere', 'joueurs-actifs'], queryFn: () => api.get<JoueurActif[]>('/carriere/joueurs-actifs'), staleTime: 45_000, refetchInterval: 45_000, enabled: !demo });
   // Quand presque personne n'est connecté, des joueurs passés récemment se promènent sur la place (la démonstration a ses voisins).
   const promeneursPlace = usePromeneurs({ actif: !demo, recents: joueurs, connectes: enLigne.voisins });
-  const voisins3d = useMemo(() => [...enLigne.voisins, ...promeneursPlace], [enLigne.voisins, promeneursPlace]);
+  const voisins3d = useMemo(() => voisinsADessiner(enLigne.voisins, promeneursPlace), [enLigne.voisins, promeneursPlace]);
   // Messages non lus : la pastille du téléphone dans le HUD (le téléphone lit la même liste).
   const { data: messages = [] } = useQuery({ queryKey: ['messages', 'mine'], queryFn: () => api.get<{ lu: boolean }[]>('/users/me/messages'), enabled: !demo, staleTime: 30_000, refetchInterval: 60_000 });
   const messagesNonLus = demo ? 1 : messages.filter(m => !m.lu).length;

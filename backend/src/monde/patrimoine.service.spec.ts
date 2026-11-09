@@ -73,6 +73,20 @@ describe('PatrimoineService', () => {
     expect(r.outils.every(o => !o.possede)).toBe(true);
     expect(etat.patrimoine).toMatchObject({ logement: { niveau: 'studio' } });
   });
+  it('rejoue la lecture quand une autre, simultanée, l’emporte (conflit de sérialisation à l’arrivée dans le quartier)', async () => {
+    const { prisma, etat } = fakePrisma();
+    const conflit = Object.assign(new Error('write conflict'), { code: 'P2034' });
+    prisma.$transaction.mockRejectedValueOnce(conflit);
+    const svc = await service(prisma);
+    await expect(svc.etat('u1')).resolves.toMatchObject({ logement: { niveau: 'studio' } });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(etat.patrimoine).toMatchObject({ logement: { niveau: 'studio' } });
+    // Une autre erreur n'est jamais rejouée.
+    const panne = fakePrisma();
+    panne.prisma.$transaction.mockRejectedValueOnce(new Error('panne'));
+    await expect((await service(panne.prisma)).etat('u1')).rejects.toThrow('panne');
+    expect(panne.prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
   it('pardonne le premier loyer impayé, puis fait perdre du moral quand les arriérés s’accumulent', async () => {
     const { prisma, etat } = fakePrisma({ patrimoine: { logement: { niveau: 'villa', payeJusquau: ilYa(1), arrieres: 0 } }, argent: 1000 });
     const svc = await service(prisma);

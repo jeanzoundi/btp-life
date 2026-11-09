@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { BesoinsService } from '../carriere/besoins.service';
 import { ProgressionService } from '../carriere/progression.service';
 import { facteurEnergieTravail, facteurPrix, lireTraits } from '../carriere/traits';
@@ -42,8 +43,10 @@ export class PatrimoineService {
     return { patrimoine: r.patrimoine, argent: r.argent, preleve: r.preleve, impaye: r.impaye };
   }
 
+  /** Le loyer se règle à la lecture : deux lectures simultanées (à l'arrivée dans le quartier) se disputent la même ligne,
+   * et PostgreSQL annule l'une d'elles (P2034). On la rejoue au lieu de répondre une erreur au joueur. */
   private transaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
-    return this.prisma.$transaction(operation, { isolationLevel: 'Serializable', timeout: 10_000 });
+    return transactionSerializable(this.prisma, operation);
   }
 
   private vue(p: Patrimoine, argent: number, mouvement: { preleve: number; impaye: number }) {

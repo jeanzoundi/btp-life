@@ -151,3 +151,17 @@ export function promeneurs(recents: readonly JoueurRecent[], connectes: readonly
     return { userId: j.userId, nom: j.nom, avatarConfig: j.avatarConfig, x, z, lieu: null, emote: null, promeneur: { niveau: j.niveau } };
   });
 }
+
+/** Le nom du joueur dans le quartier, proposé aussi à la création de son personnage : celui du personnage, sinon le pseudo,
+ * comme le serveur le montre aux voisins (nomPublic). Jamais l'adresse e-mail ni le nom réel du compte : ce nom est public. */
+export function nomDuJoueur(nomPersonnage?: string | null, pseudo?: string | null): string | undefined {
+  return nomPersonnage?.trim() || pseudo?.trim() || undefined;
+}
+
+/** Les personnages à dessiner : les voisins connectés, puis les promeneurs qui ne sont pas connectés. La liste des
+ * promeneurs se recalcule un rendu après celle des connectés : sans ce filtre, un joueur récent qui se connecte serait une
+ * image à la fois voisin et promeneur, sous la même clé, et React pourrait garder le mauvais des deux (saut, double). */
+export function voisinsADessiner<T extends Pick<VoisinEnLigne, 'userId'>>(connectes: readonly T[], promeneursPlace: readonly T[]): T[] {
+  const enLigne = new Set(connectes.map(v => v.userId));
+  return [...connectes, ...promeneursPlace.filter(p => !enLigne.has(p.userId))];
+}
