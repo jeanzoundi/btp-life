@@ -34,7 +34,7 @@ export function planChapitre({ centre, chapitres, total, livraison = total, etap
   return {
     centre, hauteurCible: Math.min(hauteurMax, 1.5 + chapitres * .65 * recul), rayon: (livree ? 34 : 28) * Math.max(1, recul * .9), hauteur: (livree ? 18 : 14) * Math.max(1, recul * .9),
     duree: livree ? 9 : 6.5, azimut: .35, tour: livree ? .55 : .3,
-    titre: livree ? `${titreChantier} · livrée !` : `${titreChantier} · chapitre ${chapitres}/${total} validé`,
+    titre: livree ? `${titreChantier} · ouvrage livré !` : `${titreChantier} · chapitre ${chapitres}/${total} validé`,
     sousTitre: etape,
   };
 }

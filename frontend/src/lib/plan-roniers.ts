@@ -37,7 +37,7 @@ export type ElementsRoniers = ReturnType<typeof elementsRoniers>;
 /** Un piquet par pieu, tête orange, et la marque de peinture au sol (stades 3 à 5). */
 export function piquetsPieux(): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  for (const [x, z] of PIEUX_RONIERS) { b([x, .085, z], [.3, .01, .3], '#F2EFE8'); b([x, .34, z], [.05, .6, .05], '#8A6A48'); b([x, .66, z], [.08, .08, .08], '#E2653C'); }
+  for (const [x, z] of PIEUX_RONIERS) { b([x, .085, z], [.3, .01, .3], '#F2EFE8'); b([x, .34, z], [.05, .6, .05], '#8A6A48', 0, 'bois'); b([x, .66, z], [.08, .08, .08], '#E2653C'); }
   return blocs;
 }
 
@@ -47,7 +47,7 @@ export function tetesPieux(): BlocArchitecture[] {
   for (const [x, z] of PIEUX_RONIERS) {
     b([x, .07, z], [.85, .06, .85], '#5B4636');
     b([x, .16, z], [.6, .2, .6], '#A3A097');
-    for (const dx of [-.18, .18]) for (const dz of [-.18, .18]) b([x + dx, .5, z + dz], [.03, .5, .03], '#7B4A32');
+    for (const dx of [-.18, .18]) for (const dz of [-.18, .18]) b([x + dx, .5, z + dz], [.03, .5, .03], '#7B4A32', 0, 'metal');
   }
   return blocs;
 }
@@ -60,7 +60,7 @@ export function longrinesRoniers(): BlocArchitecture[] {
   for (const dz of FILES_Z) b([0, .25, cz + dz], [longueurX, .5, .3], '#B8B3A8');
   for (const x of FILES_X) b([x, .25, cz], [.3, .5, longueurZ], '#B8B3A8');
   // Les poteaux du rez-de-chaussée sortent en attente de leurs massifs.
-  for (const [x, z] of POTEAUX_RONIERS) for (const dx of [-.1, .1]) for (const dz of [-.1, .1]) b([x + dx, 1, z + dz], [.025, .9, .025], '#7B4A32');
+  for (const [x, z] of POTEAUX_RONIERS) for (const dx of [-.1, .1]) for (const dz of [-.1, .1]) b([x + dx, 1, z + dz], [.025, .9, .025], '#7B4A32', 0, 'metal');
   return blocs;
 }
 
@@ -72,11 +72,11 @@ export const BASE_VIE_RONIERS = { bungalow: [5.9, 0, 5.15] as const, taille: [2.
 export function stocksRoniers(): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
   for (const x0 of [-7.6, -5.9]) {
-    b([x0 + .6, .07, 5.5], [1.3, .14, 1.05], '#8B6A45');
+    b([x0 + .6, .07, 5.5], [1.3, .14, 1.05], '#8B6A45', 0, 'bois');
     for (let y = 0; y < 3; y++) for (let i = 0; i < 2; i++) for (let k = 0; k < 2; k++) b([x0 + .3 + i * .6, .26 + y * .22, 5.25 + k * .5], [.55, .2, .45], '#C8C3B8');
   }
-  for (const z of [-2.6, .6]) b([-8.3, .08, z], [1.2, .16, .2], '#8B6A45');
+  for (const z of [-2.6, .6]) b([-8.3, .08, z], [1.2, .16, .2], '#8B6A45', 0, 'bois');
   for (let i = 0; i < 6; i++) b([-8.6 + (i % 3) * .2, .22 + Math.floor(i / 3) * .14, -1], [.1, .12, 4], '#BDB5A3');
-  for (let i = 0; i < 8; i++) b([-7.85 + (i % 4) * .06, .2 + Math.floor(i / 4) * .06, -1], [.035, .035, 4.2], '#8A5A3C');
+  for (let i = 0; i < 8; i++) b([-7.85 + (i % 4) * .06, .2 + Math.floor(i / 4) * .06, -1], [.035, .035, 4.2], '#8A5A3C', 0, 'metal');
   return blocs;
 }

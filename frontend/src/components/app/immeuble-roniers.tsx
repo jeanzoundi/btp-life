@@ -15,6 +15,7 @@ import {
 import { BlocsInstances } from './blocs-instances';
 import { Balise, Bungalow, Grue, OuvrierEnBoucle, OuvrierPoste, Palissade } from './chantier-vivant';
 import { HumainMonde } from './humain-monde';
+import { MateriauMonde } from './materiaux-monde';
 import { PanneauParcelle } from './immeuble-akwaba';
 import { Architecture } from './ville-lagune';
 
@@ -74,7 +75,9 @@ export const ImmeubleRoniers = memo(function ImmeubleRoniers({ stade, nuit, paus
   // Avant le permis, le panneau tient sur ses pieds derrière la rubalise ; ensuite, il est fixé à la palissade.
   const yPanneau = e.palissade ? 1.3 : 1.35, zPanneau = e.palissade ? hz + .09 : hz + .45;
   return <group position={[PARCELLE_RONIERS.x, 0, PARCELLE_RONIERS.z]} onClick={clic}>
-    <mesh position={[0, .04, 0]} receiveShadow><boxGeometry args={[hx * 2, .08, hz * 2]} /><meshStandardMaterial color={e.livre ? '#8F9E74' : '#A88C66'} roughness={1} /></mesh>
+    <mesh position={[0, .04, 0]} receiveShadow><boxGeometry args={[hx * 2, .08, hz * 2]} />
+      {e.livre ? <meshStandardMaterial color="#8F9E74" roughness={1} /> : <MateriauMonde type="concrete_floor" couleur="#A88C66" echelle={1.8} relief={.95} rugosite={1} />}
+    </mesh>
     <BlocsInstances blocs={blocsBornage} interactif={false} />
     <BlocsInstances blocs={blocsSondages} interactif={false} />
     <BlocsInstances blocs={blocsImplantation} interactif={false} />

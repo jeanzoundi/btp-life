@@ -166,7 +166,7 @@ export function useCampagne({ cle, demo, heure, notifier, recompenser, occupe }:
       notifier(`${d.nom} : dossier clos ! ${c.avancee}${nouveau ? ` Nouveau dossier : ${nouveau.nom}, pour ${nouveau.client}. Rendez-vous : ${rendezVous}.` : ''}`, 'succes');
       return;
     }
-    notifier(rang === d.livraison - 1 ? `${d.nom} livrée ! ${d.client} a ses clés. Reste ${enPhrase(suivant.titre)} : rendez-vous ${rendezVous}.`
+    notifier(rang === d.livraison - 1 ? `${d.nom} : ouvrage livré ! Reste ${enPhrase(suivant.titre)} : rendez-vous ${rendezVous}.`
       : `${c.avancee} Prochain rendez-vous : ${rendezVous}.`, 'succes');
   };
   const abandonner = () => { setSeance(null); setTache(null); setPanneau(null); notifier('Chapitre interrompu : il reste à faire.', 'info'); };
@@ -248,9 +248,9 @@ export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAtt
     : statut === 'en_cours' ? (surParcelle ? 'Faisons le tour : trois vérifications, puis on parle du procès-verbal.' : 'Les balises dorées montrent les postes. Reviens me voir quand tout est fait.')
     : statut === 'bilan' ? (surParcelle ? 'Tout est vu ? Alors parlons du procès-verbal.' : 'C’est fait ? Voyons ce que ça donne.')
     : statut === 'resultat' ? (resultat?.erreur ? 'Ton travail est fait, mais il n’a pas pu être enregistré. On le refera ensemble.' : !resultat?.bilan.reussi ? 'Pas encore : relis bien les explications, puis on recommence quand tu veux.'
-      : surParcelle ? (resultat.bilan.note === 100 ? 'Tout est en ordre : je signe. Merci pour ce bel immeuble !' : 'Je signe, avec les réserves notées au procès-verbal. Merci pour ce bel immeuble !')
-      : resultat.bilan.note === 100 ? `Sans faute. La ${dossier.nom} avance grâce à toi.` : 'Bon travail. On avance : relis ce qui a coincé avant la suite.')
-    : statut === 'occupe' ? `Termine d’abord ta séance en cours ; je t’attends ensuite pour la ${dossier.nom}.`
+      : surParcelle ? (resultat.bilan.note === 100 ? 'Tout est en ordre : je signe. Merci pour ce bel ouvrage !' : 'Je signe, avec les réserves notées au procès-verbal. Merci pour ce bel ouvrage !')
+      : resultat.bilan.note === 100 ? 'Sans faute. Le chantier avance grâce à toi.' : 'Bon travail. On avance : relis ce qui a coincé avant la suite.')
+    : statut === 'occupe' ? `Termine d’abord ta séance en cours ; je t’attends ensuite pour le dossier « ${dossier.nom} ».`
     : `Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}. Reviens à ce moment-là.`;
   const enCoursAilleurs = seance && seance.slug !== ici ? CHAPITRES[seance.etape] : null;
   const prochain = enCoursAilleurs ?? campagne.chapitre;
@@ -277,7 +277,7 @@ export function PanneauFilRouge({ ici, campagne, nomJoueur, demo, onAller, onAtt
     </div>
     {fiche && <>
       {clos && <p className="mt-3 rounded-xl bg-jeu-lagune/10 p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/85">{dossier.cloture}</p>}
-      {!clos && !ouvert && precedent && <p className="mt-3 rounded-xl bg-white/[.06] p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/80">Projet à venir : le chantier commencera une fois la {precedent.nom} bouclée.</p>}
+      {!clos && !ouvert && precedent && <p className="mt-3 rounded-xl bg-white/[.06] p-3 text-[12.5px] leading-relaxed text-jeu-ivoire/80">Projet à venir : le chantier commencera une fois le dossier « {precedent.nom} » bouclé.</p>}
       {prochain && dossierProchain && <div className="mt-3 rounded-xl bg-jeu-or/[.1] p-3 text-[12.5px] leading-relaxed ring-1 ring-jeu-or/30">
         <p className="hud-legende text-jeu-or">{enCoursAilleurs ? 'Chapitre en cours' : 'Prochain rendez-vous'}{dossierProchain !== dossier ? ` · ${dossierProchain.nom}` : ''}</p>
         <p className="mt-1"><b>{prochain.titre}</b> : {nomLieu(prochain.lieu)}, avec {interlocuteur(prochain).nom}.</p>

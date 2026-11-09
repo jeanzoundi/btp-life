@@ -107,7 +107,7 @@ describe('l’épilogue du fil rouge', () => {
     expect(result.current.statut('entreprise')).toBe('disponible');
   });
 
-  it('numérote les chapitres du R+5 dans leur dossier, et clôt le fil rouge au dernier', async () => {
+  it('numérote les chapitres du R+5 dans leur dossier, et ouvre l’école de la mairie à la clôture des Rôniers', async () => {
     localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 16, termineeLe: null }));
     const o = options();
     const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
@@ -118,17 +118,37 @@ describe('l’épilogue du fil rouge', () => {
     act(() => result.current.abandonner());
 
     localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 23, termineeLe: null }));
-    const fin = renderHook(() => useCampagne(options({ cle: 'campagne-test' })), { wrapper: avecClient });
+    const of = options({ cle: 'campagne-test' });
+    const fin = renderHook(() => useCampagne(of), { wrapper: avecClient });
     await waitFor(() => expect(fin.result.current.chapitre?.id).toBe('bilan-r5'));
     act(() => fin.result.current.commencer());
     toutFaire(fin.result);
     act(() => { fin.result.current.surStation('entreprise', 'mentor'); });
     act(() => fin.result.current.faireLeBilan());
-    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: CHAPITRES.length, termineeLe: expect.any(String) });
+    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: 24, termineeLe: null });
     expect(fin.result.current.resultat?.bilan).toMatchObject({ argent: 15_000, xp: 210 });
     act(() => fin.result.current.terminer());
-    expect(fin.result.current.chapitre).toBeNull();
-    expect(fin.result.current.statut('entreprise')).toBe('termine');
+    expect(of.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/^Résidence Les Rôniers : dossier clos !.*Nouveau dossier : Groupe scolaire des Palmiers, pour la mairie\. Rendez-vous : Tour BTP Life, avec Joseph Amani\./), 'succes');
+    expect(fin.result.current.chapitre?.id).toBe('marche-ecole');
+    expect(fin.result.current.statut('entreprise')).toBe('disponible');
+  });
+
+  it('clôt tout le fil rouge au bilan du château d’eau, le septième dossier', async () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: CHAPITRES.length - 1, termineeLe: null }));
+    const o = options();
+    const { result } = renderHook(() => useCampagne(o), { wrapper: avecClient });
+    await waitFor(() => expect(result.current.chapitre?.id).toBe('bilan-chateau'));
+    act(() => result.current.commencer());
+    expect(o.notifier).toHaveBeenLastCalledWith('Fil rouge · Château d’eau des Jardins, chapitre 8 : sept ouvrages plus tard. Les balises dorées montrent les postes.', 'trajet');
+    toutFaire(result);
+    act(() => { result.current.surStation('entreprise', 'mentor'); });
+    act(() => result.current.faireLeBilan());
+    expect(JSON.parse(localStorage.getItem('campagne-test')!)).toEqual({ chapitres: CHAPITRES.length, termineeLe: expect.any(String) });
+    expect(result.current.resultat?.bilan).toMatchObject({ argent: 30_000, xp: 70 + 50 + 180, reputation: 18 });
+    act(() => result.current.terminer());
+    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/^Château d’eau des Jardins : dossier clos !/), 'succes');
+    expect(result.current.chapitre).toBeNull();
+    expect(result.current.statut('entreprise')).toBe('termine');
   });
 });
 
@@ -149,7 +169,7 @@ describe('le fil rouge connecté', () => {
     await waitFor(() => expect(result.current.resultat?.gains?.argent).toBe(25_000));
     expect(o.recompenser).not.toHaveBeenCalled();
     act(() => result.current.terminer());
-    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/Résidence Akwaba livrée !.*année de garantie/), 'succes');
+    expect(o.notifier).toHaveBeenLastCalledWith(expect.stringMatching(/Résidence Akwaba : ouvrage livré !.*année de garantie/), 'succes');
     expect(result.current.chapitre?.id).toBe('garantie');
     expect(result.current.statut(PARCELLE_AKWABA.slug)).toBe('ailleurs');
   });
@@ -204,7 +224,7 @@ describe('le panneau du fil rouge', () => {
     const fiche = screen.getByRole('dialog', { name: 'Fil rouge : Résidence Les Rôniers' });
     expect(fiche).toHaveTextContent('R+5 · 10 logements et 2 commerces · pour M. Touré');
     expect(fiche).toHaveTextContent('Sur la parcelle : Terrain à bâtir');
-    expect(fiche).toHaveTextContent('Projet à venir : le chantier commencera une fois la Résidence Akwaba bouclée.');
+    expect(fiche).toHaveTextContent('Projet à venir : le chantier commencera une fois le dossier « Résidence Akwaba » bouclé.');
     expect(fiche).toHaveTextContent('Prochain rendez-vous · Résidence Akwaba');
     expect(fiche).toHaveTextContent('0/12');
   });
@@ -219,6 +239,15 @@ describe('le panneau du fil rouge', () => {
     expect(fiche).toHaveTextContent('Prochain rendez-vous · Résidence Les Rôniers');
     expect(fiche).toHaveTextContent('Les pieux : Maison des ingénieurs, avec Inès Diabaté');
     expect(fiche).toHaveTextContent('12/12');
+  });
+
+  it('à la réception de l’école : M. Kanga reçoit pour la mairie, au barème du troisième dossier', () => {
+    localStorage.setItem('campagne-test', JSON.stringify({ chapitres: 30, termineeLe: null }));
+    render(<Banc ici="parcelle-ecole" demo={false} />, { wrapper: avecClient });
+    fireEvent.click(screen.getByRole('button', { name: 'ouvrir' }));
+    const panneau = screen.getByRole('dialog', { name: /M\. Kanga, Directeur des services techniques de la mairie/ });
+    expect(panneau).toHaveTextContent('Chapitre 7 · La réception de l’école');
+    expect(panneau).toHaveTextContent(/Réception validée à 50\/100 : 50\s000 F, jusqu’à 360 XP et 25 de réputation\./);
   });
 
   it('à la réception du R+5 : M. Touré reçoit sur sa parcelle, au barème du R+5', () => {

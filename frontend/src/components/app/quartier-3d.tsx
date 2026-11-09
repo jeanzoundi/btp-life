@@ -789,6 +789,8 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     [campagne.progres.chapitres, chapitreFilRouge?.lieu]); // eslint-disable-line react-hooks/exhaustive-deps
   const roniersScene = useMemo(() => ({ stade: faitsDossier(DOSSIERS[1], campagne.progres.chapitres), appel: appelParcelle(DOSSIERS[1].parcelle.slug) }),
     [campagne.progres.chapitres, chapitreFilRouge?.lieu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chantiersDossiers = useMemo(() => DOSSIERS.slice(2).map(d => ({ id: d.id, stade: faitsDossier(d, campagne.progres.chapitres), appel: appelParcelle(d.parcelle.slug) })),
+    [campagne.progres.chapitres, chapitreFilRouge?.lieu]); // eslint-disable-line react-hooks/exhaustive-deps
   // Le téléphone : les destinations du GPS et du taxi (porte de chaque lieu), et les appels du moment, tirés de l'état du jeu.
   const destinationsTelephone = useMemo<DestinationTelephone[]>(() => BATIMENTS_CARTE.map(b => ({
     slug: b.slug, nom: b.nom, porte: porteBatiment(b.position, b.taille, LIMITES_VILLE),
@@ -798,7 +800,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   if (chapitreFilRouge && !campagne.seance) {
     const qui = interlocuteurChapitre(chapitreFilRouge);
     appelsTelephone.push({ id: `fil-rouge-${chapitreFilRouge.id}`, de: qui.nom, role: qui.role, lieu: chapitreFilRouge.lieu, nomLieu: nomLieu(chapitreFilRouge.lieu),
-      message: `Bonjour ${nomJoueur ?? 'Bâtisseur'} ! Pour la ${reperesFilRouge.dossier.nom}, j’ai besoin de toi : ${chapitreFilRouge.resume.charAt(0).toLowerCase()}${chapitreFilRouge.resume.slice(1)} Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}.` });
+      message: `Bonjour ${nomJoueur ?? 'Bâtisseur'} ! Pour le dossier « ${reperesFilRouge.dossier.nom} », j’ai besoin de toi :${chapitreFilRouge.resume.charAt(0).toLowerCase()}${chapitreFilRouge.resume.slice(1)} Je te reçois de ${heureLisible(qui.horaires.ouverture)} à ${heureLisible(qui.horaires.fermeture)}.` });
   }
   if (lieux.seance) {
     const { mentor } = LIEUX_PROGRAMME[lieux.seance.slug].programme;
@@ -1027,7 +1029,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       return () => window.clearTimeout(minuteur);
     }
     if (maintenant <= avant) return;
-    const minuteur = window.setTimeout(() => notifier(`📞 ${qui.nom} t’appelle au sujet de la ${dossier.nom}.`, 'info', { label: 'Décrocher', executer: () => setTelephone('appels') }), 4000);
+    const minuteur = window.setTimeout(() => notifier(`📞 ${qui.nom} t’appelle au sujet du dossier « ${dossier.nom} ».`, 'info', { label: 'Décrocher', executer: () => setTelephone('appels') }), 4000);
     return () => window.clearTimeout(minuteur);
   }, [campagne.pret, campagne.progres.chapitres, campagne.chapitre, notifier, userId]);
   // Un chapitre validé : la caméra salue l'étape franchie par l'immeuble dès que le joueur est dans la rue, bilan refermé
@@ -1039,9 +1041,9 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     chapitresFilmes.current = maintenant;
     if (avant === null || maintenant <= avant) return;
     // La caméra salue l'immeuble du dossier dont un chapitre vient d'être validé, au stade qu'il vient d'atteindre.
-    const d = dossierDe(maintenant - 1), haut = d.parcelle.slug !== DOSSIERS[0].parcelle.slug;
+    const d = dossierDe(maintenant - 1);
     planAttente.current = planChapitre({ centre: [d.parcelle.x, d.parcelle.z], chapitres: faitsDossier(d, maintenant), total: d.chapitres.length, livraison: d.livraison,
-      etape: stadeDossier(d, { chapitres: maintenant }), titreChantier: d.nom, ...(haut ? { hauteurMax: 11 } : {}) });
+      etape: stadeDossier(d, { chapitres: maintenant }), titreChantier: d.nom, ...(d.hauteurVue ? { hauteurMax: d.hauteurVue } : {}) });
     const pique = nouvelleReplique(maintenant);
     if (!pique) return;
     const minuteur = window.setTimeout(() => notifier(`📱 ${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${pique} »`, 'info'), 10_000);
@@ -1123,7 +1125,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     <div className="absolute inset-0 isolate">
     <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
-      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} roniers={roniersScene} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
+      <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} roniers={roniersScene} chantiersDossiers={chantiersDossiers} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
     </Canvas>
     </div>

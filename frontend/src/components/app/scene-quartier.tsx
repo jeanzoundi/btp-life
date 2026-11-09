@@ -31,6 +31,8 @@ import { CONCURRENT, PENSEES_CONCURRENT, routeConcurrent } from '@/lib/concurren
 import { positionPlan, type PlanCamera } from '@/lib/plans-camera';
 import { ImmeubleAkwaba } from './immeuble-akwaba';
 import { ImmeubleRoniers } from './immeuble-roniers';
+import { ChantierDossier } from './chantier-dossier';
+import { CHANTIERS_DOSSIERS } from '@/lib/plan-dossiers';
 import { ECHELLE_PERSONNAGES } from '@/lib/echelle-monde';
 import { creneauPnj, effetsMeteo, passantsPresents, ROUTES_PASSANTS } from '@/lib/vie-urbaine';
 import { etapePnj, JOURNEES_PNJ } from '@/lib/journee-pnj';
@@ -280,13 +282,15 @@ function PointDecouverte({ point, trouve, onTrouver }: { point: (typeof POINTS_D
   </group>;
 }
 
-export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwaba, roniers, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[]; contribution?: string; ouvriers?: number };
+export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwaba, roniers, chantiersDossiers, onPoste, yaoAuChantier, nomJoueur, joueurs, directions, destination, heure, pause, selection, objectif, onSelect, interlocuteur, onParler, positionInitiale, onPosition, decouvertes, onDecouverte, meteo, rythme, humeur, critique, bulles, voisins, monEmote, plan, onConcurrent, coequipiers, onVoisin }: { joueur: React.MutableRefObject<THREE.Vector3>; vue: React.MutableRefObject<{ azimut: number }>; suiviPnj: React.MutableRefObject<Map<string, THREE.Vector3>>; chantier: { etat: EtatVisuel; nom: string; livraison: ChargementLivraison | null; postes: { id: PosteVille; position: PointMonde; libelle: string }[]; contribution?: string; ouvriers?: number };
   /** La progression du joueur dans le programme de chaque lieu à mentor, affichée sur son enseigne. */
   progressionLieux?: Record<string, string>;
   /** La Résidence Akwaba : son stade (chapitres validés du fil rouge) et la balise du portail quand Mme Touré attend. */
   akwaba: { stade: number; appel: string | null };
   /** La Résidence Les Rôniers, deuxième dossier : son stade (chapitres validés du dossier) et la balise quand M. Touré attend. */
-  roniers: { stade: number; appel: string | null }; onPoste: (poste: PosteVille) => void;
+  roniers: { stade: number; appel: string | null };
+  /** Les chantiers des dossiers suivants (école, centre de santé, marché couvert, résidence universitaire, château d'eau). */
+  chantiersDossiers: { id: string; stade: number; appel: string | null }[]; onPoste: (poste: PosteVille) => void;
   /** Une journée de chantier est en cours : Yao reste à son poste, quelle que soit l'heure. */
   yaoAuChantier: boolean; nomJoueur?: string; joueurs: JoueurActif[]; directions: Set<Direction>; destination: React.MutableRefObject<PointMonde | null>; heure: number; pause: boolean; selection: string | undefined; objectif?: string; onSelect: (b: Batiment3D) => void; interlocuteur: string | null; onParler: (nom: string) => void; positionInitiale?: PointMonde; onPosition?: (p: PointMonde) => void; decouvertes: string[]; onDecouverte: (id: string, nom: string) => void; meteo: Meteo; rythme: number; humeur: Humeur; critique: Critique; bulles: boolean; voisins: VoisinEnLigne[]; monEmote: Emote | null; plan: React.MutableRefObject<PlanEnCours | null>; onConcurrent: () => void; coequipiers: string[]; onVoisin: () => void }) {
   const nuit = heure >= 19 || heure < 6;
@@ -312,6 +316,11 @@ export function Scene({ joueur, vue, suiviPnj, chantier, progressionLieux, akwab
       : <Batiment key={b.slug} batiment={b} nuit={nuit} selectionne={selection === b.slug || objectif === b.slug} onSelect={onSelect} progression={progressionLieux?.[b.slug]} />)}
     <ImmeubleAkwaba stade={akwaba.stade} appel={akwaba.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_AKWABA.slug} onSelect={() => onSelect(PARCELLE_BATIMENT)} />
     <ImmeubleRoniers stade={roniers.stade} appel={roniers.appel} nuit={nuit} pause={pause} rythme={rythme} selectionne={objectif === PARCELLE_RONIERS_BATIMENT.slug} onSelect={() => onSelect(PARCELLE_RONIERS_BATIMENT)} />
+    {CHANTIERS_DOSSIERS.map(({ dossier, gabarit }) => {
+      const etat = chantiersDossiers.find(c => c.id === dossier.id), parcelle = PARCELLES_BATIMENTS.find(b => b.slug === dossier.parcelle.slug);
+      return etat && parcelle && <ChantierDossier key={dossier.id} dossier={dossier} gabarit={gabarit} stade={etat.stade} appel={etat.appel} nuit={nuit} pause={pause} rythme={rythme}
+        selectionne={objectif === parcelle.slug} onSelect={() => onSelect(parcelle)} />;
+    })}
     <Joueur nom={nomJoueur} directions={directions} destination={destination} positionRef={joueur} pause={pause || !!interlocuteur} positionInitiale={positionInitiale} onPosition={onPosition} humeur={humeur} critique={critique} contexte={contexte} bulles={bulles && !interlocuteur} vitesse={4.5 * effetsMeteo(meteo).vitesseMarche} parle={Boolean(interlocuteur)} />
     {/* Le concurrent du fil rouge rôde devant la parcelle Akwaba aux heures de chantier, jusqu'à la livraison. */}
     {routeConcurrent(akwaba.stade, heure) && <Concurrent3D key={routeConcurrent(akwaba.stade, heure)!.join()} route={routeConcurrent(akwaba.stade, heure)!} pause={pause} rythme={rythme} bulles={bulles} onParler={onConcurrent} />}

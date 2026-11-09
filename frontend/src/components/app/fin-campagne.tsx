@@ -15,7 +15,32 @@ const FINS: Record<string, { titre: string; parcours: string; teaser: string }> 
   'residence-roniers': {
     titre: 'La Résidence Les Rôniers est livrée !',
     parcours: 'du sol mou des Jardins à la révision des prix, tu as mené un R+5 de bout en bout : pieux, voisins, vente sur plans, grue et façades compris. Dix familles y vivent, et deux commerces y ouvrent.',
-    teaser: 'Prochain défi : le groupe scolaire, en groupement avec Bâti-Express… À suivre.',
+    teaser: 'Prochain défi : le groupe scolaire de la mairie, en groupement avec Bâti-Express.',
+  },
+  'groupe-scolaire': {
+    titre: 'Le Groupe scolaire des Palmiers est ouvert !',
+    parcours: 'de l’appel d’offres public à la réception en commission, tu as mené une école en groupement, sans céder ni à la corruption ni sur la sécurité des enfants. Six classes accueillent les élèves du quartier.',
+    teaser: 'La mairie lance un centre de santé… et cette fois, BTP Life répond seule.',
+  },
+  'centre-sante': {
+    titre: 'Le Centre de santé de la Lagune est ouvert !',
+    parcours: 'de la nappe sous les fouilles à la réception, tu as bâti un lieu de soins : circuits propres, eau et électricité secourues, surfaces qui se lavent. Le Dr Fofana reçoit ses premiers patients.',
+    teaser: 'Tantie Bintou et les commerçantes rêvent d’un marché couvert…',
+  },
+  'marche-couvert': {
+    titre: 'Le Marché couvert du Plateau est ouvert !',
+    parcours: 'des massifs à la couverture, tu as monté une halle métallique : portiques levés sans incident, eaux de pluie maîtrisées, étals attribués sans passe-droit. Soixante commerçantes vendent à l’abri.',
+    teaser: 'L’université veut une résidence pour ses étudiants, avant la rentrée…',
+  },
+  'residence-universitaire': {
+    titre: 'La Résidence universitaire des Bâtisseurs est ouverte !',
+    parcours: 'de l’usine de préfabrication à la rentrée, tu as tenu un délai serré : béton contrôlé, chambres accessibles, eau chaude solaire. Quarante-huit étudiants y vivent.',
+    teaser: 'La Régie des eaux prépare un château d’eau de trente mètres…',
+  },
+  'chateau-eau': {
+    titre: 'Le Château d’eau des Jardins est en service !',
+    parcours: 'du radier à la mise en service, tu as élevé un réservoir de 500 m³ à 25 mètres : coffrage grimpant, cuve étanche, eau potable analysée. Six mille habitants en dépendent.',
+    teaser: 'Sept ouvrages bouclés : Joseph te confie les grands projets de l’entreprise… et Serge te propose de monter une entreprise avec lui. À suivre.',
   },
 };
 export const finDuDossier = (d: DossierCampagne) => FINS[d.id] ?? { titre: `${d.nom} : dossier bouclé !`, parcours: 'tu as mené ce dossier de bout en bout.', teaser: '' };

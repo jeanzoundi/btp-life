@@ -51,6 +51,10 @@ export const STYLES_LIEUX: Record<string, StyleFacade> = {
   sports: { brise: 'casquettes', citernes: 1, accent: '#4f7f3f' },
   // Le R+5 du fil rouge : logements à persiennes au-dessus de ses deux commerces, citernes sur le toit-terrasse.
   'residence-roniers': { persiennes: '#8a5a33', climatiseurs: true, citernes: 2 },
+  // Les ouvrages publics du fil rouge : claustras de l'école, casquettes du centre de santé, lames de la résidence universitaire.
+  'groupe-scolaire': { brise: 'claustras', marquise: true, citernes: 1, accent: '#2f6fb3' },
+  'centre-sante': { brise: 'casquettes', marquise: true, climatiseurs: true, citernes: 2, accent: '#2e7d4f' },
+  'residence-universitaire': { brise: 'lames', persiennes: '#7a4f2f', citernes: 2 },
 };
 
 const COULEURS_FLEURS = ['#e8476b', '#f2c14e', '#fff4e0', '#d94f9c', '#f08a4b'];

@@ -35,8 +35,15 @@ describe('la fin d’un dossier du fil rouge', () => {
   it('au bout des Rôniers, salue le R+5 et annonce le groupement avec Bâti-Express', () => {
     render(<PanneauFinCampagne dossier={DOSSIERS[1]} nomJoueur="Koffi" onSuite={vi.fn()} onFermer={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'La Résidence Les Rôniers est livrée !' })).toBeInTheDocument();
-    expect(screen.getByText(TEASER_CAMPAGNE)).toBeInTheDocument();
-    expect(TEASER_CAMPAGNE).toBe(finDuDossier(DOSSIERS[1]).teaser);
-    expect(CLOTURE_CAMPAGNE).toMatch(/Résidence Les Rôniers/);
+    expect(screen.getByText(/le groupe scolaire de la mairie, en groupement avec Bâti-Express/)).toBeInTheDocument();
+  });
+  it('a un écran de fin pour chaque dossier, et annonce le suivant jusqu’au château d’eau, le dernier', () => {
+    for (const d of DOSSIERS) {
+      const fin = finDuDossier(d);
+      expect(fin.titre, d.id).not.toMatch(/dossier bouclé/);
+      expect(fin.teaser, d.id).not.toBe('');
+    }
+    expect(TEASER_CAMPAGNE).toBe(finDuDossier(DOSSIERS[DOSSIERS.length - 1]).teaser);
+    expect(CLOTURE_CAMPAGNE).toMatch(/Château d’eau des Jardins/);
   });
 });

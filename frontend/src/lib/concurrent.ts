@@ -25,6 +25,14 @@ export const REPLIQUES_CONCURRENT: ReadonlyArray<[number, string]> = [
   [21, 'Six planchers, et toujours pas un jour de retard. Il faudra qu’on parle, toi et moi.'],
   [23, 'Les Rôniers livrés à l’heure… Je passe te voir à la Tour : j’ai une idée trop grosse pour Bâti-Express seul.'],
   [24, 'Associés pour le groupe scolaire, alors ! Qui l’eût cru ? Cette fois, que le meilleur gagne… avec nous.'],
+  // Les dossiers suivants : partenaire pour l'école, puis ami et rival loyal.
+  [25, 'Mandataire, hein ? Alors c’est toi qui parles à la mairie… mais je surveille nos 40 %.'],
+  [30, 'Ton plan de sécurité commun, je le garde pour mes prochains chantiers. Ne le dis à personne.'],
+  [32, 'Le groupement est soldé, et bien soldé. Le centre de santé sans moi ? Je comprends. Bonne chance, partenaire.'],
+  [39, 'Un centre de santé livré, et l’éclairage de secours qui marche du premier coup. Tu places la barre haut.'],
+  [46, 'J’ai vu tes portiques se lever sans un cri sur le chantier. Chapeau, l’ami.'],
+  [55, 'Une résidence préfabriquée tenue pour la rentrée… Bâti-Express va devoir s’y mettre.'],
+  [62, 'Un château d’eau ! On le voit depuis la Marina. Le jour où tu montes ta propre entreprise, appelle-moi.'],
 ];
 
 /** La dernière réplique méritée, ou rien avant que le marché soit gagné. */

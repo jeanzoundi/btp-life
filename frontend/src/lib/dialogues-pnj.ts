@@ -49,7 +49,7 @@ export function repliqueAccueil(nom: string, c: ContexteDialogue): string | null
       if (c.chapitresFilRouge > 0) {
         // Le dossier dont on parle : celui du dernier chapitre validé, compté dans son dossier.
         const d = dossierDe(c.chapitresFilRouge - 1), faits = faitsDossier(d, c.chapitresFilRouge);
-        return `La ${d.nom} avance : ${faits} chapitre${faits > 1 ? 's' : ''} déjà validé${faits > 1 ? 's' : ''}. ${d.client} parle de toi.`;
+        return `${d.nom} : ${faits} chapitre${faits > 1 ? 's' : ''} déjà validé${faits > 1 ? 's' : ''}. ${d.accueil.nom} parle de toi.`;
       }
       return null;
     case 'Fatou':

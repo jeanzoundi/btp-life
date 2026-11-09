@@ -2,7 +2,7 @@
 // l'immeuble est livré et habité dès le neuvième, l'épilogue ne change plus la parcelle). Bornage, sondages, implantation,
 // structure, échafaudage et muret servent aussi au R+5 des Rôniers (plan-roniers.ts), à ses dimensions.
 // Repère local : origine au centre de la parcelle, façade et portail au sud (+z), côté avenue. Sans Three.js ni React.
-import type { BlocArchitecture, V3 } from './architecture-ville';
+import type { BlocArchitecture, MatiereBloc, V3 } from './architecture-ville';
 import { PARCELLE_AKWABA } from './campagne';
 
 /** Les dimensions d'un immeuble sur sa parcelle (repère local de la parcelle). */
@@ -27,7 +27,10 @@ export function elementsAkwaba(stade: number) {
 }
 export type ElementsAkwaba = ReturnType<typeof elementsAkwaba>;
 
-export const ajouteur = (liste: BlocArchitecture[]) => (position: V3, taille: V3, couleur: string, rotation = 0) => { liste.push({ position, taille, couleur, rotation }); };
+/** Ajoute un bloc à la liste ; `matiere` lui donne sa vraie matière (bois, acier), l'enduit sinon, gris pour le béton coulé. */
+export const ajouteur = (liste: BlocArchitecture[]) => (position: V3, taille: V3, couleur: string, rotation = 0, matiere?: MatiereBloc) => {
+  liste.push({ position, taille, couleur, rotation, ...(matiere ? { matiere } : {}) });
+};
 
 /** Bornes aux quatre coins et rubalise tendue entre des piquets : la parcelle est réservée, on n'y entre pas. */
 export const bornageAkwaba = () => bornage(DEMI_LARGEUR, DEMI_PROFONDEUR);
@@ -37,7 +40,7 @@ export function bornage(hx: number, hz: number): BlocArchitecture[] {
   // Piquets tous les 2,5 m environ, deux rangs de ruban rouge et blanc.
   for (const [longueur, axe, fixe] of [[hx * 2, 'x', -hz], [hx * 2, 'x', hz], [hz * 2, 'z', -hx], [hz * 2, 'z', hx]] as const) {
     const n = Math.round(longueur / 2.5);
-    for (let i = 1; i < n; i++) { const t = -longueur / 2 + i * longueur / n; b(axe === 'x' ? [t, .5, fixe] : [fixe, .5, t], [.06, 1, .06], '#8A6A48'); }
+    for (let i = 1; i < n; i++) { const t = -longueur / 2 + i * longueur / n; b(axe === 'x' ? [t, .5, fixe] : [fixe, .5, t], [.06, 1, .06], '#8A6A48', 0, 'bois'); }
     for (const [y, c] of [[.85, '#D9443A'], [.6, '#F2EFE8']] as const) b(axe === 'x' ? [0, y, fixe] : [fixe, y, 0], axe === 'x' ? [longueur, .04, .015] : [.015, .04, longueur], c);
   }
   return blocs;
@@ -47,7 +50,7 @@ export function bornage(hx: number, hz: number): BlocArchitecture[] {
 export const sondagesAkwaba = () => sondages(SONDAGES);
 export function sondages(points: readonly (readonly [number, number])[]): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  for (const [x, z] of points) { b([x, .09, z], [.5, .02, .5], '#3A2E24'); b([x + .35, .45, z], [.06, .9, .06], '#E2653C'); b([x + .35, .93, z], [.07, .07, .07], '#F2EFE8'); }
+  for (const [x, z] of points) { b([x, .09, z], [.5, .02, .5], '#3A2E24'); b([x + .35, .45, z], [.06, .9, .06], '#E2653C', 0, 'bois'); b([x + .35, .93, z], [.07, .07, .07], '#F2EFE8'); }
   return blocs;
 }
 
@@ -58,8 +61,8 @@ export function implantation(im: GabaritImmeuble): BlocArchitecture[] {
   const hx = im.largeur / 2, z0 = im.centreZ - im.profondeur / 2, z1 = im.centreZ + im.profondeur / 2;
   for (const x of [-hx, hx]) for (const z of [z0, z1]) {
     const sx = Math.sign(x), sz = Math.sign(z - im.centreZ);
-    b([x + sx * 1, .6, z + sz * .4], [.05, .12, 1.2], '#B08850'); b([x + sx * .4, .6, z + sz * 1], [1.2, .12, .05], '#B08850');
-    for (const [px, pz] of [[x + sx * 1, z + sz * 1], [x + sx * 1, z - sz * .2], [x - sx * .2, z + sz * 1]]) b([px, .33, pz], [.07, .66, .07], '#8A6A48');
+    b([x + sx * 1, .6, z + sz * .4], [.05, .12, 1.2], '#B08850', 0, 'bois'); b([x + sx * .4, .6, z + sz * 1], [1.2, .12, .05], '#B08850', 0, 'bois');
+    for (const [px, pz] of [[x + sx * 1, z + sz * 1], [x + sx * 1, z - sz * .2], [x - sx * .2, z + sz * 1]]) b([px, .33, pz], [.07, .66, .07], '#8A6A48', 0, 'bois');
   }
   // Cordeaux tendus d'une chaise à l'autre, et traits de chaux au sol.
   for (const z of [z0, z1]) { b([0, .64, z], [hx * 2 + 2, .012, .012], '#F7F4EC'); b([0, .09, z], [hx * 2, .01, .12], '#F4F1E8'); }
@@ -77,13 +80,13 @@ export function fouillesAkwaba(): BlocArchitecture[] {
 /** Matériaux stockés côté est : palette d'agglos, sacs de ciment, botte d'aciers sur cales (stades 6 et 7). */
 export function stocksAkwaba(): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
-  b([8.2, .08, 2.6], [1.3, .15, 1.1], '#8B6A45');
+  b([8.2, .08, 2.6], [1.3, .15, 1.1], '#8B6A45', 0, 'bois');
   for (let y = 0; y < 3; y++) for (let i = 0; i < 3; i++) for (let k = 0; k < 2; k++) b([7.8 + i * .42, .3 + y * .22, 2.35 + k * .5], [.4, .2, .48], '#9E9A91');
-  b([8.2, .08, .9], [1.5, .15, 1.1], '#8B6A45');
+  b([8.2, .08, .9], [1.5, .15, 1.1], '#8B6A45', 0, 'bois');
   for (let y = 0; y < 2; y++) for (let i = 0; i < 4; i++) b([7.65 + i * .37, .27 + y * .2, .9], [.35, .18, .9], '#DCCFB2', (y + i) % 2 ? .05 : -.05);
   // La botte d'aciers reste au sud de la grue, qui monte au stade suivant au fond de la parcelle.
-  for (const z of [-1, -2.4]) b([7.6, .1, z], [1.6, .2, .2], '#8B6A45');
-  for (let i = 0; i < 7; i++) b([7.6 - .3 + (i % 4) * .14, .26 + Math.floor(i / 4) * .07, -1.7], [.035, .035, 2.4], '#8A5A3C');
+  for (const z of [-1, -2.4]) b([7.6, .1, z], [1.6, .2, .2], '#8B6A45', 0, 'bois');
+  for (let i = 0; i < 7; i++) b([7.6 - .3 + (i % 4) * .14, .26 + Math.floor(i / 4) * .07, -1.7], [.035, .035, 2.4], '#8A5A3C', 0, 'metal');
   return blocs;
 }
 
@@ -113,12 +116,12 @@ export function echafaudage(im: GabaritImmeuble): BlocArchitecture[] {
   const blocs: BlocArchitecture[] = [], b = ajouteur(blocs);
   const { largeur: l, profondeur: p, centreZ: cz, niveaux, hauteurNiveau: h } = im, zFace = cz + p / 2;
   const hauteur = .4 + niveaux * h + 1;
-  for (let i = 0; i <= 6; i++) for (const dz of [.45, 1.35]) b([-l / 2 + i * l / 6, hauteur / 2, zFace + dz], [.06, hauteur, .06], '#C8CDD0');
+  for (let i = 0; i <= 6; i++) for (const dz of [.45, 1.35]) b([-l / 2 + i * l / 6, hauteur / 2, zFace + dz], [.06, hauteur, .06], '#C8CDD0', 0, 'metal');
   for (let n = 1; n <= niveaux; n++) {
     const y = .4 + n * h - .12;
-    b([0, y, zFace + .9], [l + .2, .06, .95], '#A87F52');
-    for (const dy of [.5, 1]) b([0, y + dy, zFace + 1.38], [l + .2, .05, .05], '#E8B23A');
-    b([0, y + .08, zFace + 1.38], [l + .2, .15, .03], '#E8B23A');
+    b([0, y, zFace + .9], [l + .2, .06, .95], '#A87F52', 0, 'bois');
+    for (const dy of [.5, 1]) b([0, y + dy, zFace + 1.38], [l + .2, .05, .05], '#E8B23A', 0, 'metal');
+    b([0, y + .08, zFace + 1.38], [l + .2, .15, .03], '#E8B23A', 0, 'metal');
   }
   return blocs;
 }

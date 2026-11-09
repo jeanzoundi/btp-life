@@ -1,4 +1,4 @@
-import { CAMPAGNE, PARCELLE_AKWABA } from './campagne';
+import { CAMPAGNE, DOSSIERS, PARCELLE_AKWABA } from './campagne';
 import { PARCELLE_RONIERS, RONIERS } from './dossier-roniers';
 import { LIEUX_MONDE } from './liens-modes';
 
@@ -44,7 +44,9 @@ const parcelle = (p: { slug: string; x: number; z: number; largeur: number; prof
 });
 export const PARCELLE_BATIMENT = parcelle(PARCELLE_AKWABA, CAMPAGNE.nom);
 export const PARCELLE_RONIERS_BATIMENT = parcelle(PARCELLE_RONIERS, RONIERS.nom);
-export const PARCELLES_BATIMENTS = [PARCELLE_BATIMENT, PARCELLE_RONIERS_BATIMENT];
+/** Les parcelles de tous les dossiers, dans l'ordre du fil rouge : Akwaba, les Rôniers, puis l'école, le centre de santé,
+ * le marché couvert, la résidence universitaire et le château d'eau. */
+export const PARCELLES_BATIMENTS = [PARCELLE_BATIMENT, PARCELLE_RONIERS_BATIMENT, ...DOSSIERS.slice(2).map(d => parcelle(d.parcelle, d.nom))];
 /** La minicarte montre les parcelles avec les lieux, et la touche y envoie le joueur. */
 export const BATIMENTS_CARTE = [...BATIMENTS, ...PARCELLES_BATIMENTS];
 

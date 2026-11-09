@@ -6,11 +6,16 @@
 // dossier (les semelles calculées au bureau d'études sont celles qu'on commande au dépôt, la retenue de garantie est celle
 // du prêt). Les chapitres se suivent dans une seule progression : le premier des Rôniers est le treizième du fil rouge.
 // Le serveur tient la progression et paie (backend/src/carriere/campagne.service.ts). Sans Three.js ni React.
-import { situation, type ChapitreCampagne } from './chapitres-campagne';
+import { situation, type ChapitreCampagne, type DefinitionDossier, type DossierCampagne } from './chapitres-campagne';
+import { DOSSIER_CHATEAU_EAU } from './dossier-chateau-eau';
+import { DOSSIER_ECOLE } from './dossier-ecole';
+import { DOSSIER_MARCHE } from './dossier-marche';
+import { DOSSIER_RESIDENCE_U } from './dossier-residence-u';
 import { CHAPITRES_RONIERS, CLIENT_RONIERS, PARCELLE_RONIERS, RONIERS, STADES_RONIERS } from './dossier-roniers';
+import { DOSSIER_SANTE } from './dossier-sante';
 import { fr, type SeanceLieu } from './programme-lieu';
 
-export type { ChapitreCampagne, TacheCampagne } from './chapitres-campagne';
+export type { AccueilParcelle, BaremeDossier, ChapitreCampagne, DefinitionDossier, DossierCampagne, ParcelleCampagne, TacheCampagne } from './chapitres-campagne';
 export { CHAPITRES_RONIERS, CLIENT_RONIERS, PARCELLE_RONIERS, RONIERS, STADES_RONIERS } from './dossier-roniers';
 
 export const CAMPAGNE = { id: 'residence-akwaba', nom: 'Résidence Akwaba', ouvrage: 'R+3 · 8 logements', cliente: 'Mme Touré' } as const;
@@ -355,35 +360,7 @@ export const STADES_AKWABA = [
 
 // ─── Les dossiers ───
 
-export interface ParcelleCampagne { slug: string; x: number; z: number; largeur: number; profondeur: number }
-export interface AccueilParcelle { nom: string; role: string; horaires: { ouverture: number; fermeture: number } }
-/** Gains d'un chapitre validé, comme au serveur (gainsChapitre) : chapitre ordinaire, livraison (la réception), clôture
- * (le dernier chapitre du dossier). L'XP vaut `xpBase` + la moitié de la note, plus la prime de livraison ou de clôture. */
-export interface BaremeDossier {
-  argent: { chapitre: number; livraison: number; cloture: number };
-  xpBase: number; xpPrime: { livraison: number; cloture: number };
-  reputation: { chapitre: number; livraison: number; cloture: number };
-}
-export interface DossierCampagne {
-  id: string; nom: string; ouvrage: string; client: string;
-  parcelle: ParcelleCampagne;
-  /** Le nom de la parcelle dans le jeu (carte, rendez-vous). */
-  nomParcelle: string;
-  /** Qui reçoit sur la parcelle : le client, aux heures de chantier. */
-  accueil: AccueilParcelle;
-  chapitres: ChapitreCampagne[];
-  /** Chapitres du dossier validés à la livraison de l'immeuble (la réception, sur la parcelle). */
-  livraison: number;
-  /** Ce qu'on voit sur la parcelle à chaque stade, de 0 à la longueur du dossier. */
-  stades: readonly string[];
-  bareme: BaremeDossier;
-  /** Ce que deviennent l'immeuble et le joueur une fois le dossier clos (fiche de la parcelle, téléphone). */
-  cloture: string;
-  /** Rang, dans tout le fil rouge, du premier chapitre du dossier. */
-  debut: number;
-}
-
-const DOSSIERS_SANS_RANG: Omit<DossierCampagne, 'debut'>[] = [
+const DOSSIERS_SANS_RANG: DefinitionDossier[] = [
   {
     id: CAMPAGNE.id, nom: CAMPAGNE.nom, ouvrage: CAMPAGNE.ouvrage, client: CAMPAGNE.cliente, parcelle: PARCELLE_AKWABA, nomParcelle: 'Parcelle Akwaba',
     accueil: CLIENTE_AKWABA, chapitres: CHAPITRES_AKWABA, livraison: CHAPITRES_LIVRAISON, stades: STADES_AKWABA,
@@ -395,7 +372,9 @@ const DOSSIERS_SANS_RANG: Omit<DossierCampagne, 'debut'>[] = [
     accueil: CLIENT_RONIERS, chapitres: CHAPITRES_RONIERS, livraison: CHAPITRES_RONIERS.findIndex(c => c.id === 'reception-r5') + 1, stades: STADES_RONIERS,
     bareme: { argent: { chapitre: 4_000, livraison: 40_000, cloture: 15_000 }, xpBase: 40, xpPrime: { livraison: 250, cloture: 120 }, reputation: { chapitre: 3, livraison: 20, cloture: 10 } },
     cloture: 'Le dossier est clos : dix familles et deux commerces font vivre la Résidence Les Rôniers, et la révision des prix a protégé la marge. Bâti-Express et BTP Life préparent ensemble le groupe scolaire.',
+    hauteurVue: 11,
   },
+  DOSSIER_ECOLE, DOSSIER_SANTE, DOSSIER_MARCHE, DOSSIER_RESIDENCE_U, DOSSIER_CHATEAU_EAU,
 ];
 /** Les dossiers du fil rouge, dans l'ordre où ils se jouent. */
 export const DOSSIERS: DossierCampagne[] = DOSSIERS_SANS_RANG.map((d, i) => ({ ...d, debut: DOSSIERS_SANS_RANG.slice(0, i).reduce((n, x) => n + x.chapitres.length, 0) }));

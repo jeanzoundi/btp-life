@@ -30,14 +30,15 @@ describe('les chapitres du fil rouge', () => {
 
   it('enchaîne le R+5 des Rôniers après Akwaba, par de nouveaux lieux, jusqu’à sa réception et au groupement', () => {
     const [akwaba, roniers] = DOSSIERS;
-    expect(CHAPITRES).toHaveLength(akwaba.chapitres.length + roniers.chapitres.length);
+    expect(CHAPITRES).toHaveLength(DOSSIERS.reduce((n, d) => n + d.chapitres.length, 0));
     expect(roniers).toMatchObject({ id: 'residence-roniers', debut: 12, livraison: 11, client: 'M. Touré' });
     expect(roniers.chapitres.map(c => c.lieu)).toEqual(['entreprise', 'laboratoire', 'bureau-etudes', 'mairie', 'jardins-residence', 'banque', 'atelier', 'logistique', 'fournisseur',
       'construction-nord', PARCELLE_RONIERS.slug, 'entreprise']);
     expect(CHAPITRES[roniers.debut + roniers.livraison - 1].id).toBe('reception-r5');
     expect(dossierDe(11).id).toBe('residence-akwaba');
     expect(dossierDe(12).id).toBe('residence-roniers');
-    expect(dossierDe(99).id).toBe('residence-roniers');
+    expect(dossierDe(23).id).toBe('residence-roniers');
+    expect(dossierDe(999).id).toBe('chateau-eau');
     expect(dossierDeParcelle(PARCELLE_RONIERS.slug)).toBe(roniers);
     expect(dossierDeParcelle('mairie')).toBeNull();
     expect([0, 5, 12, 15, 24].map(n => faitsDossier(roniers, n))).toEqual([0, 0, 0, 3, 12]);
@@ -91,6 +92,44 @@ describe('les chapitres du fil rouge', () => {
     expect(mesure('garantie', 'ouverture-fissure').reponse).toBeCloseTo(.04, 6);
     expect(mesure('decompte', 'retenue-rendue').reponse).toBeCloseTo((152.5 + 4.2) * .05, 3);
     expect(mesure('retour-experience', 'marge-reelle').reponse).toBeCloseTo(15.8, 1);
+  });
+
+  it('enchaîne ensuite cinq dossiers de huit chapitres : école, centre de santé, marché couvert, résidence universitaire, château d’eau', () => {
+    const suite = DOSSIERS.slice(2);
+    expect(suite.map(d => d.id)).toEqual(['groupe-scolaire', 'centre-sante', 'marche-couvert', 'residence-universitaire', 'chateau-eau']);
+    for (const d of suite) {
+      expect(d.chapitres, d.id).toHaveLength(8);
+      expect(d.livraison, d.id).toBe(7);
+      expect(d.stades, d.id).toHaveLength(9);
+      // La réception se joue sur la parcelle du dossier, avec son client ; le dossier s'ouvre et se clôt à l'entreprise ou à la banque.
+      expect(d.chapitres[d.livraison - 1].lieu, d.id).toBe(d.parcelle.slug);
+      expect(dossierDeParcelle(d.parcelle.slug), d.id).toBe(d);
+      expect(d.chapitres[0].lieu, d.id).toBe('entreprise');
+      // Chaque dossier rapporte plus que le précédent.
+      const avant = DOSSIERS[DOSSIERS.indexOf(d) - 1];
+      expect(d.bareme.argent.livraison, d.id).toBeGreaterThan(avant.bareme.argent.livraison);
+    }
+    // Un lieu pour la recherche d'emploi rejoint le fil rouge : l'agence des talents, pour l'équipe du centre de santé.
+    expect(CHAPITRES.some(c => c.lieu === 'agence')).toBe(true);
+  });
+
+  it('garde des chiffres justes dans les cinq derniers dossiers', () => {
+    expect(mesure('marche-ecole', 'prix-ecole').reponse).toBeCloseTo(150 * 1.08 * 1.1 * 1.06, 6);
+    expect(mesure('terrain-ecole', 'compactage').reponse).toBeCloseTo(92.31, 2);
+    expect(mesure('ecole-pour-tous', 'unites-passage').reponse).toBe(2);
+    expect(mesure('securite-groupement', 'etais-ecole').reponse).toBe(112);
+    expect(mesure('reseaux-sante', 'groupe-electrogene').reponse).toBeCloseTo(28.125, 6);
+    expect(mesure('surfaces-sante', 'carrelage-soins').reponse).toBe(105);
+    expect(mesure('decompte-sante', 'solde-sante').reponse).toBeCloseTo(6.875, 6);
+    expect(mesure('levage-marche', 'effort-elingue').reponse).toBeCloseTo(421.5, 1);
+    expect(mesure('acier-marche', 'peinture-acier').reponse).toBe(27);
+    expect(mesure('bilan-marche', 'reste-entretien').reponse).toBe(100_000);
+    expect(mesure('beton-usine', 'resistance-eprouvette').reponse).toBeCloseTo(30, 0);
+    expect(mesure('econome-residence', 'brise-soleil').reponse).toBeCloseTo(.546, 3);
+    // Le château d'eau : la cuve de 500 m³ donne 5,26 m d'eau, dont l'essai d'étanchéité admet 1/500.
+    expect(mesure('cuve-chateau', 'hauteur-eau').reponse).toBeCloseTo(5.26, 2);
+    expect(mesure('mise-en-service', 'essai-etancheite').reponse).toBeCloseTo(mesure('cuve-chateau', 'hauteur-eau').reponse * 1000 / 500, 6);
+    expect(mesure('bilan-chateau', 'taux-frequence').reponse).toBe(8);
   });
 
   it('garde les mêmes chiffres d’un chapitre à l’autre dans le R+5', () => {
@@ -154,12 +193,19 @@ describe('séance et bilan d’un chapitre', () => {
     expect(bilanChapitre(jouer(nouvelleSeanceChapitre(16), [100, 100, 100]))).toMatchObject({ note: 100, argent: 4_000, xp: 90 });
     expect(nouvelleSeanceChapitre(16)).toMatchObject({ slug: 'jardins-residence', etape: 16 });
   });
+
+  it('paie l’école, livrée au septième chapitre de son dossier, et la clôture du château d’eau', () => {
+    expect(gainsChapitreJeu(24, 100)).toEqual({ argent: 5_000, xp: 100, reputation: 4 });
+    expect(gainsChapitreJeu(30, 100)).toEqual({ argent: 50_000, xp: 360, reputation: 25 });
+    expect(gainsChapitreJeu(31, 100)).toEqual({ argent: 18_000, xp: 230, reputation: 12 });
+    expect(gainsChapitreJeu(CHAPITRES.length - 1, 100)).toEqual({ argent: 30_000, xp: 300, reputation: 18 });
+  });
 });
 
 describe('progression de la campagne', () => {
   it('relit une sauvegarde abîmée comme le serveur', () => {
     expect(lireProgresCampagne(null)).toEqual(PROGRES_CAMPAGNE_INITIAL);
-    expect(lireProgresCampagne({ chapitres: 42, termineeLe: 'hier' })).toEqual({ chapitres: CHAPITRES.length, termineeLe: null });
+    expect(lireProgresCampagne({ chapitres: 999, termineeLe: 'hier' })).toEqual({ chapitres: CHAPITRES.length, termineeLe: null });
     expect(lireProgresCampagne({ chapitres: 3.8 })).toEqual({ chapitres: 3, termineeLe: null });
   });
 

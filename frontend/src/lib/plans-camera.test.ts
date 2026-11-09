@@ -18,12 +18,12 @@ describe('les plans de caméra des chapitres', () => {
   });
   it('fait un plan plus long et plus large pour la livraison', () => {
     const livraison = planChapitre({ centre: [0, -78.5], chapitres: 9, total: 9, etape: 'Livrée', titreChantier: 'Résidence Akwaba' });
-    expect(livraison.titre).toBe('Résidence Akwaba · livrée !');
+    expect(livraison.titre).toBe('Résidence Akwaba · ouvrage livré !');
     expect(livraison.duree).toBeGreaterThan(planChapitre({ centre: [0, 0], chapitres: 1, total: 9, etape: '', titreChantier: '' }).duree);
   });
   it('salue la livraison à la réception quand l’histoire continue, et l’épilogue comme un chapitre', () => {
     const plan = (chapitres: number) => planChapitre({ centre: [0, -78.5], chapitres, total: 12, livraison: 9, etape: '', titreChantier: 'Résidence Akwaba' });
-    expect(plan(9).titre).toBe('Résidence Akwaba · livrée !');
+    expect(plan(9).titre).toBe('Résidence Akwaba · ouvrage livré !');
     expect(plan(10).titre).toBe('Résidence Akwaba · chapitre 10/12 validé');
     expect(plan(12).titre).toBe('Résidence Akwaba · chapitre 12/12 validé');
   });
@@ -53,7 +53,10 @@ describe('le concurrent du fil rouge', () => {
     expect(routeConcurrent(23, 10)).toBeNull();
     expect(routeConcurrent(18, 20)).toBeNull();
     expect(nouvelleReplique(13)).toContain('Daouda Touré');
-    expect(repliqueConcurrent(30)).toContain('Associés');
+    expect(repliqueConcurrent(24)).toContain('Associés');
+    expect(routeConcurrent(28, 10)).toBeNull();
+    expect(nouvelleReplique(62)).toContain('château d’eau');
+    expect(repliqueConcurrent(999)).toContain('ta propre entreprise');
   });
 });
 
@@ -62,7 +65,7 @@ describe('le plan de caméra du R+5', () => {
     const akwaba = planChapitre({ centre: [0, 0], chapitres: 8, total: 12, livraison: 9, etape: '', titreChantier: 'Résidence Akwaba' });
     expect(akwaba).toMatchObject({ hauteurCible: 6.7, rayon: 28, hauteur: 14 });
     const roniers = planChapitre({ centre: [-70.5, -35], chapitres: 11, total: 12, livraison: 11, etape: '', titreChantier: 'Résidence Les Rôniers', hauteurMax: 11 });
-    expect(roniers.titre).toBe('Résidence Les Rôniers · livrée !');
+    expect(roniers.titre).toBe('Résidence Les Rôniers · ouvrage livré !');
     expect(roniers.hauteurCible).toBe(11);
     expect(roniers.rayon).toBeGreaterThan(akwaba.rayon);
   });

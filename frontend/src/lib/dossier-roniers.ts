@@ -314,7 +314,7 @@ export const CHAPITRES_RONIERS: ChapitreCampagne[] = [
   {
     id: 'bilan-r5', lieu: 'entreprise', titre: 'Le bilan et le groupement', resume: 'Mesurer ce que la révision des prix a sauvé, et répondre à Bâti-Express.',
     recit: 'La Résidence Les Rôniers est livrée, et la clause de révision a protégé notre marge. Mais j’ai une visite surprise : Serge Ahoussou, de Bâti-Express. Il veut répondre avec nous à l’appel d’offres d’un groupe scolaire, trop gros pour une seule entreprise.',
-    avancee: 'Dossier clos : la Résidence Les Rôniers rejoint nos références, et Bâti-Express devient partenaire.',
+    avancee: 'L’immeuble rejoint nos références, et Bâti-Express devient partenaire.',
     taches: [
       { id: 'revision-prix', zone: 'finances', titre: 'La révision des prix', contenu: { type: 'mesure', mesure: {
         titre: 'La révision des prix', enonce: 'Le ciment et l’acier ont augmenté pendant le gros œuvre. Cette fois, le marché prévoit une formule de révision, appliquée à chaque situation de travaux ; sa partie fixe, 15 %, ne bouge pas.',
