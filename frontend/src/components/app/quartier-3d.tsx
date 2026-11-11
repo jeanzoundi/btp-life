@@ -32,7 +32,7 @@ import {
 } from './hud-monde';
 import { Minicarte } from './minicarte';
 import { ChatQuartier, useMondeEnLigne, usePromeneurs } from './monde-en-ligne';
-import { coequipiersAuChantier, voisinsADessiner } from '@/lib/en-ligne';
+import { coequipiersAuTravail, enumeration, voisinsADessiner } from '@/lib/en-ligne';
 import { InterieurChantier3D } from './interieur-chantier-3d';
 import { PanneauJourneeChantier, PanneauPlanning, PanneauRecrutement, TacheChantier, type ResultatJournee, type StatutJournee } from './panneau-journee-chantier';
 import {
@@ -104,6 +104,9 @@ import { BATIMENT_CHANTIER, type Batiment3D, BATIMENTS, BATIMENTS_CARTE, type Di
 
 const VITESSES = [1, 2, 3] as const;
 const NOMS_PNJ = ['Awa', 'Yao', 'Mariam', 'Koffi', 'Fatou'];
+/** Les lieux où travailler avec un coéquipier rapporte +10 % d'XP : la journée du Grand chantier et les séances des lieux à
+ * mentor (journee-chantier.service.ts et lieux.service.ts côté serveur). */
+const LIEUX_BONUS_EQUIPE: ReadonlySet<string> = new Set(['chantier', ...Object.keys(LIEUX_PROGRAMME)]);
 /** Les grands panneaux du HUD : un seul à la fois, sauf à partir de 768 px de large, où le planning (à gauche) reste
  * ouvert à côté d'un panneau de droite (chat, téléphone, plan ou options), qui se remplacent l'un l'autre. */
 const PANNEAUX_HUD = ['menuModes', 'chat', 'telephone', 'plan', 'options'] as const;
@@ -194,6 +197,11 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   const [croixVisible, setCroixVisible] = useState(true);
   useEffect(() => { try { if (localStorage.getItem('btp-life-croix') === 'masquee') setCroixVisible(false); } catch { /* Stockage facultatif. */ } }, []);
   const basculerCroix = () => setCroixVisible(v => { try { localStorage.setItem('btp-life-croix', v ? 'masquee' : 'visible'); } catch { /* Stockage facultatif. */ } return !v; });
+  // Au téléphone, la minicarte double la flèche de l'objectif et le plan du quartier, et couvrait le haut de la ville avec
+  // la rangée de boutons : repliée par défaut, elle s'affiche depuis les options (choix gardé). L'écran large la garde.
+  const [minicarteTelephone, setMinicarteTelephone] = useState(false);
+  useEffect(() => { try { if (localStorage.getItem('btp-life-minicarte') === 'visible') setMinicarteTelephone(true); } catch { /* Stockage facultatif. */ } }, []);
+  const basculerMinicarte = () => setMinicarteTelephone(v => { try { localStorage.setItem('btp-life-minicarte', v ? 'masquee' : 'visible'); } catch { /* Stockage facultatif. */ } return !v; });
   const [zonePlan, setZonePlan] = useState('Toutes les zones');
   const [demoStats, setDemoStats] = useState(besoins ?? BESOINS_DEPART);
   // La démonstration paie comme le serveur (lib/gains-demo.ts) : forme du moment, et l'instant de la dernière paie de
@@ -747,31 +755,38 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     : 'flex-1';
   const placeTelephone = large ? `bottom-3 right-3 w-[min(300px,calc(100%-296px))] ${immersif ? 'max-h-[calc(100%-404px)]' : 'max-h-[calc(100%-336px)]'}` : panneauMobile;
   const allerVers = (slug: string) => { const lieu = BATIMENTS_CARTE.find(b => b.slug === slug); if (lieu) { setMenuModes(false); setInterlocuteur(null); choisir(lieu); } };
-  // Journée en équipe : quand un coéquipier arrive au Grand chantier, on le dit (avec de quoi l'y rejoindre) ; en entrant
-  // soi-même sur le chantier, on dit avec qui la journée comptera.
-  const auChantier = useMemo(() => coequipiersAuChantier(enLigne.equipe.equipe?.membres ?? [], userId), [enLigne.equipe.equipe, userId]);
-  const signalesAuChantier = useRef(new Set<string>());
+  // Le travail en équipe : la journée du Grand chantier comme une séance d'un lieu à mentor rapporte +10 % d'XP quand un
+  // coéquipier y est aussi. Quand il arrive dans un de ces lieux, on le dit (avec de quoi l'y rejoindre) ; en entrant
+  // soi-même dans le lieu, on dit avec qui le travail comptera. Avant, seul le chantier le disait (vu à deux comptes).
+  const auTravail = useMemo(() => coequipiersAuTravail(enLigne.equipe.equipe?.membres ?? [], userId, LIEUX_BONUS_EQUIPE), [enLigne.equipe.equipe, userId]);
+  const signalesAuTravail = useRef(new Set<string>());
   const allerVersRef = useRef(allerVers);
   allerVersRef.current = allerVers;
   useEffect(() => {
-    for (const nom of auChantier) {
-      if (signalesAuChantier.current.has(nom)) continue;
-      signalesAuChantier.current.add(nom);
-      if (interieur?.slug === 'chantier') notifier(`🤝 ${nom} te rejoint sur le chantier : votre journée compte en équipe (+10 % d’XP).`, 'succes');
-      else notifier(`🤝 ${nom} travaille au Grand chantier : fais ta journée en même temps, elle comptera en équipe (+10 % d’XP).`, 'info', { label: 'Y aller', executer: () => allerVersRef.current('chantier') });
+    const presents = new Set(auTravail.map(c => `${c.nom}@${c.lieu}`));
+    for (const { nom, lieu } of auTravail) {
+      if (signalesAuTravail.current.has(`${nom}@${lieu}`)) continue;
+      signalesAuTravail.current.add(`${nom}@${lieu}`);
+      const chantier = lieu === 'chantier';
+      if (interieur?.slug === lieu) notifier(chantier ? `🤝 ${nom} te rejoint sur le chantier : votre journée compte en équipe (+10 % d’XP).` : `🤝 ${nom} te rejoint : votre séance compte en équipe (+10 % d’XP).`, 'succes');
+      else notifier(chantier ? `🤝 ${nom} travaille au Grand chantier : fais ta journée en même temps, elle comptera en équipe (+10 % d’XP).`
+        : `🤝 ${nom}, de ton équipe, est en séance (${nomLieu(lieu)}) : fais la tienne en même temps, elle comptera en équipe (+10 % d’XP).`, 'info', { label: 'Y aller', executer: () => allerVersRef.current(lieu) });
     }
-    for (const nom of [...signalesAuChantier.current]) if (!auChantier.includes(nom)) signalesAuChantier.current.delete(nom);
+    for (const cle of [...signalesAuTravail.current]) if (!presents.has(cle)) signalesAuTravail.current.delete(cle);
   // Seule l'arrivée d'un coéquipier compte ; le lieu du joueur est lu au moment où elle arrive.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auChantier]);
+  }, [auTravail]);
   const lieuPrecedent = useRef<string | null>(null);
   useEffect(() => {
     const ici = interieur?.slug ?? null;
-    if (ici === 'chantier' && lieuPrecedent.current !== 'chantier' && auChantier.length) {
-      notifier(`🤝 ${auChantier.join(', ')} ${auChantier.length > 1 ? 'sont' : 'est'} aussi sur le chantier : ta journée comptera en équipe (+10 % d’XP).`, 'succes');
+    const avecMoi = auTravail.filter(c => c.lieu === ici).map(c => c.nom);
+    if (ici && ici !== lieuPrecedent.current && avecMoi.length) {
+      const plusieurs = avecMoi.length > 1;
+      notifier(ici === 'chantier' ? `🤝 ${enumeration(avecMoi)} ${plusieurs ? 'sont' : 'est'} aussi sur le chantier : ta journée comptera en équipe (+10 % d’XP).`
+        : `🤝 ${enumeration(avecMoi)}, de ton équipe, ${plusieurs ? 'sont' : 'est'} aussi là : ta séance comptera en équipe (+10 % d’XP).`, 'succes');
     }
     lieuPrecedent.current = ici;
-  // On ne le dit qu'en entrant sur le chantier.
+  // On ne le dit qu'en entrant dans le lieu.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interieur?.slug]);
   /** On sort de chez soi pour un rendez-vous de la journée : le joueur repart vers le lieu. */
@@ -990,12 +1005,20 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
     for (const alerte of nouvelles) notifier(`${alerte.texte} (${Math.round(stats[alerte.cle])} %).`, 'alerte', { label: alerte.action, executer: () => allerVers(alerte.lieu) });
   });
   useEffect(() => { if (etatSauvegarde === 'erreur' && !demo) notifier('Sauvegarde locale : le serveur reprendra dès que possible.', 'alerte'); }, [etatSauvegarde, demo, notifier]);
-  // Accueil une seule fois, même avec le double montage du mode strict.
+  // Accueil une seule fois, même avec le double montage du mode strict. Arrivé directement dans un lieu (?lieu=…), le
+  // conseil parle du lieu et de sa sortie, pas des bâtiments ni de la minicarte de la rue.
   const accueilFait = useRef(false);
+  const contexteAccueil = useRef({ interieur, minicarte: large || minicarteTelephone });
+  contexteAccueil.current = { interieur, minicarte: large || minicarteTelephone };
   useEffect(() => {
     if (accueilFait.current) return;
     accueilFait.current = true;
-    window.setTimeout(() => notifier(demo ? 'Bienvenue aux Palmiers ! Touche un bâtiment, le sol ou la minicarte pour te déplacer.' : `Content de te revoir${nomJoueur ? `, ${nomJoueur}` : ''} !`, 'info'), 1500);
+    window.setTimeout(() => {
+      const { interieur: ici, minicarte } = contexteAccueil.current;
+      // Le nom du lieu est déjà en tête de l'intérieur (et « dans Banque BTL » se lirait mal) : on ne le répète pas.
+      const conseil = ici ? 'Te voici à l’intérieur : « Sortir » te ramène dans le quartier.' : `Touche un bâtiment, le sol${minicarte ? ' ou la minicarte' : ''} pour te déplacer.`;
+      notifier(demo ? `Bienvenue aux Palmiers ! ${conseil}` : `Content de te revoir${nomJoueur ? `, ${nomJoueur}` : ''} !`, 'info');
+    }, 1500);
   }, [demo, nomJoueur, notifier]);
   // Un chapitre du fil rouge vient d'être validé : peu après, le prochain interlocuteur appelle (on décroche sur le téléphone).
   // En entrant sur le Grand chantier, l'imprévu du jour se présente (une fois) tant qu'il n'est pas réglé.
@@ -1125,7 +1148,7 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
   return <FournisseurPersonnage personnage={personnage}><div className={`relative w-full overflow-hidden bg-jeu-nuit ${POLICES_JEU} hud-texte ${immersif ? 'h-[100dvh] min-h-[620px] rounded-none' : 'h-[86vh] min-h-[580px] rounded-2xl border border-black/20 shadow-[0_24px_60px_-28px_rgba(0,0,0,.7)]'}`} data-testid="quartier-3d">
     {/* Contexte d'empilement isolé : les bulles de pensée restent sous l'interface et les intérieurs. */}
     <div className="absolute inset-0 isolate">
-    <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFSoftShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
+    <Canvas shadows={qualite !== 'fluide' ? { type: THREE.PCFShadowMap } : false} dpr={1} camera={{ position: [20, 22, 30], fov: 48, near: 0.1, far: 400 }} gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}>
       <FluiditeMonde qualite={qualite} actif={!interieur} nuit={nuit} />
       <Scene joueur={joueurRef} vue={vueRef} suiviPnj={suiviPnj} chantier={chantierScene} progressionLieux={progressionLieux} akwaba={akwabaScene} roniers={roniersScene} chantiersDossiers={chantiersDossiers} onPoste={surPoste} yaoAuChantier={Boolean(journee)} meteo={meteo} rythme={pause ? 0 : vitesse} humeur={humeur} critique={critique} bulles={!interieur && !plan} voisins={voisins3d} monEmote={enLigne.monEmote} plan={planRef} coequipiers={coequipiers} onVoisin={() => setChat(true)}
         onConcurrent={() => notifier(`${CONCURRENT.prenom} (${CONCURRENT.entreprise}) : « ${repliqueConcurrent(campagne.progres.chapitres) ?? 'Bonne chance avec Mme Touré.'} »`, 'info')} nomJoueur={nomJoueur} joueurs={joueurs} directions={directions} destination={destination} heure={heure} pause={pause} selection={selection?.slug} objectif={lieuObjectif} onSelect={b => { setInterlocuteur(null); choisir(b); }} interlocuteur={interlocuteur} onParler={parler} positionInitiale={positionInitiale} onPosition={setPositionCourante} decouvertes={decouvertes} onDecouverte={(id, nom) => { if (decouvertes.includes(id)) return; setDecouvertes(d => [...d, id]); setScore(s => s + 75); notifier(`${nom} découvert ! +75 points d’exploration.`, 'succes'); }} />
@@ -1142,11 +1165,12 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
       </div>
       <div className="relative flex shrink-0 flex-col items-end gap-2">
         <HorlogeMonde heure={affichageHeure} meteo={{ icone: LIBELLES_METEO[meteo].icone, nom: `${LIBELLES_METEO[meteo].nom} · ${saison.nom}` }} pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} compacte={!large} commune={commune} />
-        <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS_CARTE} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
-          onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />
-        {/* Sur téléphone, la rangée de boutons passe sous la minicarte sans élargir la colonne : le bâtisseur et son objectif gardent leur place. */}
+        {(large || minicarteTelephone) && <Minicarte taille={large ? 168 : 116} batiments={BATIMENTS_CARTE} reperes={reperesCarte} cible={cibleObjectif} lieuCible={lieuObjectif} nomsPnj={NOMS_PNJ} destination={destination} joueur={joueurRef} vue={vueRef} pnj={suiviPnj} nomQuartier={quartierActuel.nom}
+          onBatiment={allerVers} onPoint={point => { lieuEnApproche.current = null; setSelection(null); destination.current = [THREE.MathUtils.clamp(point[0], LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(point[1], LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]; }} />}
+        {/* Sur téléphone, la rangée de boutons passe sous l'horloge (ou la minicarte) sans élargir la colonne : le bâtisseur et
+            son objectif gardent leur place. Le planning s'y ouvre en touchant l'objectif : pas de bouton en double. */}
         <div className={large ? 'flex gap-1.5' : 'absolute right-0 top-full mt-2 flex gap-1.5'}>
-          <BoutonHud libelle="Planning du jour" raccourci="J" actif={menuModes} onClick={() => setMenuModes(v => !v)}>{ICONES.planning}</BoutonHud>
+          {large && <BoutonHud libelle="Planning du jour" raccourci="J" actif={menuModes} onClick={() => setMenuModes(v => !v)}>{ICONES.planning}</BoutonHud>}
           <BoutonHud libelle="Plan et lieux" raccourci="M" actif={plan} onClick={() => { setPlan(v => !v); setOptions(false); setSelection(null); }}>{ICONES.carte}</BoutonHud>
           <span className="relative"><BoutonHud libelle="Téléphone" raccourci="T" actif={Boolean(telephone)} onClick={() => setTelephone(v => v ? null : 'accueil')}>{ICONES.telephone}</BoutonHud>
             {messagesNonLus > 0 && <span className="pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E2653C] px-1 text-[9.5px] font-bold text-white">{messagesNonLus}</span>}</span>
@@ -1178,10 +1202,11 @@ export function Quartier3D({ nomJoueur: nomCompte, besoins, profil, avatar, lieu
         : !large && <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[.04] px-3 py-2"><span className="text-[13px] text-jeu-ivoire/80">Temps</span><ReglageTemps pause={pause} vitesse={vitesse} vitesses={VITESSES} onPause={() => setPause(v => !v)} onVitesse={v => changerVitesse(v as (typeof VITESSES)[number])} /></div>}
       <button type="button" className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left" aria-label="Changer la caméra" onClick={()=>{setCameraProche(v=>!v);window.dispatchEvent(new Event('btp-camera'));}}>{cameraProche ? 'Passer en caméra libre' : 'Revenir à la vue d’ensemble'}</button>
       {!large && <button type="button" onClick={basculerCroix} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">{croixVisible ? 'Masquer la croix de déplacement' : 'Afficher la croix de déplacement'}</button>}
+      {!large && <button type="button" onClick={basculerMinicarte} className="hud-bouton hud-bouton-verre justify-start px-3 py-2.5 text-left">{minicarteTelephone ? 'Masquer la minicarte' : 'Afficher la minicarte'}</button>}
       <p className="hud-legende px-1">{libelleSauvegarde}</p>
       <div className="rounded-xl bg-black/25 p-3 text-[11.5px] leading-relaxed text-jeu-ivoire/75">
         <p className="hud-legende mb-1.5">Commandes</p>
-        {tactile ? <>Touche un bâtiment, le sol ou la minicarte pour y aller<br />La croix en bas à droite fait marcher ton personnage<br />Les options règlent le temps, la qualité et la caméra</> : <>Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom</>}
+        {tactile ? <>Touche un bâtiment, le sol{large || minicarteTelephone ? ' ou la minicarte' : ''} pour y aller<br />Touche l’objectif pour voir le planning du jour<br />La croix en bas à droite fait marcher ton personnage<br />Les options règlent le temps, la qualité et la caméra</> : <>Bâtiment, sol ou minicarte : y aller<br />ZQSD / flèches : marcher · R : recentrer<br />M : plan · J : planning · O : options<br />P : pause · 1, 2, 3 : vitesse · Échap : fermer<br />{cameraProche ? 'Vue d’ensemble : angle fixe' : 'Glisser : tourner'} · Molette : zoom</>}
       </div>
     </section>}
     {plan && <nav aria-label="Lieux du quartier" className={`hud-verre absolute z-30 overflow-y-auto p-4 ${placeDroite('w-[min(340px,calc(100%-296px))]')}`}>

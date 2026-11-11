@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, PROMENEURS_MAX, REGLES_EQUIPE, coequipiersAuChantier, emoteParId, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, nomDuJoueur, promeneurs, surBoucle, voisinsADessiner, voisinsDemo } from './en-ligne';
+import { DUREE_EMOTE_MS, LONGUEUR_MESSAGE, PROMENEURS_MAX, REGLES_EQUIPE, coequipiersAuChantier, coequipiersAuTravail, emoteParId, enumeration, equipeAvec, estCoequipier, invitables, messagePret, messagesDemo, nomDuJoueur, promeneurs, surBoucle, voisinsADessiner, voisinsDemo } from './en-ligne';
 
 describe('le monde en ligne vu du jeu', () => {
   it('parcourt une boucle à vitesse constante et revient au départ', () => {
@@ -81,5 +81,22 @@ describe('les promeneurs de la place', () => {
     ];
     expect(coequipiersAuChantier(membres, 'moi')).toEqual(['Kader']);
     expect(coequipiersAuChantier([], 'moi')).toEqual([]);
+  });
+
+  it('repère aussi les coéquipiers en séance dans un lieu à mentor, où le bonus d’équipe vaut autant (vu à deux comptes)', () => {
+    const membres = [
+      { userId: 'moi', nom: 'Moi', enLigne: true, lieu: 'laboratoire' },
+      { userId: 'y', nom: 'Yao', enLigne: true, lieu: 'laboratoire' },
+      { userId: 'k', nom: 'Kader', enLigne: true, lieu: 'chantier' },
+      { userId: 'a', nom: 'Aya', enLigne: true, lieu: 'maquis' },
+      { userId: 's', nom: 'Seydou', enLigne: false, lieu: 'banque' },
+      { userId: 'r', nom: 'Rose', enLigne: true, lieu: null },
+    ];
+    const bonus = new Set(['chantier', 'laboratoire', 'banque']);
+    // Le maquis ne rapporte rien en équipe ; un coéquipier déconnecté ne compte pas ; le joueur ne se compte pas.
+    expect(coequipiersAuTravail(membres, 'moi', bonus)).toEqual([{ nom: 'Yao', lieu: 'laboratoire' }, { nom: 'Kader', lieu: 'chantier' }]);
+    expect(enumeration(['Yao'])).toBe('Yao');
+    expect(enumeration(['Yao', 'Kader'])).toBe('Yao et Kader');
+    expect(enumeration(['Yao', 'Kader', 'Aya'])).toBe('Yao, Kader et Aya');
   });
 });

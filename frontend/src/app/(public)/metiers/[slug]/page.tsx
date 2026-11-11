@@ -63,7 +63,7 @@ export default async function MetierDetailPage({ params }: Props) {
     <div>
       <section className="texture-beton bg-gradient-to-b from-ivoire to-pierre px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <Link href="/metiers" className="text-sm font-semibold text-terracotta hover:underline">
+          <Link href="/metiers" className="inline-flex min-h-11 items-center text-sm font-semibold text-terracotta hover:underline">
             ← Tous les métiers
           </Link>
           <p className="mt-4 inline-block rounded-full bg-terracotta/10 px-4 py-1 text-sm font-semibold text-terracotta">

@@ -2,7 +2,7 @@
 
 import { Sky, Stars } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { ambianceMeteo, type Meteo } from '@/lib/meteo-monde';
 import { demiCadreOmbres } from '@/lib/camera-monde';
@@ -28,6 +28,9 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
   const couleurSoleil = jour < 0.1 ? '#aac5f5' : crepuscule > 0.3 ? '#ffbd7c' : meteo === 'harmattan' ? '#ffd9a8' : `#${new THREE.Color('#fff0d6').lerp(new THREE.Color('#ffcf8f'), doree * (1 - ambiance.melange)).getHexString()}`;
   // Ambiance plus basse et soleil plus fort : des ombres franches donnent du volume aux façades et aux personnages.
   const intensiteAmbiante = 0.16 + jour * .5;
+  // Le cadre des ombres couvre jusqu'à 180 m de côté : à 2048 px, chaque texel fait près de 9 cm et les ombres des
+  // garde-corps ou des palmes s'effritent. Sur un ordinateur, 4096 px (64 Mo) les rend nettes ; un téléphone garde 2048.
+  const [tailleOmbres] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)').matches ? 4096 : 2048);
   useFrame(({ controls, camera }, delta) => {
     if (ambiance.eclairs && Math.random() < Math.min(delta, .1) * .12) eclair.current = 1;
     eclair.current = Math.max(0, eclair.current - delta * 5);
@@ -50,6 +53,6 @@ export function EclairageMonde({ heure, meteo = 'soleil' }: { heure: number; met
     {jour < 0.5 && !couvert && <Stars radius={180} depth={70} count={1200} factor={3} saturation={0.15} fade speed={0.15} />}
     <hemisphereLight ref={ambiante} args={['#c5e0f1', '#75644f', intensiteAmbiante]} />
     <primitive object={cible} />
-    <directionalLight ref={soleil} target={cible} castShadow color={couleurSoleil} intensity={0.4 + jour * 3.2 * ambiance.soleil} position={[70, 90, 45]} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-48} shadow-camera-right={48} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-near={1} shadow-camera-far={230} shadow-normalBias={0.06} shadow-bias={-0.00015} />
+    <directionalLight ref={soleil} target={cible} castShadow color={couleurSoleil} intensity={0.4 + jour * 3.2 * ambiance.soleil} position={[70, 90, 45]} shadow-mapSize-width={tailleOmbres} shadow-mapSize-height={tailleOmbres} shadow-camera-left={-48} shadow-camera-right={48} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-near={1} shadow-camera-far={230} shadow-normalBias={0.06} shadow-bias={-0.00015} shadow-radius={4} />
   </>;
 }

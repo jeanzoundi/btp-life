@@ -65,7 +65,7 @@ export function AutresLieuxRealistes({ slug, directions, destination, onArrivee,
   const style = STYLE[famille];
   const { camera, size } = useThree();
   useEffect(() => { const recul = Math.max(1, 1.2 / (size.width / size.height)); camera.position.set(0, 12 * recul, 12 * recul); camera.lookAt(0,0,0); }, [camera,size.width,size.height]);
-  return <><color attach="background" args={['#29393b']} /><hemisphereLight args={['#edf6fb','#6d6150',1.25]} /><ambientLight intensity={.45} /><directionalLight position={[-4,8,-2]} intensity={2.7} castShadow shadow-mapSize-width={1536} shadow-mapSize-height={1536} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} />
+  return <><color attach="background" args={['#29393b']} /><hemisphereLight args={['#edf6fb','#6d6150',1.25]} /><ambientLight intensity={.45} /><directionalLight position={[-4,8,-2]} intensity={2.7} castShadow shadow-radius={3} shadow-mapSize-width={1536} shadow-mapSize-height={1536} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} />
     <Bloc p={[0,-.14,0]} s={[12,.28,10]} c={style.sol} />{Array.from({length:11},(_,i)=><Bloc key={i} p={[-5+i,.005,0]} s={[.012,.01,9.6]} c="#7d827d" />)}
     <Bloc p={[0,1.4,-4.8]} s={[12,2.8,.18]} c={style.mur} />{[-5.8,5.8].map(x=><Bloc key={x} p={[x,.45,0]} s={[.18,.9,9.6]} c={style.mur} />)}
     {[-3.6,3.6].map(x=><group key={x} position={[x,1.75,-4.68]}><Bloc p={[0,0,0]} s={[2.7,1.35,.05]} c="#80aab0" />{[-1.35,0,1.35].map(a=><Bloc key={a} p={[a,0,.06]} s={[.05,1.45,.06]} c="#f0eee3" />)}</group>)}

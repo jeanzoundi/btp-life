@@ -94,7 +94,7 @@ export function BureauxRealistes({ type, directions, destination, onArrivee }: {
   }, [camera, size.width, size.height]);
   return <>
     <color attach="background" args={['#28383d']} /><hemisphereLight args={['#eaf4fa', '#736450', 1.3]} /><ambientLight intensity={.45} />
-    <directionalLight position={[-4, 8, -2]} intensity={2.6} color="#fff1d9" castShadow shadow-mapSize-width={1536} shadow-mapSize-height={1536} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.035} />
+    <directionalLight position={[-4, 8, -2]} intensity={2.6} color="#fff1d9" castShadow shadow-radius={3} shadow-mapSize-width={1536} shadow-mapSize-height={1536} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.035} />
     <directionalLight position={[3, 5, 7]} intensity={.65} color="#c7e6f0" />
     <Bloc p={[0, -.14, 0]} s={[12, .28, 10]} c="#a8aaa2" />
     {Array.from({ length: 11 }, (_, i) => <Bloc key={i} p={[-5 + i, .006, 0]} s={[.012, .01, 9.6]} c="#8b918b" />)}

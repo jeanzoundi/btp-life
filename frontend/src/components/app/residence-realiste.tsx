@@ -175,7 +175,7 @@ export function Habitant({ directions, destination, onArrivee, points = POINTS_R
       enRoute.current = false;
       const cible = points[destination % points.length];
       chemin.current = calculerChemin(groupe.current.position, cible);
-      if (!chemin.current.length) notifier.current(Math.hypot(groupe.current.position.x - cible.x, groupe.current.position.z - cible.z) < .2 ? cible.detail : 'Passage inaccessible. Déplacez-vous puis réessayez.');
+      if (!chemin.current.length) notifier.current(Math.hypot(groupe.current.position.x - cible.x, groupe.current.position.z - cible.z) < .2 ? cible.detail : 'Passage inaccessible : déplace-toi un peu, puis réessaie.');
     }
   }, [destination, points, calculerChemin]);
   const objetVise = usage?.phase === 'trajet' ? usage.objet : null;
@@ -235,15 +235,16 @@ export function ResidenceRealiste({ directions, destination, onArrivee, interact
   const { camera, size } = useThree();
   const cible = useMemo(() => new THREE.Vector3(0, 0, 0), []);
   useEffect(() => {
-    // Fit the complete apartment on portrait screens instead of clipping its rooms.
-    const recul = Math.max(1, 1.2 / (size.width / size.height));
+    // Tout l'appartement tient sur un écran en hauteur, sans couper de pièce : à 1,2, il n'occupait que 60 % de la largeur
+    // d'un téléphone (audit des intérieurs) ; à 0,9, environ 85 %, avec encore une marge de chaque côté.
+    const recul = Math.max(1, .9 / (size.width / size.height));
     camera.position.set(0, 12 * recul, 12 * recul); camera.lookAt(cible);
   }, [camera, size.width, size.height, cible]);
   const enCours = interactions?.usage?.phase === 'action' ? interactions.usage.action.id : null;
   return <>
     <color attach="background" args={['#343d3c']} />
     <hemisphereLight args={['#e6f0f4', '#7b6651', 1.3]} /><ambientLight intensity={.45} />
-    <directionalLight position={[-3, 8, -3]} intensity={3} color="#fff1d5" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.035} />
+    <directionalLight position={[-3, 8, -3]} intensity={3} color="#fff1d5" castShadow shadow-radius={3} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.035} />
     <directionalLight position={[2, 5, 8]} intensity={.7} color="#d4e5ee" />
     <Appartement teleAllumee={enCours === 'tele'} /><VieInterieure type="habitation" />
     {interactions && <ZonesObjets objets={interactions.objets} selection={interactions.selection} usage={interactions.usage} onChoisir={interactions.onChoisir} />}

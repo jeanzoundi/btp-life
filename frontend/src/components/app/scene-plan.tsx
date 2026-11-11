@@ -72,11 +72,11 @@ export const ScenePlan = memo(function ScenePlan({ plan, decor, hote, postes, as
     {interieur ? <>
       <color attach="background" args={['#241E19']} /><fog attach="fog" args={['#241E19', 34, 70]} />
       <hemisphereLight args={['#FFF6E6', '#5A4A3C', 1.15]} /><ambientLight intensity={.32} />
-      <directionalLight castShadow position={[7, 15, 9]} intensity={2.1} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-16} shadow-camera-right={16} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.0004} />
+      <directionalLight castShadow shadow-radius={3} position={[7, 15, 9]} intensity={2.1} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-16} shadow-camera-right={16} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.0004} />
     </> : <>
       <color attach="background" args={['#AFCFE2']} /><fog attach="fog" args={['#CBDDE6', 48, 120]} />
       <hemisphereLight args={['#FFF4DE', '#7A5A3C', 1.05]} /><ambientLight intensity={.22} />
-      <directionalLight castShadow position={[14, 24, 12]} intensity={2.7} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-24} shadow-camera-right={24} shadow-camera-top={20} shadow-camera-bottom={-20} shadow-bias={-.0004} />
+      <directionalLight castShadow shadow-radius={3} position={[14, 24, 12]} intensity={2.7} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-24} shadow-camera-right={24} shadow-camera-top={20} shadow-camera-bottom={-20} shadow-bias={-.0004} />
     </>}
     <Abords plan={plan} />
     {decor}

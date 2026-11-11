@@ -115,6 +115,14 @@ export const ETAT_EQUIPE_VIDE: EtatEquipe = { equipe: null, invitations: [] };
 export const coequipiersAuChantier = (membres: readonly MembreEquipe[], moi?: string | null) =>
   membres.filter(m => m.userId !== moi && m.enLigne && m.lieu === 'chantier').map(m => m.nom);
 
+/** Les coéquipiers connectés qui travaillent dans un lieu où l'équipe rapporte +10 % d'XP (sans le joueur lui-même) : une
+ * séance d'un lieu à mentor (lieux.service.ts) ou la journée du Grand chantier (journee-chantier.service.ts). */
+export const coequipiersAuTravail = (membres: readonly MembreEquipe[], moi: string | null | undefined, lieuxBonus: ReadonlySet<string>) =>
+  membres.filter(m => m.userId !== moi && m.enLigne && m.lieu !== null && lieuxBonus.has(m.lieu)).map(m => ({ nom: m.nom, lieu: m.lieu as string }));
+
+/** Des prénoms à lire : « Yao », « Yao et Kader », « Yao, Kader et Awa ». */
+export const enumeration = (noms: readonly string[]) => noms.length < 2 ? (noms[0] ?? '') : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
+
 export const estCoequipier = (equipe: EquipeQuartier | null, userId: string) => Boolean(equipe?.membres.some(m => m.userId === userId));
 /** Les voisins à qui proposer l'équipe : ceux qui n'en font pas déjà partie, tant qu'il reste de la place. */
 export function invitables(voisins: readonly VoisinEnLigne[], equipe: EquipeQuartier | null) {

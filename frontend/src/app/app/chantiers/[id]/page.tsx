@@ -89,9 +89,10 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
   const [livraison, setLivraison] = useState(false);
   const verrouAction = useRef(false);
 
-  const { data: uc, isLoading } = useQuery({
+  const { data: uc, isLoading, isError } = useQuery({
     queryKey: ['chantier', id],
     queryFn: () => api.get<UserChantierDetail>(`/chantiers/mine/${id}`),
+    retry: 1,
   });
 
   function rafraichir() {
@@ -141,6 +142,16 @@ export default function ChantierDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // Un chantier qui n'est pas (ou plus) le sien, ou un lien périmé : on le dit, au lieu de laisser les squelettes à l'écran.
+  if (isError || (!isLoading && !uc)) {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-pierre p-8 text-center">
+        <p className="text-4xl">🏗️</p>
+        <p className="mt-2 text-sm text-graphite/60">Ce chantier n’est pas dans ta liste, ou le lien n’est plus valable.</p>
+        <Link href="/app/chantiers" className="mt-3 inline-block rounded-full bg-terracotta px-5 py-2 text-sm font-semibold text-ivoire">Voir mes chantiers</Link>
+      </div>
+    );
+  }
   if (isLoading || !uc) {
     return (
       <div className="mx-auto max-w-6xl space-y-4">

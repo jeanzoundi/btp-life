@@ -119,7 +119,7 @@ export default function EntreprisePage() {
             progressé au-delà des tout premiers postes de ta filière actuelle.
             {typeof carriere?.niveau === 'number' && <> Niveau actuel : {carriere.niveau}.</>}
           </p>
-          <Link href="/app" className="block text-xs text-graphite/40 hover:underline">
+          <Link href="/app" className="inline-block py-2.5 text-xs text-graphite/40 hover:underline">
             ← Retour au tableau de bord
           </Link>
         </div>
@@ -148,7 +148,7 @@ export default function EntreprisePage() {
         >
           {devenirEntrepreneur.isPending ? 'Création…' : 'Créer mon entreprise'}
         </button>
-        <Link href="/app" className="block text-xs text-graphite/40 hover:underline">
+        <Link href="/app" className="inline-block py-2.5 text-xs text-graphite/40 hover:underline">
           ← Retour au tableau de bord
         </Link>
       </div>

@@ -134,7 +134,7 @@ const SceneChantier = memo(function SceneChantier({ etat, equipe, postes, livrai
   return <>
     <color attach="background" args={['#AFCFE2']} /><fog attach="fog" args={['#CBDDE6', 48, 120]} />
     <hemisphereLight args={['#FFF4DE', '#7A5A3C', 1.05]} /><ambientLight intensity={.22} />
-    <directionalLight castShadow position={[14, 24, 12]} intensity={2.7} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-24} shadow-camera-right={24} shadow-camera-top={20} shadow-camera-bottom={-20} shadow-bias={-.0004} />
+    <directionalLight castShadow shadow-radius={3} position={[14, 24, 12]} intensity={2.7} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-24} shadow-camera-right={24} shadow-camera-top={20} shadow-camera-bottom={-20} shadow-bias={-.0004} />
     {/* Latérite compactée de la parcelle, cliquable pour marcher ; au-delà, la rue et le quartier. */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={sol}><planeGeometry args={[PARCELLE.demiLargeur * 2, PARCELLE.demiProfondeur * 2]} /><MateriauMonde type="concrete_floor" couleur="#A46F50" echelle={5} relief={.9} rugosite={1} /></mesh>
     {[-1.1, 1.1].map(x => <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, .006, 7.4]} receiveShadow><planeGeometry args={[.7, 9]} /><meshStandardMaterial color="#6E4A35" roughness={1} transparent opacity={.45} /></mesh>)}

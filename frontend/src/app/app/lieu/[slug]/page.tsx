@@ -60,7 +60,7 @@ export default function LieuPage({ params }: { params: Promise<{ slug: string }>
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6">
-      <LienMonde slug={slug} className="inline-flex items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
+      <LienMonde slug={slug} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-graphite/60 hover:text-terracotta">
         🌍 Y aller dans le monde vivant →
       </LienMonde>
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import * as THREE from 'three';
 import type { V3 } from '@/lib/architecture-ville';
 import type { Assise, Point } from '@/lib/navigation-plan';
+import { useEcranTactile } from '@/lib/ecran-tactile';
 import { HumainJoueur } from './personnage-joueur';
 
 // Joueur des intérieurs « à programme » (chantier, laboratoire, dépôt, mairie) : clavier relatif à la caméra,
@@ -31,12 +32,20 @@ export function useCommandesInterieur(directions: Set<Direction>, rappels: Mutab
   }, [directions, rappels]);
 }
 
+const LIBELLES_DIRECTIONS: Record<Direction, string> = { avant: 'Avancer', arriere: 'Reculer', gauche: 'Aller à gauche', droite: 'Aller à droite' };
+
+/** Un bouton de la croix : on marche tant qu'il est enfoncé. Un appui long ne sélectionne rien, ne fait pas défiler la page
+ * et n'ouvre pas de menu (téléphone). */
 export function BoutonDirection({ d, symbole, directions }: { d: Direction; symbole: string; directions: Set<Direction> }) {
-  return <button aria-label={d} className="hud-verre hud-bouton h-11 w-11 rounded-xl text-lg" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); }} onPointerUp={() => directions.delete(d)} onPointerCancel={() => directions.delete(d)}>{symbole}</button>;
+  return <button type="button" aria-label={LIBELLES_DIRECTIONS[d]} className="hud-verre hud-bouton h-11 w-11 touch-none select-none rounded-xl text-lg"
+    onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); directions.add(d); }} onPointerUp={() => directions.delete(d)} onPointerCancel={() => directions.delete(d)}
+    onContextMenu={e => e.preventDefault()}>{symbole}</button>;
 }
 
+/** La croix des intérieurs : sur tout écran tactile (une tablette n'a pas de clavier non plus), et sur un écran étroit. */
 export function CroixDirections({ directions }: { directions: Set<Direction> }) {
-  return <div className="absolute bottom-5 left-5 grid grid-cols-3 gap-1.5 sm:hidden"><span /><BoutonDirection d="avant" symbole="▲" directions={directions} /><span /><BoutonDirection d="gauche" symbole="◀" directions={directions} /><BoutonDirection d="arriere" symbole="▼" directions={directions} /><BoutonDirection d="droite" symbole="▶" directions={directions} /></div>;
+  const tactile = useEcranTactile();
+  return <div className={`absolute bottom-5 left-5 grid grid-cols-3 gap-1.5 ${tactile ? '' : 'sm:hidden'}`}><span /><BoutonDirection d="avant" symbole="▲" directions={directions} /><span /><BoutonDirection d="gauche" symbole="◀" directions={directions} /><BoutonDirection d="arriere" symbole="▼" directions={directions} /><BoutonDirection d="droite" symbole="▶" directions={directions} /></div>;
 }
 
 /** Le joueur : clavier relatif à la caméra, ou trajet calculé ; à la fin du trajet vers un poste visé, on prévient. */

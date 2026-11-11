@@ -101,11 +101,12 @@ export function CapObjectif({ texte, etiquette, cible, joueur, vue, ouvert, onCl
     <span ref={metres} className="hud-chiffre">…</span>
   </span>;
   // Sur téléphone : la légende et la distance sur une ligne (la distance prime sur le compteur, déjà visible dans le
-  // planning), puis l'objectif sur toute la largeur.
-  if (compacte) return <button type="button" aria-expanded={ouvert} aria-label={`Objectif : ${texte}`} onClick={onClick} className="hud-verre pointer-events-auto flex w-full min-w-0 flex-col gap-0.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors hover:border-jeu-or/50">
+  // planning), puis l'objectif sur toute la largeur. Le planning du jour s'ouvre ici (pas de bouton à part) : la petite
+  // flèche le dit.
+  if (compacte) return <button type="button" aria-expanded={ouvert} aria-label={`Objectif : ${texte}`} title="Ouvrir le planning du jour" onClick={onClick} className="hud-verre pointer-events-auto flex w-full min-w-0 flex-col gap-0.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors hover:border-jeu-or/50">
     <span className="flex items-center gap-1.5">
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EE7A4E,#CF532D)] text-white [&_svg]:h-3 [&_svg]:w-3">{ICONES.cible}</span>
-      <span className="hud-legende flex-1 text-[9px]">Objectif</span>
+      <span className="hud-legende flex-1 text-[9px]">Objectif <span aria-hidden="true" className={`inline-block text-jeu-or/80 transition-transform ${ouvert ? 'rotate-180' : ''}`}>▾</span></span>
       {direction || (etiquette && <span className="hud-chiffre shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{etiquette}</span>)}
     </span>
     <span className="line-clamp-2 text-[12px] font-bold leading-tight">{texte}</span>
@@ -230,7 +231,8 @@ export function PileNotifications({ notifications, onFermer, max }: {
           <p className="text-[12.5px] font-semibold leading-snug">{n.texte}</p>
           {n.action && <button type="button" onClick={() => { n.action!.executer(); onFermer(n.id); }} className="hud-bouton hud-bouton-principal mt-2 px-3 py-1.5 text-[12px]">{n.action.label}</button>}
         </div>
-        <button type="button" aria-label="Fermer la notification" onClick={() => onFermer(n.id)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] text-jeu-ivoire/45 hover:bg-white/10 hover:text-jeu-ivoire">✕</button>
+        {/* 40 px de cible pour un doigt (24 px avant, relevé à l'audit des intérieurs), sans élargir la carte. */}
+        <button type="button" aria-label="Fermer la notification" onClick={() => onFermer(n.id)} className="-mr-1.5 -mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] text-jeu-ivoire/45 hover:bg-white/10 hover:text-jeu-ivoire">✕</button>
       </div>;
     })}
   </div>;

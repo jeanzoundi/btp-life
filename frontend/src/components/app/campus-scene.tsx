@@ -100,7 +100,7 @@ function Joueur({directions,destination,vue,angle,onPosition,onProximite,onMessa
       const hauteur=hauteurEscalier(p.x,p.z);p.y=hauteur??p.etage*H;
       if(p.y>H-.12)p.etage=1;else if(p.y<.12)p.etage=0;
       if(ref.current)ref.current.rotation.y=Math.atan2(dx,dz);
-      if(!manuel&&point&&Math.hypot(point.x-p.x,point.z-p.z)<.12){route.current.shift();if(!route.current.length)onMessage('Vous êtes arrivé. Approchez un personnage ou choisissez une activité.');}
+      if(!manuel&&point&&Math.hypot(point.x-p.x,point.z-p.z)<.12){route.current.shift();if(!route.current.length)onMessage('Tu es arrivé. Approche-toi d’un personnage ou choisis une activité.');}
     }
     if(marchait.current!==bouge){marchait.current=bouge;setMarche(bouge);}
     if(ref.current)ref.current.position.set(p.x,p.y,p.z);
@@ -119,7 +119,7 @@ export function CampusScene(props:SceneProps){
     <RefletsMonde/>
     <color attach="background" args={['#b6c6c7']}/><fog attach="fog" args={['#b6c6c7',65,150]}/>
     <hemisphereLight args={['#e3eff2','#7c8b82',.9]}/><ambientLight intensity={.2}/>
-    <directionalLight position={[15,28,18]} intensity={2.4} castShadow shadow-mapSize={[2048,2048]} shadow-camera-left={-34} shadow-camera-right={34} shadow-camera-top={40} shadow-camera-bottom={-30} shadow-bias={-.0003}/>
+    <directionalLight position={[15,28,18]} intensity={2.4} castShadow shadow-radius={3} shadow-mapSize={[2048,2048]} shadow-camera-left={-34} shadow-camera-right={34} shadow-camera-top={40} shadow-camera-bottom={-30} shadow-bias={-.0003}/>
     <Box p={[0,-.5,7]} s={[62,.5,67]} c="#899e7f"/>
     {([0,1] as const).map(n=><group key={n} position={[0,n*H,0]} visible={n<=niveau}>
       {/* The upper level has an actual staircase opening. */}
