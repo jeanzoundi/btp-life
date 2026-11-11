@@ -13,6 +13,7 @@ import { avatarItemsData } from './seed-data/avatar-items-data';
 import { DEFIS_JOUR, DEFIS_SEMAINE, IMPREVUS } from './seed-data/defis-data';
 import { OFFRES_EMPLOI, PROFILS_EXPERTS, REGLES_EXPERTS, certificatsDuJeu } from './seed-data/carriere-data';
 import { PNJ_DU_JEU } from './seed-data/pnj-data';
+import { PAGES_LEGALES } from './seed-data/pages-legales-data';
 
 const prisma = new PrismaClient();
 
@@ -797,10 +798,8 @@ async function main() {
 
   console.log('Seed — pages CMS...');
   const pages = [
-    { slug: 'cgu', titre: 'CGU', contenu: { texte: 'Conditions générales d\'utilisation de BTP Life.' } },
-    { slug: 'confidentialite', titre: 'Confidentialité', contenu: { texte: 'Politique de confidentialité et RGPD.' } },
-    { slug: 'mentions-legales', titre: 'Mentions légales', contenu: { texte: 'Éditeur : BTP Life. Hébergeur : à préciser.' } },
-    { slug: 'cookies', titre: 'Cookies', contenu: { texte: 'Politique de gestion des cookies.' } },
+    // Mentions légales, CGU, confidentialité et cookies : seed-data/pages-legales-data.ts.
+    ...PAGES_LEGALES.map(p => ({ slug: p.slug, titre: p.titre, contenu: { texte: p.texte } })),
     {
       slug: 'avertissement',
       titre: 'Avertissement pédagogique',
