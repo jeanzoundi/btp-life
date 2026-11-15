@@ -3,6 +3,7 @@
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { MateriauFeuillage, VentMonde } from './vent-monde';
 import { Billboard, Text } from '@react-three/drei';
 import { LIMITES_VILLE, QUARTIERS } from '@/lib/ville';
 import { ArbresAbidjan, EauLagune, JardinsUrbains } from './ambiance-lagune';
@@ -111,7 +112,7 @@ function FeuillagePalmier() {
     ref.current.computeBoundingSphere();
   }, []);
   return <instancedMesh ref={ref} args={[geometry, undefined, FOLIOLES_PAR_PALMIER]} castShadow receiveShadow>
-    <meshStandardMaterial roughness={.92} side={THREE.DoubleSide} />
+    <MateriauFeuillage rugosite={.92} amplitude={.16} deuxFaces />
   </instancedMesh>;
 }
 
@@ -141,7 +142,7 @@ const Palmiers = memo(function Palmiers({ palmiers }: { palmiers: readonly { p: 
   }, [palmiers]);
   return <group>
     <instancedMesh ref={troncs} args={[undefined, undefined, palmiers.length]} castShadow><cylinderGeometry args={[0.13, 0.26, 5, 12]} /><meshStandardMaterial color="#887053" roughness={1} /></instancedMesh>
-    <instancedMesh ref={folioles} args={[geometrie, undefined, palmiers.length * FOLIOLES_PAR_PALMIER]} castShadow receiveShadow><meshStandardMaterial roughness={.92} side={THREE.DoubleSide} /></instancedMesh>
+    <instancedMesh ref={folioles} args={[geometrie, undefined, palmiers.length * FOLIOLES_PAR_PALMIER]} castShadow receiveShadow><MateriauFeuillage rugosite={.92} amplitude={.16} deuxFaces /></instancedMesh>
     <instancedMesh ref={noix} args={[undefined, undefined, palmiers.length * 2]} castShadow><sphereGeometry args={[.18, 8, 6]} /><meshStandardMaterial color="#697341" roughness={1} /></instancedMesh>
   </group>;
 });
@@ -297,7 +298,7 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
   const sol = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (e.delta < 5) onDestination([THREE.MathUtils.clamp(e.point.x, LIMITES_VILLE.minX, LIMITES_VILLE.maxX), THREE.MathUtils.clamp(e.point.z, LIMITES_VILLE.minZ, LIMITES_VILLE.maxZ)]); };
   const nuit = heure >= 19 || heure < 6;
   return <group onClick={sol}>
-    <EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
+    <VentMonde pause={pause} /><EauLagune pause={pause} /><JardinsUrbains /><ParcsMonde/>
     <DetailsAbidjan pause={pause} rythme={rythme} />
     <FlaquesLumiere points={TACHES_LUMIERE} nuit={nuit} />
     {FLAMBOYANTS_CENTRE.map(([x, z]) => <mesh key={`${x}-${z}`} position={[x, .22, z]} receiveShadow><cylinderGeometry args={[1.6, 1.8, .44, 10]} /><meshStandardMaterial color="#ada78f" /></mesh>)}

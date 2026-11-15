@@ -1,6 +1,7 @@
 'use client';
 import { useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { MateriauFeuillage } from './vent-monde';
 
 const ILOTS=[[-22,-51],[22,-51],[-29,44],[29,44],[-114,-92],[114,-92]];
 const ARBRES=ILOTS.flatMap(([x,z])=>[[-5,-4],[5,-4],[-5,4]].map(([dx,dz])=>[x+dx,z+dz]));
@@ -27,6 +28,6 @@ export function ParcsMonde(){
       {[-1,1].map(side=><mesh key={side} position={[side*6.9,.04,0]}><boxGeometry args={[.15,.2,12]}/><meshStandardMaterial color="#bcbcaf"/></mesh>)}
     </group>)}
     <instancedMesh ref={troncs} args={[undefined,undefined,ARBRES.length]} castShadow><cylinderGeometry args={[.7,1,1,8]}/><meshStandardMaterial color="#65523b" roughness={.95}/></instancedMesh>
-    <instancedMesh ref={feuillage} args={[undefined,undefined,ARBRES.length*40]} castShadow receiveShadow><sphereGeometry args={[1,8,6]}/><meshStandardMaterial roughness={.92}/></instancedMesh>
+    <instancedMesh ref={feuillage} args={[undefined,undefined,ARBRES.length*40]} castShadow receiveShadow><sphereGeometry args={[1,8,6]}/><MateriauFeuillage rugosite={.92} amplitude={.08}/></instancedMesh>
   </group>;
 }

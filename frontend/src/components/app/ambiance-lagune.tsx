@@ -3,6 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { MateriauFeuillage } from './vent-monde';
 
 /** Une seule géométrie animée pour toute la lagune, sans lumières supplémentaires. */
 export function EauLagune({ pause }: { pause: boolean }) {
@@ -60,7 +61,7 @@ export function ArbresAbidjan({ arbres, flamboyants = false }: { arbres: readonl
   return <group>
     <instancedMesh ref={troncs} args={[undefined, undefined, arbres.length]} castShadow><cylinderGeometry args={[.7, 1, 1, 9]} /><meshStandardMaterial color="#5E4A36" roughness={.95} /></instancedMesh>
     <instancedMesh ref={branches} args={[undefined, undefined, arbres.length * 3]} castShadow><cylinderGeometry args={[.6, 1, 1, 7]} /><meshStandardMaterial color="#5E4A36" roughness={.95} /></instancedMesh>
-    <instancedMesh ref={feuilles} args={[undefined, undefined, arbres.length * FEUILLES_PAR_ARBRE]} castShadow receiveShadow><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial roughness={.9} /></instancedMesh>
+    <instancedMesh ref={feuilles} args={[undefined, undefined, arbres.length * FEUILLES_PAR_ARBRE]} castShadow receiveShadow><sphereGeometry args={[1, 8, 6]} /><MateriauFeuillage rugosite={.9} amplitude={.07} /></instancedMesh>
   </group>;
 }
 
