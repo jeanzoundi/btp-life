@@ -9,7 +9,10 @@ import { avancerTrafic } from '@/lib/fluidite-monde';
 import { phaseSignal } from '@/lib/itineraire-ville';
 import { vehiculesEnCirculation } from '@/lib/vie-urbaine';
 import { HumainMonde } from './humain-monde';
-import { VoitureMonde } from './vehicule-monde';
+import { VoitureMonde, type ModeleVoiture } from './vehicule-monde';
+
+/** Le gabarit d'une voiture d'après sa place : deux berlines pour une citadine et un pick-up, comme dans la rue. */
+const modeleVoiture = (graine: number): ModeleVoiture => (['berline', 'citadine', 'berline', 'pickup'] as const)[Math.abs(Math.round(graine)) % 4];
 import { BusMonde, GbakaMonde, MotoMonde, TaxiMonde } from './vehicules-abidjan';
 
 // La rue d'Abidjan autour du joueur : la circulation à droite, le bus qui marque ses arrêts, les gbakas et les taxis,
@@ -55,7 +58,7 @@ const FILES = new Map<string, Map<object, { position: number; longueur: number }
 const filePour = (id: string) => { let f = FILES.get(id); if (!f) { f = new Map(); FILES.set(id, f); } return f; };
 const ATTENTE_ARRET = 4;
 
-function VehiculeVoie({ voie, depart, type, couleur, pause, rythme }: { voie: Voie; depart: number; type: TypeCirculant; couleur?: string; pause: boolean; rythme: number }) {
+function VehiculeVoie({ voie, depart, type, couleur, pause, rythme, nuit }: { voie: Voie; depart: number; type: TypeCirculant; couleur?: string; pause: boolean; rythme: number; nuit: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const vitesse = useRef(0), cle = useRef({}), attente = useRef(0), servi = useRef<number | null>(null);
   const longueur = GABARITS_VEHICULES[type].longueur * ECHELLE_PERSONNAGES;
@@ -92,7 +95,7 @@ function VehiculeVoie({ voie, depart, type, couleur, pause, rythme }: { voie: Vo
   const position: [number, number, number] = voie.axe === 'x' ? [depart, 0, voie.ligne] : [voie.ligne, 0, depart];
   return <group ref={ref} position={position} rotation={[0, rotation, 0]}>
     <group scale={ECHELLE_PERSONNAGES}>
-      {type === 'bus' ? <BusMonde roulage={vitesse} /> : type === 'gbaka' ? <GbakaMonde couleur={couleur} roulage={vitesse} /> : type === 'taxi' ? <TaxiMonde roulage={vitesse} /> : <VoitureMonde couleur={couleur} roulage={vitesse} />}
+      {type === 'bus' ? <BusMonde roulage={vitesse} nuit={nuit} /> : type === 'gbaka' ? <GbakaMonde couleur={couleur} roulage={vitesse} nuit={nuit} /> : type === 'taxi' ? <TaxiMonde roulage={vitesse} nuit={nuit} /> : <VoitureMonde couleur={couleur} roulage={vitesse} nuit={nuit} modele={modeleVoiture(depart)} />}
     </group>
   </group>;
 }
@@ -100,17 +103,18 @@ function VehiculeVoie({ voie, depart, type, couleur, pause, rythme }: { voie: Vo
 /** Toute la circulation de la ville, selon l'heure : le bus de 5 h à 22 h, les autres véhicules plus ou moins nombreux. */
 export const CirculationVille = memo(function CirculationVille({ pause, rythme, heure = 12 }: { pause: boolean; rythme: number; heure?: number }) {
   const autres = vehiculesEnCirculation(heure, CIRCULATION.length) - 1;
+  const nuit = heure >= 18.5 || heure < 6.2;
   let rang = 0;
   return <>{CIRCULATION.map((v, i) => {
     const present = v.type === 'bus' ? heure >= 5 && heure < 22 : rang++ < autres;
-    return present ? <VehiculeVoie key={i} voie={VOIES[v.voie]} depart={v.depart} type={v.type} couleur={v.couleur} pause={pause} rythme={rythme} /> : null;
+    return present ? <VehiculeVoie key={i} voie={VOIES[v.voie]} depart={v.depart} type={v.type} couleur={v.couleur} pause={pause} rythme={rythme} nuit={nuit} /> : null;
   })}</>;
 });
 
 /** Véhicule garé, à l'échelle de la ville. */
-export function VehiculeGare({ p, r = 0, type, couleur }: { p: [number, number, number]; r?: number; type: TypeCirculant | 'moto'; couleur?: string }) {
+export function VehiculeGare({ p, r = 0, type, couleur, nuit = false }: { p: [number, number, number]; r?: number; type: TypeCirculant | 'moto'; couleur?: string; nuit?: boolean }) {
   return <group position={p} rotation={[0, r, 0]}><group scale={ECHELLE_PERSONNAGES}>
-    {type === 'moto' ? <MotoMonde couleur={couleur} /> : type === 'gbaka' ? <GbakaMonde couleur={couleur} /> : type === 'taxi' ? <TaxiMonde /> : type === 'bus' ? <BusMonde /> : <VoitureMonde couleur={couleur} />}
+    {type === 'moto' ? <MotoMonde couleur={couleur} /> : type === 'gbaka' ? <GbakaMonde couleur={couleur} nuit={nuit} /> : type === 'taxi' ? <TaxiMonde nuit={nuit} /> : type === 'bus' ? <BusMonde nuit={nuit} /> : <VoitureMonde couleur={couleur} nuit={nuit} modele={modeleVoiture(Math.round(p[0]))} />}
   </group></group>;
 }
 

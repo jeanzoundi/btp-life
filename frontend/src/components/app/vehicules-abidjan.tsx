@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, type MutableRefObject } from 'react';
+import { useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { GABARITS_VEHICULES } from '@/lib/echelle-monde';
-import { VoitureMonde } from './vehicule-monde';
+import { silhouetteVehicule, VoitureMonde } from './vehicule-monde';
 
 // Les véhicules des rues d'Abidjan, à leurs vraies dimensions (l'échelle de la ville s'applique autour) : le bus de ligne,
 // le gbaka (minibus collectif), le taxi orange et la moto. Avant vers +x, côté droit (portes) vers +z.
@@ -29,7 +29,7 @@ function Roues({ x, rayon, demiVoie, roulage }: { x: number[]; rayon: number; de
 }
 
 /** Bus de ligne (11 m) : livrée blanche, bande orange et jupe verte, deux portes côté trottoir, girouette lumineuse. */
-export function BusMonde({ ligne = '12 · PLATEAU ↔ LAGUNE', roulage }: { ligne?: string; roulage?: MutableRefObject<number> }) {
+export function BusMonde({ ligne = '12 · PLATEAU ↔ LAGUNE', roulage, nuit = false }: { ligne?: string; roulage?: MutableRefObject<number>; nuit?: boolean }) {
   const { longueur: l, largeur: w } = GABARITS_VEHICULES.bus, hx = l / 2, hz = w / 2;
   return <group>
     <Caisse p={[0, .8, 0]} s={[l, .9, w]} c="#3F8F4E" />
@@ -44,9 +44,9 @@ export function BusMonde({ ligne = '12 · PLATEAU ↔ LAGUNE', roulage }: { lign
     <Vitre p={[hx + .01, 1.95, 0]} s={[.06, 1.45, w - .2]} />
     <mesh position={[hx + .04, 2.86, 0]}><boxGeometry args={[.04, .3, w - .4]} /><meshStandardMaterial color="#1A1208" emissive="#E8A23A" emissiveIntensity={.25} /></mesh>
     <Text position={[hx + .07, 2.86, 0]} rotation={[0, Math.PI / 2, 0]} fontSize={.16} color="#FFC266" anchorX="center" anchorY="middle">{ligne}</Text>
-    {[-1, 1].map(s => <mesh key={s} position={[hx + .02, .72, s * (hz - .3)]}><boxGeometry args={[.04, .16, .34]} /><meshStandardMaterial color="#EDECD8" emissive="#FFF2C5" emissiveIntensity={1.2} /></mesh>)}
+    {[-1, 1].map(s => <mesh key={s} position={[hx + .02, .72, s * (hz - .3)]}><boxGeometry args={[.04, .16, .34]} /><meshStandardMaterial color="#EDECD8" emissive="#FFF2C5" emissiveIntensity={nuit ? 2.2 : .12} /></mesh>)}
     <Vitre p={[-hx - .01, 2.1, 0]} s={[.06, .9, w - .5]} />
-    {[-1, 1].map(s => <mesh key={s} position={[-hx - .02, .9, s * (hz - .25)]}><boxGeometry args={[.04, .3, .22]} /><meshStandardMaterial color="#972B26" emissive="#CD241A" emissiveIntensity={.6} /></mesh>)}
+    {[-1, 1].map(s => <mesh key={s} position={[-hx - .02, .9, s * (hz - .25)]}><boxGeometry args={[.04, .3, .22]} /><meshStandardMaterial color="#972B26" emissive="#CD241A" emissiveIntensity={nuit ? .9 : .25} /></mesh>)}
     {/* Portes côté trottoir, rétroviseurs, passages de roue. */}
     {[hx - 1.2, -.6].map(x => <group key={x}>
       <Vitre p={[x, 1.55, hz + .02]} s={[1.1, 2.1, .04]} />
@@ -58,35 +58,54 @@ export function BusMonde({ ligne = '12 · PLATEAU ↔ LAGUNE', roulage }: { lign
   </group>;
 }
 
-/** Gbaka : le minibus collectif, vert et jaune, galerie chargée de bagages et porte coulissante ouverte côté trottoir. */
-export function GbakaMonde({ couleur = '#2F8F5B', roulage }: { couleur?: string; roulage?: MutableRefObject<number> }) {
+/** Gbaka : le minibus collectif, vert et jaune, en silhouette (nez court, pare-brise incliné, passages de roues), vitres
+ * encastrées, galerie chargée de bagages et porte coulissante ouverte côté trottoir. */
+export function GbakaMonde({ couleur = '#2F8F5B', roulage, nuit = false }: { couleur?: string; roulage?: MutableRefObject<number>; nuit?: boolean }) {
   const { longueur: l, largeur: w } = GABARITS_VEHICULES.gbaka, hx = l / 2, hz = w / 2;
+  const roues = [1.75, -1.55] as const, rayon = .36;
+  const formes = useMemo(() => ({
+    caisse: silhouetteVehicule([[-hx, .5], [-hx, 2.05], [-hx + .15, 2.25], [1.3, 2.28], [1.75, 2.1], [2.3, 1.45], [2.55, 1.2], [hx, .55], [hx - .03, .34], [-hx + .03, .34]], roues, rayon),
+    vitres: [[[1.45, 1.3], [1.15, 1.95], [.35, 2], [.35, 1.3]], [[.25, 1.3], [.25, 2], [-1, 2], [-1, 1.3]], [[-1.1, 1.3], [-1.1, 2], [-2.35, 2], [-2.35, 1.3]]].map(pts => {
+      const s = new THREE.Shape(); pts.forEach(([x, y], i) => i ? s.lineTo(x, y) : s.moveTo(x, y)); s.closePath(); return s;
+    }),
+  }), [hx]);
   return <group>
-    <Caisse p={[-.15, .95, 0]} s={[l - .3, 1.2, w]} c={couleur} />
-    <Caisse p={[-.15, 1.02, 0]} s={[l - .28, .16, w + .02]} c="#F2C230" />
-    <Vitre p={[-.35, 1.78, 0]} s={[l - 1.3, .62, w + .02]} />
-    <Caisse p={[-.3, 2.15, 0]} s={[l - .6, .2, w]} c={couleur} />
-    {/* Nez plongeant et pare-brise incliné du minibus. */}
-    <mesh position={[hx - .45, 1.55, 0]} rotation={[0, 0, -.5]} castShadow><boxGeometry args={[.9, .08, w - .1]} /><meshPhysicalMaterial color="#1c3440" metalness={.6} roughness={.1} clearcoat={1} /></mesh>
-    <Caisse p={[hx - .25, .78, 0]} s={[.5, .86, w - .04]} c={couleur} />
-    {[-1, 1].map(s => <mesh key={s} position={[hx + .01, .82, s * (hz - .3)]}><boxGeometry args={[.04, .14, .28]} /><meshStandardMaterial color="#EDECD8" emissive="#FFF2C5" emissiveIntensity={1.2} /></mesh>)}
-    {[-1, 1].map(s => <mesh key={s} position={[-hx + .14, 1, s * (hz - .2)]}><boxGeometry args={[.04, .26, .18]} /><meshStandardMaterial color="#972B26" emissive="#CD241A" emissiveIntensity={.6} /></mesh>)}
-    {/* Porte coulissante ouverte : l'entrée sombre, et la porte glissée vers l'arrière. */}
-    <Caisse p={[.35, 1.25, hz + .01]} s={[1.05, 1.75, .02]} c="#17191A" metal={0} rugosite={1} />
-    <Caisse p={[-.55, 1.25, hz + .07]} s={[1.05, 1.75, .05]} c={couleur} />
+    <mesh position={[0, 0, -hz]} castShadow receiveShadow>
+      <extrudeGeometry args={[formes.caisse, { depth: w, bevelEnabled: true, bevelSize: .04, bevelThickness: .04, bevelSegments: 2, steps: 1, curveSegments: 10 }]} />
+      <meshPhysicalMaterial color={couleur} metalness={.45} roughness={.32} clearcoat={.8} clearcoatRoughness={.2} />
+    </mesh>
+    {/* Vitres latérales encastrées ; côté trottoir, la porte coulissante est ouverte : l'entrée sombre, la porte glissée. */}
+    {[-1, 1].map(cote => formes.vitres.map((v, i) => (cote > 0 && i === 1) ? null : <mesh key={`${cote}${i}`} position={[0, 0, cote > 0 ? hz + .01 : -hz - .05]} castShadow>
+      <extrudeGeometry args={[v, { depth: .04, bevelEnabled: false }]} /><meshPhysicalMaterial color="#1c3440" metalness={.6} roughness={.1} clearcoat={1} />
+    </mesh>))}
+    <Caisse p={[-.38, 1.22, hz + .01]} s={[1.25, 1.76, .02]} c="#17191A" metal={0} rugosite={1} />
+    <Caisse p={[-1.7, 1.22, hz + .07]} s={[1.25, 1.76, .05]} c={couleur} />
+    <Vitre p={[-1.7, 1.65, hz + .1]} s={[1.1, .7, .02]} />
+    {/* Bande jaune, pare-brise, lunette, rétroviseurs. */}
+    {[-1, 1].map(cote => <Caisse key={cote} p={[-.2, 1.02, cote * (hz + .02)]} s={[l - .6, .16, .02]} c="#F2C230" metal={.2} rugosite={.5} />)}
+    <mesh position={[2.03, 1.78, 0]} rotation={[0, 0, Math.atan2(.63, -.52)]} castShadow><boxGeometry args={[.8, .05, w - .3]} /><meshPhysicalMaterial color="#1c3440" metalness={.6} roughness={.1} clearcoat={1} /></mesh>
+    <Vitre p={[-hx - .01, 1.7, 0]} s={[.05, .7, w - .5]} />
+    {[-1, 1].map(cote => <Caisse key={cote} p={[2.2, 1.5, cote * (hz + .12)]} s={[.16, .14, .2]} c="#1F2426" />)}
+    {/* Phares, feux, pare-chocs, calandre et plaques. */}
+    {[-1, 1].map(s => <mesh key={s} position={[hx + .01, .82, s * (hz - .3)]}><boxGeometry args={[.04, .16, .3]} /><meshStandardMaterial color="#EDECD8" emissive="#FFF2C5" emissiveIntensity={nuit ? 2.2 : .12} /></mesh>)}
+    {[-1, 1].map(s => <mesh key={s} position={[-hx - .01, 1.05, s * (hz - .22)]}><boxGeometry args={[.04, .3, .18]} /><meshStandardMaterial color="#972B26" emissive="#CD241A" emissiveIntensity={nuit ? .9 : .25} /></mesh>)}
+    <Caisse p={[hx - .05, .46, 0]} s={[.14, .22, w - .1]} c="#1d2224" metal={.1} rugosite={.7} />
+    <Caisse p={[-hx + .05, .46, 0]} s={[.14, .22, w - .1]} c="#1d2224" metal={.1} rugosite={.7} />
+    <Caisse p={[hx + .01, 1.08, 0]} s={[.03, .18, .7]} c="#2a3034" metal={.5} rugosite={.5} />
+    <Caisse p={[hx + .03, .66, 0]} s={[.02, .11, .46]} c="#efeee4" metal={0} rugosite={.6} />
     {/* Galerie de toit et bagages ficelés. */}
     {[-1, 1].map(s => <Caisse key={s} p={[-.4, 2.33, s * (hz - .12)]} s={[l - 1.4, .05, .05]} c="#3B3F42" metal={.6} />)}
     {[[-1.3, '#7A4E2D', [.8, .4, .7]], [-.3, '#2F6FB3', [.7, .5, .9]], [.6, '#C1502E', [.6, .35, .6]]].map(([x, c, s]) =>
       <Caisse key={String(x)} p={[x as number, 2.33 + (s as number[])[1] / 2, 0]} s={s as V} c={c as string} metal={0} rugosite={.9} />)}
-    <Roues x={[1.6, -1.55]} rayon={.34} demiVoie={hz - .2} roulage={roulage} />
+    <Roues x={[...roues]} rayon={rayon} demiVoie={hz - .2} roulage={roulage} />
   </group>;
 }
 
 /** Taxi « compteur » orange, lumineux de toit compris. */
-export function TaxiMonde({ roulage }: { roulage?: MutableRefObject<number> }) {
+export function TaxiMonde({ roulage, nuit = false }: { roulage?: MutableRefObject<number>; nuit?: boolean }) {
   return <group>
-    <VoitureMonde couleur="#E8742B" roulage={roulage} />
-    <mesh position={[-.1, 1.55, 0]} castShadow><boxGeometry args={[.7, .22, .3]} /><meshStandardMaterial color="#FFF4D6" emissive="#F2C230" emissiveIntensity={.5} /></mesh>
+    <VoitureMonde couleur="#E8742B" roulage={roulage} nuit={nuit} />
+    <mesh position={[-.1, 1.55, 0]} castShadow><boxGeometry args={[.7, .22, .3]} /><meshStandardMaterial color="#FFF4D6" emissive="#F2C230" emissiveIntensity={nuit ? 1.6 : .35} /></mesh>
     {[-1, 1].map(s => <Text key={s} position={[-.1, 1.55, s * .16]} rotation={[0, s > 0 ? 0 : Math.PI, 0]} fontSize={.13} color="#2A1C0E" anchorX="center" anchorY="middle">TAXI</Text>)}
   </group>;
 }

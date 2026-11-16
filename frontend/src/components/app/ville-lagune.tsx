@@ -32,8 +32,9 @@ function Bloc({ p, s, c, r = 0, e, m }: { p: V; s: V; c: string; r?: number; e?:
   return <mesh position={p} rotation={[0, r, 0]} castShadow receiveShadow><boxGeometry args={s} />{e?<meshStandardMaterial color={c} emissive={e} emissiveIntensity={.65}/>:m?<MateriauMonde type={m} couleur={c} echelle={1.6} relief={.9} rugosite={.65} metal={.45}/>:<SurfaceBloc dimensions={s} couleur={c} mouillable/>}</mesh>;
 }
 
-function VoitureStationnee({ p, r = 0, c }: { p: V; r?: number; c: string }) {
-  return <group position={p} rotation={[0,r,0]}><group scale={ECHELLE_PERSONNAGES}><VoitureMonde couleur={c}/></group></group>;
+function VoitureStationnee({ p, r = 0, c, nuit = false }: { p: V; r?: number; c: string; nuit?: boolean }) {
+  const modele = (['berline', 'pickup', 'citadine', 'berline'] as const)[Math.abs(Math.round(p[0] + p[2])) % 4];
+  return <group position={p} rotation={[0,r,0]}><group scale={ECHELLE_PERSONNAGES}><VoitureMonde couleur={c} modele={modele} nuit={nuit}/></group></group>;
 }
 function VoitureStationneeAncienne({ p, r = 0, c }: { p: V; r?: number; c: string }) {
   return <group position={p} rotation={[0, r, 0]}>
@@ -319,13 +320,13 @@ export const PaysageLagune = memo(function PaysageLagune({ onDestination, pause 
     <Palmiers palmiers={PALMIERS} />
     {/* Arrêts du bus de ligne sur l'avenue du Plateau (il s'y arrête), gare des gbakas à l'ouest, côté Jardins. */}
     {ARRETS_BUS.map(({ p: [x, z], r }) => <ArretBus key={`${x}-${z}`} p={[x, 0.1, z]} r={r} />)}
-    {GBAKAS_GARES.map(({ p: [x, z], couleur }) => <VehiculeGare key={x} p={[x, 0, z]} type="gbaka" couleur={couleur} />)}
+    {GBAKAS_GARES.map(({ p: [x, z], couleur }) => <VehiculeGare key={x} p={[x, 0, z]} type="gbaka" couleur={couleur} nuit={nuit} />)}
     <LigneElectrique z={POTEAUX_ELECTRIQUES.z} poteaux={POTEAUX_ELECTRIQUES.x} />
     {PANNEAUX_RUE.map(({ p: [x, z], texte }) => <PanneauRue key={texte} p={[x, 0, z]} texte={texte} />)}
     {PANNEAUX_AFFICHAGE.map(({ p: [x, z], r, titre, texte, couleur }) => <PanneauAffichage key={titre} p={[x, 0, z]} r={r} titre={titre} texte={texte} couleur={couleur} />)}
     <Bloc p={[-31.5, 0.08, -15.2]} s={[17, 0.05, 3.2]} c="#666b69" />
     <Bloc p={[31.5, 0.08, -74]} s={[22, 0.05, 5.5]} c="#666b69" />
-    {VOITURES_GAREES.map(({ p: [x, z], couleur }) => <VoitureStationnee key={`${x}-${z}`} p={[x, 0, z]} c={couleur} />)}
+    {VOITURES_GAREES.map(({ p: [x, z], couleur }) => <VoitureStationnee key={`${x}-${z}`} p={[x, 0, z]} c={couleur} nuit={nuit} />)}
     <PlaceCentrale artistique={artistique} />
     {/* Le commerce du trottoir, au sud de l'avenue de la Lagune, et les motos garées à côté. */}
     {ETALS_RUE.map(({ x, couleur }, i) => <EtalRue key={x} p={[x, 0.1, Z_ETALS]} r={Math.PI} couleur={couleur} vendeuse={i} />)}
