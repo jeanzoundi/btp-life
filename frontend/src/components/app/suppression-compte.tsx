@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 
 /** Supprimer son compte depuis les paramètres. Un premier clic ouvre la confirmation : elle dit ce qui disparaît et demande
- * le mot de passe, que le serveur vérifie (il refuse aussi les comptes d'administration et École ou Entreprise). */
-export function SuppressionCompte({ onSupprime }: { onSupprime: () => void | Promise<void> }) {
+ * le mot de passe, ou le mot SUPPRIMER pour un compte entré par code reçu par mail, que le serveur vérifie (il refuse aussi
+ * les comptes d'administration et École ou Entreprise). */
+export function SuppressionCompte({ onSupprime, aMotDePasse = true }: { onSupprime: () => void | Promise<void>; aMotDePasse?: boolean }) {
   const [ouvert, setOuvert] = useState(false);
   const [motDePasse, setMotDePasse] = useState('');
   const [envoi, setEnvoi] = useState(false);
@@ -19,7 +20,7 @@ export function SuppressionCompte({ onSupprime }: { onSupprime: () => void | Pro
     e.preventDefault();
     setEnvoi(true); setErreur(null);
     try {
-      await api.post('/users/me/suppression', { password: motDePasse });
+      await api.post('/users/me/suppression', aMotDePasse ? { password: motDePasse } : { confirmation: motDePasse });
     } catch (err) {
       setErreur(err instanceof ApiError
         ? err.status === 429 ? 'Trop d’essais : attends une minute avant de réessayer.' : err.message
@@ -45,10 +46,10 @@ export function SuppressionCompte({ onSupprime }: { onSupprime: () => void | Pro
         sans retour possible. Si tu diriges une équipe, ton plus ancien coéquipier en devient le chef.
       </p>
       <label className="block text-sm font-medium text-graphite">
-        Ton mot de passe, pour confirmer
+        {aMotDePasse ? 'Ton mot de passe, pour confirmer' : 'Tape SUPPRIMER pour confirmer'}
         <input
-          type="password"
-          autoComplete="current-password"
+          type={aMotDePasse ? 'password' : 'text'}
+          autoComplete={aMotDePasse ? 'current-password' : 'off'}
           value={motDePasse}
           onChange={(e) => setMotDePasse(e.target.value)}
           className="mt-1 w-full rounded-lg border border-pierre bg-white px-4 py-2 font-normal focus:border-terracotta focus:outline-none"
@@ -59,7 +60,7 @@ export function SuppressionCompte({ onSupprime }: { onSupprime: () => void | Pro
         <button type="button" onClick={annuler} className="flex-1 rounded-full border border-graphite/20 py-2.5 text-sm font-semibold text-graphite hover:bg-graphite/5">
           Annuler
         </button>
-        <button type="submit" disabled={!motDePasse || envoi} className="flex-1 rounded-full bg-terracotta py-2.5 text-sm font-semibold text-ivoire hover:bg-argile disabled:opacity-50">
+        <button type="submit" disabled={(aMotDePasse ? !motDePasse : motDePasse.trim().toUpperCase() !== 'SUPPRIMER') || envoi} className="flex-1 rounded-full bg-terracotta py-2.5 text-sm font-semibold text-ivoire hover:bg-argile disabled:opacity-50">
           {envoi ? 'Suppression…' : 'Supprimer définitivement'}
         </button>
       </div>

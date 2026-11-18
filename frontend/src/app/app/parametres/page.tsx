@@ -17,6 +17,7 @@ interface Me {
   niveauEtude: string | null;
   domaineBtp: string | null;
   plan: string;
+  aMotDePasse?: boolean;
 }
 
 export default function ParametresPage() {
@@ -26,6 +27,7 @@ export default function ParametresPage() {
   const [form, setForm] = useState({ nom: '', pseudo: '', ville: '', niveauEtude: '', domaineBtp: '' });
   const [email, setEmail] = useState('');
   const [plan, setPlan] = useState('FREE');
+  const [aMotDePasse, setAMotDePasse] = useState(true);
   const [sauvegarde, setSauvegarde] = useState<string | null>(null);
   const [notifSupportees, setNotifSupportees] = useState(false);
   const [notifActives, setNotifActives] = useState(false);
@@ -75,6 +77,7 @@ export default function ParametresPage() {
       });
       setEmail(me.email);
       setPlan(me.plan);
+      setAMotDePasse(me.aMotDePasse !== false);
     });
   }, []);
 
@@ -157,7 +160,7 @@ export default function ParametresPage() {
         Se déconnecter
       </button>
 
-      <SuppressionCompte onSupprime={compteSupprime} />
+      <SuppressionCompte aMotDePasse={aMotDePasse} onSupprime={compteSupprime} />
     </div>
   );
 }

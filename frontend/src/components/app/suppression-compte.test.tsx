@@ -27,6 +27,21 @@ describe('la suppression du compte', () => {
     expect(api.post).toHaveBeenCalledWith('/users/me/suppression', { password: 'secret' });
   });
 
+  it('un compte entré par code reçu par mail confirme en tapant SUPPRIMER', async () => {
+    vi.mocked(api.post).mockResolvedValue({ supprime: true });
+    const onSupprime = vi.fn();
+    render(<SuppressionCompte aMotDePasse={false} onSupprime={onSupprime} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer mon compte' }));
+    const champ = screen.getByLabelText(/Tape SUPPRIMER/);
+    const confirmer = screen.getByRole('button', { name: 'Supprimer définitivement' });
+    fireEvent.change(champ, { target: { value: 'supprim' } });
+    expect(confirmer).toBeDisabled();
+    fireEvent.change(champ, { target: { value: 'supprimer' } });
+    fireEvent.click(confirmer);
+    await waitFor(() => expect(onSupprime).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledWith('/users/me/suppression', { confirmation: 'supprimer' });
+  });
+
   it('montre le refus du serveur et garde le compte', async () => {
     vi.mocked(api.post).mockRejectedValue(new ApiError(400, { message: 'Mot de passe incorrect' }));
     const onSupprime = ouvrir();
