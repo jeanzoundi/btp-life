@@ -132,4 +132,26 @@ describe('UsersService.supprimerCompte', () => {
     await expect(ecole.svc.supprimerCompte('u1', 'bon-mot-de-passe')).rejects.toThrow(ConflictException);
     expect(ecole.prisma.user.delete).not.toHaveBeenCalled();
   });
+
+  it('un compte entré par code, sans mot de passe, confirme en tapant SUPPRIMER', async () => {
+    const sansMotDePasse = () => fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue({ passwordHash: '!code-mail', role: 'USER' }), delete: jest.fn().mockResolvedValue({}) } });
+    const refus = sansMotDePasse();
+    refus.$transaction = jest.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(refus));
+    const a = await service(refus);
+    await expect(a.svc.supprimerCompte('u1', undefined, 'oui')).rejects.toThrow(BadRequestException);
+    await expect(a.svc.supprimerCompte('u1', '!code-mail')).rejects.toThrow(BadRequestException);
+    expect(refus.user.delete).not.toHaveBeenCalled();
+
+    const accord = sansMotDePasse();
+    accord.$transaction = jest.fn(async (operation: (tx: unknown) => Promise<unknown>) => operation(accord));
+    const b = await service(accord);
+    await expect(b.svc.supprimerCompte('u1', undefined, ' supprimer ')).resolves.toEqual({ supprime: true });
+    expect(accord.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+  });
+
+  it('un compte à mot de passe ne se supprime pas avec SUPPRIMER seul', async () => {
+    const { svc, prisma } = await banc();
+    await expect(svc.supprimerCompte('u1', undefined, 'SUPPRIMER')).rejects.toThrow(BadRequestException);
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
 });

@@ -16,12 +16,12 @@ export class UsersController {
     return this.usersService.update(user.userId, dto);
   }
 
-  /** Supprimer son compte. Le mot de passe est vérifié : peu d'essais par minute, comme à la connexion. */
+  /** Supprimer son compte. Le mot de passe (ou SUPPRIMER pour un compte sans mot de passe) est vérifié : peu d'essais par minute, comme à la connexion. */
   @Post('suppression')
   @HttpCode(200)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   supprimer(@CurrentUser() user: RequestUser, @Body() dto: SupprimerCompteDto) {
-    return this.usersService.supprimerCompte(user.userId, dto.password);
+    return this.usersService.supprimerCompte(user.userId, dto.password, dto.confirmation);
   }
 
   @Get('competences')

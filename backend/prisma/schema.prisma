@@ -1296,3 +1296,16 @@ model PageCms {
   publie  Boolean  @default(false)
   majLe   DateTime @updatedAt
 }
+
+/// Code à 6 chiffres envoyé par mail pour entrer sans mot de passe (inscription et connexion sur le même écran). Seule
+/// l'empreinte du code est gardée ; il vaut 10 minutes et 5 essais, puis il faut en redemander un.
+model CodeConnexion {
+  id        String   @id @default(cuid())
+  email     String
+  empreinte String
+  expireLe  DateTime
+  essais    Int      @default(0)
+  creeLe    DateTime @default(now())
+
+  @@index([email, creeLe])
+}

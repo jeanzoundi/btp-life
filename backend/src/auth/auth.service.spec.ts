@@ -1,9 +1,11 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
-import { AuthService } from './auth.service';
+import { createHmac } from 'crypto';
+import { AuthService, nomDepuisEmail, SANS_MOT_DE_PASSE } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { MailService } from './mail.service';
 
 // argon2 est utilisé réellement (pas mocké) : c'est un algorithme pur sans dépendance
 // externe, et c'est exactement le mécanisme qui protège les mots de passe des joueurs —
@@ -50,7 +52,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   return fusion;
 }
 
-async function service(prisma: ReturnType<typeof fakePrisma>) {
+async function service(prisma: ReturnType<typeof fakePrisma>, mail = { envoyer: jest.fn().mockResolvedValue(undefined), modeDeveloppement: jest.fn().mockReturnValue(false) }) {
   const jwt = {
     signAsync: jest.fn().mockImplementation((payload: object, opts: { secret: string }) =>
       Promise.resolve(`signed:${opts.secret}:${JSON.stringify(payload)}`),
@@ -62,9 +64,10 @@ async function service(prisma: ReturnType<typeof fakePrisma>) {
       AuthService,
       { provide: PrismaService, useValue: prisma },
       { provide: JwtService, useValue: jwt },
+      { provide: MailService, useValue: mail },
     ],
   }).compile();
-  return { svc: module.get(AuthService), prisma, jwt };
+  return { svc: module.get(AuthService), prisma, jwt, mail };
 }
 
 describe('AuthService.register', () => {
@@ -186,5 +189,120 @@ describe('AuthService.me', () => {
     const { svc } = await service(prisma);
     const resultat = await svc.me('u1');
     expect(resultat).not.toHaveProperty('passwordHash');
+  });
+});
+
+describe('AuthService — entrer avec un code reçu par mail', () => {
+  const empreinte = (email: string, code: string) =>
+    createHmac('sha256', 'secret-acces-des-tests').update(`code-connexion:${email}:${code}`).digest('hex');
+  const codeValide = (overrides: Record<string, unknown> = {}) => ({
+    id: 'c1', email: 'joueur@btplife.com', empreinte: empreinte('joueur@btplife.com', '042137'),
+    expireLe: new Date(Date.now() + 5 * 60_000), essais: 0, creeLe: new Date(), ...overrides,
+  });
+  function codes(overrides: Record<string, unknown> = {}) {
+    return {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(codeValide()),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      ...overrides,
+    };
+  }
+
+  it("envoie un code à 6 chiffres à l'adresse normalisée, sans jamais garder le code en clair", async () => {
+    const prisma = fakePrisma({ codeConnexion: codes() });
+    const { svc, mail } = await service(prisma);
+    await expect(svc.demanderCode('  Joueur@BTPLife.com ')).resolves.toEqual({ envoye: true });
+    const envoi = mail.envoyer.mock.calls[0][0];
+    expect(envoi.a).toBe('joueur@btplife.com');
+    const code = /(\d{6})/.exec(envoi.sujet)?.[1] as string;
+    expect(code).toMatch(/^\d{6}$/);
+    expect(envoi.texte).toContain(code);
+    const enregistre = prisma.codeConnexion.create.mock.calls[0][0].data;
+    expect(enregistre.email).toBe('joueur@btplife.com');
+    expect(JSON.stringify(enregistre)).not.toContain(`"${code}"`);
+    expect(enregistre.empreinte).toBe(empreinte('joueur@btplife.com', code));
+    expect(enregistre.expireLe.getTime() - Date.now()).toBeGreaterThan(9 * 60_000);
+  });
+
+  it('montre le code à l’écran seulement quand aucun service de mail ne tourne hors production', async () => {
+    const prisma = fakePrisma({ codeConnexion: codes() });
+    const mail = { envoyer: jest.fn().mockResolvedValue(undefined), modeDeveloppement: jest.fn().mockReturnValue(true) };
+    const { svc } = await service(prisma, mail);
+    const reponse = await svc.demanderCode('joueur@btplife.com') as { codeDeveloppement?: string };
+    expect(reponse.codeDeveloppement).toMatch(/^\d{6}$/);
+  });
+
+  it('refuse un deuxième code dans la minute, et plus de cinq par heure', async () => {
+    const minute = fakePrisma({ codeConnexion: codes({ findMany: jest.fn().mockResolvedValue([{ creeLe: new Date(Date.now() - 20_000) }]) }) });
+    const a = await service(minute);
+    await expect(a.svc.demanderCode('joueur@btplife.com')).rejects.toThrow(HttpException);
+    expect(a.mail.envoyer).not.toHaveBeenCalled();
+
+    const heure = fakePrisma({ codeConnexion: codes({ findMany: jest.fn().mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({ creeLe: new Date(Date.now() - (5 + i) * 60_000) }))) }) });
+    const b = await service(heure);
+    await expect(b.svc.demanderCode('joueur@btplife.com')).rejects.toThrow(/une heure/);
+    expect(b.prisma.codeConnexion.create).not.toHaveBeenCalled();
+  });
+
+  it('un bon code connecte un joueur existant (adresse en majuscules comprise) et efface ses codes', async () => {
+    const existant = utilisateur({ email: 'Joueur@btplife.com', emailVerified: true, passwordHash: 'hachage' });
+    const prisma = fakePrisma({ codeConnexion: codes(), user: { findFirst: jest.fn().mockResolvedValue(existant), create: jest.fn() } });
+    const { svc } = await service(prisma);
+    const reponse = await svc.verifierCode('JOUEUR@btplife.com', '042137');
+    expect(reponse.nouveau).toBe(false);
+    expect(reponse.user).toMatchObject({ id: 'u1', aMotDePasse: true });
+    expect(reponse.user).not.toHaveProperty('passwordHash');
+    expect(reponse.accessToken).toContain('secret-acces-des-tests');
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { email: { equals: 'joueur@btplife.com', mode: 'insensitive' } } });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.codeConnexion.deleteMany).toHaveBeenCalledWith({ where: { email: 'joueur@btplife.com' } });
+  });
+
+  it('un bon code crée le compte d’une adresse inconnue, sans mot de passe, et le dit nouveau', async () => {
+    const cree = utilisateur({ id: 'u9', email: 'jean-marc.kouassi07@mail.ci', passwordHash: SANS_MOT_DE_PASSE, nom: 'Jean Marc Kouassi' });
+    const prisma = fakePrisma({
+      codeConnexion: codes({ findFirst: jest.fn().mockResolvedValue(codeValide({ email: 'jean-marc.kouassi07@mail.ci', empreinte: empreinte('jean-marc.kouassi07@mail.ci', '000001') })) }),
+      user: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue(cree) },
+    });
+    const { svc } = await service(prisma);
+    const reponse = await svc.verifierCode('jean-marc.kouassi07@mail.ci', '000001');
+    expect(reponse.nouveau).toBe(true);
+    expect(reponse.user).toMatchObject({ id: 'u9', aMotDePasse: false });
+    expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({
+      email: 'jean-marc.kouassi07@mail.ci', passwordHash: SANS_MOT_DE_PASSE, nom: 'Jean Marc Kouassi', emailVerified: true,
+    });
+  });
+
+  it('un mauvais code coûte un essai et dit combien il en reste ; au cinquième, il faut un nouveau code', async () => {
+    const prisma = fakePrisma({ codeConnexion: codes({ findFirst: jest.fn().mockResolvedValue(codeValide({ essais: 2 })) }) });
+    const { svc } = await service(prisma);
+    await expect(svc.verifierCode('joueur@btplife.com', '999999')).rejects.toThrow('Encore 2 essais');
+    expect(prisma.codeConnexion.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { essais: { increment: 1 } } });
+
+    const epuise = fakePrisma({ codeConnexion: codes({ findFirst: jest.fn().mockResolvedValue(codeValide({ essais: 5 })) }) });
+    const b = await service(epuise);
+    // Même le bon code ne passe plus : sinon cinq essais par code ne freineraient rien.
+    await expect(b.svc.verifierCode('joueur@btplife.com', '042137')).rejects.toThrow(BadRequestException);
+  });
+
+  it('refuse un code expiré, un compte suspendu, et le mot de passe d’un compte qui n’en a pas', async () => {
+    const expire = fakePrisma({ codeConnexion: codes({ findFirst: jest.fn().mockResolvedValue(codeValide({ expireLe: new Date(Date.now() - 1000) })) }) });
+    await expect((await service(expire)).svc.verifierCode('joueur@btplife.com', '042137')).rejects.toThrow(/expiré/);
+
+    const banni = fakePrisma({ codeConnexion: codes(), user: { findFirst: jest.fn().mockResolvedValue(utilisateur({ banni: true })) } });
+    await expect((await service(banni)).svc.verifierCode('joueur@btplife.com', '042137')).rejects.toThrow(UnauthorizedException);
+
+    const sansMotDePasse = fakePrisma({ user: { findUnique: jest.fn().mockResolvedValue(utilisateur({ passwordHash: SANS_MOT_DE_PASSE })) } });
+    await expect((await service(sansMotDePasse)).svc.login({ email: 'joueur@btplife.com', password: SANS_MOT_DE_PASSE }))
+      .rejects.toThrow(/code reçu par mail/);
+  });
+
+  it('tire un nom de départ lisible de l’adresse', () => {
+    expect(nomDepuisEmail('jean-marc.kouassi07@mail.ci')).toBe('Jean Marc Kouassi');
+    expect(nomDepuisEmail('AMINATA_traore@x.com')).toBe('Aminata Traore');
+    expect(nomDepuisEmail('2024@x.com')).toBe('Joueur');
   });
 });

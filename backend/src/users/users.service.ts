@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { SANS_MOT_DE_PASSE } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { transactionSerializable } from '../prisma/transaction';
 import { CertificatsService } from '../certificats/certificats.service';
@@ -25,10 +26,14 @@ export class UsersService {
    * partent en cascade avec lui ; une équipe qu'il dirigeait passe à son plus ancien membre. Un compte d'administration ou
    * qui gère un compte École ou Entreprise se traite à la main : ni l'administration ni des élèves sans responsable.
    * Un mauvais mot de passe répond 400, pas 401 : le client prendrait un 401 pour une session expirée. */
-  async supprimerCompte(userId: string, password: string) {
+  async supprimerCompte(userId: string, password?: string, confirmation?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, role: true } });
     if (!user) throw new NotFoundException('Compte introuvable');
-    if (!(await argon2.verify(user.passwordHash, password))) throw new BadRequestException('Mot de passe incorrect');
+    if (user.passwordHash === SANS_MOT_DE_PASSE) {
+      if (confirmation?.trim().toUpperCase() !== 'SUPPRIMER') throw new BadRequestException('Tape SUPPRIMER pour confirmer.');
+    } else if (!password || !(await argon2.verify(user.passwordHash, password))) {
+      throw new BadRequestException('Mot de passe incorrect');
+    }
     if (user.role === 'ADMIN') throw new ForbiddenException('Un compte d’administration ne se supprime pas depuis le jeu : écris à contact@btplife.com.');
     if (await this.prisma.compteB2b.count({ where: { adminUserId: userId } })) {
       throw new ConflictException('Ton compte gère un compte École ou Entreprise : écris à contact@btplife.com pour le transférer avant de supprimer le tien.');

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { DemanderCodeDto, VerifierCodeDto } from './dto/code-connexion.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from './decorators/current-user.decorator';
 
@@ -23,6 +24,21 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  // Entrer par code reçu par mail, sans mot de passe : un seul écran pour s'inscrire et se connecter.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @HttpCode(200)
+  @Post('code')
+  demanderCode(@Body() dto: DemanderCodeDto) {
+    return this.authService.demanderCode(dto.email);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @HttpCode(200)
+  @Post('code/verifier')
+  verifierCode(@Body() dto: VerifierCodeDto) {
+    return this.authService.verifierCode(dto.email, dto.code);
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
