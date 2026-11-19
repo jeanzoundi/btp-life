@@ -3,6 +3,7 @@ import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { transactionSerializable } from '../prisma/transaction';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MailService } from './mail.service';
@@ -103,24 +104,27 @@ export class AuthService {
   async demanderCode(emailBrut: string) {
     const email = normaliserEmail(emailBrut);
     const maintenant = Date.now();
-    const recents = await this.prisma.codeConnexion.findMany({
-      where: { email, creeLe: { gt: new Date(maintenant - 3_600_000) } },
-      select: { creeLe: true },
-      orderBy: { creeLe: 'desc' },
-    });
-    if (recents[0] && maintenant - recents[0].creeLe.getTime() < DELAI_ENTRE_CODES_MS) {
-      const secondes = Math.ceil((DELAI_ENTRE_CODES_MS - (maintenant - recents[0].creeLe.getTime())) / 1000);
-      throw new HttpException(`Un code vient de partir : attends ${secondes} s avant d'en redemander un.`, HttpStatus.TOO_MANY_REQUESTS);
-    }
-    if (recents.length >= CODES_PAR_HEURE) {
-      throw new HttpException('Trop de codes demandés pour cette adresse : réessaie dans une heure.', HttpStatus.TOO_MANY_REQUESTS);
-    }
-
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-    // Les codes de plus d'un jour ne servent plus qu'à grossir la table.
-    await this.prisma.codeConnexion.deleteMany({ where: { creeLe: { lt: new Date(maintenant - 86_400_000) } } });
-    await this.prisma.codeConnexion.create({
-      data: { email, empreinte: this.empreinteCode(email, code), expireLe: new Date(maintenant + DUREE_CODE_MS) },
+    // Réserver le code et son quota ensemble ; aucun envoi externe dans une transaction rejouable.
+    await transactionSerializable(this.prisma, async tx => {
+      const recents = await tx.codeConnexion.findMany({
+        where: { email, creeLe: { gt: new Date(maintenant - 3_600_000) } },
+        select: { creeLe: true },
+        orderBy: { creeLe: 'desc' },
+      });
+      if (recents[0] && maintenant - recents[0].creeLe.getTime() < DELAI_ENTRE_CODES_MS) {
+        const secondes = Math.ceil((DELAI_ENTRE_CODES_MS - (maintenant - recents[0].creeLe.getTime())) / 1000);
+        throw new HttpException(`Un code vient de partir : attends ${secondes} s avant d'en redemander un.`, HttpStatus.TOO_MANY_REQUESTS);
+      }
+      if (recents.length >= CODES_PAR_HEURE) {
+        throw new HttpException('Trop de codes demandés pour cette adresse : réessaie dans une heure.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+
+      // Purger les anciens codes de cette adresse sans faire écrire deux demandes indépendantes sur la même table entière.
+      await tx.codeConnexion.deleteMany({ where: { email, creeLe: { lt: new Date(maintenant - 86_400_000) } } });
+      await tx.codeConnexion.create({
+        data: { email, empreinte: this.empreinteCode(email, code), expireLe: new Date(maintenant + DUREE_CODE_MS) },
+      });
     });
 
     await this.mail.envoyer({
@@ -142,33 +146,35 @@ export class AuthService {
    * (« nouveau » mène alors à la création du personnage). Faux : un essai de moins, cinq au plus par code. */
   async verifierCode(emailBrut: string, code: string) {
     const email = normaliserEmail(emailBrut);
-    const dernier = await this.prisma.codeConnexion.findFirst({ where: { email }, orderBy: { creeLe: 'desc' } });
-    if (!dernier || dernier.expireLe.getTime() < Date.now()) {
-      throw new BadRequestException('Ce code a expiré : demande un nouveau code.');
-    }
-    if (dernier.essais >= ESSAIS_MAX) {
-      throw new BadRequestException('Trop d’essais avec ce code : demande un nouveau code.');
-    }
-    const attendu = Buffer.from(dernier.empreinte, 'hex');
-    const recu = Buffer.from(this.empreinteCode(email, code), 'hex');
-    if (attendu.length !== recu.length || !timingSafeEqual(attendu, recu)) {
-      await this.prisma.codeConnexion.update({ where: { id: dernier.id }, data: { essais: { increment: 1 } } });
-      const restants = ESSAIS_MAX - dernier.essais - 1;
-      throw new BadRequestException(restants > 0
-        ? `Code incorrect. Encore ${restants} essai${restants > 1 ? 's' : ''}.`
-        : 'Code incorrect. Demande un nouveau code.');
-    }
-    await this.prisma.codeConnexion.deleteMany({ where: { email } });
+    const resultat = await transactionSerializable(this.prisma, async tx => {
+      const dernier = await tx.codeConnexion.findFirst({ where: { email }, orderBy: { creeLe: 'desc' } });
+      if (!dernier || dernier.expireLe.getTime() <= Date.now()) {
+        throw new BadRequestException('Ce code a expiré : demande un nouveau code.');
+      }
+      if (dernier.essais >= ESSAIS_MAX) {
+        throw new BadRequestException('Trop d’essais avec ce code : demande un nouveau code.');
+      }
+      const attendu = Buffer.from(dernier.empreinte, 'hex');
+      const recu = Buffer.from(this.empreinteCode(email, code), 'hex');
+      if (attendu.length !== recu.length || !timingSafeEqual(attendu, recu)) {
+        await tx.codeConnexion.update({ where: { id: dernier.id }, data: { essais: { increment: 1 } } });
+        const restants = ESSAIS_MAX - dernier.essais - 1;
+        // Lever l'erreur après le commit, sinon le mauvais essai serait annulé.
+        return { erreur: new BadRequestException(restants > 0
+          ? `Code incorrect. Encore ${restants} essai${restants > 1 ? 's' : ''}.`
+          : 'Code incorrect. Demande un nouveau code.') };
+      }
+      // Invalider sans effacer l'historique, qui porte aussi les quotas d'envoi par adresse.
+      await tx.codeConnexion.update({ where: { id: dernier.id }, data: { expireLe: new Date(0) } });
 
-    // Les comptes plus anciens ont pu garder des majuscules dans l'adresse.
-    let user = await this.prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
-    let nouveau = false;
-    if (user) {
-      if (user.banni) throw new UnauthorizedException('Ce compte a été suspendu');
-      if (!user.emailVerified) user = await this.prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
-    } else {
-      try {
-        user = await this.prisma.user.create({
+      // Les comptes plus anciens ont pu garder des majuscules dans l'adresse.
+      let user = await tx.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
+      let nouveau = false;
+      if (user) {
+        if (user.banni) throw new UnauthorizedException('Ce compte a été suspendu');
+        if (!user.emailVerified) user = await tx.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+      } else {
+        user = await tx.user.create({
           data: {
             email,
             passwordHash: SANS_MOT_DE_PASSE,
@@ -179,13 +185,11 @@ export class AuthService {
           },
         });
         nouveau = true;
-      } catch (erreur) {
-        // Deux validations simultanées du même code : la seconde retrouve le compte que la première vient de créer.
-        if ((erreur as { code?: string }).code !== 'P2002') throw erreur;
-        user = await this.prisma.user.findUniqueOrThrow({ where: { email } });
       }
-    }
-
+      return { user, nouveau };
+    });
+    if ('erreur' in resultat) throw resultat.erreur;
+    const { user, nouveau } = resultat;
     const tokens = await this.signTokens({ sub: user.id, email: user.email, role: user.role });
     return { user: this.sanitize(user), nouveau, ...tokens };
   }

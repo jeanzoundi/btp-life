@@ -49,6 +49,7 @@ function fakePrisma(overrides: Record<string, object> = {}) {
   for (const cle of new Set([...Object.keys(defaut), ...Object.keys(overrides)])) {
     fusion[cle] = { ...defaut[cle], ...(overrides[cle] ?? {}) };
   }
+  fusion.$transaction = jest.fn(async (operation: (tx: any) => Promise<unknown>) => operation(fusion));
   return fusion;
 }
 
@@ -247,7 +248,7 @@ describe('AuthService — entrer avec un code reçu par mail', () => {
     expect(b.prisma.codeConnexion.create).not.toHaveBeenCalled();
   });
 
-  it('un bon code connecte un joueur existant (adresse en majuscules comprise) et efface ses codes', async () => {
+  it('un bon code connecte un joueur existant et invalide le code sans effacer le quota', async () => {
     const existant = utilisateur({ email: 'Joueur@btplife.com', emailVerified: true, passwordHash: 'hachage' });
     const prisma = fakePrisma({ codeConnexion: codes(), user: { findFirst: jest.fn().mockResolvedValue(existant), create: jest.fn() } });
     const { svc } = await service(prisma);
@@ -258,7 +259,8 @@ describe('AuthService — entrer avec un code reçu par mail', () => {
     expect(reponse.accessToken).toContain('secret-acces-des-tests');
     expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { email: { equals: 'joueur@btplife.com', mode: 'insensitive' } } });
     expect(prisma.user.create).not.toHaveBeenCalled();
-    expect(prisma.codeConnexion.deleteMany).toHaveBeenCalledWith({ where: { email: 'joueur@btplife.com' } });
+    expect(prisma.codeConnexion.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { expireLe: new Date(0) } });
+    expect(prisma.codeConnexion.deleteMany).not.toHaveBeenCalled();
   });
 
   it('un bon code crée le compte d’une adresse inconnue, sans mot de passe, et le dit nouveau', async () => {

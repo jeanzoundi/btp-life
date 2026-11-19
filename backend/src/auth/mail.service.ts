@@ -9,8 +9,8 @@ export interface MessageMail {
 
 /** Le service d'envoi choisi par la configuration : Brevo (BREVO_API_KEY) ou Resend (RESEND_API_KEY). */
 export function fournisseurMail(env: NodeJS.ProcessEnv = process.env): 'brevo' | 'resend' | null {
-  if (env.BREVO_API_KEY) return 'brevo';
-  if (env.RESEND_API_KEY) return 'resend';
+  if (env.BREVO_API_KEY?.trim()) return 'brevo';
+  if (env.RESEND_API_KEY?.trim()) return 'resend';
   return null;
 }
 
@@ -30,13 +30,13 @@ export class MailService {
 
   /** Vrai quand aucun service n'est configuré hors production : le code s'affiche alors à l'écran pour tester. */
   modeDeveloppement() {
-    return !fournisseurMail() && process.env.NODE_ENV !== 'production';
+    return !fournisseurMail() && process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
   }
 
   async envoyer(message: MessageMail) {
     const fournisseur = fournisseurMail();
     if (!fournisseur) {
-      if (process.env.NODE_ENV === 'production') {
+      if (!this.modeDeveloppement()) {
         this.journal.error('Aucun service de mail configuré (BREVO_API_KEY ou RESEND_API_KEY).');
         throw new ServiceUnavailableException("L'envoi des mails n'est pas encore en service. Réessaie plus tard.");
       }
@@ -49,12 +49,12 @@ export class MailService {
     const requete: { url: string; entetes: Record<string, string>; corps: object } = fournisseur === 'brevo'
       ? {
           url: 'https://api.brevo.com/v3/smtp/email',
-          entetes: { 'api-key': process.env.BREVO_API_KEY as string },
+          entetes: { 'api-key': process.env.BREVO_API_KEY!.trim() },
           corps: { sender: { name: de.nom, email: de.email }, to: [{ email: message.a }], subject: message.sujet, textContent: message.texte, htmlContent: message.html },
         }
       : {
           url: 'https://api.resend.com/emails',
-          entetes: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+          entetes: { Authorization: `Bearer ${process.env.RESEND_API_KEY!.trim()}` },
           corps: { from: `${de.nom} <${de.email}>`, to: [message.a], subject: message.sujet, text: message.texte, html: message.html },
         };
 
@@ -66,12 +66,13 @@ export class MailService {
         body: JSON.stringify(requete.corps),
         signal: AbortSignal.timeout(10_000),
       });
-    } catch (erreur) {
-      this.journal.error(`Envoi ${fournisseur} impossible : ${(erreur as Error).message}`);
+    } catch {
+      this.journal.error(`Envoi ${fournisseur} impossible (réseau ou délai dépassé).`);
       throw new ServiceUnavailableException("Le mail n'a pas pu partir. Réessaie dans un instant.");
     }
     if (!reponse.ok) {
-      this.journal.error(`Envoi ${fournisseur} refusé (${reponse.status}) : ${(await reponse.text()).slice(0, 300)}`);
+      // Ne pas journaliser le corps tiers : il peut contenir l'adresse ou le code envoyé.
+      this.journal.error(`Envoi ${fournisseur} refusé (${reponse.status}).`);
       throw new ServiceUnavailableException("Le mail n'a pas pu partir. Réessaie dans un instant.");
     }
   }
